@@ -112,7 +112,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   one: without it, responding to `popstate` by setting the state would write the
   route again.
   */
-  // La primera escritura normaliza la URL y no debe dejar entrada en el historial.
+  // The first write normalises the URL and must leave no history entry.
   const primerRender = useRef(true)
 
   const activaRef = useRef({ section: current?.id ?? 'about', sub })
@@ -128,7 +128,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       const r = readRoute(sections)
       if (r == null) {
         // A route that does not resolve left the bar and the screen saying different
-        // distintas. La pantalla manda: se corrige la URL.
+        // different ones. The screen rules: the URL is corrected.
         escribirRuta({ section: activaRef.current.section, sub: activaRef.current.sub }, true)
         return
       }
@@ -263,7 +263,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                 <button type="button" onClick={() => { close(); open('profile') }}>
                   My Profile
                 </button>
-                {/* main.js:71-78 — a un usuario de SSO se le ocultan estas dos. */}
+                {/* main.js:71-78 — these two are hidden for an SSO user. */}
                 {!session.isSsoUser && (
                   <button type="button" onClick={() => { close(); open('password') }}>
                     Change Password

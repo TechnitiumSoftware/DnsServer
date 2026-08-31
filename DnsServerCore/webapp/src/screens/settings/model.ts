@@ -32,7 +32,7 @@ export interface SettingsForm {
   dnsServerIPv4SourceAddresses: string
   dnsServerIPv6SourceAddresses: string
 
-  // General — valores por defecto
+  // General — default values
   defaultRecordTtl: string
   defaultNsRecordTtl: string
   defaultSoaRecordTtl: string
@@ -47,7 +47,7 @@ export interface SettingsForm {
   dnsServerEnableCheckForUpdate: boolean
   dnsAppsEnableAutomaticUpdate: boolean
 
-  // General — IPv6 y socket pool
+  // General — IPv6 and socket pool
   ipv6Mode: string
   enableUdpSocketPool: boolean
   socketPoolExcludedPorts: string
@@ -349,7 +349,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     blockListUpdateIntervalHours: String(s.blockListUpdateIntervalHours ?? ''),
 
     // main.js:1525 — the proxy type is compared lowercased and any
-    // valor desconocido cae en «None».
+    // an unknown value falls to "None".
     proxyType: proxyType(s.proxy?.type),
     proxyAddress: s.proxy?.address ?? '',
     proxyPort: s.proxy == null ? '' : String(s.proxy.port ?? ''),
@@ -512,7 +512,7 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.dnsServerIPv4SourceAddresses = v4.length === 0 || v4 === ',' ? 'false' : v4
   body.dnsServerIPv6SourceAddresses = v6.length === 0 || v6 === ',' ? 'false' : v6
 
-  // ── General: valores por defecto
+  // ── General: default values
   const zta = cleanList(f.zoneTransferAllowedNetworks)
   const nan = cleanList(f.notifyAllowedNetworks)
   if (!(zta.length === 0 || zta === ',')) sanitised.zoneTransferAllowedNetworks = zta.replace(/,/g, '\n') + '\n'
@@ -530,7 +530,7 @@ export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.dnsServerEnableCheckForUpdate = String(f.dnsServerEnableCheckForUpdate)
   body.dnsAppsEnableAutomaticUpdate = String(f.dnsAppsEnableAutomaticUpdate)
 
-  // ── General: IPv6 y socket pool
+  // ── General: IPv6 and socket pool
   const spep = cleanList(f.socketPoolExcludedPorts)
   if (!(spep.length === 0 || spep === ',')) sanitised.socketPoolExcludedPorts = spep.replace(/,/g, '\n') + '\n'
 

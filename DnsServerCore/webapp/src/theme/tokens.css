@@ -140,11 +140,11 @@ not one of these tokens.** A loose value is future drift.
   --rotulo-interletrado: 0.05em;
 
   --t-1: 10.5px;  /* small-caps label, table header, pill             (10) */
-  --t-2: 11px;    /* metadatos, ayuda bajo un campo                         */
-  --t-3: 11.5px;  /* etiqueta de campo, texto secundario                    */
+  --t-2: 11px;    /* metadata, help under a field                           */
+  --t-3: 11.5px;  /* field label, secondary text                            */
   --t-4: 12.5px;  /* CUERPO                                       (12,13,13.5) */
   --t-5: 14px;    /* block title, panel subtitle                      (15) */
-  --t-6: 17px;    /* cifra de contador                            (16,17) */
+  --t-6: 17px;    /* counter figure                               (16,17) */
   --t-7: 22px;    /* section title                             (19,21,22) */
 
   /* ── Espaciado ──────────────────────────────────────────────────────── */
@@ -202,7 +202,7 @@ not one of these tokens.** A loose value is future drift.
   --capa-flotante: 40;  /* dropdowns: row menu, Select, account menu */
   --capa-dialogo: 50;   /* the modal and its veil, above absolutely everything */
 
-  --r-1: 4px;   /* muestra de color, chip diminuto            (4,5) */
+  --r-1: 4px;   /* colour swatch, tiny chip                   (4,5) */
   --r-2: 6px;   /* row button, menu item                        (6,7) */
   --r-3: 8px;   /* campo, aviso, bloque interior                (8,9) */
   --r-4: 10px;  /* panel, tarjeta, tabla                       (10,12) */

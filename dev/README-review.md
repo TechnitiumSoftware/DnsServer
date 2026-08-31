@@ -4,7 +4,7 @@ The procedure lives in
 `docs/superpowers/plans/2026-08-26-technitium-ui-revision-pantalla-a-pantalla.md`
 in ORBITLAB. Only what gets executed lives here.
 
-## `medir-pantalla.js`
+## `measure-screen.js`
 
 Everything a number can answer about a screen: real contrast of every piece of
 text, spacing outside the token scale, hit-area size of every control, controls

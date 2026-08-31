@@ -20,7 +20,7 @@ not what you read afterwards.
 
 .row:last-child { border-bottom: 0; }
 
-/* Dentro de un modal hay menos sitio y menos filas: ni separador ni 210 px. */
+/* Inside a modal there is less room and fewer rows: no separator, no 210 px. */
 .mrow {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
@@ -68,8 +68,8 @@ sessions one, which needs everything it can get.
 }
 
 /*
-Por debajo de 720 px la etiqueta se pone encima. A 390 px la rejilla de 210 px
-dejaba 20 px al campo: diecisiete campos de texto de Settings eran invisibles.
+Below 720 px the label goes on top. At 390 px the 210 px grid left 20 px for the
+field: seventeen text fields in Settings were invisible.
 */
 @media (max-width: 720px) {
   .row,

@@ -93,7 +93,7 @@ const PATHS: Record<IconName, ReactElement> = {
       <path d="m12.5 11.5-3.5 3.5 3.5 3.5" />
     </>
   ),
-  /* Los deslizadores de un panel de ajustes. */
+  /* The sliders of a settings panel. */
   settings: (
     <>
       <path d="M5 7h9" />
@@ -159,7 +159,7 @@ const PATHS: Record<IconName, ReactElement> = {
   close: <path d="m6 6 12 12M18 6 6 18" />,
   check: <path d="m20 6-11 11-5-5" />,
 
-  // ── Acciones de fila ──────────────────────────────────────────────────
+  // ── Row actions ───────────────────────────────────────────────────────
   edit: (
     <>
       <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />

@@ -10,7 +10,7 @@
 # The bodies are the ones upstream builds, copied from its JS. The new console
 # sends the same ones: that is what is being verified.
 #
-# Usage:  ./check-paridad-acciones.sh
+# Usage:  ./check-parity-actions.sh
 set -uo pipefail
 
 DEV=http://127.0.0.1:5380

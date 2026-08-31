@@ -1,7 +1,7 @@
 /*
 The same thing, written in two modules.
 
-`css-muertas.mjs` answers whether a rule is unused. This one answers something
+`css-dead.mjs` answers whether a rule is unused. This one answers something
 different: whether the SAME rule is written more than once. That is the defect
 that produces drift —two copies that start identical and stop being identical—
 and no screen-by-screen review catches it, because on each screen, taken alone,
@@ -18,7 +18,7 @@ others:
     modules, with a different stroke width from every other icon;
   · the count under a table sitting at four different distances.
 
-    node dev/css-repetido.mjs
+    node dev/css-duplicated.mjs
 
 ## How to read it
 

@@ -227,7 +227,7 @@ export async function listCatalogs(token: string | null, node = ''): Promise<str
   return outcome.data.response.catalogZoneNames ?? []
 }
 
-/* ── Opciones de zona ──────────────────────────────────────────────────── */
+/* ── Zone options ─────────────────────────────────────────────────────── */
 
 export interface PoliticaActualizacion {
   tsigKeyName: string
@@ -302,7 +302,7 @@ export function setZoneOptions(
   return apiRequest('zones/options/set', { token, body: { ...body, node } })
 }
 
-/* ── Permisos de zona ──────────────────────────────────────────────────── */
+/* ── Zone permissions ─────────────────────────────────────────────────── */
 
 /*
 The subject's name is NOT called the same in the two tables: a user permission
@@ -378,7 +378,7 @@ export function setZonePermissions(
   })
 }
 
-/* ── Importar y exportar ───────────────────────────────────────────────── */
+/* ── Import and export ────────────────────────────────────────────────── */
 
 export interface ImportOptions {
   overwrite: boolean

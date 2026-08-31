@@ -12,8 +12,8 @@ User `admin`, password `technitium-ui-dev` on both.
 
 ```bash
 docker compose up -d      # start
-./check-paridad.sh        # compare dev's front page against ref
-./check-paridad.sh /api/  # compare another path
+./check-parity.sh        # compare dev's front page against ref
+./check-parity.sh /api/  # compare another path
 docker compose down -v    # tear everything down, config included
 ```
 
@@ -25,7 +25,7 @@ enabled: only the web console is exercised here.
 
 ## Why the comparison normalises line endings
 
-`check-paridad.sh` strips `\r` before hashing, so it compares content and not
+`check-parity.sh` strips `\r` before hashing, so it compares content and not
 bytes. This is necessary, not cosmetic:
 
 Upstream's `.gitattributes` declares `* text=auto`. Git stores **LF** in the

@@ -6,8 +6,8 @@ returns everything a number can answer about whichever screen is open. It lives
 here and not in the bundle on purpose: it is a review tool, not part of the
 console.
 
-    medir()            the current screen
-    await recorrer()   the twelve sections, one after another
+    measure()            the current screen
+    await walk()   the twelve sections, one after another
 
 What this does NOT answer is whether the screen makes sense, whether the data
 dominates over the controls, and whether the empty state says what to do. For
@@ -98,8 +98,8 @@ function isInline(el) {
   return surroundingText.length > 0
 }
 
-function medir(root = document.querySelector('main') || document.body) {
-  const out = { contraste: [], espaciado: [], tactil: [], sinNombre: [], desborde: null, ritmo: [] }
+function measure(root = document.querySelector('main') || document.body) {
+  const out = { contrast: [], spacing: [], target: [], unnamed: [], overflow: null, rhythm: [] }
   const seen = new Set()
 
   for (const el of root.querySelectorAll('*')) {
@@ -113,7 +113,7 @@ function medir(root = document.querySelector('main') || document.body) {
       if (lt != null && lf != null) {
         const cr = ratio(lt, lf), size = parseFloat(c.fontSize)
         const min = (size >= 18.66 || (size >= 14 && +c.fontWeight >= 700)) ? 3 : 4.5
-        if (cr < min) out.contraste.push({ cr: +cr.toFixed(2), min, texto: el.textContent.trim().slice(0, 40) })
+        if (cr < min) out.contrast.push({ cr: +cr.toFixed(2), min, text: el.textContent.trim().slice(0, 40) })
       }
     }
 
@@ -123,44 +123,44 @@ function medir(root = document.querySelector('main') || document.body) {
       const n = Math.round(parseFloat(c[p]) * 100) / 100
       if (!c[p].endsWith('px') || !n || SCALE.has(n)) continue
       const k = `${n}px ${p} ${el.tagName}.${(typeof el.className === 'string' ? el.className : '').split(' ')[0]}`
-      if (!seen.has(k)) { seen.add(k); out.espaciado.push(k) }
+      if (!seen.has(k)) { seen.add(k); out.spacing.push(k) }
     }
 
     // 3. controls: size and name
     if (['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(el.tagName)) {
       const { w, h } = hitArea(el)
-      if ((w < 24 || h < 24) && !isInline(el)) out.tactil.push(`${el.tagName} ${w}×${h}  ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24)}`)
+      if ((w < 24 || h < 24) && !isInline(el)) out.target.push(`${el.tagName} ${w}×${h}  ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24)}`)
       if (['BUTTON','A'].includes(el.tagName)) {
         const name = (el.getAttribute('aria-label') || el.textContent || '').trim()
         const labelled = el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
-        if (!name && !labelled) out.sinNombre.push(el.outerHTML.slice(0, 90))
+        if (!name && !labelled) out.unnamed.push(el.outerHTML.slice(0, 90))
       }
     }
   }
 
   // 4. horizontal overflow
   const d = document.documentElement
-  out.desborde = d.scrollWidth > d.clientWidth ? `${d.scrollWidth} > ${d.clientWidth}` : null
+  out.overflow = d.scrollWidth > d.clientWidth ? `${d.scrollWidth} > ${d.clientWidth}` : null
 
   // 5. vertical rhythm between top-level blocks
   const children = [...root.children].filter(e => e.getBoundingClientRect().height > 0)
   for (let i = 1; i < children.length; i++) {
-    out.ritmo.push(Math.round(children[i].getBoundingClientRect().top - children[i - 1].getBoundingClientRect().bottom))
+    out.rhythm.push(Math.round(children[i].getBoundingClientRect().top - children[i - 1].getBoundingClientRect().bottom))
   }
   return out
 }
 
 /** The contrast of a state against its resting look. Pass it the element being pointed at. */
-function medirEstado(el, restingBackground) {
+function measureState(el, restingBackground) {
   return +ratio(lum(realBackground(el)), lum(restingBackground)).toFixed(3)
 }
 
-async function recorrer(ms = 650) {
+async function walk(ms = 650) {
   const wait = (t) => new Promise(r => setTimeout(r, t))
   const all = {}
   for (const t of document.querySelectorAll('nav[aria-label="Sections"] a')) {
     t.click(); await wait(ms)
-    all[t.textContent.trim().replace(/[^\w ]/g, '')] = medir()
+    all[t.textContent.trim().replace(/[^\w ]/g, '')] = measure()
   }
   return all
 }
@@ -168,7 +168,7 @@ async function recorrer(ms = 650) {
 /*
 The state sweep: hover and focus across the WHOLE screen, not control by control.
 
-`medirEstado` forces you to point at an element and know its resting look from
+`measureState` forces you to point at an element and know its resting look from
 memory, so in practice you measure one button and take the other forty on faith.
 This does it the other way round: it reads the `:hover` and `:focus-visible` rules
 from the stylesheets, finds who they apply to on this screen, and compares the
@@ -178,7 +178,7 @@ rest.
 Below 1.20:1 the eye does not separate two planes. That is how the `--hover` that
 was a fixed colour and gave 1.11:1 over the raised step came out.
 
-    barridoEstados()
+    sweepStates()
 */
 /*
 What colour a state is painted, according to what the rule wrote.
@@ -202,7 +202,7 @@ function ruleColours(style) {
   return out
 }
 
-function barridoEstados(root = document.body, minimum = 1.2) {
+function sweepStates(root = document.body, minimum = 1.2) {
   const weak = []
   const seen = new Set()
   let rules = 0, pairs = 0
@@ -256,11 +256,11 @@ function barridoEstados(root = document.body, minimum = 1.2) {
           seen.add(k)
           weak.push({
             cr,
-            estado: /focus-visible/.test(sel) ? 'focus' : 'hover',
+            state: /focus-visible/.test(sel) ? 'focus' : 'hover',
             selector: sel.trim().slice(0, 60),
             declarado: `${decl.prop}: ${decl.color} = ${declared}`,
             reposo: resting,
-            ejemplo: (el.textContent || el.tagName).trim().slice(0, 30),
+            sample: (el.textContent || el.tagName).trim().slice(0, 30),
           })
         }
       }

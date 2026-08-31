@@ -2,8 +2,8 @@
 # Regenerates the dialog inventory of the new console. The figures in the review
 # plan come from here, not from anyone's memory.
 #
-#   dev/inventario-dialogos.sh          table per file
-#   dev/inventario-dialogos.sh titulos  plus the title of each dialog
+#   dev/dialog-inventory.sh          table per file
+#   dev/dialog-inventory.sh titulos  plus the title of each dialog
 set -euo pipefail
 cd "$(dirname "$0")/../DnsServerCore/webapp/src"
 

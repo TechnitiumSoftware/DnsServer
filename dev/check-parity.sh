@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Compares the dev console (5380) against the reference one (5381).
-# Usage: ./check-paridad.sh [path]   (default: /)
+# Usage: ./check-parity.sh [path]   (default: /)
 #
 # It compares CONTENT, not bytes: line endings are normalised before hashing.
 # This is needed because upstream's .gitattributes uses `* text=auto`, so the

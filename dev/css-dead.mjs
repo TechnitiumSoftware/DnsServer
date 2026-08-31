@@ -23,7 +23,7 @@ two hops this codebase has: the direct import and the re-export
 (`export { default as settingsStyles } from './Settings.module.css'`, used by the
 nine Settings sub-tabs). Whatever cannot be resolved is not judged.
 
-    node dev/css-muertas.mjs
+    node dev/css-dead.mjs
 */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'

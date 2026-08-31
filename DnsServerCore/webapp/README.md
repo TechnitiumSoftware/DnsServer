@@ -31,7 +31,7 @@ aunque funcione en desarrollo.
 - **`base: './'`.** El servidor honra `X-Forwarded-Prefix` y monta un `PathBase`
   (`DnsWebService.cs:1943-1945`). Con rutas absolutas la consola funciona en
   local y da 404 tras un reverse proxy con prefijo. Lo comprueba
-  `dev/check-prefijo.sh`.
+  `dev/check-prefix.sh`.
 - **Un solo documento.** El único `MapFallback` del servidor es `/api/{*path}`
   (`DnsWebService.cs:2263`): cualquier ruta profunda daría 404. La navegación va
   por estado interno, nunca por History API.

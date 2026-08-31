@@ -1,6 +1,6 @@
 # Parity checks
 
-## `check-paridad-acciones.sh` — the one that actually counts
+## `check-parity-actions.sh` — the one that actually counts
 
 Runs **the same action on both instances** and compares the state the server is
 left in, not the bytes of the page. This is the check that makes the project's
@@ -10,7 +10,7 @@ and it shows up here.
 
 ```bash
 docker compose up -d
-./check-paridad-acciones.sh
+./check-parity-actions.sh
 ```
 
 It covers fourteen actions: seven creates (including the awkward ones —split TXT,
@@ -25,25 +25,25 @@ parity: `lastModified`, the SOA serial and **the server's own name**, which is
 embedded in the NS and SOA of every zone and is deliberately different in each
 container.
 
-## `check-paridad.sh` — only for the preserved files
+## `check-parity.sh` — only for the preserved files
 
 Compares the content of a path between the two instances. Since phase 0 the
 console is ours, so **for `/` it reports `DIFFERENT` and that is the point of the
 project**. It still serves for what the build preserves untouched:
 
 ```bash
-./check-paridad.sh /robots.txt   # IDENTICAL
-./check-paridad.sh /favicon.ico  # IDENTICAL
+./check-parity.sh /robots.txt   # IDENTICAL
+./check-parity.sh /favicon.ico  # IDENTICAL
 ```
 
-## `paridad-login.mjs`
+## `parity-login.mjs`
 
 Compares the alerts on the login screen between the new console (5380) and
 upstream's (5381). Needs Playwright:
 
 ```bash
 npm i -D playwright && npx playwright install chromium
-node paridad-login.mjs
+node parity-login.mjs
 ```
 
 It found two real divergences the first time it ran: the «×» button to dismiss

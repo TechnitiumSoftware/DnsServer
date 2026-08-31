@@ -7,7 +7,7 @@ The `settings` family. Six endpoints come from the old console:
   settings/set                      main.js:2189 (saveDnsSettings, POST)
   settings/forceUpdateBlockLists    main.js:2346
   settings/temporaryDisableBlocking main.js:2373
-  settings/backup                   main.js:3067 (descarga, token de un solo uso)
+  settings/backup                   main.js:3067 (download, single-use token)
   settings/restore                  main.js:3137 (POST multipart)
 
 The screen's seventh control, "Flush Cache", is NOT of this family: it calls
@@ -65,7 +65,7 @@ export interface DnsSettings {
   dnsServerIPv4SourceAddresses: string[] | null
   dnsServerIPv6SourceAddresses: string[] | null
 
-  // General — valores por defecto de zona
+  // General — zone default values
   defaultRecordTtl: number
   defaultNsRecordTtl: number
   defaultSoaRecordTtl: number
@@ -80,13 +80,13 @@ export interface DnsSettings {
   dnsServerEnableCheckForUpdate: boolean
   dnsAppsEnableAutomaticUpdate: boolean
 
-  // General — IPv6 y socket pool
+  // General — IPv6 and socket pool
   ipv6Mode: string
   preferIPv6: boolean
   enableUdpSocketPool: boolean
   socketPoolExcludedPorts: number[]
 
-  // General — EDNS, DNSSEC y ECS
+  // General — EDNS, DNSSEC and ECS
   udpPayloadSize: number
   dnssecValidation: boolean
   eDnsClientSubnet: boolean

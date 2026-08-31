@@ -122,7 +122,7 @@ function screenSignatures() {
     ].join(' | ')
   }
   for (const e of root.querySelectorAll('input[type=text], input[type=number], input[type=password], input:not([type])')) {
-    note('campo-texto', box(e))
+    note('campo-text', box(e))
   }
   for (const e of root.querySelectorAll('textarea')) note('campo-area', box(e))
   for (const e of root.querySelectorAll('[class*="_disparador_"], select')) note('campo-lista', box(e))
@@ -144,7 +144,7 @@ function screenSignatures() {
     const s = css(row)
     const inTable = row.closest('td, th') != null
     note(
-      inTable ? 'casilla-de-fila' : e.type === 'radio' ? 'radio' : 'casilla-de-ajuste',
+      inTable ? 'casilla-de-row' : e.type === 'radio' ? 'radio' : 'settings-checkbox',
       `${s.minHeight} | ${s.gap} | ${s.fontSize} | ${s.color}`,
     )
   }
@@ -182,7 +182,7 @@ function screenSignatures() {
   const next = header?.nextElementSibling
   if (header && next) {
     note(
-      'hueco-bajo-el-titulo',
+      'gap-under-the-title',
       `${Math.round(next.getBoundingClientRect().top - header.getBoundingClientRect().bottom)}px`,
     )
   }

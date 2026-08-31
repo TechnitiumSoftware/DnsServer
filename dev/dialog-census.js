@@ -51,7 +51,7 @@ async function goToSub(n) {
 /** The battery. Returns the problems found, not a score. */
 function inspect() {
   const d = dialog()
-  if (!d) return { problemas: ['did not open'] }
+  if (!d) return { problems: ['did not open'] }
   const body = [...d.children].find((c) => /_body_/.test(c.className))
   const foot = [...d.children].find((c) => /_foot_/.test(c.className))
   const r = d.getBoundingClientRect()
@@ -75,12 +75,12 @@ function inspect() {
     }
   }
 
-  /* 3. What `medir()` already measured, if it is injected. */
-  if (typeof medir === 'function') {
-    const m = medir(d)
-    for (const c of m.contraste) problems.push(`CONTRAST ${c.cr} «${c.texto}»`)
-    for (const t of m.tactil) problems.push(`TARGET ${t}`)
-    for (const n of m.sinNombre) problems.push(`NO NAME ${n.slice(0, 50)}`)
+  /* 3. What `measure()` already measured, if it is injected. */
+  if (typeof measure === 'function') {
+    const m = measure(d)
+    for (const c of m.contrast) problems.push(`CONTRAST ${c.cr} «${c.text}»`)
+    for (const t of m.target) problems.push(`TARGET ${t}`)
+    for (const n of m.unnamed) problems.push(`NO NAME ${n.slice(0, 50)}`)
   }
 
   /* 4. The dialog must not scroll: its body scrolls. */
@@ -96,11 +96,11 @@ function inspect() {
 
   return {
     titulo: d.querySelector('[class*="_title_"]')?.textContent.trim().slice(0, 34),
-    talla: d.getAttribute('data-tamano'),
+    talla: d.getAttribute('data-size'),
     caja: `${Math.round(r.width)}×${Math.round(r.height)}`,
     pie: buttons.join(' · '),
     ruedaCuerpo: body ? body.scrollHeight > body.clientHeight : false,
-    problemas: problems,
+    problems: problems,
   }
 }
 
@@ -119,41 +119,41 @@ async function open(recipe) {
     return !!b
   }
 
-  if (recipe.boton && !press('main button', recipe.boton)) return { problemas: [`no button «${recipe.boton}»`] }
+  if (recipe.button && !press('main button', recipe.button)) return { problems: [`no button «${recipe.button}»`] }
 
-  if (recipe.celda) {
-    if (!press('main tbody button', recipe.celda)) return { problemas: [`no cell «${recipe.celda}»`] }
+  if (recipe.cell) {
+    if (!press('main tbody button', recipe.cell)) return { problems: [`no cell «${recipe.cell}»`] }
   }
 
   if (recipe.menu) {
     const [trigger, item] = recipe.menu
-    if (recipe.fila) {
-      const f = [...document.querySelectorAll('main tbody tr')].find((x) => x.innerText.includes(recipe.fila))
-      if (!f) return { problemas: [`no row «${recipe.fila}»`] }
+    if (recipe.row) {
+      const f = [...document.querySelectorAll('main tbody tr')].find((x) => x.innerText.includes(recipe.row))
+      if (!f) return { problems: [`no row «${recipe.row}»`] }
       const b = [...f.querySelectorAll('button')].find((x) => /Actions/.test(x.getAttribute('aria-label') || ''))
-      if (!b) return { problemas: ['no row menu'] }
+      if (!b) return { problems: ['no row menu'] }
       b.click()
     } else if (!press('main button', trigger)) {
-      return { problemas: [`no menu «${trigger}»`] }
+      return { problems: [`no menu «${trigger}»`] }
     }
     const m = await until(() => { const l = document.querySelectorAll('[role="menu"]'); return l.length ? l[l.length - 1] : null })
-    if (!m) return { problemas: ['the menu does not open'] }
+    if (!m) return { problems: ['the menu does not open'] }
     const it = [...m.querySelectorAll('button')].find((x) => x.textContent.trim() === item)
-    if (!it) return { problemas: [`no «${item}» in the menu`] }
+    if (!it) return { problems: [`no «${item}» in the menu`] }
     it.click()
   }
 
-  if (recipe.usuario) {
+  if (recipe.user) {
     const b = [...document.querySelectorAll('header button')].find((x) => /Administrator/.test(x.textContent))
     b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click()
     const list = await until(() => document.querySelector('[class*="_menuList_"]'))
-    if (!list) return { problemas: ['the account menu does not open'] }
-    const it = [...list.querySelectorAll('button')].find((x) => x.textContent.trim() === recipe.usuario)
-    if (!it) return { problemas: [`no «${recipe.usuario}»`] }
+    if (!list) return { problems: ['the account menu does not open'] }
+    const it = [...list.querySelectorAll('button')].find((x) => x.textContent.trim() === recipe.user)
+    if (!it) return { problems: [`no «${recipe.user}»`] }
     it.click()
   }
 
-  if (!await until(() => dialog())) return { problemas: ['did not open'] }
+  if (!await until(() => dialog())) return { problems: ['did not open'] }
   await wait(recipe.espera ?? 700)
   return inspect()
 }
@@ -162,8 +162,8 @@ async function censarTodos(recipes, all = false) {
   const out = []
   for (const recipe of recipes) {
     const r = await open(recipe)
-    r.nombre = recipe.nombre
-    if (all || r.problemas.length) out.push(r)
+    r.name = recipe.name
+    if (all || r.problems.length) out.push(r)
   }
   await close()
   return out

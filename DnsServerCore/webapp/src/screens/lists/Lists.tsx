@@ -214,7 +214,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
     void load(d, up)
   }
 
-  // ---- acciones de Cache -------------------------------------------------
+  // ---- Cache actions ------------------------------------------------------
 
   function pedirFlushCache() {
     setConfirmation({
@@ -253,13 +253,13 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
     })
   }
 
-  // ---- acciones de Allowed y Blocked -------------------------------------
+  // ---- Allowed and Blocked actions ----------------------------------------
 
   async function add() {
     const domain = field
 
     // The alert goes BEFORE any call, and leaves the focus in the field:
-    // other-zones.js:171-176 y 348-353.
+    // other-zones.js:171-176 and 348-353.
     if (domain === '') {
       setNotice({
         type: 'warning',

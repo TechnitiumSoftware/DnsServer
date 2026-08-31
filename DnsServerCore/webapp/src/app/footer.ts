@@ -39,7 +39,7 @@ export const FOOTER: FooterLink[] = [
 /*
 The theme credit. It is NOT upstream's: it is the only thing in the footer this
 console adds, and that is why it lives outside `PIE` and outside the list
-`dev/check-paridad-controles.mjs` compares. Whoever reads this has to be able to
+`dev/check-parity-controls.mjs` compares. Whoever reads this has to be able to
 tell at a glance what is parity and what is our addition.
 
 It goes on its own line and not as a sixth link: the five above are PRODUCT

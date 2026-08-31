@@ -12,8 +12,8 @@ the HTML; ours are read from the application code. No new dependencies —puttin
 Playwright in `package.json` would show up in the pull request diff— and
 therefore runnable anywhere with the reference console up.
 
-    node dev/check-paridad-controles.mjs
-    REF=http://other:5381 node dev/check-paridad-controles.mjs
+    node dev/check-parity-controls.mjs
+    REF=http://other:5381 node dev/check-parity-controls.mjs
 
 What it does NOT answer, worth having in front of you before believing a green:
 
@@ -26,7 +26,7 @@ What it does NOT answer, worth having in front of you before believing a green:
 - Whether a destination present in both points to the same thing from the
   equivalent screen.
 - Whether a button that exists in both does the same thing. For behaviour there
-  is `check-paridad-acciones.sh`, which compares server state.
+  is `check-parity-actions.sh`, which compares server state.
 */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -200,7 +200,7 @@ for (const m of html.matchAll(/<(?:input|textarea)[^>]*>/g)) {
   if (!ph) continue
   const id = /id="([^"]*)"/.exec(m[0])
   /* Upstream's image was built on Windows and its multi-line examples carry
-     CRLF; our tree is LF. It is the same normalisation `dev/check-paridad.sh`
+     CRLF; our tree is LF. It is the same normalisation `dev/check-parity.sh`
      does, and without it the four multi-line examples came out as lost over a
      carriage return. */
   const value = decode(ph[1]).replace(/\r\n/g, '\n')
