@@ -16,15 +16,15 @@ console has no cluster mode yet. The `node` parameter travels all the same,
 empty, on all ten calls, which is what upstream sends with a single server.
 */
 
-export const SUBPESTANAS = ['Leases', 'Scopes'] as const
-export type Subpestana = (typeof SUBPESTANAS)[number]
+export const SUB_TABS = ['Leases', 'Scopes'] as const
+export type SubTab = (typeof SUB_TABS)[number]
 
 export interface DhcpProps {
   token: string | null
   /** The active sub-tab, the one the Shell's side panel marks. */
   sub?: string | null
   /** It exists for symmetry with Settings; this screen never forces a change. */
-  onSubChange?: (sub: Subpestana) => void
+  onSubChange?: (sub: SubTab) => void
   /** `DhcpServer.canModify`: saving a scope, enabling it, disabling it and
    *  converting a lease (`WebServiceDhcpApi.cs:379,708,733,805,835`). */
   canModify?: boolean
@@ -42,8 +42,8 @@ export function Dhcp({
   canDelete = true,
   node = '',
 }: DhcpProps) {
-  const pedida = (sub ?? 'Leases') as Subpestana
-  const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Leases'
+  const requested = (sub ?? 'Leases') as SubTab
+  const active: SubTab = SUB_TABS.includes(requested) ? requested : 'Leases'
 
   return active === 'Scopes' ? (
     <Scopes token={token} node={node} canModify={canModify} canDelete={canDelete} />

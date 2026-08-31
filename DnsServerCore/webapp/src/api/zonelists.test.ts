@@ -16,14 +16,14 @@ import * as user from './user'
 
 afterEach(() => vi.restoreAllMocks())
 
-const RESPUESTA = {
+const RESPONSE = {
   kind: 'ok' as const,
   data: { status: 'ok', response: { domain: 'casa.test', zones: ['a.casa.test'], records: [] } },
 }
 
 describe('listNode', () => {
   it('it calls the endpoint of each list with domain and node, like upstream', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPONSE)
 
     await listNode('cache', 't', 'casa.test')
     expect(spy.mock.calls[0][0]).toBe('cache/list')
@@ -40,7 +40,7 @@ describe('listNode', () => {
   })
 
   it('it only sends direction when navigating upwards', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPONSE)
 
     await listNode('cache', 't', 'casa.test')
     expect(spy.mock.calls[0][1]?.body?.direction).toBeUndefined()
@@ -53,13 +53,13 @@ describe('listNode', () => {
   /* other-zones.js:105 writes `domain.toLowerCase();` without assigning: in
      JavaScript strings are immutable, so the domain travels EXACTLY as typed. */
   it('it does not lowercase the domain: upstream does not either', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPONSE)
     await listNode('cache', 't', 'CASA.Test')
     expect(spy.mock.calls[0][1]?.body?.domain).toBe('CASA.Test')
   })
 
   it('it unwraps the node, which is what the screen needs', async () => {
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPONSE)
     const r = await listNode('cache', 't', 'x')
     expect(r.kind).toBe('ok')
     if (r.kind !== 'ok') return

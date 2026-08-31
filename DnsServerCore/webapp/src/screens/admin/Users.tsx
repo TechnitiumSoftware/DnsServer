@@ -25,7 +25,7 @@ import {
 } from './parts'
 import tbl from '../../ui/Table.module.css'
 import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
-import { Menu, Separador } from '../../ui/Menu'
+import { Menu, Separator } from '../../ui/Menu'
 import { neverUsed } from '../../api/zones'
 import { Notifier } from '../../ui/Notifier'
 
@@ -56,7 +56,7 @@ type Action =
   | { type: 'delete'; user: AdminUser }
 
 /** The date of a login, or "Never" if it is .NET's sentinel. */
-function acceso(iso: string, address: string): string {
+function access(iso: string, address: string): string {
   return neverUsed(iso) ? 'Never' : `${fechaHora(iso)} from ${address}`
 }
 
@@ -67,8 +67,8 @@ const KEYS: Keys<AdminUser> = {
   type: (u) => (u.isSsoUser ? 'Remote/SSO' : 'Local'),
   totp: (u) => (u.isSsoUser ? 'SSO Managed' : u.totpEnabled ? 'Enabled' : 'Disabled'),
   status: (u) => (u.disabled ? 'Disabled' : 'Enabled'),
-  recent: (u) => acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress),
-  previous: (u) => acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress),
+  recent: (u) => access(u.recentSessionLoggedOn, u.recentSessionRemoteAddress),
+  previous: (u) => access(u.previousSessionLoggedOn, u.previousSessionRemoteAddress),
 }
 
 export function Users({ token, cluster, onNotice }: Props) {
@@ -109,7 +109,7 @@ export function Users({ token, cluster, onNotice }: Props) {
     setUsers((list) => list.map((x) => (x.username === previous ? u : x)))
   }
 
-  async function cambiar(u: AdminUser, body: Record<string, string>, notice: Notice) {
+  async function change(u: AdminUser, body: Record<string, string>, notice: Notice) {
     setAction(null)
     const outcome = await setUser(token, { user: u.username, ...body })
     if (outcome.kind !== 'ok') {
@@ -200,8 +200,8 @@ export function Users({ token, cluster, onNotice }: Props) {
                 sentinel value leaking onto the screen. It says "Never", which is
                 what it means, just as was done with the DNSSEC column.
                 */}
-                <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
-                <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
+                <td className={styles.mono}>{access(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
+                <td className={styles.mono}>{access(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
                 <td className={tbl.actionsCell}>
                   <div className={tbl.actions}>
                     <RowAction
@@ -214,7 +214,7 @@ export function Users({ token, cluster, onNotice }: Props) {
                       name={u.disabled ? 'Enable User' : 'Disable User'}
                       onClick={() =>
                         u.disabled
-                          ? void cambiar(u, { disabled: 'false' }, {
+                          ? void change(u, { disabled: 'false' }, {
                               type: 'success',
                               title: 'User Enabled!',
                               text: `User [${u.username}] account was enabled successfully.`,
@@ -235,7 +235,7 @@ export function Users({ token, cluster, onNotice }: Props) {
                               Disable 2FA
                             </button>
                           )}
-                          <Separador />
+                          <Separator />
                           <button type="button" data-variant="danger" onClick={() => { close(); setAction({ type: 'delete', user: u }) }}>
                             Delete User
                           </button>
@@ -261,7 +261,7 @@ export function Users({ token, cluster, onNotice }: Props) {
         onClose={() => setAction(null)}
         onConfirm={() =>
           action?.type === 'disable' &&
-          void cambiar(action.user, { disabled: 'true' }, {
+          void change(action.user, { disabled: 'true' }, {
             type: 'success',
             title: 'User Disabled!',
             text: `User [${action.user.username}] account was disabled successfully.`,
@@ -277,7 +277,7 @@ export function Users({ token, cluster, onNotice }: Props) {
         onClose={() => setAction(null)}
         onConfirm={() =>
           action?.type === '2fa' &&
-          void cambiar(action.user, { totpEnabled: 'false' }, {
+          void change(action.user, { totpEnabled: 'false' }, {
             type: 'success',
             title: '2FA Disabled!',
             text: `Two-factor authentication was disabled successfully for user [${action.user.username}].`,
@@ -298,7 +298,7 @@ export function Users({ token, cluster, onNotice }: Props) {
         open={add}
         token={token}
         onClose={() => setAdd(false)}
-        onAnadido={(u) => {
+        onAdded={(u) => {
           setUsers((list) => [u, ...list])
           onNotice({ type: 'success', title: 'User Added!', text: 'User was added successfully.' })
         }}
@@ -333,12 +333,12 @@ function AddUser({
   open,
   token,
   onClose,
-  onAnadido,
+  onAdded,
 }: {
   open: boolean
   token: string | null
   onClose: () => void
-  onAnadido: (u: AdminUser) => void
+  onAdded: (u: AdminUser) => void
 }) {
   const [displayName, setDisplayName] = useState('')
   const [user, setUser] = useState('')
@@ -386,7 +386,7 @@ function AddUser({
       setNotice(noticeFromFailure(outcome))
       return
     }
-    onAnadido(outcome.data.response)
+    onAdded(outcome.data.response)
     onClose()
   }
 

@@ -135,9 +135,9 @@ not one of these tokens.** A loose value is future drift.
   */
   --row-header: 33px;
 
-  --rotulo-tam: 10.5px;
-  --rotulo-peso: 600;
-  --rotulo-interletrado: 0.05em;
+  --rotulo-size: 10.5px;
+  --rotulo-weight: 600;
+  --rotulo-tracking: 0.05em;
 
   --t-1: 10.5px;  /* small-caps label, table header, pill             (10) */
   --t-2: 11px;    /* metadata, help under a field                           */
@@ -195,12 +195,12 @@ not one of these tokens.** A loose value is future drift.
 
   Bottom to top, and the reason for each jump:
   */
-  --capa-golpe: 0;      /* the pseudo that enlarges a target, beneath its own text */
-  --capa-pegajosa: 10;  /* the header, which follows the scroll */
-  --capa-velo: 20;      /* the side drawer's veil, on narrow screens */
-  --capa-cajon: 30;     /* and the drawer, over its veil */
-  --capa-flotante: 40;  /* dropdowns: row menu, Select, account menu */
-  --capa-dialogo: 50;   /* the modal and its veil, above absolutely everything */
+  --layer-golpe: 0;      /* the pseudo that enlarges a target, beneath its own text */
+  --layer-sticky: 10;  /* the header, which follows the scroll */
+  --layer-veil: 20;      /* the side drawer's veil, on narrow screens */
+  --layer-drawer: 30;     /* and the drawer, over its veil */
+  --layer-flotante: 40;  /* dropdowns: row menu, Select, account menu */
+  --layer-dialog: 50;   /* the modal and its veil, above absolutely everything */
 
   --r-1: 4px;   /* colour swatch, tiny chip                   (4,5) */
   --r-2: 6px;   /* row button, menu item                        (6,7) */
@@ -240,11 +240,11 @@ not one of these tokens.** A loose value is future drift.
   reflection is what separates it from the background without having to raise the
   shadow. It goes as `inset` so it takes no room in the box.
   */
-  --filo: inset 0 1px 0 rgba(255, 255, 255, 0.055);
-  --filo-fuerte: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --edge-fuerte: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 
   /* The sunken look: a field is a hole in the surface, not a sticker. */
-  --hundido: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  --sunken: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
 
   /* A field's focus is not just a border: it is a halo that lifts it. */
   --halo-foco: 0 0 0 3px rgba(245, 165, 36, 0.18);
@@ -258,7 +258,7 @@ not one of these tokens.** A loose value is future drift.
   /* ── Movimiento ─────────────────────────────────────────────────────── */
   /* A single duration and a single curve. Exponential ease-out: it starts fast
      and settles, which is how something with weight moves. */
-  --t-rapido: 120ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  --t-fast: 120ms cubic-bezier(0.2, 0.9, 0.3, 1);
   --t-medio: 180ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 

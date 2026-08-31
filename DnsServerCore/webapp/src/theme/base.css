@@ -131,16 +131,16 @@ input[type='file'] {
   border-radius: var(--r-3);
   background-color: var(--field);
   color: var(--ink);
-  box-shadow: var(--hundido);
+  box-shadow: var(--sunken);
   min-width: 0;
-  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 select:focus-visible,
 input[type='file']:focus-visible {
   outline: none;
   border-color: var(--acc);
-  box-shadow: var(--hundido), var(--halo-foco);
+  box-shadow: var(--sunken), var(--halo-foco);
 }
 
 /*
@@ -193,13 +193,13 @@ input[type='radio'] {
   margin: 0;
   border: 1px solid #3a465b;
   background-color: var(--field);
-  box-shadow: var(--hundido);
+  box-shadow: var(--sunken);
   cursor: pointer;
   transition:
-    background-color var(--t-rapido),
-    border-color var(--t-rapido),
-    box-shadow var(--t-rapido),
-    transform var(--t-rapido);
+    background-color var(--t-fast),
+    border-color var(--t-fast),
+    box-shadow var(--t-fast),
+    transform var(--t-fast);
 }
 
 /* On press, the control sinks a hair. It is the only movement it makes, and it is
@@ -213,7 +213,7 @@ input[type='radio'] { border-radius: var(--r-full); }
 input[type='checkbox']:hover:not(:disabled),
 input[type='radio']:hover:not(:disabled) {
   border-color: var(--acc);
-  box-shadow: var(--hundido), 0 0 0 3px rgba(245, 165, 36, 0.12);
+  box-shadow: var(--sunken), 0 0 0 3px rgba(245, 165, 36, 0.12);
 }
 
 input[type='checkbox']:checked,
@@ -221,7 +221,7 @@ input[type='radio']:checked {
   background-color: var(--acc);
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 60%);
   border-color: var(--acc);
-  box-shadow: var(--filo-fuerte);
+  box-shadow: var(--edge-fuerte);
 }
 
 /* The tick is drawn, not written with a character. */
@@ -263,8 +263,8 @@ input[type='number'],
 input[type='email'],
 input[type='search'],
 textarea {
-  box-shadow: var(--hundido);
-  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
+  box-shadow: var(--sunken);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 input[type='text']:focus,
@@ -275,7 +275,7 @@ input[type='search']:focus,
 textarea:focus {
   outline: none;
   border-color: var(--acc);
-  box-shadow: var(--hundido), var(--halo-foco);
+  box-shadow: var(--sunken), var(--halo-foco);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -63,7 +63,7 @@ export function SectionHeader({
     <div className={styles.hrow}>
       <div className={styles.izq}>
         {section != null && (
-          <nav className={styles.camino} aria-label="Breadcrumb">
+          <nav className={styles.trail} aria-label="Breadcrumb">
             {onVolver != null ? (
               <button type="button" className={styles.ctx} onClick={onVolver}>
                 {section}
@@ -71,7 +71,7 @@ export function SectionHeader({
             ) : (
               <span className={styles.ctx}>{section}</span>
             )}
-            <Icon name="chevronRight" tam={12} className={styles.sep} />
+            <Icon name="chevronRight" size={12} className={styles.sep} />
           </nav>
         )}
         <h1 className={styles.title}>{title}</h1>

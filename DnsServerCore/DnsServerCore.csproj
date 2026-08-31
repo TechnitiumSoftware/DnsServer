@@ -104,8 +104,8 @@
 	</ItemGroup>
 
   <ItemGroup>
-    <!-- www/ es la salida del build de webapp/ (Vite): los nombres llevan hash
-         y no se pueden enumerar. Ver webapp/README.md. -->
+    <!-- www/ is the output of the webapp/ build (Vite): the names carry a hash
+         and cannot be listed. See webapp/README.md. -->
     <None Remove="www\**\*" />
     <Content Include="www\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

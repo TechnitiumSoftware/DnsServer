@@ -4,15 +4,15 @@
 
 /* Breadcrumbs: back to the list from a zone */
 
-/* Barra de filtros */
-.filt { display:flex; gap: var(--s-7); align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--gap-bloque); }
+/* Filter bar */
+.flt { display:flex; gap: var(--s-7); align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--gap-bloque); }
 .filtAncho { flex:1; min-width:220px; }
 .filtMedio { width:190px; }
-.filtCorto { width:120px; }
+.fltShort { width:120px; }
 
 /* Count and pagination */
 /* The count is `ui/count.module.css`'s: see there for why. */
-.count { composes: barra above from '../../ui/count.module.css'; }
+.count { composes: bar above from '../../ui/count.module.css'; }
 .countPie { margin-top: var(--gap-group); margin-bottom: 0; }
 .mono { composes: mono from '../../ui/text.module.css'; }
 
@@ -29,18 +29,18 @@
 .kv { composes: kv from '../../ui/kv.module.css'; }
 .val { font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); word-break:break-word; }
 .key { composes: key from '../../ui/record.module.css'; }
-.verlo { composes: verlo from '../../ui/record.module.css'; }
+.showIt { composes: showIt from '../../ui/record.module.css'; }
 .meta { composes: meta from '../../ui/record.module.css'; }
 
 /* Dropdown menu for row and header actions */
 
-.parrafo { composes: parrafo from '../../ui/text.module.css'; }
-.salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
+.paragraph { composes: paragraph from '../../ui/text.module.css'; }
+.output { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 
-/* Formularios de modal */
+/* Modal forms */
 .fields { display:flex; flex-direction:column; gap: var(--s-8); }
 .inline { composes: inline from '../../ui/PanelForm.module.css'; }
-.suffix { composes: coletilla from '../../ui/text.module.css'; }
+.suffix { composes: trailer from '../../ui/text.module.css'; }
 /* The same row as `ui/Check.module.css`, which is where the minimum height
    lives: without it, the radios of "Add Zone", "Import" and "Convert" were 19 px. */
 .chk { composes: check from '../../ui/Check.module.css'; }

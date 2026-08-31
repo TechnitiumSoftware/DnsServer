@@ -27,14 +27,14 @@ export function ImportZone({
   token,
   node = '',
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
   const [mode, setModo] = useState<Mode>('File')
   const [archivo, setArchivo] = useState<File | null>(null)
@@ -47,7 +47,7 @@ export function ImportZone({
   const file = useRef<HTMLInputElement>(null)
 
   // `showImportZoneModal`: on opening it returns to the defaults, which are NOT
-  // son todos falsos — «Overwrite Existing Records» empieza marcado.
+  // are all false — "Overwrite Existing Records" starts checked.
   useEffect(() => {
     if (!open) return
     setModo('File')
@@ -82,7 +82,7 @@ export function ImportZone({
     }
 
     onClose()
-    onHecho({ type: 'success', title: 'Zone Imported!', text: 'The zone file was imported successfully.' })
+    onDone({ type: 'success', title: 'Zone Imported!', text: 'The zone file was imported successfully.' })
   }
 
   return (

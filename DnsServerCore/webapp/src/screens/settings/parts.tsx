@@ -11,7 +11,7 @@ export {
   Notices,
   Block,
   Check,
-  Coletilla,
+  Trailer,
   EditableList,
   GroupRow,
   Help,

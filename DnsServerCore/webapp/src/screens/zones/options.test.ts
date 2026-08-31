@@ -8,7 +8,7 @@ import {
   notifyWithList,
 } from './options'
 
-function options(cambios: Partial<ZoneOptions> = {}): ZoneOptions {
+function options(changes: Partial<ZoneOptions> = {}): ZoneOptions {
   return {
     name: 'casa.test',
     type: 'Primary',
@@ -27,54 +27,54 @@ function options(cambios: Partial<ZoneOptions> = {}): ZoneOptions {
     updateSecurityPolicies: [],
     availableCatalogZoneNames: [],
     availableTsigKeyNames: [],
-    ...cambios,
+    ...changes,
   }
 }
 
 describe('which tabs are visible', () => {
   it('a standalone Primary with no catalogs available does not show \"General\"', () => {
     const e = optionsState(options())
-    expect(e.pestanas).toEqual(['Query Access', 'Zone Transfer', 'Notify', 'Dynamic Updates'])
-    expect(e.pestanaInicial).toBe('Query Access')
+    expect(e.tabs).toEqual(['Query Access', 'Zone Transfer', 'Notify', 'Dynamic Updates'])
+    expect(e.initialTab).toBe('Query Access')
   })
 
   it('with catalogs available \"General\" appears and is the one that comes up open', () => {
     const e = optionsState(options({ availableCatalogZoneNames: ['cat.test'] }))
-    expect(e.pestanas[0]).toBe('General')
-    expect(e.pestanaInicial).toBe('General')
+    expect(e.tabs[0]).toBe('General')
+    expect(e.initialTab).toBe('General')
   })
 
   it('a Catalog opens on \"Query Access\" even when there are more tabs', () => {
     const e = optionsState(options({ type: 'Catalog' }))
-    expect(e.pestanaInicial).toBe('Query Access')
+    expect(e.initialTab).toBe('Query Access')
     // A Catalog has no dynamic updates.
-    expect(e.pestanas).not.toContain('Dynamic Updates')
+    expect(e.tabs).not.toContain('Dynamic Updates')
   })
 
   it('the secondaries and the stub always open on \"General\"', () => {
     for (const type of ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']) {
-      expect(optionsState(options({ type })).pestanaInicial).toBe('General')
+      expect(optionsState(options({ type })).initialTab).toBe('General')
     }
   })
 
   it('a Stub has neither transfer nor notify', () => {
     const e = optionsState(options({ type: 'Stub' }))
-    expect(e.pestanas).not.toContain('Zone Transfer')
-    expect(e.pestanas).not.toContain('Notify')
+    expect(e.tabs).not.toContain('Zone Transfer')
+    expect(e.tabs).not.toContain('Notify')
   })
 
   it('a catalog zone that does NOT allow overriding hides the whole tab', () => {
     const e = optionsState(
       options({ catalog: 'cat.test', overrideCatalogQueryAccess: false, overrideCatalogZoneTransfer: false, overrideCatalogNotify: false }),
     )
-    expect(e.pestanas).not.toContain('Query Access')
-    expect(e.pestanas).not.toContain('Zone Transfer')
-    expect(e.pestanas).not.toContain('Notify')
+    expect(e.tabs).not.toContain('Query Access')
+    expect(e.tabs).not.toContain('Zone Transfer')
+    expect(e.tabs).not.toContain('Notify')
   })
 
   it('if it does allow it, the tab comes back and is editable', () => {
     const e = optionsState(options({ catalog: 'cat.test', overrideCatalogQueryAccess: true }))
-    expect(e.pestanas).toContain('Query Access')
+    expect(e.tabs).toContain('Query Access')
     expect(e.queryAccessLocked).toBe(false)
   })
 

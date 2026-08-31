@@ -46,7 +46,7 @@ export function Login({
   const [totp, setTotp] = useState('')
   const [otpVisible, setOtpVisible] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [olvido, setOlvido] = useState(false)
+  const [forgotten, setOlvido] = useState(false)
   const [alert, setAlert] = useState<AlertState | null>(initialAlert ?? null)
   // The SSO button is only drawn if the server says it is enabled
   // (main.js:48-56). By default NOT: SSO is not assumed.
@@ -257,7 +257,7 @@ export function Login({
           the `body` and not the panel. See `app/pie.ts`. */}
       <PieDeEnlaces className={styles.footer} />
 
-      <ForgotPassword open={olvido} onOpenChange={setOlvido} />
+      <ForgotPassword open={forgotten} onOpenChange={setOlvido} />
     </div>
   )
 }

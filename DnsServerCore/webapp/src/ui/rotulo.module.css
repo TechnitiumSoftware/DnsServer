@@ -15,9 +15,9 @@ of the fourteen).
 It is applied with `composes:`, not by copying it.
 */
 .versalita {
-  font-size: var(--rotulo-tam);
-  font-weight: var(--rotulo-peso);
-  letter-spacing: var(--rotulo-interletrado);
+  font-size: var(--rotulo-size);
+  font-weight: var(--rotulo-weight);
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--mute);
 }

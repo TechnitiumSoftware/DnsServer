@@ -35,7 +35,7 @@ export interface AddZoneOption {
   value: AddZoneKind
   label: string
   /** An external reference upstream draws in brackets after the label. */
-  referencia?: { text: string; href: string }
+  reference?: { text: string; href: string }
 }
 
 export const ADD_TYPES: AddZoneOption[] = [
@@ -50,7 +50,7 @@ export const ADD_TYPES: AddZoneOption[] = [
     value: 'SecondaryRoot',
     label: 'Secondary ROOT Zone',
     // Upstream links the RFC from the type's own label.
-    referencia: { text: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
+    reference: { text: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
   },
 ]
 
@@ -58,7 +58,7 @@ export const ADD_TYPES: AddZoneOption[] = [
 export const RAICES =
   '199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]'
 
-export const PROTOCOLOS_TRANSFERENCIA = [
+export const TRANSFER_PROTOCOLS = [
   { value: 'Tcp', label: 'XFR-over-TCP (default)' },
   { value: 'Tls', label: 'XFR-over-TLS' },
   { value: 'Quic', label: 'XFR-over-QUIC' },
@@ -142,7 +142,7 @@ export interface SeccionesAlta {
   /** The label and the help change: optional for Secondary and Stub, required
    *  for the two forwarder and catalog secondaries. */
   servidoresPrimariosObligatorios: boolean
-  protocoloTransferencia: boolean
+  transferProtocol: boolean
   tsig: boolean
   validateZone: boolean
   casillaInicializarForwarder: boolean
@@ -164,7 +164,7 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
     serieSoa: false,
     servidoresPrimarios: false,
     servidoresPrimariosObligatorios: false,
-    protocoloTransferencia: false,
+    transferProtocol: false,
     tsig: false,
     validateZone: false,
     casillaInicializarForwarder: false,
@@ -181,7 +181,7 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
         ...base,
         catalogo: true,
         servidoresPrimarios: true,
-        protocoloTransferencia: true,
+        transferProtocol: true,
         tsig: true,
         validateZone: true,
       }
@@ -205,7 +205,7 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
         ...base,
         servidoresPrimarios: true,
         servidoresPrimariosObligatorios: true,
-        protocoloTransferencia: true,
+        transferProtocol: true,
         tsig: true,
       }
 
@@ -322,8 +322,8 @@ export function buildAddParams(f: FormularioAlta): ResultadoAlta {
 
     case 'SecondaryForwarder':
     case 'SecondaryCatalog': {
-      const direcciones = cleanList(f.primaryNameServerAddresses)
-      if (direcciones.length === 0 || direcciones === ',') {
+      const addresses = cleanList(f.primaryNameServerAddresses)
+      if (addresses.length === 0 || addresses === ',') {
         return {
           error: {
             title: 'Missing!',
@@ -332,7 +332,7 @@ export function buildAddParams(f: FormularioAlta): ResultadoAlta {
           },
         }
       }
-      p.primaryNameServerAddresses = direcciones
+      p.primaryNameServerAddresses = addresses
       p.zoneTransferProtocol = f.zoneTransferProtocol
       p.tsigKeyName = f.tsigKeyName
       break

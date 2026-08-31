@@ -13,7 +13,7 @@ import {
   formularioAltaInicial,
   proxyEditable,
   PROTOCOLOS_FORWARDER,
-  PROTOCOLOS_TRANSFERENCIA,
+  TRANSFER_PROTOCOLS,
   seccionesVisibles,
   ADD_TYPES,
   PROXY_TYPES,
@@ -78,12 +78,12 @@ export function AddZone({
   const set = <K extends keyof FormularioAlta>(k: K, value: FormularioAlta[K]) =>
     setF((prev) => ({ ...prev, [k]: value }))
 
-  function cambiarTipo(type: AddZoneKind) {
+  function changeType(type: AddZoneKind) {
     const secciones = seccionesVisibles(type, f.initializeForwarder)
     setF((prev) => ({ ...prev, type, zone: secciones.fixedZone ?? prev.zone }))
   }
 
-  async function crear() {
+  async function create() {
     const r = buildAddParams(f)
     if ('error' in r) {
       setNotice({ type: 'warning', title: r.error.title, text: r.error.text })
@@ -122,7 +122,7 @@ export function AddZone({
       title="Add Zone"
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void crear()}>
+          <Button variant="primary" disabled={busy} onClick={() => void create()}>
             Add
           </Button>
         </>
@@ -152,7 +152,7 @@ export function AddZone({
                 type="radio"
                 name="addZoneType"
                 checked={f.type === t.value}
-                onChange={() => cambiarTipo(t.value)}
+                onChange={() => changeType(t.value)}
               />
               {/*
               `.chk` is `display:flex`, so every child of the label is an item:
@@ -163,10 +163,10 @@ export function AddZone({
               */}
               <span>
                 {t.label}
-                {t.referencia && (
+                {t.reference && (
                   <>
                     {' ('}
-                    <Externo href={t.referencia.href}>{t.referencia.text}</Externo>
+                    <Externo href={t.reference.href}>{t.reference.text}</Externo>
                     {')'}
                   </>
                 )}
@@ -255,9 +255,9 @@ export function AddZone({
           </Row>
         )}
 
-        {v.protocoloTransferencia && (
+        {v.transferProtocol && (
           <GroupRow modal label="Zone Transfer Protocol">
-            {PROTOCOLOS_TRANSFERENCIA.map((p) => (
+            {TRANSFER_PROTOCOLS.map((p) => (
               <label key={p.value} className={styles.chk}>
                 <input
                   type="radio"

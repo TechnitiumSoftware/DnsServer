@@ -1,20 +1,20 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { getDashboardStats, getTop, deleteAllStats, RANGOS, RANGE_LABEL } from './dashboard'
+import { getDashboardStats, getTop, deleteAllStats, RANGES, RANGE_LABEL } from './dashboard'
 import * as client from './client'
 
 afterEach(() => vi.restoreAllMocks())
 
-const respuesta = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
+const response = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
 
 describe('dashboard', () => {
   it('the six ranges are the upstream ones, with their literal labels', () => {
-    expect(RANGOS).toEqual(['LastHour','LastDay','LastWeek','LastMonth','LastYear','Custom'])
+    expect(RANGES).toEqual(['LastHour','LastDay','LastWeek','LastMonth','LastYear','Custom'])
     expect(RANGE_LABEL.LastHour).toBe('Last Hour')
     expect(RANGE_LABEL.LastMonth).toBe('Last Month')
   })
 
   it('it asks for the range and unwraps response', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(respuesta({ stats: { totalQueries: 7 } }))
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(response({ stats: { totalQueries: 7 } }))
     const r = await getDashboardStats('t', 'LastDay')
     expect(spy.mock.calls[0][0]).toBe('dashboard/stats/get')
     expect(spy.mock.calls[0][1]?.body).toEqual({ type: 'LastDay' })
@@ -22,7 +22,7 @@ describe('dashboard', () => {
   })
 
   it('it only sends start and end when the range is Custom', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(respuesta({}))
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(response({}))
     await getDashboardStats('t', 'LastHour', { start: 'a', end: 'b' })
     expect(spy.mock.calls[0][1]?.body).toEqual({ type: 'LastHour' })
     spy.mockClear()
@@ -42,7 +42,7 @@ describe('dashboard', () => {
 
   it('getTop asks for the list type and the limit', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(
-      respuesta({ topClients: [{ name: '10.0.1.42', hits: 12 }] }),
+      response({ topClients: [{ name: '10.0.1.42', hits: 12 }] }),
     )
     const r = await getTop('t', 'LastHour', 'TopClients')
     expect(spy.mock.calls[0][1]?.body).toEqual({ type: 'LastHour', statsType: 'TopClients', limit: '1000' })

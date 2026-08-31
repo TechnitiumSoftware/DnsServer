@@ -49,7 +49,7 @@ export function Alert({
     <div className={`${styles.alert} ${styles[type]}`} role="alert">
       {onDismiss && (
         <button type="button" className={styles.close} aria-label="Close" onClick={onDismiss}>
-          <Icon name="close" tam={14} />
+          <Icon name="close" size={14} />
         </button>
       )}
       <b>{title}</b> {children}

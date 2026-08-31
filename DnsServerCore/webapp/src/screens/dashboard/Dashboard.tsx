@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import {
-  RANGE_LABEL, RANGOS, getDashboardStats,
+  RANGE_LABEL, RANGES, getDashboardStats,
   type DashboardStats, type Range, type Stats, type TopKind, type TopEntry,
 } from '../../api/dashboard'
 import { Chart } from './Chart'
@@ -13,7 +13,7 @@ import { Body, Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
 import { type AlertType } from '../../ui/Alert'
 import { BlockingMenu } from './BlockingMenu'
-import { instantesDelRango, loQueFalta } from './custom-range'
+import { rangeInstants, loQueFalta } from './custom-range'
 import { Segmented } from '../../ui/Segmented'
 import { noticeFromFailure } from '../../lib/notice'
 import { Notifier } from '../../ui/Notifier'
@@ -96,14 +96,14 @@ function Reparto({ title, data }: { title: string; data: ChartData }) {
 function Top({
   title,
   rows,
-  esCliente = false,
+  isClient = false,
   onMore,
   antesDeMore,
 }: {
   title: string
   rows: TopEntry[]
   /** A client also shows the domain it resolved and whether it was rate limited. */
-  esCliente?: boolean
+  isClient?: boolean
   onMore: () => void
   /** The panel's own action, to the left of "More". Only the blocked-domains one
    *  uses it, with the blocking menu upstream puts there. */
@@ -125,7 +125,7 @@ function Top({
         </div>
       }
     >
-      <Body className={styles.pbAjustado}>
+      <Body className={styles.pbAdjusted}>
         {rows.length === 0 && <Empty compacto>No data for this period.</Empty>}
         {rows.slice(0, 5).map((f, i) => (
           <div
@@ -135,7 +135,7 @@ function Top({
             <span className={styles.n}>
               {f.name}
               {f.rateLimited ? ' (rate limited)' : ''}
-              {esCliente && (
+              {isClient && (
                 <span className={styles.topDomain}>
                   {f.domain === '' || f.domain == null ? '.' : f.domain}
                 </span>
@@ -202,7 +202,7 @@ export function Dashboard({ token }: { token: string | null }) {
       return
     }
     setNotice(null)
-    setPedido(instantesDelRango(inicio, fin))
+    setPedido(rangeInstants(inicio, fin))
   }
 
   const s = data?.stats
@@ -215,7 +215,7 @@ export function Dashboard({ token }: { token: string | null }) {
         actions={
           <Segmented
             label="Period"
-            options={RANGOS.map((r) => ({ id: r, label: RANGE_LABEL[r] }))}
+            options={RANGES.map((r) => ({ id: r, label: RANGE_LABEL[r] }))}
             active={range}
             onChoose={(r) => {
               setRango(r)
@@ -304,7 +304,7 @@ export function Dashboard({ token }: { token: string | null }) {
           <Top
             title="Top Clients"
             rows={data?.topClients ?? []}
-            esCliente
+            isClient
             onMore={() => setTop('TopClients')}
           />
         </div>

@@ -67,7 +67,7 @@ export function Sso({ token, onNotice }: Props) {
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState<null | 'authority' | 'metadata'>(null)
 
-  function aplicar(c: SsoConfig) {
+  function apply(c: SsoConfig) {
     setEnabled(c.ssoEnabled)
     setAuthority(c.ssoAuthority ?? '')
     setClientId(c.ssoClientId ?? '')
@@ -91,7 +91,7 @@ export function Sso({ token, onNotice }: Props) {
       onNotice(noticeFromFailure(outcome))
       return
     }
-    aplicar(outcome.data.response)
+    apply(outcome.data.response)
   }, [token, onNotice])
 
   useEffect(() => {
@@ -170,7 +170,7 @@ export function Sso({ token, onNotice }: Props) {
       onNotice(noticeFromFailure(outcome))
       return
     }
-    aplicar(outcome.data.response)
+    apply(outcome.data.response)
     onNotice({
       type: 'success',
       title: 'SSO Config Saved!',
@@ -458,7 +458,7 @@ export function Sso({ token, onNotice }: Props) {
         title="Save Config"
         text="WARNING! The SSO Authority must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
         label="OK"
-        variante="primary"
+        variant="primary"
         onClose={() => setConfirm(null)}
         onConfirm={() => {
           setConfirm(null)
@@ -470,7 +470,7 @@ export function Sso({ token, onNotice }: Props) {
         title="Save Config"
         text="WARNING! The Metadata Address must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
         label="OK"
-        variante="primary"
+        variant="primary"
         onClose={() => setConfirm(null)}
         onConfirm={() => {
           setConfirm(null)

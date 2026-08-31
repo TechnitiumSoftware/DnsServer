@@ -62,7 +62,7 @@ export function Dialog({
           <div className={styles.head}>
             <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
             <RadixDialog.Close className={styles.close} aria-label="Close">
-              <Icon name="close" tam={16} />
+              <Icon name="close" size={16} />
             </RadixDialog.Close>
           </div>
           <div className={styles.body}>{children}</div>

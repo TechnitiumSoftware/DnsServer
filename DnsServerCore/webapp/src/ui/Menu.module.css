@@ -20,7 +20,7 @@
   cursor: pointer;
 }
 .row:hover { background: var(--hover-fuerte); }
-.menuList { position:fixed; overflow-y:auto; z-index: var(--capa-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
+.menuList { position:fixed; overflow-y:auto; z-index: var(--layer-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--edge); display:flex; flex-direction:column; }
 .sep { height:1px; margin: var(--s-2) var(--s-3); background:var(--line); }
 .menuList button { text-align:left; border:0; background:transparent; color:var(--mute); /* Longhands and not the `font:` shorthand: `inherit` is not valid as a
      component of a shorthand —only as the whole value— so the declaration was

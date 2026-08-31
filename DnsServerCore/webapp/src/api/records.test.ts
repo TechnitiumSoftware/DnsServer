@@ -18,7 +18,7 @@ afterEach(() => vi.restoreAllMocks())
 const env = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
 
 /** A record with the bare minimum, so as not to repeat twelve fields in each case. */
-function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
+function rec(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
     name: 'www',
     type,
@@ -70,14 +70,14 @@ describe('zones/records — transporte', () => {
 
 describe('identity of a record', () => {
   it('A sends the IP and the SVCB hints flag', () => {
-    expect(recordIdentity(reg('A', { ipAddress: '10.0.0.1' }), { updateSvcbHints: true })).toEqual({
+    expect(recordIdentity(rec('A', { ipAddress: '10.0.0.1' }), { updateSvcbHints: true })).toEqual({
       ipAddress: '10.0.0.1',
       updateSvcbHints: 'true',
     })
   })
 
   it('NS carries the glue when disabling and NOT when deleting', () => {
-    const r = reg('NS', { nameServer: 'ns1.casa.test' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
+    const r = rec('NS', { nameServer: 'ns1.casa.test' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
     expect(recordIdentity(r)).toEqual({
       nameServer: 'ns1.casa.test',
       glue: '10.0.0.1, 10.0.0.2',
@@ -86,22 +86,22 @@ describe('identity of a record', () => {
   })
 
   it('CNAME, DNAME and APP contribute nothing to the delete (zone.js:6420-6510)', () => {
-    expect(recordIdentity(reg('CNAME', { cname: 'a.b' }), { forDeletion: true })).toEqual({})
-    expect(recordIdentity(reg('DNAME', { dname: 'a.b' }), { forDeletion: true })).toEqual({})
+    expect(recordIdentity(rec('CNAME', { cname: 'a.b' }), { forDeletion: true })).toEqual({})
+    expect(recordIdentity(rec('DNAME', { dname: 'a.b' }), { forDeletion: true })).toEqual({})
     expect(
-      recordIdentity(reg('APP', { appName: 'x', classPath: 'y', data: 'z' }), {
+      recordIdentity(rec('APP', { appName: 'x', classPath: 'y', data: 'z' }), {
         forDeletion: true,
       }),
     ).toEqual({})
   })
 
   it('TXT identifies by the base64 strings, comma-joined', () => {
-    const r = reg('TXT', { text: 'a b', characterStringsBase64: ['YQ==', 'Yg=='] })
+    const r = rec('TXT', { text: 'a b', characterStringsBase64: ['YQ==', 'Yg=='] })
     expect(recordIdentity(r)).toEqual({ characterStringsBase64: 'YQ==,Yg==' })
   })
 
   it('SVCB flattens svcParams and turns an empty target into the root', () => {
-    const r = reg('SVCB', {
+    const r = rec('SVCB', {
       svcPriority: 1,
       svcTargetName: '',
       svcParams: { alpn: 'h2', port: '443' },
@@ -127,10 +127,10 @@ describe('identity of a record', () => {
   })
 
   it('FWD only drags the proxy along when the type has one', () => {
-    const noProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' })
+    const noProxy = rec('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' })
     expect(recordIdentity(noProxy)).not.toHaveProperty('proxyAddress')
 
-    const withProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080, proxyUsername: 'u', proxyPassword: 'p' })
+    const withProxy = rec('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080, proxyUsername: 'u', proxyPassword: 'p' })
     expect(recordIdentity(withProxy)).toMatchObject({
       proxyAddress: '10.0.0.9',
       proxyPort: '1080',
@@ -140,14 +140,14 @@ describe('identity of a record', () => {
   })
 
   it('an unknown type sends `rdata` only if the record brings it', () => {
-    expect(recordIdentity(reg('TYPE65280', { value: 'ABCD' }))).toEqual({ rdata: 'ABCD' })
-    expect(recordIdentity(reg('TYPE65280', {}))).toEqual({})
+    expect(recordIdentity(rec('TYPE65280', { value: 'ABCD' }))).toEqual({ rdata: 'ABCD' })
+    expect(recordIdentity(rec('TYPE65280', {}))).toEqual({})
   })
 })
 
 describe('cuerpos completos', () => {
   it('the delete sends zone, domain and type, and the root goes as a dot', () => {
-    const r = reg('MX', { preference: 10, exchange: 'mail.casa.test' }, { name: '' })
+    const r = rec('MX', { preference: 10, exchange: 'mail.casa.test' }, { name: '' })
     expect(cuerpoBorrado('casa.test', r)).toEqual({
       zone: 'casa.test',
       domain: '.',
@@ -158,7 +158,7 @@ describe('cuerpos completos', () => {
   })
 
   it('disabling resends the whole record with disable=true', () => {
-    const r = reg('MX', { preference: 10, exchange: 'mail.casa.test' }, { comments: 'nota', expiryTtl: 60 })
+    const r = rec('MX', { preference: 10, exchange: 'mail.casa.test' }, { comments: 'nota', expiryTtl: 60 })
     expect(cuerpoCambioDeEstado('casa.test', r, true, false)).toEqual({
       zone: 'casa.test',
       domain: 'www',
@@ -187,9 +187,9 @@ describe('loose rules of upstream', () => {
   })
 
   it('it only asks for hints if some SVCB/HTTPS has the automatic one of that family', () => {
-    const svcb = reg('SVCB', { autoIpv4Hint: true, autoIpv6Hint: false })
+    const svcb = rec('SVCB', { autoIpv4Hint: true, autoIpv6Hint: false })
     expect(zoneHasSvcbAutoHint([svcb], true, false)).toBe(true)
     expect(zoneHasSvcbAutoHint([svcb], false, true)).toBe(false)
-    expect(zoneHasSvcbAutoHint([reg('A', { ipAddress: '1.1.1.1' })], true, true)).toBe(false)
+    expect(zoneHasSvcbAutoHint([rec('A', { ipAddress: '1.1.1.1' })], true, true)).toBe(false)
   })
 })

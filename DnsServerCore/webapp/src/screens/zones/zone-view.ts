@@ -21,14 +21,14 @@ export interface ZoneHeader {
   dnssec: boolean
   sign: boolean
   unsign: boolean
-  verDs: boolean
-  propiedades: boolean
+  viewDs: boolean
+  properties: boolean
   /** "Hide / Show DNSSEC Records": it only exists if the zone is signed. */
   toggleDnssecRecords: boolean
 }
 
-const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
-const KNOWN = [...SECUNDARIAS, 'Primary', 'Stub', 'Forwarder', 'Catalog']
+const SECONDARIES = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
+const KNOWN = [...SECONDARIES, 'Primary', 'Stub', 'Forwarder', 'Catalog']
 
 /** A Catalog or a Forwarder does not bring the field: they cannot be signed. */
 export function isSigned(dnssecStatus: string | undefined): boolean {
@@ -41,9 +41,9 @@ export function zoneHeader(type: string, dnssecStatus: string | undefined): Zone
   const base: ZoneHeader = {
     // Only Primary and Forwarder allow adding records by hand.
     addRecord: type === 'Primary' || type === 'Forwarder',
-    resync: [...SECUNDARIAS, 'Stub'].includes(type),
+    resync: [...SECONDARIES, 'Stub'].includes(type),
     runImport: type === 'Primary' || type === 'Forwarder',
-    runExport: ['Primary', 'Forwarder', ...SECUNDARIAS, 'Catalog'].includes(type),
+    runExport: ['Primary', 'Forwarder', ...SECONDARIES, 'Catalog'].includes(type),
     convert: ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog'].includes(type),
     clone: type === 'Primary' || type === 'Forwarder',
     options: KNOWN.includes(type),
@@ -51,8 +51,8 @@ export function zoneHeader(type: string, dnssecStatus: string | undefined): Zone
     dnssec: false,
     sign: false,
     unsign: false,
-    verDs: false,
-    propiedades: false,
+    viewDs: false,
+    properties: false,
     toggleDnssecRecords: false,
   }
 
@@ -63,8 +63,8 @@ export function zoneHeader(type: string, dnssecStatus: string | undefined): Zone
       // Sign only if it is NOT; the rest, only if it is.
       sign: !signed,
       unsign: signed,
-      verDs: signed,
-      propiedades: signed,
+      viewDs: signed,
+      properties: signed,
       toggleDnssecRecords: signed,
     }
   }

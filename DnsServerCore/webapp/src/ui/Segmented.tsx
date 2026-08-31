@@ -14,19 +14,19 @@ export function Segmented<T extends string>({
   active,
   onChoose,
   label,
-  comoPestanas = false,
+  asTabs = false,
 }: {
   options: { id: T; label: string }[]
   active: T
   onChoose: (id: T) => void
   /** The group's name, for whoever does not see the screen. */
   label: string
-  comoPestanas?: boolean
+  asTabs?: boolean
 }) {
   return (
     <div
       className={styles.seg}
-      role={comoPestanas ? 'tablist' : 'group'}
+      role={asTabs ? 'tablist' : 'group'}
       aria-label={label}
     >
       {options.map((o) => (
@@ -34,9 +34,9 @@ export function Segmented<T extends string>({
           key={o.id}
           type="button"
           className={styles.option}
-          role={comoPestanas ? 'tab' : undefined}
-          aria-selected={comoPestanas ? o.id === active : undefined}
-          aria-pressed={comoPestanas ? undefined : o.id === active}
+          role={asTabs ? 'tab' : undefined}
+          aria-selected={asTabs ? o.id === active : undefined}
+          aria-pressed={asTabs ? undefined : o.id === active}
           onClick={() => onChoose(o.id)}
         >
           {o.label}

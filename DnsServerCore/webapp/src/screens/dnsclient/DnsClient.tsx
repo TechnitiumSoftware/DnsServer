@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PROTOCOLOS, TYPES, prepararServidor, resolve } from '../../api/dnsclient'
+import { PROTOCOLS, TYPES, prepararServidor, resolve } from '../../api/dnsclient'
 import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { LabeledInput, LabeledSelect } from '../../ui/Field'
@@ -26,7 +26,7 @@ export function DnsClient({ token }: { token: string | null }) {
   const [protocol, setProtocol] = useState('UDP')
   const [ecs, setEcs] = useState('')
   const [dnssec, setDnssec] = useState(true)
-  const [salida, setSalida] = useState<string | null>(null)
+  const [output, setSalida] = useState<string | null>(null)
   /*
   The raw responses of each hop of the resolution.
 
@@ -36,11 +36,11 @@ export function DnsClient({ token }: { token: string | null }) {
   it. It is what lets you see what each server answered along the way when a
   recursive query goes wrong, which is exactly when this screen gets opened.
   */
-  const [crudas, setCrudas] = useState<unknown[]>([])
+  const [raw, setCrudas] = useState<unknown[]>([])
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function lanzar(runImport: boolean) {
+  async function fire(runImport: boolean) {
     // The order is upstream's: extract first, check afterwards.
     const ready = prepararServidor(server, protocol)
 
@@ -100,7 +100,7 @@ export function DnsClient({ token }: { token: string | null }) {
       values off the scale on a single screen, and that is why the "Type" and
       "DNS-over-" labels did not match the ones next to them.
       */}
-      <div className={styles.filt}>
+      <div className={styles.flt}>
         <div className={styles.width}>
           <LabeledInput label="Server" mono value={server} onChange={(e) => setServer(e.target.value)} />
         </div>
@@ -114,7 +114,7 @@ export function DnsClient({ token }: { token: string | null }) {
         </div>
         <div className={styles.short}>
           <LabeledSelect label="DNS-over-" value={protocol} onChange={(e) => setProtocol(e.target.value)}>
-            {PROTOCOLOS.map((t) => <option key={t}>{t}</option>)}
+            {PROTOCOLS.map((t) => <option key={t}>{t}</option>)}
           </LabeledSelect>
         </div>
         <div className={styles.ecs}>
@@ -124,15 +124,15 @@ export function DnsClient({ token }: { token: string | null }) {
           <input type="checkbox" checked={dnssec} onChange={(e) => setDnssec(e.target.checked)} />
           Enable DNSSEC Validation
         </label>
-        <Button variant="primary" disabled={busy} onClick={() => void lanzar(false)}>
+        <Button variant="primary" disabled={busy} onClick={() => void fire(false)}>
           Resolve
         </Button>
-        <Button disabled={busy} onClick={() => void lanzar(true)}>
+        <Button disabled={busy} onClick={() => void fire(true)}>
           Import
         </Button>
       </div>
 
-      {salida === null ? (
+      {output === null ? (
         <Empty>Run a query to see the response.</Empty>
       ) : (
         <Panel
@@ -141,11 +141,11 @@ export function DnsClient({ token }: { token: string | null }) {
           className={styles.panel}
         >
           <Body>
-            <pre className={styles.out}>{salida}</pre>
+            <pre className={styles.out}>{output}</pre>
 
-            {crudas.length > 0 && (
-              <Details className={styles.crudas} summary={`Raw Responses (${crudas.length})`}>
-                {crudas.map((c, i) => (
+            {raw.length > 0 && (
+              <Details className={styles.raw} summary={`Raw Responses (${raw.length})`}>
+                {raw.map((c, i) => (
                   <pre key={i} className={styles.out}>
                     {JSON.stringify(c, null, 2)}
                   </pre>

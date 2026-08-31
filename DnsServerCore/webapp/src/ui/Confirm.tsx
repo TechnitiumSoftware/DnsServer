@@ -33,7 +33,7 @@ export function Confirm({
   title,
   text: body,
   label,
-  variante = 'danger',
+  variant = 'danger',
   busy,
   onClose,
   onConfirm,
@@ -43,7 +43,7 @@ export function Confirm({
   text: ReactNode
   /** The action's verb: "Delete", "Convert", "Disable". */
   label: string
-  variante?: 'primary' | 'danger'
+  variant?: 'primary' | 'danger'
   busy?: boolean
   onClose: () => void
   /** If it returns a promise, the dialog stays busy while it runs and closes when it settles. */
@@ -67,7 +67,7 @@ export function Confirm({
       onOpenChange={(o) => !o && onClose()}
       title={title}
       actions={
-        <Button variant={variante} disabled={busy || inProgress} onClick={confirm}>
+        <Button variant={variant} disabled={busy || inProgress} onClick={confirm}>
           {label}
         </Button>
       }
@@ -77,7 +77,7 @@ export function Confirm({
       {/* `pre-wrap`: there are multi-line confirmations —the Zones ones— and
           without this they read as one run-on paragraph on one screen and not on
           another. */}
-      <div className={text.parrafo} style={{ whiteSpace: 'pre-wrap' }}>
+      <div className={text.paragraph} style={{ whiteSpace: 'pre-wrap' }}>
         {body}
       </div>
     </Dialog>

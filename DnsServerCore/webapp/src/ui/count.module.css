@@ -16,15 +16,15 @@ one below at four different distances (`--s-8`, `--s-5`, `--hueco-grupo` and a
 that names that distance; its own definition says "between things read together:
 the foot of a table".
 */
-.recuento {
+.count2 {
   font-size: var(--t-4);
   font-weight: 400;
   color: var(--mute);
 }
 
 /* When it shares a line with controls —the pagination, a couple of buttons—. */
-.barra {
-  composes: recuento;
+.bar {
+  composes: count2;
   display: flex;
   align-items: center;
   justify-content: space-between;

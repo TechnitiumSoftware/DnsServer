@@ -35,17 +35,17 @@ export const KEY_TYPES = [
   { value: 'ZoneSigningKey', label: 'Zone Signing Key (ZSK)' },
 ]
 
-export const PRUEBAS_NX = [
+export const NX_PROOFS = [
   { value: 'NSEC', label: 'Next Secure (NSEC) (recommended)' },
   { value: 'NSEC3', label: 'Next Secure 3 (NSEC3)' },
 ]
 
-export const GENERACIONES = [
+export const GENERATIONS = [
   { value: 'Automatic', label: 'Automatic Private Key Generation (default)' },
   { value: 'UseSpecified', label: 'Use Specified Private Key' },
 ]
 
 /** Each algorithm's default curve, exactly as `showSignZoneModal` leaves it. */
-export function curvaPorDefecto(algorithm: string): string {
+export function defaultCurve(algorithm: string): string {
   return algorithm === 'EDDSA' ? 'ED25519' : 'P256'
 }

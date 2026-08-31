@@ -18,17 +18,17 @@ either of those; they came out of typing the same thing six times.
 }
 
 /* The paragraph that opens a screen or a block and says what it is about. */
-.parrafo {
+.paragraph {
   margin: 0 0 var(--s-7);
   font-size: var(--t-4);
   color: var(--mute);
   line-height: 1.6;
 }
 
-.parrafo b { color: var(--ink); }
+.paragraph b { color: var(--ink); }
 
 /* The suffix that follows a control: "seconds", "MB", "(0 to disable)". */
-.coletilla {
+.trailer {
   font-size: var(--t-3);
   color: var(--mute);
 }
@@ -38,7 +38,7 @@ The inline `<code>`. It goes as a `composes` on the block of text containing it,
 not on the `<code>`, because what writes it is the prose: `{'…'} <code>x</code>`.
 */
 .withCode code,
-.parrafo code,
+.paragraph code,
 .ayudaPanel code {
   font-family: var(--font-mono);
   font-size: var(--t-2);
@@ -79,7 +79,7 @@ They were written across six modules, with the two sizes handed out at random.
 }
 
 /* A line that does not fit and is cut with an ellipsis. */
-.truncado {
+.truncated {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

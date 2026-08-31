@@ -46,7 +46,7 @@ export interface DialogoProps {
   busy?: boolean
 }
 
-/** Modal «Backup Settings» (index.html:6283-6380). */
+/** The "Backup Settings" modal (index.html:6283-6380). */
 export function BackupDialog({
   open,
   onOpenChange,
@@ -90,7 +90,7 @@ export function BackupDialog({
   )
 }
 
-/** Modal «Restore Settings» (index.html:6392-6512). */
+/** The "Restore Settings" modal (index.html:6392-6512). */
 export function RestoreDialog({
   open,
   onOpenChange,

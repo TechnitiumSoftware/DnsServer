@@ -1,6 +1,6 @@
 /* The veil and the content go on the same layer and order themselves by DOM
    order. Without this declaration the sticky header painted over them. */
-.overlay { position: fixed; inset: 0; z-index: var(--capa-dialogo); background: rgba(5, 7, 10, 0.72); }
+.overlay { position: fixed; inset: 0; z-index: var(--layer-dialog); background: rgba(5, 7, 10, 0.72); }
 /*
 The BODY scrolls, not the whole dialog.
 
@@ -31,12 +31,12 @@ since the pointer never reached it, moving the mouse closed it: it looked like i
 Centring with auto margins gives the same result without creating that block.
 */
 .content {
-  position: fixed; z-index: var(--capa-dialogo);
+  position: fixed; z-index: var(--layer-dialog);
   inset: 0; margin: auto; height: fit-content;
   display: flex; flex-direction: column;
   max-height: calc(100vh - 64px); overflow: hidden;
   background: var(--pan); border: 1px solid var(--line); border-radius: var(--r-4);
-  box-shadow: var(--e-3), var(--filo);
+  box-shadow: var(--e-3), var(--edge);
 }
 /*
 The ones with a table inside. The comp gave 760 px, but none of its modals had

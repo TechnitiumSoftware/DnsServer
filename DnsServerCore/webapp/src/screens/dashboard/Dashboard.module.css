@@ -81,7 +81,7 @@ screens it is at 12.5 and normal weight.
 }
 
 /* A chart's legend already brings its own space on top. */
-.pbAjustado { padding-top: var(--s-2); }
+.pbAdjusted { padding-top: var(--s-2); }
 
 /* The alert for the screen's own actions —today, the blocking menu. */
 /* A panel's header can carry more than one control. */

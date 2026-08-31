@@ -129,7 +129,7 @@ export function deleteRecord(
   })
 }
 
-/* ── Identidad de un registro ──────────────────────────────────────────── */
+/* ── Identity of a record ─────────────────────────────────────────────── */
 
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
@@ -150,7 +150,7 @@ export function aplanarGlue(glue: string[] | undefined): string {
   return (glue ?? []).join(', ')
 }
 
-/** `data-record-character-strings-base64`: unidas por coma (zone.js:3797-3803). */
+/** `data-record-character-strings-base64`: comma-joined (zone.js:3797-3803). */
 export function aplanarCharacterStrings(r: Record<string, unknown>): string {
   const list = (r.characterStringsBase64 ?? []) as string[]
   return list.join(',')

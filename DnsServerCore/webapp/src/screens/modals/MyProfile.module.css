@@ -9,4 +9,4 @@ it puts it in a `col-sm-7`.
 .estrecha { max-width: 420px; }
 .mono { composes: mono from '../../ui/text.module.css'; }
 /* The count is `ui/count.module.css`'s: see there for why. */
-.total { composes: recuento below from '../../ui/count.module.css'; }
+.total { composes: count2 below from '../../ui/count.module.css'; }

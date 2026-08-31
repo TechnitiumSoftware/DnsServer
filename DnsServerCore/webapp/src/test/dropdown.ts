@@ -24,11 +24,11 @@ export async function chooseIn(user: UserEvent, field: string | RegExp, label: s
 export async function optionsOf(user: UserEvent, trigger: HTMLElement): Promise<string[]> {
   await user.click(trigger)
   const list = await screen.findByRole('listbox')
-  const textos = within(list)
+  const texts = within(list)
     .getAllByRole('option')
     .map((o) => o.textContent?.trim() ?? '')
   await user.keyboard('{Escape}')
-  return textos
+  return texts
 }
 
 /** What the dropdown is showing right now, without opening it. */

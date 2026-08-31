@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getZoneOptions, setZoneOptions, type ZoneOptions as Respuesta } from '../../../api/zones'
+import { getZoneOptions, setZoneOptions, type ZoneOptions as Response } from '../../../api/zones'
 import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
@@ -7,11 +7,11 @@ import { Field, Input, Select, Textarea } from '../../../ui/Field'
 import { Loading } from '../../../ui/Empty'
 import {
   ACCESOS_CONSULTA,
-  ACTUALIZACIONES,
-  NOTIFICACIONES,
-  PESTANAS,
+  UPDATES,
+  NOTIFICATIONS,
+  TABS,
   PROTOCOLOS_XFR,
-  TRANSFERENCIAS,
+  TRANSFERS,
   aclEditable,
   buildOptionsBody,
   optionsState,
@@ -51,18 +51,18 @@ export function ZoneOptions({
   token,
   node = '',
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
-  const [respuesta, setRespuesta] = useState<Respuesta | null>(null)
+  const [response, setRespuesta] = useState<Response | null>(null)
   const [f, setF] = useState<OptionsForm | null>(null)
-  const [pestana, setPestana] = useState<OptionsTab>('General')
+  const [tab, setPestana] = useState<OptionsTab>('General')
   const [notice, setNotice] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -79,19 +79,19 @@ export function ZoneOptions({
       }
       setRespuesta(r)
       setF(formFromOptions(r))
-      setPestana(optionsState(r).pestanaInicial)
+      setPestana(optionsState(r).initialTab)
     })
   }, [open, token, zone, node])
 
-  const e: OptionsState | null = respuesta ? optionsState(respuesta) : null
+  const e: OptionsState | null = response ? optionsState(response) : null
 
   const set = <K extends keyof OptionsForm>(k: K, value: OptionsForm[K]) =>
     setF((prev) => (prev == null ? prev : { ...prev, [k]: value }))
 
   async function save() {
-    if (f == null || respuesta == null) return
+    if (f == null || response == null) return
 
-    const r = buildOptionsBody(f, respuesta.type)
+    const r = buildOptionsBody(f, response.type)
     if ('error' in r) {
       setPestana(r.error.tab)
       setNotice({ type: 'warning', title: r.error.title, text: r.error.text })
@@ -108,11 +108,11 @@ export function ZoneOptions({
     }
 
     onClose()
-    onHecho({ type: 'success', title: 'Options Saved!', text: 'Zone options were saved successfully.' })
+    onDone({ type: 'success', title: 'Options Saved!', text: 'Zone options were saved successfully.' })
   }
 
-  const tsigDisponibles = respuesta?.availableTsigKeyNames ?? []
-  const catalogosDisponibles = respuesta?.availableCatalogZoneNames ?? []
+  const tsigDisponibles = response?.availableTsigKeyNames ?? []
+  const availableCatalogs = response?.availableCatalogZoneNames ?? []
 
   return (
     <Dialog
@@ -137,18 +137,18 @@ export function ZoneOptions({
           {/* A segmented control, not the pagination button's class: a tab
               and a page number are not the same thing. */}
           <Segmented
-            comoPestanas
+            asTabs
             label="Zone options"
-            options={PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => ({
+            options={TABS.filter((t) => e.tabs.includes(t.id)).map((t) => ({
               id: t.id,
               label: t.label,
             }))}
-            active={pestana}
+            active={tab}
             onChoose={setPestana}
           />
 
           <div className={styles.fields}>
-            {pestana === 'General' && (
+            {tab === 'General' && (
               <>
                 {e.catalogo && (
                   <>
@@ -163,7 +163,7 @@ export function ZoneOptions({
                           <option value="" />
                           {(e.catalogoFijo && f.catalog !== ''
                             ? [f.catalog]
-                            : catalogosDisponibles
+                            : availableCatalogs
                           ).map((c) => (
                             <option key={c} value={c}>
                               {c}
@@ -288,8 +288,8 @@ export function ZoneOptions({
               </>
             )}
 
-            {pestana === 'Query Access' && (
-              <Criterio
+            {tab === 'Query Access' && (
+              <Criterion
                 name="zoneOptionsQueryAccess"
                 options={ACCESOS_CONSULTA.filter(
                   (o) => e.queryAccessConNameServers || !o.value.includes('ZoneNameServers'),
@@ -304,11 +304,11 @@ export function ZoneOptions({
               />
             )}
 
-            {pestana === 'Zone Transfer' && (
+            {tab === 'Zone Transfer' && (
               <>
-                <Criterio
+                <Criterion
                   name="zoneOptionsZoneTransfer"
-                  options={TRANSFERENCIAS.filter(
+                  options={TRANSFERS.filter(
                     (o) => e.zoneTransferConNameServers || !o.value.includes('ZoneNameServers'),
                   )}
                   value={f.zoneTransfer}
@@ -358,11 +358,11 @@ export function ZoneOptions({
               </>
             )}
 
-            {pestana === 'Notify' && (
+            {tab === 'Notify' && (
               <>
-                <Criterio
+                <Criterion
                   name="zoneOptionsNotify"
-                  options={NOTIFICACIONES.filter((o) => {
+                  options={NOTIFICATIONS.filter((o) => {
                     if (o.value === 'SeparateNameServersForCatalogAndMemberZones') return e.notifySeparados
                     if (o.value === 'ZoneNameServers' || o.value === 'BothZoneAndSpecifiedNameServers') {
                       return e.notifyConNameServers
@@ -391,19 +391,19 @@ export function ZoneOptions({
                     )}
                   </Field>
                 )}
-                {respuesta?.notifyFailed === true && (
+                {response?.notifyFailed === true && (
                   <Alert type="warning" title="Notify Failed For:">
-                    {(respuesta.notifyFailedFor ?? []).join(', ')}
+                    {(response.notifyFailedFor ?? []).join(', ')}
                   </Alert>
                 )}
               </>
             )}
 
-            {pestana === 'Dynamic Updates' && (
+            {tab === 'Dynamic Updates' && (
               <>
-                <Criterio
+                <Criterion
                   name="zoneOptionsUpdate"
-                  options={ACTUALIZACIONES.filter(
+                  options={UPDATES.filter(
                     (o) => e.updateConNameServers || !o.value.includes('ZoneNameServers'),
                   )}
                   value={f.update}
@@ -505,7 +505,7 @@ export function ZoneOptions({
  * All four sections have the same shape: a list of criteria and a text list that
  * can only be touched with some of them.
  */
-function Criterio({
+function Criterion({
   name,
   options,
   value,

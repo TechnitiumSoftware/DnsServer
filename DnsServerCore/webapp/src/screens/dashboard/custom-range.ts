@@ -18,9 +18,9 @@ views.
 */
 
 /** The two ISO instants the API expects, with the seven-day rule. */
-export function instantesDelRango(inicio: string, fin: string): { start: string; end: string } {
-  const dias = (Date.parse(`${fin}T00:00:00Z`) - Date.parse(`${inicio}T00:00:00Z`)) / 86_400_000 + 1
-  const aIso = (d: string) => new Date(dias > 7 ? `${d}T00:00:00Z` : `${d}T00:00:00`).toISOString()
+export function rangeInstants(inicio: string, fin: string): { start: string; end: string } {
+  const days = (Date.parse(`${fin}T00:00:00Z`) - Date.parse(`${inicio}T00:00:00Z`)) / 86_400_000 + 1
+  const aIso = (d: string) => new Date(days > 7 ? `${d}T00:00:00Z` : `${d}T00:00:00`).toISOString()
   return { start: aIso(inicio), end: aIso(fin) }
 }
 

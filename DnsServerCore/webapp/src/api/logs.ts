@@ -216,7 +216,7 @@ one and comes selected.
 */
 export const ENTRIES_PER_PAGE = ['10', '25', '50', '100', '250', '500'] as const
 
-export const PROTOCOLOS: { value: string; label: string }[] = [
+export const PROTOCOLS: { value: string; label: string }[] = [
   { value: '', label: '' },
   { value: 'Udp', label: 'UDP' },
   { value: 'Tcp', label: 'TCP' },

@@ -19,7 +19,7 @@ import {
 
 afterEach(() => vi.restoreAllMocks())
 
-function espia() {
+function makeSpy() {
   return vi
     .spyOn(client, 'apiRequest')
     .mockResolvedValue({ kind: 'ok', data: { response: {}, server: 's' } })
@@ -27,13 +27,13 @@ function espia() {
 
 describe('cluster — estado', () => {
   it('with no options it sends no parameter', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await getClusterState('tok')
     expect(spy).toHaveBeenCalledWith('admin/cluster/state', { token: 'tok', body: {} })
   })
 
   it('it asks for the server IPs only when told to', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await getClusterState('tok', { node: 'ns1', includeServerIpAddresses: true })
     expect(spy.mock.calls[0][1]).toEqual({
       token: 'tok',
@@ -44,7 +44,7 @@ describe('cluster — estado', () => {
 
 describe('cluster — initialisation', () => {
   it('`init` sends no `node`: the cluster is created on this server', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await initCluster('tok', 'micluster.tld', '10.0.0.1,10.0.0.2')
     expect(spy).toHaveBeenCalledWith('admin/cluster/init', {
       token: 'tok',
@@ -53,7 +53,7 @@ describe('cluster — initialisation', () => {
   })
 
   it('`initJoin` goes by POST with the seven fields', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await initJoinCluster('tok', {
       secondaryNodeIpAddresses: '10.0.0.3',
       primaryNodeUrl: 'https://ns1.test',
@@ -71,7 +71,7 @@ describe('cluster — initialisation', () => {
 
 describe('cluster — actions on nodes', () => {
   it('each action goes to its endpoint with its node', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await updateIpAddress('tok', '10.0.0.9', 'ns1')
     await updatePrimaryNode('tok', 'https://p.test', '10.0.0.1', 'ns2')
     await removeSecondaryNode('tok', '7', 'ns1')
@@ -105,7 +105,7 @@ describe('cluster — actions on nodes', () => {
   })
 
   it('the flags travel as the strings `true` / `false`', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await promoteToPrimary('tok', true, 'ns2')
     await leaveCluster('tok', false, 'ns2')
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/secondary/promote')?.[1]?.body).toEqual({
@@ -119,7 +119,7 @@ describe('cluster — actions on nodes', () => {
   })
 
   it('`setOptions` sends the four intervals plus the node', async () => {
-    const spy = espia()
+    const spy = makeSpy()
     await setClusterOptions(
       'tok',
       {

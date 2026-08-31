@@ -247,7 +247,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
             : 'Are you sure you want to convert the dynamic lease to reserved lease?'
         }
         label="Convert"
-        variante="primary"
+        variant="primary"
         busy={busy}
         onClose={() => setConfirm(null)}
         onConfirm={() => confirm && void convert(confirm.i, confirm.type)}
@@ -268,22 +268,22 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         }
       >
         <Notifier notice={modalNotice} onClose={() => setModalNotice(null)} />
-        <p className={styles.parrafo}>
+        <p className={styles.paragraph}>
           <b>Warning!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP
           address from the client side. Make sure that the client assigned this lease is not
           connected to the network before proceeding.
         </p>
-        <p className={styles.parrafo}>
+        <p className={styles.paragraph}>
           <b>Warning!</b> Removing a DHCP lease may cause IP address conflict if the DHCP server
           assigns the same IP address to a new client while the old client is still connected to the
           network.
         </p>
-        <p className={styles.parrafo}>
+        <p className={styles.paragraph}>
           It is not recommended to remove a DHCP lease when the client is still connected or may
           connect back later to the network before the lease expires. Use this option only as a last
           resort.
         </p>
-        <p className={styles.parrafo}>
+        <p className={styles.paragraph}>
           Follow the recommendations below to avoid such a case that requires removing a DHCP lease:
         </p>
         <ul className={styles.list}>
@@ -304,7 +304,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
             and accessing all the devices using their domain names.
           </li>
         </ul>
-        <p className={styles.parrafo}>Are you sure you want to remove the DHCP lease now?</p>
+        <p className={styles.paragraph}>Are you sure you want to remove the DHCP lease now?</p>
       </Dialog>
     </div>
   )

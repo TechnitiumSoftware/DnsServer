@@ -18,7 +18,7 @@ the raised step— instead of two similar things.
   border: 1px solid var(--line);
   border-radius: var(--r-4);
   background: var(--pan);
-  box-shadow: var(--e-1), var(--filo);
+  box-shadow: var(--e-1), var(--edge);
   overflow: hidden;
   min-width: 0;
 }
@@ -53,9 +53,9 @@ onto. The values are the same tokens, which is what stops them drifting apart.
 .header h2,
 .header h3 {
   margin: 0;
-  font-size: var(--rotulo-tam);
-  font-weight: var(--rotulo-peso);
-  letter-spacing: var(--rotulo-interletrado);
+  font-size: var(--rotulo-size);
+  font-weight: var(--rotulo-weight);
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--mute);
 }

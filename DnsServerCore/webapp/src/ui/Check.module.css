@@ -37,12 +37,12 @@ element nor a pseudo-element the browser paints its own way is needed.
   background: var(--field);
   background-image: none;
   box-shadow:
-    var(--hundido),
+    var(--sunken),
     inset calc(var(--ctrl-track-w) - var(--ctrl-track-h)) 0 0 -1px transparent;
   position: relative;
   transition:
-    background-color var(--t-rapido),
-    border-color var(--t-rapido);
+    background-color var(--t-fast),
+    border-color var(--t-fast);
 }
 
 /* The knob: a circle that travels from one end of the track to the other. */
@@ -56,14 +56,14 @@ element nor a pseudo-element the browser paints its own way is needed.
   border-radius: var(--r-full);
   background: var(--mute);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  transition: transform var(--t-medio), background var(--t-rapido);
+  transition: transform var(--t-medio), background var(--t-fast);
 }
 
 .toggle input:checked {
   background-color: var(--acc);
   background-image: none;
   border-color: var(--acc);
-  box-shadow: var(--filo-fuerte);
+  box-shadow: var(--edge-fuerte);
 }
 
 .toggle input:checked::after {

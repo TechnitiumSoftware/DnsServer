@@ -8,13 +8,13 @@
 .browseRow > div { flex:1; min-width:0; }
 
 .node { composes: compacta from '../../ui/list.module.css'; font-family: var(--font-mono); }
-.car { display:inline-flex; color:var(--mute); flex:none; }
-.label { composes: truncado from '../../ui/text.module.css'; }
+.ch { display:inline-flex; color:var(--mute); flex:none; }
+.label { composes: truncated from '../../ui/text.module.css'; }
 .lvl { margin-left: var(--s-9); border-left:1px solid var(--line); padding-left: var(--s-3); }
 
-/* Panel de registros */
+/* Records panel */
 /* The count is `ui/count.module.css`'s: see there for why. */
-.count { composes: barra above from '../../ui/count.module.css'; }
+.count { composes: bar above from '../../ui/count.module.css'; }
 .countActs { display:flex; gap: var(--s-3); }
 .mono { composes: mono from '../../ui/text.module.css'; }
 
@@ -23,12 +23,12 @@
 
 .kv { composes: kv from '../../ui/kv.module.css'; }
 .key { composes: key from '../../ui/record.module.css'; }
-.verlo { composes: verlo from '../../ui/record.module.css'; }
+.showIt { composes: showIt from '../../ui/record.module.css'; }
 
 .meta { composes: meta from '../../ui/record.module.css'; }
 .firmas { margin: var(--s-5) 0 0; padding: var(--s-6) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font:var(--t-2)/1.6 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; }
 
-.parrafo { composes: parrafo from '../../ui/text.module.css'; }
+.paragraph { composes: paragraph from '../../ui/text.module.css'; }
 .area { min-height:260px; resize:vertical; }
 
 /* The tree and the records stop sharing two columns: at 390 px the tree was

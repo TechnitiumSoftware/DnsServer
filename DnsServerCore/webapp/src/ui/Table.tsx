@@ -121,11 +121,11 @@ export function useOrden<T>(keys: Keys<T>, rows: T[]) {
   const sorted = (() => {
     if (sort == null || keys[sort.field] == null) return rows
     const read = keys[sort.field]
-    const signo = sort.desc ? -1 : 1
+    const sign = sort.desc ? -1 : 1
     return [...rows].sort((a, b) => {
       const x = text(read(a))
       const y = text(read(b))
-      return x === y ? 0 : (x > y ? 1 : -1) * signo
+      return x === y ? 0 : (x > y ? 1 : -1) * sign
     })
   })()
 
@@ -170,7 +170,7 @@ export function Th({
       >
         {children}
         <span className={styles.flecha}>
-          <Icon name={active ? 'chevronDown' : 'sort'} tam={12} data-desc={active && !sort!.desc} />
+          <Icon name={active ? 'chevronDown' : 'sort'} size={12} data-desc={active && !sort!.desc} />
         </span>
       </button>
     </th>
@@ -194,7 +194,7 @@ export function RowAction({
 } & Omit<React.ComponentProps<typeof Button>, 'children' | 'size' | 'icon'>) {
   return (
     <Button size="sm" icon aria-label={name} title={name} {...rest}>
-      <Icon name={icon} tam={15} />
+      <Icon name={icon} size={15} />
     </Button>
   )
 }

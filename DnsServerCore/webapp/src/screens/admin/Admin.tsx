@@ -33,9 +33,9 @@ shared with the six sub-tabs. The Cluster sub-tab refreshes it every time it
 changes, just as `reloadAdminClusterView` does.
 */
 
-export const SUBPESTANAS = ['Sessions', 'Users', 'Groups', 'Permissions', 'SSO', 'Cluster'] as const
+export const SUB_TABS = ['Sessions', 'Users', 'Groups', 'Permissions', 'SSO', 'Cluster'] as const
 
-export type Subpestana = (typeof SUBPESTANAS)[number]
+export type SubTab = (typeof SUB_TABS)[number]
 
 export interface AdminProps {
   token: string | null
@@ -43,7 +43,7 @@ export interface AdminProps {
   sub?: string | null
   /** Present for symmetry with Settings; Administration never changes sub-tab on
    *  its own, so today it is not invoked. */
-  onSubChange?: (sub: Subpestana) => void
+  onSubChange?: (sub: SubTab) => void
 }
 
 export function Admin({ token, sub }: AdminProps) {
@@ -51,12 +51,12 @@ export function Admin({ token, sub }: AdminProps) {
   const [cluster, setCluster] = useState<ClusterState | null>(null)
 
   useEffect(() => {
-    let vivo = true
+    let live = true
     void getClusterState(token).then((outcome) => {
-      if (vivo && outcome.kind === 'ok') setCluster(outcome.data.response)
+      if (live && outcome.kind === 'ok') setCluster(outcome.data.response)
     })
     return () => {
-      vivo = false
+      live = false
     }
   }, [token])
 
@@ -66,8 +66,8 @@ export function Admin({ token, sub }: AdminProps) {
   const notify = useCallback((a: Notice) => setNotice(a), [])
   const toCluster = useCallback((s: ClusterState) => setCluster(s), [])
 
-  const pedida = (sub ?? 'Sessions') as Subpestana
-  const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Sessions'
+  const requested = (sub ?? 'Sessions') as SubTab
+  const active: SubTab = SUB_TABS.includes(requested) ? requested : 'Sessions'
 
   return (
     <div>

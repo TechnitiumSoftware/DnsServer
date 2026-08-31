@@ -1,4 +1,4 @@
-import type { ZoneOptions, PoliticaActualizacion } from '../../api/zones'
+import type { ZoneOptions, UpdatePolicy } from '../../api/zones'
 import { cleanList } from '../../api/zonelists'
 import { serializeTable } from '../../lib/table-serialise'
 
@@ -19,7 +19,7 @@ not even this server rules over it.
 
 export type OptionsTab = 'General' | 'Query Access' | 'Zone Transfer' | 'Notify' | 'Dynamic Updates'
 
-export const PESTANAS: { id: OptionsTab; label: string }[] = [
+export const TABS: { id: OptionsTab; label: string }[] = [
   { id: 'General', label: 'General' },
   { id: 'Query Access', label: 'Query Access' },
   { id: 'Zone Transfer', label: 'Zone Transfer' },
@@ -39,7 +39,7 @@ export const ACCESOS_CONSULTA = [
   },
 ]
 
-export const TRANSFERENCIAS = [
+export const TRANSFERS = [
   { value: 'Deny', label: 'Deny' },
   { value: 'Allow', label: 'Allow' },
   { value: 'AllowOnlyZoneNameServers', label: 'Allow Only Name Servers In Zone' },
@@ -50,7 +50,7 @@ export const TRANSFERENCIAS = [
   },
 ]
 
-export const NOTIFICACIONES = [
+export const NOTIFICATIONS = [
   { value: 'None', label: 'None' },
   { value: 'ZoneNameServers', label: 'Name Servers In Zone' },
   { value: 'SpecifiedNameServers', label: 'Specified Name Servers' },
@@ -61,7 +61,7 @@ export const NOTIFICACIONES = [
   },
 ]
 
-export const ACTUALIZACIONES = [
+export const UPDATES = [
   { value: 'Deny', label: 'Deny (default)' },
   { value: 'Allow', label: 'Allow' },
   { value: 'AllowOnlyZoneNameServers', label: 'Allow Only Name Servers In Zone' },
@@ -81,8 +81,8 @@ export const PROTOCOLOS_XFR = [
 /* ── Interface state ───────────────────────────────────────────────────── */
 
 export interface OptionsState {
-  pestanas: OptionsTab[]
-  pestanaInicial: OptionsTab
+  tabs: OptionsTab[]
+  initialTab: OptionsTab
   /** General */
   catalogo: boolean
   catalogoFijo: boolean
@@ -111,15 +111,15 @@ export interface OptionsState {
   securityPolicies: boolean
 }
 
-const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
+const SECONDARIES = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
 
 export function optionsState(r: ZoneOptions): OptionsState {
   const type = r.type
   const inCatalog = r.catalog != null
-  const miembroSecundario = inCatalog && r.isSecondaryCatalogMember === true
-  const catalogosDisponibles = (r.availableCatalogZoneNames ?? []).length > 0
+  const secondaryMember = inCatalog && r.isSecondaryCatalogMember === true
+  const availableCatalogs = (r.availableCatalogZoneNames ?? []).length > 0
 
-  const pestanas: OptionsTab[] = []
+  const tabs: OptionsTab[] = []
 
   /* ── General ──────────────────────────────────────────────────────── */
   let catalogo = false
@@ -131,7 +131,7 @@ export function optionsState(r: ZoneOptions): OptionsState {
   switch (type) {
     case 'Primary':
     case 'Forwarder':
-      if (catalogosDisponibles) {
+      if (availableCatalogs) {
         catalogo = true
         sobrescribirQueryAccess = true
         sobrescribirZoneTransfer = true
@@ -140,23 +140,23 @@ export function optionsState(r: ZoneOptions): OptionsState {
       break
 
     case 'Stub':
-      if (miembroSecundario) {
+      if (secondaryMember) {
         catalogo = true
         catalogoFijo = true
         sobrescribirQueryAccess = true
-      } else if (catalogosDisponibles) {
+      } else if (availableCatalogs) {
         catalogo = true
         sobrescribirQueryAccess = true
       }
       break
 
     case 'Secondary':
-      if (miembroSecundario) {
+      if (secondaryMember) {
         catalogo = true
         catalogoFijo = true
         sobrescribirQueryAccess = true
         sobrescribirZoneTransfer = true
-      } else if (catalogosDisponibles) {
+      } else if (availableCatalogs) {
         catalogo = true
         sobrescribirQueryAccess = true
         sobrescribirZoneTransfer = true
@@ -179,7 +179,7 @@ export function optionsState(r: ZoneOptions): OptionsState {
   let validateZone = false
   let servidorPrimarioObligatorio = false
 
-  if (SECUNDARIAS.includes(type)) {
+  if (SECONDARIES.includes(type)) {
     protocoloXfr = true
     tsigDelPrimario = true
     validateZone = type === 'Secondary'
@@ -193,7 +193,7 @@ export function optionsState(r: ZoneOptions): OptionsState {
     servidorPrimario = true
   }
 
-  if (catalogo || servidorPrimario) pestanas.push('General')
+  if (catalogo || servidorPrimario) tabs.push('General')
 
   /* ── Query Access ─────────────────────────────────────────────────── */
   let queryAccess = false
@@ -207,7 +207,7 @@ export function optionsState(r: ZoneOptions): OptionsState {
       break
 
     case 'Stub':
-      if (miembroSecundario) {
+      if (secondaryMember) {
         queryAccess = r.overrideCatalogQueryAccess === true
         queryAccessLocked = true
       } else {
@@ -227,7 +227,7 @@ export function optionsState(r: ZoneOptions): OptionsState {
       break
   }
 
-  if (queryAccess) pestanas.push('Query Access')
+  if (queryAccess) tabs.push('Query Access')
 
   /* ── Zone Transfer ────────────────────────────────────────────────── */
   let zoneTransfer = false
@@ -254,7 +254,7 @@ export function optionsState(r: ZoneOptions): OptionsState {
       break
   }
 
-  if (zoneTransfer) pestanas.push('Zone Transfer')
+  if (zoneTransfer) tabs.push('Zone Transfer')
 
   /* ── Notify ───────────────────────────────────────────────────────── */
   let notify = false
@@ -268,27 +268,27 @@ export function optionsState(r: ZoneOptions): OptionsState {
       notify = true
       break
   }
-  if (notify) pestanas.push('Notify')
+  if (notify) tabs.push('Notify')
 
   /* ── Dynamic Updates ──────────────────────────────────────────────── */
   const update = ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder'].includes(type)
-  if (update) pestanas.push('Dynamic Updates')
+  if (update) tabs.push('Dynamic Updates')
 
   /*
   The tab that comes up open is NOT always the first: on a Catalog it is "Query
   Access", and on a Primary or Forwarder it depends on whether there are catalogs
   available (zone.js:2303-2360).
   */
-  let inicial: OptionsTab = pestanas[0] ?? 'Query Access'
-  if ([...SECUNDARIAS, 'Stub'].includes(type)) inicial = 'General'
-  else if (type === 'Catalog') inicial = 'Query Access'
+  let initial: OptionsTab = tabs[0] ?? 'Query Access'
+  if ([...SECONDARIES, 'Stub'].includes(type)) initial = 'General'
+  else if (type === 'Catalog') initial = 'Query Access'
   else if (type === 'Primary' || type === 'Forwarder') {
-    inicial = catalogosDisponibles ? 'General' : 'Query Access'
+    initial = availableCatalogs ? 'General' : 'Query Access'
   }
 
   return {
-    pestanas,
-    pestanaInicial: pestanas.includes(inicial) ? inicial : (pestanas[0] ?? 'Query Access'),
+    tabs,
+    initialTab: tabs.includes(initial) ? initial : (tabs[0] ?? 'Query Access'),
     catalogo,
     catalogoFijo,
     sobrescribirQueryAccess,
@@ -296,13 +296,13 @@ export function optionsState(r: ZoneOptions): OptionsState {
     sobrescribirNotify,
     // The override checkboxes go off if the zone is not in a catalog,
     // and also when it is administered by a secondary catalog.
-    overrideLocked: !inCatalog || miembroSecundario,
+    overrideLocked: !inCatalog || secondaryMember,
     servidorPrimario,
     servidorPrimarioObligatorio,
     protocoloXfr,
     tsigDelPrimario,
     validateZone,
-    primaryServerLocked: miembroSecundario,
+    primaryServerLocked: secondaryMember,
     queryAccessLocked,
     queryAccessConNameServers: !['Stub', 'Forwarder', 'SecondaryForwarder', 'Catalog', 'SecondaryCatalog'].includes(type),
     zoneTransferLocked,
@@ -383,7 +383,7 @@ export function formFromOptions(r: ZoneOptions): OptionsForm {
   }
 }
 
-function rowFromPolicy(p: PoliticaActualizacion): PolicyRow {
+function rowFromPolicy(p: UpdatePolicy): PolicyRow {
   return {
     tsigKeyName: p.tsigKeyName,
     domain: p.domain,
@@ -440,8 +440,8 @@ export function buildOptionsBody(
   zoneType: string,
 ): OptionsResult {
   if (zoneType === 'SecondaryForwarder' || zoneType === 'SecondaryCatalog') {
-    const direcciones = cleanList(f.primaryNameServerAddresses)
-    if (direcciones.length === 0 || direcciones === ',') {
+    const addresses = cleanList(f.primaryNameServerAddresses)
+    if (addresses.length === 0 || addresses === ',') {
       return {
         error: {
           title: 'Missing!',
@@ -454,12 +454,12 @@ export function buildOptionsBody(
   }
 
   const emptyIsFalse = (v: string): string => {
-    const limpio = cleanList(v)
-    return limpio.length === 0 || limpio === ',' ? 'false' : limpio
+    const clean = cleanList(v)
+    return clean.length === 0 || clean === ',' ? 'false' : clean
   }
 
-  const politicas = serializePolicies(f.updateSecurityPolicies)
-  if ('error' in politicas) return politicas
+  const policies = serializePolicies(f.updateSecurityPolicies)
+  if ('error' in policies) return policies
 
   return {
     body: {
@@ -481,7 +481,7 @@ export function buildOptionsBody(
       notifySecondaryCatalogsNameServers: emptyIsFalse(f.notifySecondaryCatalogsNameServers),
       update: f.update,
       updateNetworkACL: emptyIsFalse(f.updateNetworkACL),
-      updateSecurityPolicies: politicas.value.length === 0 ? 'false' : politicas.value,
+      updateSecurityPolicies: policies.value.length === 0 ? 'false' : policies.value,
     },
   }
 }

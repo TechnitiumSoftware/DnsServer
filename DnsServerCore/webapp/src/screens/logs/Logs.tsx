@@ -15,16 +15,16 @@ to another section: "delete all stats" deletes the Dashboard's statistics and
 asks for `Dashboard.canDelete` (`WebServiceLogsApi.cs:135`).
 */
 
-export const SUBPESTANAS = ['View Logs', 'Query Logs'] as const
-export type Subpestana = (typeof SUBPESTANAS)[number]
+export const SUB_TABS = ['View Logs', 'Query Logs'] as const
+export type SubTab = (typeof SUB_TABS)[number]
 
 export interface LogsProps {
   token: string | null
   /** The active sub-tab, the one the Shell's side panel marks. */
   sub?: string | null
   /** It exists for symmetry with Settings; this screen never forces a change. */
-  onSubChange?: (sub: Subpestana) => void
-  /** `Logs.canDelete`: borrar un fichero de log y borrarlos todos. */
+  onSubChange?: (sub: SubTab) => void
+  /** `Logs.canDelete`: deleting a log file and deleting them all. */
   canDeleteLogs?: boolean
   /** `Dashboard.canDelete`: deleting all the statistics. */
   canDeleteStats?: boolean
@@ -39,8 +39,8 @@ export function Logs({
   canDeleteStats = true,
   node = '',
 }: LogsProps) {
-  const pedida = (sub ?? 'View Logs') as Subpestana
-  const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'View Logs'
+  const requested = (sub ?? 'View Logs') as SubTab
+  const active: SubTab = SUB_TABS.includes(requested) ? requested : 'View Logs'
 
   return active === 'Query Logs' ? (
     <QueryLogs token={token} node={node} />

@@ -1,9 +1,9 @@
 import { describe, expect, it, afterEach } from 'vitest'
 import { SECTIONS } from './sections'
-import { aCamino, aSlug, escribirRuta, readRoute, olvidarRaiz, raizDeLaApp } from './route'
+import { toTrail, aSlug, escribirRuta, readRoute, forgetRoot, raizDeLaApp } from './route'
 
 /** Serves the document as the server would: in its folder and with its meta. */
-function servidoEn(camino: string, route: string | null = null) {
+function servedAt(trail: string, route: string | null = null) {
   document.head.querySelector('meta[name="ruta"]')?.remove()
   if (route != null) {
     const m = document.createElement('meta')
@@ -11,12 +11,12 @@ function servidoEn(camino: string, route: string | null = null) {
     m.setAttribute('content', route)
     document.head.appendChild(m)
   }
-  window.history.replaceState(null, '', camino)
-  olvidarRaiz()
+  window.history.replaceState(null, '', trail)
+  forgetRoot()
 }
 
 afterEach(() => {
-  servidoEn('/')
+  servedAt('/')
 })
 
 describe('aSlug', () => {
@@ -45,102 +45,102 @@ segments the document itself declares in its `<meta>`.
 */
 describe('raizDeLaApp', () => {
   it('on the front page, the root is the front page', () => {
-    servidoEn('/')
+    servedAt('/')
     expect(raizDeLaApp()).toBe('/')
   })
 
   it('on a one-level path', () => {
-    servidoEn('/zones/', 'zones')
+    servedAt('/zones/', 'zones')
     expect(raizDeLaApp()).toBe('/')
   })
 
   it('on a two-level path', () => {
-    servidoEn('/settings/logging/', 'settings/logging')
+    servedAt('/settings/logging/', 'settings/logging')
     expect(raizDeLaApp()).toBe('/')
   })
 
   it('and behind a proxy with a prefix, which is what all this is about', () => {
-    servidoEn('/dns/settings/logging/', 'settings/logging')
+    servedAt('/dns/settings/logging/', 'settings/logging')
     expect(raizDeLaApp()).toBe('/dns/')
   })
 
   it('with a two-segment prefix', () => {
-    servidoEn('/casa/dns/zones/', 'zones')
+    servedAt('/casa/dns/zones/', 'zones')
     expect(raizDeLaApp()).toBe('/casa/dns/')
   })
 })
 
 describe('readRoute', () => {
   it('on the front page there is no route, and it starts from whatever the Shell says', () => {
-    servidoEn('/')
+    servedAt('/')
     expect(readRoute(SECTIONS)).toBeNull()
   })
 
   it('it reads section and sub-section', () => {
-    servidoEn('/admin/cluster/', 'admin/cluster')
+    servedAt('/admin/cluster/', 'admin/cluster')
     expect(readRoute(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
   })
 
   it('it returns the original label, not the slug', () => {
-    servidoEn('/settings/proxy-forwarders/', 'settings/proxy-forwarders')
+    servedAt('/settings/proxy-forwarders/', 'settings/proxy-forwarders')
     expect(readRoute(SECTIONS)).toEqual({ section: 'settings', sub: 'Proxy & Forwarders' })
   })
 
   it('it reads it the same behind a prefix', () => {
-    servidoEn('/dns/admin/cluster/', 'admin/cluster')
+    servedAt('/dns/admin/cluster/', 'admin/cluster')
     expect(readRoute(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
   })
 
   it('an unknown section does not resolve', () => {
-    servidoEn('/noexiste/', 'noexiste')
+    servedAt('/noexiste/', 'noexiste')
     expect(readRoute(SECTIONS)).toBeNull()
   })
 
   it('an unknown sub does NOT bring the section down: it falls to the first', () => {
-    servidoEn('/settings/tampoco-existe/', 'settings/tampoco-existe')
+    servedAt('/settings/tampoco-existe/', 'settings/tampoco-existe')
     expect(readRoute(SECTIONS)).toEqual({ section: 'settings', sub: null })
   })
 
   it('a section hidden by permissions does not resolve, even though it exists', () => {
-    servidoEn('/admin/cluster/', 'admin/cluster')
+    servedAt('/admin/cluster/', 'admin/cluster')
     expect(readRoute(SECTIONS.filter((s) => s.id !== 'admin'))).toBeNull()
   })
 })
 
-describe('aCamino', () => {
+describe('toTrail', () => {
   it('it omits the sub when there is none, and always ends in a slash', () => {
-    servidoEn('/')
-    expect(aCamino({ section: 'zones', sub: null })).toBe('/zones/')
+    servedAt('/')
+    expect(toTrail({ section: 'zones', sub: null })).toBe('/zones/')
   })
 
   it('and it slugs it when there is one', () => {
-    servidoEn('/')
-    expect(aCamino({ section: 'logs', sub: 'Query Logs' })).toBe('/logs/query-logs/')
+    servedAt('/')
+    expect(toTrail({ section: 'logs', sub: 'Query Logs' })).toBe('/logs/query-logs/')
   })
 
   it('it honours the proxy prefix', () => {
-    servidoEn('/dns/zones/', 'zones')
-    expect(aCamino({ section: 'settings', sub: 'TSIG' })).toBe('/dns/settings/tsig/')
+    servedAt('/dns/zones/', 'zones')
+    expect(toTrail({ section: 'settings', sub: 'TSIG' })).toBe('/dns/settings/tsig/')
   })
 })
 
 describe('escribirRuta', () => {
   it('it leaves the address bar on the requested path', () => {
-    servidoEn('/')
+    servedAt('/')
     escribirRuta({ section: 'dhcp', sub: 'Leases' }, true)
     expect(window.location.pathname).toBe('/dhcp/leases/')
   })
 
   it('it does not touch the history if the path is already the current one', () => {
-    servidoEn('/zones/', 'zones')
-    const antes = window.history.length
+    servedAt('/zones/', 'zones')
+    const before2 = window.history.length
     escribirRuta({ section: 'zones', sub: null })
     expect(window.location.pathname).toBe('/zones/')
-    expect(window.history.length).toBe(antes)
+    expect(window.history.length).toBe(before2)
   })
 
   it('what gets written reads back the same, across all 31 routes', () => {
-    servidoEn('/')
+    servedAt('/')
     for (const s of SECTIONS) {
       for (const sub of s.subs ?? [null]) {
         escribirRuta({ section: s.id, sub }, true)

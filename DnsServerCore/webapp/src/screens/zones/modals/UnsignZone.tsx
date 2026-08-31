@@ -20,14 +20,14 @@ export function UnsignZone({
   token,
   node = '',
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
   const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
@@ -47,7 +47,7 @@ export function UnsignZone({
     }
 
     onClose()
-    onHecho({ type: 'success', title: 'Zone Unsigned!', text: 'The primary zone was unsigned successfully.' })
+    onDone({ type: 'success', title: 'Zone Unsigned!', text: 'The primary zone was unsigned successfully.' })
   }
 
   return (
@@ -90,7 +90,7 @@ export function UnsignZone({
         it. Consider taking a backup before proceeding.
       </Alert>
 
-      <p className={styles.parrafo}>Are you sure you want to proceed to unsign the zone now?</p>
+      <p className={styles.paragraph}>Are you sure you want to proceed to unsign the zone now?</p>
     </Dialog>
   )
 }

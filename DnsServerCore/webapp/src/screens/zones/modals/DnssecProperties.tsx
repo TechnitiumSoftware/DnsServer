@@ -16,7 +16,7 @@ import {
   type Algorithm,
   type PrivateKey,
   type NxProof,
-  type PropiedadesDnssec as Propiedades,
+  type PropiedadesDnssec as Properties,
   type KeyKind,
 } from '../../../api/dnssec'
 import { Alert } from '../../../ui/Alert'
@@ -29,12 +29,12 @@ import {
   ALGORITHMS,
   CURVAS_ECDSA,
   CURVAS_EDDSA,
-  GENERACIONES,
+  GENERATIONS,
   HASHES_RSA,
-  PRUEBAS_NX,
+  NX_PROOFS,
   TAMANOS_RSA,
   KEY_TYPES,
-  curvaPorDefecto,
+  defaultCurve,
 } from './dnssec-options'
 import type { Notice, Confirmation } from '../types'
 import tbl from '../../../ui/Table.module.css'
@@ -91,7 +91,7 @@ export function PropiedadesDnssec({
   /** The zone has to be re-read: signing and changing the proof touch its records. */
   onCambio: () => void
 }) {
-  const [props, setProps] = useState<Propiedades | null>(null)
+  const [props, setProps] = useState<Properties | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -102,7 +102,7 @@ export function PropiedadesDnssec({
   const [dnsKeyTtl, setDnsKeyTtl] = useState('3600')
   const [rollovers, setRollovers] = useState<Record<number, string>>({})
 
-  const [anadiendo, setAnadiendo] = useState(false)
+  const [adding, setAnadiendo] = useState(false)
   const [newKey, setNewKey] = useState(initialNewKey)
 
   const load = useCallback(async () => {
@@ -141,7 +141,7 @@ export function PropiedadesDnssec({
   /** Runs it, draws the literal alert and reloads if needed. */
   async function action(
     fn: () => Promise<{ kind: string; message?: string }>,
-    exito: Notice,
+    success: Notice,
     options: { reload?: boolean; reloadZone?: boolean } = {},
   ) {
     setBusy(true)
@@ -155,7 +155,7 @@ export function PropiedadesDnssec({
 
     if (options.reload !== false) await load()
     if (options.reloadZone) onCambio()
-    setNotice(exito)
+    setNotice(success)
   }
 
   function saveRollover(k: PrivateKey) {
@@ -186,7 +186,7 @@ export function PropiedadesDnssec({
     })
   }
 
-  function activar(k: PrivateKey) {
+  function activate(k: PrivateKey) {
     onConfirm({
       title: 'Activate KSK',
       text: `Are you sure you want to activate the KSK DNS Key (${k.keyTag})?`,
@@ -214,7 +214,7 @@ export function PropiedadesDnssec({
     })
   }
 
-  function retirar(k: PrivateKey) {
+  function retire(k: PrivateKey) {
     onConfirm({
       title: 'Retire DNS Key',
       text: `Are you sure you want to retire the DNS Key (${k.keyTag})?`,
@@ -266,7 +266,7 @@ export function PropiedadesDnssec({
     })
   }
 
-  function cambiarPrueba() {
+  function changeProof() {
     if (props == null) return
 
     const current: NxProof = props.dnssecStatus === 'SignedWithNSEC3' ? 'NSEC3' : 'NSEC'
@@ -277,7 +277,7 @@ export function PropiedadesDnssec({
       { iterations, saltLength },
     )
 
-    const exito: Notice = {
+    const success: Notice = {
       type: 'success',
       title: 'Proof Changed!',
       text: 'The proof of non-existence was changed successfully.',
@@ -285,7 +285,7 @@ export function PropiedadesDnssec({
 
     // With no real change nobody is called… and the success alert comes out anyway.
     if (plan.action === 'ninguna') {
-      setNotice(exito)
+      setNotice(success)
       return
     }
 
@@ -302,7 +302,7 @@ export function PropiedadesDnssec({
             }
             return updateNSEC3Params(token, zone, plan.iterations, plan.saltLength, node)
           },
-          exito,
+          success,
           { reloadZone: true },
         ),
     })
@@ -318,7 +318,7 @@ export function PropiedadesDnssec({
 
   const keys = props?.dnssecPrivateKeys ?? []
   const { rows: visibleKeys, sort, toggle } = useOrden(KEYS, keys)
-  const hayGeneradas = keys.some((k) => k.state === 'Generated')
+  const hasGenerated = keys.some((k) => k.state === 'Generated')
   const notas = notasDeEstado(keys)
 
   return (
@@ -367,9 +367,9 @@ export function PropiedadesDnssec({
                   onRollover={(v) => setRollovers((r) => ({ ...r, [k.keyTag]: v }))}
                   onSaveRollover={() => saveRollover(k)}
                   onDelete={() => deleteKey(k)}
-                  onActivar={() => activar(k)}
+                  onActivate={() => activate(k)}
                   onRolloverAhora={() => rollover(k)}
-                  onRetirar={() => retirar(k)}
+                  onRetire={() => retire(k)}
                 />
               ))
             )}
@@ -383,12 +383,12 @@ export function PropiedadesDnssec({
 
           <div className={styles.acts}>
             <Button onClick={() => setAnadiendo((v) => !v)}>Add Private Key</Button>
-            <Button disabled={!hayGeneradas || busy} onClick={publicarTodas}>
+            <Button disabled={!hasGenerated || busy} onClick={publicarTodas}>
               Publish All Keys
             </Button>
           </div>
 
-          {anadiendo && (
+          {adding && (
             <div className={styles.group}>
               <div className={styles.groupTitle}>Add Private Key</div>
 
@@ -417,7 +417,7 @@ export function PropiedadesDnssec({
                     value={newKey.algorithm}
                     onChange={(e) => {
                       const algorithm = e.target.value as Algorithm
-                      setNewKey((k) => ({ ...k, algorithm, curve: curvaPorDefecto(algorithm) }))
+                      setNewKey((k) => ({ ...k, algorithm, curve: defaultCurve(algorithm) }))
                     }}
                   >
                     {ALGORITHMS.map((a) => (
@@ -464,7 +464,7 @@ export function PropiedadesDnssec({
               )}
 
               <div className={frm.mrowCtl}>
-                {GENERACIONES.map((g) => (
+                {GENERATIONS.map((g) => (
                   <label key={g.value} className={styles.chk}>
                     <input
                       type="radio"
@@ -551,7 +551,7 @@ MII...
 
           <div className={styles.group}>
             <div className={styles.groupTitle}>Proof of Non-Existence</div>
-            {PRUEBAS_NX.map((n) => (
+            {NX_PROOFS.map((n) => (
               <label key={n.value} className={styles.chk}>
                 <input
                   type="radio"
@@ -604,7 +604,7 @@ MII...
             )}
 
             <div>
-              <Button disabled={busy} onClick={cambiarPrueba}>
+              <Button disabled={busy} onClick={changeProof}>
                 Change
               </Button>
             </div>
@@ -671,9 +671,9 @@ function initialNewKey(): NewKey {
  */
 export function keyActions(k: PrivateKey): {
   remove: boolean
-  activar: boolean
+  activate: boolean
   rollover: boolean
-  retirar: boolean
+  retire: boolean
   rolloverAutomatico: boolean
 } {
   const zsk = k.keyType === 'ZoneSigningKey'
@@ -681,9 +681,9 @@ export function keyActions(k: PrivateKey): {
 
   return {
     remove: k.state === 'Generated',
-    activar: k.state === 'Ready' && !k.isRetiring,
+    activate: k.state === 'Ready' && !k.isRetiring,
     rollover: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
-    retirar: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
+    retire: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
     // Only ZSKs have automatic rollover, and only while they are in flight.
     rolloverAutomatico: zsk && inProgress && !k.isRetiring,
   }
@@ -717,9 +717,9 @@ function KeyRow({
   onRollover,
   onSaveRollover,
   onDelete,
-  onActivar,
+  onActivate,
   onRolloverAhora,
-  onRetirar,
+  onRetire,
 }: {
   privateKey: PrivateKey
   busy: boolean
@@ -727,9 +727,9 @@ function KeyRow({
   onRollover: (v: string) => void
   onSaveRollover: () => void
   onDelete: () => void
-  onActivar: () => void
+  onActivate: () => void
   onRolloverAhora: () => void
-  onRetirar: () => void
+  onRetire: () => void
 }) {
   const a = keyActions(k)
 
@@ -777,8 +777,8 @@ function KeyRow({
               Delete
             </Button>
           )}
-          {a.activar && (
-            <Button size="sm" disabled={busy} onClick={onActivar}>
+          {a.activate && (
+            <Button size="sm" disabled={busy} onClick={onActivate}>
               Activate
             </Button>
           )}
@@ -787,8 +787,8 @@ function KeyRow({
               Rollover
             </Button>
           )}
-          {a.retirar && (
-            <Button size="sm" disabled={busy} onClick={onRetirar}>
+          {a.retire && (
+            <Button size="sm" disabled={busy} onClick={onRetire}>
               Retire
             </Button>
           )}

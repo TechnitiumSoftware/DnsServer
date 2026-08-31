@@ -26,42 +26,42 @@ describe('fechaHora / fechaMinuto', () => {
 })
 
 describe('desdeAhora — the moment literals', () => {
-  const ahora = Date.UTC(2026, 7, 25, 12, 0, 0)
-  const hace = (ms: number) => fromNow(new Date(ahora - ms).toISOString(), ahora)
+  const now = Date.UTC(2026, 7, 25, 12, 0, 0)
+  const ago = (ms: number) => fromNow(new Date(now - ms).toISOString(), now)
 
   it('under 45 s it always says \"a few seconds ago\"', () => {
-    expect(hace(0)).toBe('a few seconds ago')
-    expect(hace(1000)).toBe('a few seconds ago')
-    expect(hace(44_000)).toBe('a few seconds ago')
+    expect(ago(0)).toBe('a few seconds ago')
+    expect(ago(1000)).toBe('a few seconds ago')
+    expect(ago(44_000)).toBe('a few seconds ago')
   })
 
   it('the threshold for \"a minute\" is at 45 s, not at 60', () => {
-    expect(hace(45_000)).toBe('a minute ago')
-    expect(hace(89_000)).toBe('a minute ago')
-    expect(hace(91_000)).toBe('2 minutes ago')
+    expect(ago(45_000)).toBe('a minute ago')
+    expect(ago(89_000)).toBe('a minute ago')
+    expect(ago(91_000)).toBe('2 minutes ago')
   })
 
   it('minutes, hours and days', () => {
-    expect(hace(8 * 60_000)).toBe('8 minutes ago')
-    expect(hace(44 * 60_000)).toBe('44 minutes ago')
-    expect(hace(60 * 60_000)).toBe('an hour ago')
-    expect(hace(3 * 3600_000)).toBe('3 hours ago')
-    expect(hace(24 * 3600_000)).toBe('a day ago')
-    expect(hace(5 * 24 * 3600_000)).toBe('5 days ago')
+    expect(ago(8 * 60_000)).toBe('8 minutes ago')
+    expect(ago(44 * 60_000)).toBe('44 minutes ago')
+    expect(ago(60 * 60_000)).toBe('an hour ago')
+    expect(ago(3 * 3600_000)).toBe('3 hours ago')
+    expect(ago(24 * 3600_000)).toBe('a day ago')
+    expect(ago(5 * 24 * 3600_000)).toBe('5 days ago')
   })
 
   it('months and years', () => {
-    expect(hace(40 * 24 * 3600_000)).toBe('a month ago')
-    expect(hace(120 * 24 * 3600_000)).toBe('4 months ago')
-    expect(hace(400 * 24 * 3600_000)).toBe('a year ago')
-    expect(hace(3 * 365 * 24 * 3600_000)).toBe('3 years ago')
+    expect(ago(40 * 24 * 3600_000)).toBe('a month ago')
+    expect(ago(120 * 24 * 3600_000)).toBe('4 months ago')
+    expect(ago(400 * 24 * 3600_000)).toBe('a year ago')
+    expect(ago(3 * 365 * 24 * 3600_000)).toBe('3 years ago')
   })
 
   it('a future date carries the \"in\" prefix, not the \"ago\" suffix', () => {
-    expect(fromNow(new Date(ahora + 3 * 3600_000).toISOString(), ahora)).toBe('in 3 hours')
+    expect(fromNow(new Date(now + 3 * 3600_000).toISOString(), now)).toBe('in 3 hours')
   })
 
   it('`0001-01-01T00:00:00` is the .NET \"never\" and comes out as years, it does not blow up', () => {
-    expect(fromNow('0001-01-01T00:00:00', ahora)).toMatch(/ years ago$/)
+    expect(fromNow('0001-01-01T00:00:00', now)).toMatch(/ years ago$/)
   })
 })

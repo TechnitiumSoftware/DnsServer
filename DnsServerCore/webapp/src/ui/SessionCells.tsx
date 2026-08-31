@@ -45,16 +45,16 @@ export function SessionCell({ session }: { session: Pick<Session, 'partialToken'
 }
 
 /** The "Last Seen" cell: the date, and beneath it how long ago. */
-export function LastSeenCell({ date, hace }: { date: string; hace: string }) {
+export function LastSeenCell({ date, ago }: { date: string; ago: string }) {
   return (
     <>
       <div className={text.mono}>{date}</div>
-      <div className={styles.age}>{`(${hace})`}</div>
+      <div className={styles.age}>{`(${ago})`}</div>
     </>
   )
 }
 
-/** La celda «User Agent». */
+/** The "User Agent" cell. */
 export function AgentCell({ children }: { children: string }) {
   return <span className={styles.agente}>{children}</span>
 }

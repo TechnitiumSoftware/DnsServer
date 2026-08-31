@@ -14,11 +14,11 @@ comes from subtracting those segments from the `pathname`.
 
 function calcular(): string {
   const route = document.querySelector('meta[name="ruta"]')?.getAttribute('content')
-  const camino = window.location.pathname
-  if (route == null || route === '') return camino.endsWith('/') ? camino : camino + '/'
+  const trail = window.location.pathname
+  if (route == null || route === '') return trail.endsWith('/') ? trail : trail + '/'
 
   const sobra = route.split('/').length
-  const parts = camino.split('/').filter(Boolean)
+  const parts = trail.split('/').filter(Boolean)
   const prefix = parts.slice(0, Math.max(0, parts.length - sobra))
   return prefix.length === 0 ? '/' : `/${prefix.join('/')}/`
 }
@@ -38,13 +38,13 @@ export function raizDeLaApp(): string {
 }
 
 /** For the tests only, which change root between cases. */
-export function olvidarRaiz(): void {
+export function forgetRoot(): void {
   cache = null
 }
 
 /** An endpoint's URL, hanging from the real root. */
-export function urlApi(camino: string): string {
-  return raizDeLaApp() + camino
+export function urlApi(trail: string): string {
+  return raizDeLaApp() + trail
 }
 
 /**
@@ -52,6 +52,6 @@ export function urlApi(camino: string): string {
  * `src` also breaks from a two-level route: `img/logo.png` at
  * `/settings/logging/` requests `/settings/logging/img/logo.png`.
  */
-export function urlPublica(camino: string): string {
-  return raizDeLaApp() + camino
+export function urlPublica(trail: string): string {
+  return raizDeLaApp() + trail
 }

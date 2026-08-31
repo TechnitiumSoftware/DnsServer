@@ -156,10 +156,10 @@ describe('SessionProvider', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Query Logs' }))
     await waitFor(() => expect(window.location.pathname).toBe('/logs/query-logs/'))
 
-    const actuales = screen
+    const current2 = screen
       .getAllByRole('link')
       .filter((a) => a.getAttribute('aria-current') === 'page')
-    expect(actuales.map((a) => a.textContent)).toEqual(['Query Logs'])
+    expect(current2.map((a) => a.textContent)).toEqual(['Query Logs'])
   })
 
   it('a section with sub-sections completes the address without leaving a trace in the history', async () => {

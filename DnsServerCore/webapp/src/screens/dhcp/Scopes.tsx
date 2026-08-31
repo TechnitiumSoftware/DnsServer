@@ -43,9 +43,9 @@ are replicated as they are:
 export interface ScopesProps {
   token: string | null
   node?: string
-  /** `DhcpServer.canModify`: guardar, habilitar y deshabilitar. */
+  /** `DhcpServer.canModify`: save, enable and disable. */
   canModify?: boolean
-  /** `DhcpServer.canDelete`: borrar un scope. */
+  /** `DhcpServer.canDelete`: deleting a scope. */
   canDelete?: boolean
 }
 
@@ -89,7 +89,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
   // as the table is loading.
   const { rows: scopesVisibles, sort, toggle } = useOrden(KEYS, scopes ?? [])
 
-  async function editar(name: string) {
+  async function edit(name: string) {
     setBusy(true)
     const s = await getScope(token, name, node)
     setBusy(false)
@@ -165,7 +165,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         <ScopeForm
           key={editing.title + editing.form.oldName}
           title={editing.title}
-          inicial={editing.form}
+          initial={editing.form}
           busy={busy}
           onSave={(body) => void save(body)}
           onCancelar={() => {
@@ -250,7 +250,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                   icon="edit"
                   name="Edit Scope"
                   disabled={busy}
-                  onClick={() => void editar(s.name)}
+                  onClick={() => void edit(s.name)}
                 />
                 {canModify && (
                   /* dhcp.js:615 — enabling asks nothing; disabling does. */

@@ -6,15 +6,15 @@
 .app { composes: panel from '../../ui/Panel.module.css'; padding: var(--s-9); display: flex; flex-direction: column; }
 .ah { display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-8); margin-bottom: var(--s-5); }
 .ah h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
-.ver { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); margin-top: var(--s-1); }
+.view { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); margin-top: var(--s-1); }
 .blank { color:var(--acc); }
 .desc { margin: 0 0 var(--s-7); font-size: var(--t-4); line-height:1.55; color:var(--mute); white-space:pre-line; }
 .foot { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:wrap; margin-top: auto; }
 
 .details { margin: 0 0 var(--s-7); }
 
-.clase { margin-top: var(--s-6); padding-top: var(--s-6); border-top:1px solid var(--line2); }
-.clase:first-of-type { border-top:0; }
+.cls { margin-top: var(--s-6); padding-top: var(--s-6); border-top:1px solid var(--line2); }
+.cls:first-of-type { border-top:0; }
 .clasePath { font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); }
 .caps { display:flex; gap: var(--s-3); flex-wrap:wrap; margin: var(--s-3) 0; }
 .claseDesc { font-size: var(--t-3); line-height:1.5; color:var(--mute); margin: 0; white-space:pre-line; }
@@ -32,7 +32,7 @@
 .smeta b { color:var(--mute); font-family:var(--font-ui); }
 .sacts { display:flex; flex-direction:column; gap: var(--s-3); flex:none; }
 /* The count is `ui/count.module.css`'s: see there for why. */
-.total { composes: recuento below from '../../ui/count.module.css'; }
+.total { composes: count2 below from '../../ui/count.module.css'; }
 /* --- Config --- */
 .nota { font-size: var(--t-3); line-height:1.6; color:var(--mute); margin: 0 0 var(--s-7); }
 .nota code { font-family:var(--font-mono); color:var(--acc); }

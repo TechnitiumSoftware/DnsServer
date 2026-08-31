@@ -72,7 +72,7 @@ export function Sessions({ token, cluster, onNotice }: Props) {
   const [servidor, setServidor] = useState('')
   const [loading, setLoading] = useState(true)
   const [pendingDelete, setPendingDelete] = useState<AdminSession | null>(null)
-  const [crear, setCrear] = useState(false)
+  const [create, setCrear] = useState(false)
   const [viewUser, setViewUser] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -162,7 +162,7 @@ export function Sessions({ token, cluster, onNotice }: Props) {
                   <SessionCell session={s} />
                 </td>
                 <td className={styles.nowrap}>
-                  <LastSeenCell date={fechaHora(s.lastSeen)} hace={fromNow(s.lastSeen)} />
+                  <LastSeenCell date={fechaHora(s.lastSeen)} ago={fromNow(s.lastSeen)} />
                 </td>
                 <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
                 <td>
@@ -203,7 +203,7 @@ export function Sessions({ token, cluster, onNotice }: Props) {
       />
 
       <CrearApiToken
-        open={crear}
+        open={create}
         token={token}
         onClose={() => setCrear(false)}
         onCreated={() => void load()}
@@ -254,13 +254,13 @@ function CrearApiToken({
 
   useEffect(() => {
     if (!open) return
-    let vivo = true
+    let live = true
     setLoading(true)
     setNotice(null)
     setCreated(null)
     setNombre('')
     void listUsers(token).then((outcome) => {
-      if (!vivo) return
+      if (!live) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
         setNotice(noticeFromFailure(outcome))
@@ -271,11 +271,11 @@ function CrearApiToken({
       setUser(nombres[0] ?? '')
     })
     return () => {
-      vivo = false
+      live = false
     }
   }, [open, token])
 
-  async function crear() {
+  async function create() {
     if (user === '') {
       setNotice({ type: 'warning', title: 'Missing!', text: 'Please select a username.' })
       return
@@ -311,7 +311,7 @@ function CrearApiToken({
       actions={
         <>
           {created == null && (
-            <Button variant="primary" disabled={busy || loading} onClick={() => void crear()}>
+            <Button variant="primary" disabled={busy || loading} onClick={() => void create()}>
               Create
             </Button>
           )}
@@ -321,7 +321,7 @@ function CrearApiToken({
       <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       {created != null ? (
-        <div className={styles.salida}>
+        <div className={styles.output}>
           <MRow label="Username">{(id) => <Input id={id} value={created.username} readOnly />}</MRow>
           <MRow label="Token Name">
             {(id) => <Input id={id} value={created.tokenName} readOnly />}

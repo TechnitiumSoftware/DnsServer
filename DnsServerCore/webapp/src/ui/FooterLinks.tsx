@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { CREDITO_TEMA, FOOTER } from '../app/footer'
+import { THEME_CREDIT, FOOTER } from '../app/footer'
 import styles from './FooterLinks.module.css'
 
 /**
@@ -19,8 +19,8 @@ export function PieDeEnlaces({ className }: { className?: string }) {
       ))}
       <div className={styles.credito}>
         Theme by{' '}
-        <a href={CREDITO_TEMA.href} aria-label={CREDITO_TEMA.name} target="_blank" rel="noreferrer">
-          {CREDITO_TEMA.text}
+        <a href={THEME_CREDIT.href} aria-label={THEME_CREDIT.name} target="_blank" rel="noreferrer">
+          {THEME_CREDIT.text}
         </a>
       </div>
     </div>

@@ -84,9 +84,9 @@ describe('zone list', () => {
     draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
-    const llamadasIniciales = spy.mock.calls.filter((c) => c[0] === 'zones/list').length
+    const initialCalls = spy.mock.calls.filter((c) => c[0] === 'zones/list').length
     await user.type(screen.getByLabelText('Name'), 'ca')
-    expect(spy.mock.calls.filter((c) => c[0] === 'zones/list')).toHaveLength(llamadasIniciales)
+    expect(spy.mock.calls.filter((c) => c[0] === 'zones/list')).toHaveLength(initialCalls)
 
     await user.click(screen.getByRole('button', { name: 'Go' }))
     const last = spy.mock.calls.filter((c) => c[0] === 'zones/list').at(-1)
@@ -266,7 +266,7 @@ describe('records of a zone', () => {
   it('the path back leads to the list', async () => {
     const { user } = await openZone()
     // The "Zones" segment of the path IS the back button: before there was also a
-    // «← Zones» suelto encima diciendo lo mismo.
+    // a loose "← Zones" above saying the same thing.
     await user.click(within(screen.getByLabelText('Breadcrumb')).getByRole('button'))
     expect(await screen.findByRole('heading', { name: 'Zones' })).toBeTruthy()
   })
@@ -293,9 +293,9 @@ describe('modales', () => {
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Add Zone' }))
-    const dialogo = await screen.findByRole('dialog')
-    await user.type(within(dialogo).getByLabelText('Zone'), 'nueva.test')
-    await user.click(within(dialogo).getByRole('button', { name: 'Add' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('Zone'), 'nueva.test')
+    await user.click(within(dialog).getByRole('button', { name: 'Add' }))
 
     await waitFor(() => {
       const call = spy.mock.calls.find((c) => String(c[0]).startsWith('zones/create'))
@@ -316,10 +316,10 @@ describe('modales', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for casa.test' }))
     await user.click(await screen.findByRole('button', { name: 'Convert Zone' }))
 
-    const dialogo = await screen.findByRole('dialog')
-    expect(within(dialogo).getByLabelText('Primary Zone')).toHaveProperty('disabled', true)
-    expect(within(dialogo).getByLabelText('Conditional Forwarder Zone')).toHaveProperty('checked', true)
-    expect(within(dialogo).getByLabelText('Catalog Zone')).toHaveProperty('disabled', true)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('Primary Zone')).toHaveProperty('disabled', true)
+    expect(within(dialog).getByLabelText('Conditional Forwarder Zone')).toHaveProperty('checked', true)
+    expect(within(dialog).getByLabelText('Catalog Zone')).toHaveProperty('disabled', true)
   })
 
   it('\"Import Zone\" alerts if no file is chosen', async () => {
@@ -345,12 +345,12 @@ describe('modales', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for casa.test' }))
     await user.click(await screen.findByRole('button', { name: 'Clone Zone' }))
 
-    const dialogo = await screen.findByRole('dialog')
-    await user.click(within(dialogo).getByRole('button', { name: 'Clone Zone' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Clone Zone' }))
     expect(await screen.findByText('Please enter a domain name for the new zone.')).toBeTruthy()
 
-    await user.type(within(dialogo).getByLabelText('New Zone'), 'copia.test')
-    await user.click(within(dialogo).getByRole('button', { name: 'Clone Zone' }))
+    await user.type(within(dialog).getByLabelText('New Zone'), 'copia.test')
+    await user.click(within(dialog).getByRole('button', { name: 'Clone Zone' }))
 
     await waitFor(() => {
       const call = spy.mock.calls.find((c) => c[0] === 'zones/clone')

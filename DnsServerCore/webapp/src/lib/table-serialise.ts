@@ -42,14 +42,14 @@ export interface TableFailure {
 export type TableResult = { ok: true; value: string } | { ok: false; failure: TableFailure }
 
 export function serializeTable(rows: readonly (readonly Cell[])[]): TableResult {
-  const salida: string[] = []
+  const output: string[] = []
 
   for (let i = 0; i < rows.length; i++) {
     for (let j = 0; j < rows[i].length; j++) {
       const cell = rows[i][j]
 
       if (cell.type === 'casilla') {
-        salida.push(cell.value ? 'true' : 'false')
+        output.push(cell.value ? 'true' : 'false')
         continue
       }
 
@@ -77,9 +77,9 @@ export function serializeTable(rows: readonly (readonly Cell[])[]): TableResult 
         }
       }
 
-      salida.push(cell.value)
+      output.push(cell.value)
     }
   }
 
-  return { ok: true, value: salida.join('|') }
+  return { ok: true, value: output.join('|') }
 }

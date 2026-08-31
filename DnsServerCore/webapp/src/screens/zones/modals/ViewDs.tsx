@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { verDs, type InfoDs } from '../../../api/dnssec'
+import { viewDs, type InfoDs } from '../../../api/dnssec'
 import { Dialog } from '../../../ui/Dialog'
 import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/dates'
@@ -20,22 +20,22 @@ on a `rowspan` calculated by hand.
 unreadable.
 */
 
-const CORTE = 64
+const CUTOFF = 64
 
 function Long({ value }: { value: string }) {
   const [whole, setEntero] = useState(false)
-  if (value.length <= CORTE || whole) return <span className={styles.key}>{value}</span>
+  if (value.length <= CUTOFF || whole) return <span className={styles.key}>{value}</span>
   return (
     <>
-      <span className={styles.key}>{value.slice(0, CORTE)}… </span>
-      <button type="button" className={styles.verlo} onClick={() => setEntero(true)}>
+      <span className={styles.key}>{value.slice(0, CUTOFF)}… </span>
+      <button type="button" className={styles.showIt} onClick={() => setEntero(true)}>
         show full
       </button>
     </>
   )
 }
 
-export function VerDs({
+export function ViewDs({
   zone,
   open,
   token,
@@ -56,7 +56,7 @@ export function VerDs({
     if (!open) return
     setNotice(null)
     setLoading(true)
-    void verDs(token, zone, node).then((r) => {
+    void viewDs(token, zone, node).then((r) => {
       setLoading(false)
       if (r == null) {
         setNotice({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
@@ -75,11 +75,11 @@ export function VerDs({
     >
       <Notifier notice={notice} onClose={() => setNotice(null)} />
 
-      <p className={styles.parrafo}>
+      <p className={styles.paragraph}>
         Use the DNS Key data given below to add DS records for your zone. Before adding the DS records, you
         must read and understand the following points:
       </p>
-      <ul className={styles.parrafo}>
+      <ul className={styles.paragraph}>
         <li>
           The Key State for a newly published DNS Key must be Ready before you can add a DS record for it.
           Adding DS record for a DNS Key with Published Key State may cause DNSSEC validation to fail for

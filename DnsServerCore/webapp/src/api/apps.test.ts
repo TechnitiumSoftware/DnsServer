@@ -16,7 +16,7 @@ import * as client from './client'
 
 afterEach(() => vi.restoreAllMocks())
 
-function espiar() {
+function makeSpy() {
   return vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
 }
 
@@ -24,7 +24,7 @@ describe('apps — read endpoints', () => {
   it('it lists the installed ones through `apps/list`, with the cluster node', async () => {
     // upstream sends `node` here too (zone.js:4440, when loading the record
     // modal's app names). With a single instance it goes empty.
-    const spy = espiar()
+    const spy = makeSpy()
     await listApps('t')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/list')
     expect(call).toBeDefined()
@@ -32,7 +32,7 @@ describe('apps — read endpoints', () => {
   })
 
   it('it lists the store through `apps/listStoreApps`', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await listStoreApps('t')
     expect(spy.mock.calls.find((c) => c[0] === 'apps/listStoreApps')).toBeDefined()
   })
@@ -43,14 +43,14 @@ describe('apps — read endpoints', () => {
   cluster, what gets sent is the empty string, and the server ignores it.
   */
   it('it asks for the config with `name` and with `node`, empty by default', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await getAppConfig('t', 'NO DATA')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/config/get')
     expect(call![1]?.body).toEqual({ name: 'NO DATA', node: '' })
   })
 
   it('it honours the node when one is passed', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await getAppConfig('t', 'NO DATA', 'primario')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/config/get')
     expect(call![1]?.body?.node).toBe('primario')
@@ -59,28 +59,28 @@ describe('apps — read endpoints', () => {
 
 describe('apps — write endpoints', () => {
   it('it installs from the store with name and url', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await downloadAndInstall('t', 'NO DATA', 'https://x/y.zip')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/downloadAndInstall')
     expect(call![1]?.body).toEqual({ name: 'NO DATA', url: 'https://x/y.zip' })
   })
 
   it('it updates from the store with name and url', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await downloadAndUpdate('t', 'NO DATA', 'https://x/y.zip')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/downloadAndUpdate')
     expect(call![1]?.body).toEqual({ name: 'NO DATA', url: 'https://x/y.zip' })
   })
 
   it('it uninstalls with the name', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await uninstallApp('t', 'NO DATA')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/uninstall')
     expect(call![1]?.body).toEqual({ name: 'NO DATA' })
   })
 
   it('it saves the config by POST', async () => {
-    const spy = espiar()
+    const spy = makeSpy()
     await setAppConfig('t', 'NO DATA', '{"a":1}')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/config/set')
     expect(call![1]?.method).toBe('POST')

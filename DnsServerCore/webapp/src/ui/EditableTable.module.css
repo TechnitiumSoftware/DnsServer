@@ -19,9 +19,9 @@ Administration, with the same values copied by hand.
 
 .table th {
   text-align: left;
-  font-size: var(--rotulo-tam);
-  font-weight: var(--rotulo-peso);
-  letter-spacing: var(--rotulo-interletrado);
+  font-size: var(--rotulo-size);
+  font-weight: var(--rotulo-weight);
+  letter-spacing: var(--rotulo-tracking);
   text-transform: uppercase;
   color: var(--mute);
   padding: 0 var(--s-5) var(--s-4) 0;

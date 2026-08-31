@@ -47,7 +47,7 @@ const LABELS: Record<string, string> = {
   targetName: 'Target Name',
 }
 
-/** `algorithmNumber` -> «Algorithm number»; `flags` -> «Flags». */
+/** `algorithmNumber` -> "Algorithm number"; `flags` -> "Flags". */
 function humanizar(key: string): string {
   if (LABELS[key]) return LABELS[key]
   const palabras = key
@@ -76,7 +76,7 @@ const SUFIJOS = ['String', 'Number', 'Idn'] as const
  * `x`/`xNumber` and `x`/`xIdn` pairs.
  */
 function rows(obj: Record<string, unknown>): Entry[] {
-  const salida: Entry[] = []
+  const output: Entry[] = []
 
   for (const key of Object.keys(obj)) {
     // The derived keys are drawn next to their base, not on their own.
@@ -96,10 +96,10 @@ function rows(obj: Record<string, unknown>): Entry[] {
       if (compuesto != null) value = `${value} (${text(compuesto)})`
     }
 
-    salida.push(entry(humanizar(key), value))
+    output.push(entry(humanizar(key), value))
   }
 
-  return salida
+  return output
 }
 
 export function rdataEntries(rData: Record<string, unknown>): Entry[] {
@@ -170,7 +170,7 @@ Everything none of the functions above draws. It is the net that guarantees no
 field of the JSON falls through: it starts from the record's real keys and
 subtracts the ones that already have a place.
 */
-const YA_PINTADOS = new Set([
+const ALREADY_DRAWN = new Set([
   'name',
   'nameIdn',
   'type',
@@ -190,18 +190,18 @@ const YA_PINTADOS = new Set([
 ])
 
 export function extras(r: DnsRecord): Entry[] {
-  const resto: Record<string, unknown> = {}
+  const rest: Record<string, unknown> = {}
   for (const key of Object.keys(r)) {
-    if (!YA_PINTADOS.has(key)) resto[key] = r[key]
+    if (!ALREADY_DRAWN.has(key)) rest[key] = r[key]
   }
 
-  const salida = rows(resto)
+  const output = rows(rest)
 
   // The name server's health is an object: it is spread out field by field
   // so it reads, instead of landing as JSON inside a cell.
   if (r.nameServerMetadata) {
-    salida.push(...rows(r.nameServerMetadata as unknown as Record<string, unknown>))
+    output.push(...rows(r.nameServerMetadata as unknown as Record<string, unknown>))
   }
 
-  return salida
+  return output
 }

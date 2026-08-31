@@ -21,7 +21,7 @@ function ok(data: unknown) {
   return { kind: 'ok' as const, data }
 }
 
-const FILTROS: QueryLogsParams = {
+const FILTERS: QueryLogsParams = {
   name: 'Query Logs (Sqlite)',
   classPath: 'QueryLogsSqlite.App',
   pageNumber: '1',
@@ -126,10 +126,10 @@ describe('api/logs — query and export', () => {
       .spyOn(client, 'apiRequest')
       .mockResolvedValue(ok({ response: { pageNumber: 1, totalPages: 1, totalEntries: 0, entries: [] } }))
 
-    await queryLogs('tok', FILTROS)
+    await queryLogs('tok', FILTERS)
 
     expect(spy.mock.calls.find((c) => c[0] === 'logs/query')![1]?.body).toEqual({
-      ...FILTROS,
+      ...FILTERS,
       node: '',
     })
   })
@@ -137,7 +137,7 @@ describe('api/logs — query and export', () => {
   it('logs/export does NOT send the three paging parameters nor `ts`', async () => {
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
 
-    await exportLogsCsv('tok', { ...FILTROS, qname: 'casa.test' })
+    await exportLogsCsv('tok', { ...FILTERS, qname: 'casa.test' })
 
     const [, route, params, options] = spy.mock.calls[0]
     expect(route).toBe('logs/export')

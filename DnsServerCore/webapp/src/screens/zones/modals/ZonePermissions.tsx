@@ -36,7 +36,7 @@ export function ZonePermissions({
   node = '',
   canModify,
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   open: boolean
@@ -44,7 +44,7 @@ export function ZonePermissions({
   node?: string
   canModify: boolean
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
   /* Upstream titles it `Edit Permissions - <span>` (`index.html:6856`) and fills
      that span with `"Zones / " + zone` (`zone.js:2549`). Without the prefix, the
@@ -111,7 +111,7 @@ export function ZonePermissions({
     }
 
     onClose()
-    onHecho({ type: 'success', title: 'Permissions Saved!', text: 'Zone permissions were saved successfully.' })
+    onDone({ type: 'success', title: 'Permissions Saved!', text: 'Zone permissions were saved successfully.' })
   }
 
   return (
@@ -139,16 +139,16 @@ export function ZonePermissions({
           <PermissionsTable
             title="User Permissions"
             rows={users}
-            disponibles={availableUsers}
+            available={availableUsers}
             addLabel="Add User"
-            onCambiar={setUsers}
+            onChange={setUsers}
           />
           <PermissionsTable
             title="Group Permissions"
             rows={groups}
-            disponibles={availableGroups}
+            available={availableGroups}
             addLabel="Add Group"
-            onCambiar={setGroups}
+            onChange={setGroups}
           />
         </div>
       )}
@@ -159,20 +159,20 @@ export function ZonePermissions({
 function PermissionsTable({
   title,
   rows,
-  disponibles,
+  available,
   addLabel,
-  onCambiar,
+  onChange,
 }: {
   title: string
   rows: Row[]
-  disponibles: string[]
+  available: string[]
   addLabel: string
-  onCambiar: (f: Row[]) => void
+  onChange: (f: Row[]) => void
 }) {
-  const unassigned = disponibles.filter((d) => !rows.some((f) => f.name === d))
+  const unassigned = available.filter((d) => !rows.some((f) => f.name === d))
 
-  const cambiar = (i: number, key: keyof Row, value: boolean) =>
-    onCambiar(rows.map((f, j) => (j === i ? { ...f, [key]: value } : f)))
+  const change = (i: number, key: keyof Row, value: boolean) =>
+    onChange(rows.map((f, j) => (j === i ? { ...f, [key]: value } : f)))
 
   return (
     <div className={styles.group}>
@@ -202,14 +202,14 @@ function PermissionsTable({
                     className={styles.chkPerm}
                     aria-label={`${key} for ${f.name}`}
                     checked={f[key]}
-                    onChange={(e) => cambiar(i, key, e.target.checked)}
+                    onChange={(e) => change(i, key, e.target.checked)}
                   />
                 </td>
               ))}
               <td>
                 <Button
                   size="sm"
-                  onClick={() => onCambiar(rows.filter((_, j) => j !== i))}
+                  onClick={() => onChange(rows.filter((_, j) => j !== i))}
                 >
                   Remove
                 </Button>
@@ -228,7 +228,7 @@ function PermissionsTable({
               const v = e.target.value
               // Upstream's two phantom entries add nobody.
               if (v === '' || v === 'none') return
-              onCambiar([...rows, { name: v, canView: true, canModify: false, canDelete: false }])
+              onChange([...rows, { name: v, canView: true, canModify: false, canDelete: false }])
             }}
           >
             <option value="" />

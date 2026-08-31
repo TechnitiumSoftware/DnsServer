@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { compilarFiltroDeNombre, filterBy } from './filter'
 import type { ResourceRecord } from '../../api/records'
 
-function reg(name: string, type: string): ResourceRecord {
+function rec(name: string, type: string): ResourceRecord {
   return {
     name,
     type,
@@ -19,13 +19,13 @@ function reg(name: string, type: string): ResourceRecord {
 }
 
 const RECORDS = [
-  reg('casa.test', 'SOA'),
-  reg('casa.test', 'NS'),
-  reg('www.casa.test', 'A'),
-  reg('www.casa.test', 'AAAA'),
-  reg('mail.casa.test', 'A'),
-  reg('*.casa.test', 'A'),
-  reg('a.b.casa.test', 'A'),
+  rec('casa.test', 'SOA'),
+  rec('casa.test', 'NS'),
+  rec('www.casa.test', 'A'),
+  rec('www.casa.test', 'AAAA'),
+  rec('mail.casa.test', 'A'),
+  rec('*.casa.test', 'A'),
+  rec('a.b.casa.test', 'A'),
 ]
 
 describe('name filter', () => {

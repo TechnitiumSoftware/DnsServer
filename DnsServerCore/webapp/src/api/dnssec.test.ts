@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
   signZone,
   unsignZone,
-  verDs,
+  viewDs,
   getPropiedades,
   addPrivateKey,
   updatePrivateKey,
@@ -85,7 +85,7 @@ describe('signing and unsigning', () => {
 describe('lecturas', () => {
   it('viewDS tolerates there being no DS records', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(env({ name: 'casa.test' }))
-    expect(await verDs('t', 'casa.test')).toMatchObject({ dsRecords: [] })
+    expect(await viewDs('t', 'casa.test')).toMatchObject({ dsRecords: [] })
   })
 
   it('properties/get tolerates there being no keys', async () => {
@@ -95,7 +95,7 @@ describe('lecturas', () => {
 
   it('both return null if the call fails', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'x' })
-    expect(await verDs('t', 'casa.test')).toBeNull()
+    expect(await viewDs('t', 'casa.test')).toBeNull()
     expect(await getPropiedades('t', 'casa.test')).toBeNull()
   })
 })
@@ -159,14 +159,14 @@ describe('the nine actions on keys', () => {
 })
 
 describe('planNxProof — the decision table of changeDnssecNxProof', () => {
-  const ceros = { iterations: '0', saltLength: '0' }
+  const zeros = { iterations: '0', saltLength: '0' }
 
   it('NSEC → NSEC no llama a nadie', () => {
-    expect(planNxProof('NSEC', 'NSEC', ceros, ceros)).toEqual({ action: 'ninguna' })
+    expect(planNxProof('NSEC', 'NSEC', zeros, zeros)).toEqual({ action: 'ninguna' })
   })
 
   it('NSEC → NSEC3 converts, with the new values', () => {
-    expect(planNxProof('NSEC', 'NSEC3', ceros, { iterations: '5', saltLength: '8' })).toEqual({
+    expect(planNxProof('NSEC', 'NSEC3', zeros, { iterations: '5', saltLength: '8' })).toEqual({
       action: 'convertToNSEC3',
       iterations: '5',
       saltLength: '8',
@@ -185,7 +185,7 @@ describe('planNxProof — the decision table of changeDnssecNxProof', () => {
   })
 
   it('NSEC3 → NSEC converts back', () => {
-    expect(planNxProof('NSEC3', 'NSEC', { iterations: '5', saltLength: '8' }, ceros)).toEqual({
+    expect(planNxProof('NSEC3', 'NSEC', { iterations: '5', saltLength: '8' }, zeros)).toEqual({
       action: 'convertToNSEC',
     })
   })

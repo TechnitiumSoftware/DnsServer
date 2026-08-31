@@ -167,7 +167,7 @@ export function Groups({ token, onNotice }: Props) {
         open={add}
         token={token}
         onClose={() => setAdd(false)}
-        onAnadido={(g) => {
+        onAdded={(g) => {
           setGroups((list) => [g, ...list])
           onNotice({ type: 'success', title: 'Group Added!', text: 'Group was added successfully.' })
         }}
@@ -197,12 +197,12 @@ function AddGroup({
   open,
   token,
   onClose,
-  onAnadido,
+  onAdded,
 }: {
   open: boolean
   token: string | null
   onClose: () => void
-  onAnadido: (g: AdminGroup) => void
+  onAdded: (g: AdminGroup) => void
 }) {
   const [name, setNombre] = useState('')
   const [description, setDescription] = useState('')
@@ -230,7 +230,7 @@ function AddGroup({
       setNotice(noticeFromFailure(outcome))
       return
     }
-    onAnadido(outcome.data.response)
+    onAdded(outcome.data.response)
     onClose()
   }
 

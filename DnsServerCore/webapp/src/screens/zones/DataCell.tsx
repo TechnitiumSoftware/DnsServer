@@ -25,11 +25,11 @@ const LARGOS = [
   'Computed Digests:',
 ]
 
-const CORTE = 64
+const CUTOFF = 64
 
 function Value({ label, value }: { label: string; value: string }) {
   const [whole, setEntero] = useState(false)
-  const truncable = LARGOS.includes(label) && value.length > CORTE
+  const truncable = LARGOS.includes(label) && value.length > CUTOFF
 
   if (!truncable || whole) {
     return <span className={styles.key}>{value}</span>
@@ -37,8 +37,8 @@ function Value({ label, value }: { label: string; value: string }) {
 
   return (
     <>
-      <span className={styles.key}>{value.slice(0, CORTE)}… </span>
-      <button type="button" className={styles.verlo} onClick={() => setEntero(true)}>
+      <span className={styles.key}>{value.slice(0, CUTOFF)}… </span>
+      <button type="button" className={styles.showIt} onClick={() => setEntero(true)}>
         show full
       </button>
     </>
@@ -46,7 +46,7 @@ function Value({ label, value }: { label: string; value: string }) {
 }
 
 function Bloque({ cell }: { cell: Cell }) {
-  switch (cell.clase) {
+  switch (cell.cls) {
     case 'value':
       return <div className={styles.val}>{cell.text}</div>
 
@@ -135,7 +135,7 @@ export function DataCell({
         {record.comments != null && record.comments.length > 0 && (
           <div>
             <b>Comments:</b>
-            <pre className={styles.salida}>{record.comments}</pre>
+            <pre className={styles.output}>{record.comments}</pre>
           </div>
         )}
       </div>

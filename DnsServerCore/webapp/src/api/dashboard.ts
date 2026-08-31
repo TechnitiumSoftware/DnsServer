@@ -8,8 +8,8 @@ sets, not two: the main line one and three breakdowns —response type, query ty
 and protocol. Verified against v15.4.
 */
 
-export const RANGOS = ['LastHour', 'LastDay', 'LastWeek', 'LastMonth', 'LastYear', 'Custom'] as const
-export type Range = (typeof RANGOS)[number]
+export const RANGES = ['LastHour', 'LastDay', 'LastWeek', 'LastMonth', 'LastYear', 'Custom'] as const
+export type Range = (typeof RANGES)[number]
 
 /** Upstream's literal labels for each range. */
 export const RANGE_LABEL: Record<Range, string> = {
@@ -59,7 +59,7 @@ export interface TopEntry {
   hits: number
   /** Only on clients: the domain it resolved. Empty is drawn as ".". */
   domain?: string
-  /** Sólo en clientes. */
+  /** Only on clients. */
   rateLimited?: boolean
 }
 

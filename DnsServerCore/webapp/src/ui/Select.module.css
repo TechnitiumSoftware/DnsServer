@@ -19,8 +19,8 @@ to weigh the same. What changes is that this one opens.
   font-size: var(--t-4);
   text-align: left;
   cursor: pointer;
-  box-shadow: var(--hundido);
-  transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
+  box-shadow: var(--sunken);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
 }
 
 .trigger:hover:not(:disabled) { border-color: #3a465b; }
@@ -29,15 +29,15 @@ to weigh the same. What changes is that this one opens.
 .trigger[aria-expanded='true'] {
   outline: none;
   border-color: var(--acc);
-  box-shadow: var(--hundido), var(--halo-foco);
+  box-shadow: var(--sunken), var(--halo-foco);
 }
 
 .trigger:disabled { opacity: 0.45; cursor: default; }
 
-.value { composes: truncado from './text.module.css'; }
+.value { composes: truncated from './text.module.css'; }
 .emptyText { color: var(--faint); }
 
-.chevron { color: var(--mute); flex: none; transition: transform var(--t-rapido); }
+.chevron { color: var(--mute); flex: none; transition: transform var(--t-fast); }
 .trigger[aria-expanded='true'] .chevron { transform: rotate(180deg); }
 
 /*
@@ -47,13 +47,13 @@ over the form and has to read as something in front.
 .list {
   position: fixed;
   scrollbar-width: thin;
-  z-index: var(--capa-flotante);
+  z-index: var(--layer-flotante);
   overflow-y: auto;
   padding: var(--s-3);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
   background: var(--pan2);
-  box-shadow: var(--e-2), var(--filo);
+  box-shadow: var(--e-2), var(--edge);
 }
 
 .option {

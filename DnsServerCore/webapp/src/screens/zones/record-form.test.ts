@@ -10,7 +10,7 @@ import {
 } from './record-form'
 import type { ResourceRecord } from '../../api/records'
 
-function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
+function rec(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
     name: 'www.casa.test',
     type,
@@ -27,8 +27,8 @@ function reg(type: string, rData: Record<string, unknown>, extra: Partial<Resour
   }
 }
 
-function form(cambios: Partial<RecordForm>): RecordForm {
-  return { ...emptyForm(), ...cambios }
+function form(changes: Partial<RecordForm>): RecordForm {
+  return { ...emptyForm(), ...changes }
 }
 
 const ADD: RecordContext = { zone: 'casa.test', mode: 'add', updateSvcbHints: false }
@@ -148,7 +148,7 @@ describe('add — the body', () => {
     )
 
     // Editando, ese mismo valor pasa.
-    const original = reg('TLSA', {
+    const original = rec('TLSA', {
       certificateUsage: 'DANE-EE',
       selector: 'Cert',
       matchingType: 'Full',
@@ -174,7 +174,7 @@ describe('edit — sends the old value AND the new one', () => {
   })
 
   it('A: old ipAddress and new newIpAddress', () => {
-    const original = reg('A', { ipAddress: '10.0.0.1' })
+    const original = rec('A', { ipAddress: '10.0.0.1' })
     const b = body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxDe(original))
     expect(b).toMatchObject({
       ipAddress: '10.0.0.1',
@@ -186,14 +186,14 @@ describe('edit — sends the old value AND the new one', () => {
   })
 
   it('CNAME and DNAME do NOT send the old one: only the new value', () => {
-    const original = reg('CNAME', { cname: 'viejo.casa.test' })
+    const original = rec('CNAME', { cname: 'viejo.casa.test' })
     const b = body(form({ type: 'CNAME', name: 'ali', value: 'nuevo.casa.test' }), ctxDe(original))
     expect(b.cname).toBe('nuevo.casa.test')
     expect(b).not.toHaveProperty('newCname')
   })
 
   it('TXT identifies by the base64 strings, not by the text', () => {
-    const original = reg('TXT', { text: 'viejo', characterStringsBase64: ['dmllam8='] })
+    const original = rec('TXT', { text: 'viejo', characterStringsBase64: ['dmllam8='] })
     const b = body(form({ type: 'TXT', name: 'x', txt: 'nuevo' }), ctxDe(original))
     expect(b).toMatchObject({
       characterStringsBase64: 'dmllam8=',
@@ -203,7 +203,7 @@ describe('edit — sends the old value AND the new one', () => {
   })
 
   it('NAPTR: an empty replacement falls to the root ONLY when editing', () => {
-    const original = reg('NAPTR', {
+    const original = rec('NAPTR', {
       order: 1, preference: 2, flags: 'U', services: 'x', regexp: 'y', replacement: '.',
     })
     const f = form({ type: 'NAPTR', name: 'x', naptrOrder: '1', naptrPreference: '2' })
@@ -213,20 +213,20 @@ describe('edit — sends the old value AND the new one', () => {
   })
 
   it('the edit resends the state the record had, it does not change it', () => {
-    const original = reg('A', { ipAddress: '10.0.0.1' }, { disabled: true })
+    const original = rec('A', { ipAddress: '10.0.0.1' }, { disabled: true })
     expect(body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxDe(original)).disable).toBe(
       'true',
     )
   })
 
   it('APP when editing does not validate and takes the app and class from the record', () => {
-    const original = reg('APP', { appName: 'Split Horizon', classPath: 'X.App', data: 'viejo' })
+    const original = rec('APP', { appName: 'Split Horizon', classPath: 'X.App', data: 'viejo' })
     const b = body(form({ type: 'APP', name: 'x', recordData: 'nuevo' }), ctxDe(original))
     expect(b).toMatchObject({ appName: 'Split Horizon', classPath: 'X.App', recordData: 'nuevo' })
   })
 
   it('FWD when editing: without \"this-server\" it sends the proxy; with it, no', () => {
-    const original = reg('FWD', {
+    const original = rec('FWD', {
       protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'DefaultProxy',
     })
     const withProxy = body(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxDe(original))
@@ -240,14 +240,14 @@ describe('edit — sends the old value AND the new one', () => {
   })
 
   it('the alert says \"to update the record\"', () => {
-    const original = reg('A', { ipAddress: '10.0.0.1' })
+    const original = rec('A', { ipAddress: '10.0.0.1' })
     expect(error(form({ type: 'A', name: 'www' }), ctxDe(original)).text).toBe(
       'Please enter an IP address to update the record.',
     )
   })
 
   it('the alert of an unknown type DOES carry the article when editing', () => {
-    const original = reg('TYPE65280', { value: 'ABCD' })
+    const original = rec('TYPE65280', { value: 'ABCD' })
     expect(error(form({ type: 'Unknown', unknownType: 'TYPE65280' }), ctxDe(original)).text).toBe(
       'Please enter a hex value as the RDATA to update the record.',
     )
@@ -255,7 +255,7 @@ describe('edit — sends the old value AND the new one', () => {
 })
 
 describe('SOA — it is only edited, and validates seven fields in order', () => {
-  const original = reg('SOA', {})
+  const original = rec('SOA', {})
   const ctx: RecordContext = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
 
   it('the order is primary, responsible, serial, refresh, retry, expire and minimum', () => {
@@ -311,23 +311,23 @@ describe('parameters of an SVCB', () => {
 
 describe('filling the form from a record', () => {
   it('the name is shown relative to the zone', () => {
-    expect(formFromRecord(reg('A', { ipAddress: '1.1.1.1' }), 'casa.test').name).toBe('www')
+    expect(formFromRecord(rec('A', { ipAddress: '1.1.1.1' }), 'casa.test').name).toBe('www')
   })
 
   it('the apex is shown as @', () => {
-    const r = reg('SOA', {}, { name: 'casa.test' })
+    const r = rec('SOA', {}, { name: 'casa.test' })
     expect(formFromRecord(r, 'casa.test').name).toBe('@')
   })
 
   it('an SVCB with an empty target is shown as the root', () => {
-    const r = reg('SVCB', { svcPriority: 1, svcTargetName: '', svcParams: { alpn: 'h2' } })
+    const r = rec('SVCB', { svcPriority: 1, svcTargetName: '', svcParams: { alpn: 'h2' } })
     const f = formFromRecord(r, 'casa.test')
     expect(f.svcbTargetName).toBe('.')
     expect(f.svcbParams).toEqual([{ key: 'alpn', value: 'h2' }])
   })
 
   it('the glue of an NS is shown one address per line', () => {
-    const r = reg('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
+    const r = rec('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
     expect(formFromRecord(r, 'casa.test').nsGlue).toBe('10.0.0.1\n10.0.0.2')
   })
 })

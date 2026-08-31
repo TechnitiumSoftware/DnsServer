@@ -174,7 +174,7 @@ export function deleteZone(token: string | null, zone: string, node = ''): Promi
   return apiRequest('zones/delete', { token, body: { zone, node } })
 }
 
-export interface BorradoMultiple {
+export interface BulkDelete {
   response: { deleted: string[]; failed: Record<string, string> }
 }
 
@@ -187,8 +187,8 @@ export function deleteZones(
   token: string | null,
   zones: string[],
   node = '',
-): Promise<ApiOutcome<BorradoMultiple>> {
-  return apiRequest<BorradoMultiple>('zones/delete', {
+): Promise<ApiOutcome<BulkDelete>> {
+  return apiRequest<BulkDelete>('zones/delete', {
     token,
     body: { zones: zones.join(','), node },
   })
@@ -229,7 +229,7 @@ export async function listCatalogs(token: string | null, node = ''): Promise<str
 
 /* ── Zone options ─────────────────────────────────────────────────────── */
 
-export interface PoliticaActualizacion {
+export interface UpdatePolicy {
   tsigKeyName: string
   domain: string
   allowedTypes: string[]
@@ -261,7 +261,7 @@ export interface ZoneOptions {
   notifySecondaryCatalogsNameServers?: string[]
   update: string
   updateNetworkACL: string[]
-  updateSecurityPolicies: PoliticaActualizacion[]
+  updateSecurityPolicies: UpdatePolicy[]
   /** Only if asked for with `includeAvailableCatalogZoneNames`. */
   availableCatalogZoneNames?: string[]
   /** Only if asked for with `includeAvailableTsigKeyNames`. */
@@ -358,11 +358,11 @@ export async function getZonePermissions(
 export function serializePermissions(
   rows: { name: string; canView: boolean; canModify: boolean; canDelete: boolean }[],
 ): string {
-  const salida: string[] = []
+  const output: string[] = []
   for (const f of rows) {
-    salida.push(f.name, String(f.canView), String(f.canModify), String(f.canDelete))
+    output.push(f.name, String(f.canView), String(f.canModify), String(f.canDelete))
   }
-  return salida.join('|')
+  return output.join('|')
 }
 
 export function setZonePermissions(

@@ -52,9 +52,9 @@ and rewriting it is an opportunity to break it.
 */
 function optionsFromChildren(children: ReactNode): Option[] {
   const outside: Option[] = []
-  for (const hijo of Children.toArray(children)) {
-    if (!isValidElement(hijo) || hijo.type !== 'option') continue
-    const p = hijo.props as { value?: string | number; children?: ReactNode; disabled?: boolean }
+  for (const child of Children.toArray(children)) {
+    if (!isValidElement(child) || child.type !== 'option') continue
+    const p = child.props as { value?: string | number; children?: ReactNode; disabled?: boolean }
     const text = typeof p.children === 'string' || typeof p.children === 'number' ? String(p.children) : ''
     outside.push({
       value: p.value != null ? String(p.value) : text,
@@ -94,7 +94,7 @@ export function Select({
   const [box, setBox] = useState<{ left: number; top: number; width: number; up: boolean } | null>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLDivElement>(null)
-  const keys2 = useRef({ text: '', hasta: 0 })
+  const keys2 = useRef({ text: '', until: 0 })
   const listId = useId()
 
   const selectedIndex = options.findIndex((o) => o.value === String(value))
@@ -201,9 +201,9 @@ export function Select({
 
     // Typing jumps to the option starting with what was typed, like the native one.
     if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      const ahora = Date.now()
-      keys2.current.text = ahora > keys2.current.hasta ? e.key : keys2.current.text + e.key
-      keys2.current.hasta = ahora + 600
+      const now = Date.now()
+      keys2.current.text = now > keys2.current.until ? e.key : keys2.current.text + e.key
+      keys2.current.until = now + 600
       const wanted = keys2.current.text.toLowerCase()
       const i = options.findIndex((o) => !o.disabled && o.label.toLowerCase().startsWith(wanted))
       if (i >= 0) setActive(i)
@@ -234,7 +234,7 @@ export function Select({
         <span className={chosen?.label ? styles.value : styles.emptyText}>
           {chosen?.label || placeholder || '—'}
         </span>
-        <Icon name="chevronDown" tam={14} className={styles.chevron} />
+        <Icon name="chevronDown" size={14} className={styles.chevron} />
       </button>
 
       {open && box && (
@@ -265,7 +265,7 @@ export function Select({
               onClick={() => choose(i)}
             >
               <span className={styles.brand}>
-                {o.value === String(value) && <Icon name="check" tam={13} />}
+                {o.value === String(value) && <Icon name="check" size={13} />}
               </span>
               {o.label === '' ? <span className={styles.isEmpty}>—</span> : o.label}
             </div>

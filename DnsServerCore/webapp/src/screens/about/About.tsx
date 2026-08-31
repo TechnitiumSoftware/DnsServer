@@ -18,15 +18,15 @@ const DONAR = 'https://go.technitium.com/?id=35'
 /** External link: always in a new tab and without handing over the `opener`. */
 function Link({
   href,
-  clase,
+  cls,
   children,
 }: {
   href: string
-  clase?: string
+  cls?: string
   children: ReactNode
 }) {
   return (
-    <a className={clase} href={href} target="_blank" rel="noreferrer">
+    <a className={cls} href={href} target="_blank" rel="noreferrer">
       {children}
     </a>
   )
@@ -79,7 +79,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={38} height={38} />
             <div>
               <h2 className={styles.h1}>Technitium DNS Server</h2>
-              <div className={styles.ver}>Version {info?.version ?? '—'}</div>
+              <div className={styles.view}>Version {info?.version ?? '—'}</div>
             </div>
           </div>
           {/*
@@ -152,7 +152,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
               possible.
             </p>
             <p>
-              <Link href={DONAR} clase={styles.target}>Donate Now!</Link>
+              <Link href={DONAR} cls={styles.target}>Donate Now!</Link>
             </p>
           </div>
         </Body>

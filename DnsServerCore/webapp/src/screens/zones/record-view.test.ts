@@ -10,7 +10,7 @@ import {
 } from './record-view'
 import { zoneHeader, typesHiddenWhenAdding } from './zone-view'
 
-function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
+function rec(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
     name: 'www.casa.test',
     type,
@@ -31,21 +31,21 @@ function reg(type: string, rData: Record<string, unknown>, extra: Partial<Resour
 function pairs(r: ResourceRecord): Record<string, string> {
   const out: Record<string, string> = {}
   for (const c of recordCells(r)) {
-    if (c.clase === 'pairs') for (const p of c.pairs) out[p.label] = p.value
+    if (c.cls === 'pairs') for (const p of c.pairs) out[p.label] = p.value
   }
   return out
 }
 
 describe('the Data cell by type', () => {
   it('A and AAAA are just the address', () => {
-    expect(recordCells(reg('A', { ipAddress: '10.0.0.1' }))).toEqual([
-      { clase: 'value', text: '10.0.0.1' },
+    expect(recordCells(rec('A', { ipAddress: '10.0.0.1' }))).toEqual([
+      { cls: 'value', text: '10.0.0.1' },
     ])
   })
 
   it('SOA composes value and readable string on four fields', () => {
     const p = pairs(
-      reg('SOA', {
+      rec('SOA', {
         primaryNameServer: 'ns1',
         responsiblePerson: 'a@b',
         serial: 7,
@@ -62,22 +62,22 @@ describe('the Data cell by type', () => {
   })
 
   it('DS and RRSIG compose \"algorithm (number)\"', () => {
-    const p = pairs(reg('DS', { keyTag: 1, algorithm: 'ECDSAP256SHA256', algorithmNumber: 13, digestType: 'SHA256', digestTypeNumber: '2', digest: 'AB' }))
+    const p = pairs(rec('DS', { keyTag: 1, algorithm: 'ECDSAP256SHA256', algorithmNumber: 13, digestType: 'SHA256', digestTypeNumber: '2', digest: 'AB' }))
     expect(p['Algorithm:']).toBe('ECDSAP256SHA256 (13)')
     expect(p['Digest Type:']).toBe('SHA256 (2)')
   })
 
   it('NS shows the glue only if it brings it', () => {
-    expect(pairs(reg('NS', { nameServer: 'ns1' }))).not.toHaveProperty('Glue Addresses:')
-    const withGlue = pairs(reg('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] }))
+    expect(pairs(rec('NS', { nameServer: 'ns1' }))).not.toHaveProperty('Glue Addresses:')
+    const withGlue = pairs(rec('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] }))
     expect(withGlue['Glue Addresses:']).toBe('10.0.0.1, 10.0.0.2')
   })
 
   it('a split TXT shows each string in quotes and on its own line', () => {
     const cells = recordCells(
-      reg('TXT', { splitText: true, characterStrings: ['uno', 'dos'], text: 'uno dos' }),
+      rec('TXT', { splitText: true, characterStrings: ['uno', 'dos'], text: 'uno dos' }),
     )
-    expect(cells[0]).toEqual({ clase: 'lines', lines: ['"uno"', '"dos"'] })
+    expect(cells[0]).toEqual({ cls: 'lines', lines: ['"uno"', '"dos"'] })
   })
 
   it('escapes backslashes, carriage returns, newlines and quotes of a TXT', () => {
@@ -85,17 +85,17 @@ describe('the Data cell by type', () => {
   })
 
   it('SVCB states the mode according to the priority', () => {
-    expect(pairs(reg('SVCB', { svcPriority: 0, svcTargetName: 'x', svcParams: {} }))['Priority:']).toBe(
+    expect(pairs(rec('SVCB', { svcPriority: 0, svcTargetName: 'x', svcParams: {} }))['Priority:']).toBe(
       '0 (alias mode)',
     )
-    expect(pairs(reg('SVCB', { svcPriority: 1, svcTargetName: 'x', svcParams: {} }))['Priority:']).toBe(
+    expect(pairs(rec('SVCB', { svcPriority: 1, svcTargetName: 'x', svcParams: {} }))['Priority:']).toBe(
       '1 (service mode)',
     )
   })
 
   it('SVCB hides the hints whose value the server sets', () => {
     const cells = recordCells(
-      reg('SVCB', {
+      rec('SVCB', {
         svcPriority: 1,
         svcTargetName: 'x',
         svcParams: { alpn: 'h2', ipv4hint: '10.0.0.1', ipv6hint: '::1' },
@@ -103,51 +103,51 @@ describe('the Data cell by type', () => {
         autoIpv6Hint: false,
       }),
     )
-    const table = cells.find((c) => c.clase === 'table')
+    const table = cells.find((c) => c.cls === 'table')
     expect(table).toBeDefined()
-    const keys = table!.clase === 'table' ? table!.rows.map((f) => f[0]) : []
+    const keys = table!.cls === 'table' ? table!.rows.map((f) => f[0]) : []
     expect(keys).toEqual(['alpn', 'ipv6hint'])
   })
 
   it('a DNSKEY with no state does not show the \"Key State\" row', () => {
-    expect(pairs(reg('DNSKEY', { flags: 257, protocol: 3, algorithm: 'X', algorithmNumber: 13, publicKey: 'AA', computedKeyTag: 1 }))).not.toHaveProperty(
+    expect(pairs(rec('DNSKEY', { flags: 257, protocol: 3, algorithm: 'X', algorithmNumber: 13, publicKey: 'AA', computedKeyTag: 1 }))).not.toHaveProperty(
       'Key State:',
     )
   })
 
   it('FWD only shows the proxy when the type has one', () => {
-    const sin = pairs(reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' }))
+    const sin = pairs(rec('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' }))
     expect(sin).not.toHaveProperty('Proxy Address:')
-    const con = pairs(reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080 }))
+    const con = pairs(rec('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080 }))
     expect(con['Proxy Address:']).toBe('10.0.0.9')
   })
 
   it('an unknown type shows its RDATA', () => {
-    expect(pairs(reg('TYPE65280', { value: 'ABCD' }))['RDATA:']).toBe('ABCD')
+    expect(pairs(rec('TYPE65280', { value: 'ABCD' }))['RDATA:']).toBe('ABCD')
   })
 })
 
 describe('the footer of the cell', () => {
-  const AHORA = Date.parse('2026-08-26T10:04:00Z')
+  const NOW = Date.parse('2026-08-26T10:04:00Z')
 
   it('\"never\" carries no age after it', () => {
-    const p = recordFooter(reg('A', {}), AHORA)
+    const p = recordFooter(rec('A', {}), NOW)
     expect(p.find((x) => x.label === 'Last Used:')?.value).toContain('(never)')
   })
 
   it('the last modification does carry it', () => {
-    const p = recordFooter(reg('A', {}), AHORA)
+    const p = recordFooter(rec('A', {}), NOW)
     expect(p.find((x) => x.label === 'Last Modified:')?.value).toContain('4 minutes ago')
   })
 
   it('a minimum modification date is NOT shown', () => {
-    const p = recordFooter(reg('A', {}, { lastModified: '0001-01-01T00:00:00' }), AHORA)
+    const p = recordFooter(rec('A', {}, { lastModified: '0001-01-01T00:00:00' }), NOW)
     expect(p.find((x) => x.label === 'Last Modified:')).toBeUndefined()
   })
 
   it('the expiry only appears with expiryTtl > 0', () => {
-    expect(recordFooter(reg('A', {}), AHORA).find((x) => x.label === 'Expiry TTL:')).toBeUndefined()
-    const con = recordFooter(reg('A', {}, { expiryTtl: 3600, expiryTtlString: '1h' }), AHORA)
+    expect(recordFooter(rec('A', {}), NOW).find((x) => x.label === 'Expiry TTL:')).toBeUndefined()
+    const con = recordFooter(rec('A', {}, { expiryTtl: 3600, expiryTtlString: '1h' }), NOW)
     expect(con.find((x) => x.label === 'Expiry TTL:')?.value).toBe('3600 (1h)')
   })
 })
@@ -168,34 +168,34 @@ describe('the name relative to the zone', () => {
 describe('which buttons a row offers', () => {
   it('on a secondary there are none', () => {
     for (const t of ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']) {
-      expect(rowActions(t, 'A').ocultas).toBe(true)
+      expect(rowActions(t, 'A').hidden).toBe(true)
     }
   })
 
   it('on a Catalog only the SOA can be edited; the rest offer nothing', () => {
-    expect(rowActions('Catalog', 'SOA')).toEqual({ ocultas: false, editingOnly: true })
-    expect(rowActions('Catalog', 'A').ocultas).toBe(true)
+    expect(rowActions('Catalog', 'SOA')).toEqual({ hidden: false, editingOnly: true })
+    expect(rowActions('Catalog', 'A').hidden).toBe(true)
   })
 
   it('on a Primary the SOA is edited but neither deleted nor disabled', () => {
-    expect(rowActions('Primary', 'SOA')).toEqual({ ocultas: false, editingOnly: true })
+    expect(rowActions('Primary', 'SOA')).toEqual({ hidden: false, editingOnly: true })
   })
 
   it('the six records DNSSEC generates offer no buttons', () => {
     for (const t of ['DNSKEY', 'RRSIG', 'NSEC', 'NSEC3', 'NSEC3PARAM', 'ZONEMD']) {
-      expect(rowActions('Primary', t).ocultas).toBe(true)
+      expect(rowActions('Primary', t).hidden).toBe(true)
     }
   })
 
   it('an ordinary record offers them all', () => {
-    expect(rowActions('Primary', 'A')).toEqual({ ocultas: false, editingOnly: false })
+    expect(rowActions('Primary', 'A')).toEqual({ hidden: false, editingOnly: false })
   })
 })
 
 describe('hiding the DNSSEC records', () => {
   it('removes the five types, not six', () => {
     const list = ['A', 'RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].map((t) =>
-      reg(t, {}),
+      rec(t, {}),
     )
     // ZONEMD is not in the `zoneHideDnssecRecords` list although it is in the
     // no-actions records one. They are two different lists in upstream.
@@ -209,15 +209,15 @@ describe('the header of an open zone', () => {
     expect(c.dnssec).toBe(true)
     expect(c.sign).toBe(true)
     expect(c.unsign).toBe(false)
-    expect(c.verDs).toBe(false)
+    expect(c.viewDs).toBe(false)
   })
 
   it('a signed Primary offers everything except signing', () => {
     const c = zoneHeader('Primary', 'SignedWithNSEC')
     expect(c.sign).toBe(false)
     expect(c.unsign).toBe(true)
-    expect(c.verDs).toBe(true)
-    expect(c.propiedades).toBe(true)
+    expect(c.viewDs).toBe(true)
+    expect(c.properties).toBe(true)
   })
 
   it('a signed Secondary shows the menu but ONLY to hide records', () => {
@@ -225,8 +225,8 @@ describe('the header of an open zone', () => {
     expect(c.dnssec).toBe(true)
     expect(c.toggleDnssecRecords).toBe(true)
     expect(c.sign).toBe(false)
-    expect(c.verDs).toBe(false)
-    expect(c.propiedades).toBe(false)
+    expect(c.viewDs).toBe(false)
+    expect(c.properties).toBe(false)
   })
 
   it('an unsigned Secondary does not show the DNSSEC menu', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { resolve, prepararServidor, TYPES, PROTOCOLOS } from './dnsclient'
+import { resolve, prepararServidor, TYPES, PROTOCOLS } from './dnsclient'
 import * as client from './client'
 
 afterEach(() => vi.restoreAllMocks())
@@ -9,7 +9,7 @@ describe('dnsClient', () => {
     expect(TYPES).toHaveLength(28)
     expect(TYPES[0]).toBe('A')
     expect(TYPES).toContain('AXFR')
-    expect(PROTOCOLOS).toEqual(['UDP','TCP','TLS','HTTPS','QUIC'])
+    expect(PROTOCOLS).toEqual(['UDP','TCP','TLS','HTTPS','QUIC'])
   })
 
   it('it sends the parameters under the upstream names', async () => {

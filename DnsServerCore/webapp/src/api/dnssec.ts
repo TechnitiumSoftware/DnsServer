@@ -91,7 +91,7 @@ export interface SignOptions {
   hashAlgorithm?: string
   kskKeySize?: string
   zskKeySize?: string
-  /** ECDSA y EDDSA */
+  /** ECDSA and EDDSA */
   curve?: string
   pemKskPrivateKey?: string
   pemZskPrivateKey?: string
@@ -151,7 +151,7 @@ export function unsignZone(token: string | null, zone: string, node = ''): Promi
 }
 
 /** `zones/dnssec/viewDS` (zone.js:6734). */
-export async function verDs(
+export async function viewDs(
   token: string | null,
   zone: string,
   node = '',
@@ -355,18 +355,18 @@ export type PlanNxProof =
 
 export function planNxProof(
   current: NxProof,
-  elegido: NxProof,
-  actuales: { iterations: string; saltLength: string },
+  chosen: NxProof,
+  current2: { iterations: string; saltLength: string },
   blanks: { iterations: string; saltLength: string },
 ): PlanNxProof {
   if (current === 'NSEC') {
-    if (elegido === 'NSEC') return { action: 'ninguna' }
+    if (chosen === 'NSEC') return { action: 'ninguna' }
     return { action: 'convertToNSEC3', ...blanks }
   }
 
-  if (elegido === 'NSEC') return { action: 'convertToNSEC' }
+  if (chosen === 'NSEC') return { action: 'convertToNSEC' }
 
-  if (actuales.iterations === blanks.iterations && actuales.saltLength === blanks.saltLength) {
+  if (current2.iterations === blanks.iterations && current2.saltLength === blanks.saltLength) {
     return { action: 'ninguna' }
   }
   return { action: 'updateNSEC3Params', ...blanks }

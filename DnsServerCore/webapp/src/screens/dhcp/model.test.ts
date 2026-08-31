@@ -11,8 +11,8 @@ import {
 } from './model'
 import type { DhcpScope } from '../../api/dhcp'
 
-function form(parcial: Partial<ScopeForm> = {}): ScopeForm {
-  return { ...emptyForm(), name: 'Default', ...parcial }
+function form(partial: Partial<ScopeForm> = {}): ScopeForm {
+  return { ...emptyForm(), name: 'Default', ...partial }
 }
 
 function body(f: ScopeForm): Record<string, string> {

@@ -25,9 +25,9 @@ export function addToList(text: string, selection: string): string {
 
   if (text.split('\n').includes(selection)) return text
 
-  let salida = text
-  if (salida.length > 0 && !salida.endsWith('\n')) salida += '\n'
-  return `${salida}${selection}\n`
+  let output = text
+  if (output.length > 0 && !output.endsWith('\n')) output += '\n'
+  return `${output}${selection}\n`
 }
 
 /** Variant over a permissions table: it adds the row with the three permissions

@@ -61,12 +61,12 @@ export interface AddEditRecordProps {
   zoneInfo: ZoneDetails | null
   /** Every record in the zone: they are needed for the SVCB hints. */
   records: ResourceRecord[]
-  /** Sólo en edición. */
+  /** Only on edit. */
   original?: ResourceRecord | null
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
   /** The expiry TTL is reported because the row's "Disable" button uses it. */
   onExpiryTtl: (v: string) => void
 }
@@ -88,12 +88,12 @@ export function AddEditRecord(p: AddEditRecordProps) {
     if (editing && p.original) {
       setF(formFromRecord(p.original, p.zone))
     } else {
-      const inicial = emptyForm()
+      const initial = emptyForm()
       // The first visible type, not a blind "A": on a signed Primary the
       // dropdown starts the same, but on a Forwarder the hidden ones change.
       const first = RECORD_TYPES.find((t) => t !== 'SOA' && !ocultos.includes(t))
-      inicial.type = first ?? 'A'
-      setF(inicial)
+      initial.type = first ?? 'A'
+      setF(initial)
     }
     setNotice(null)
     nombreRef.current?.focus()
@@ -111,9 +111,9 @@ export function AddEditRecord(p: AddEditRecordProps) {
         (a.dnsApps ?? []).some((d) => d.isAppRecordRequestHandler),
       )
       setApps(withHandler.map((a) => a.name))
-      const elegido = withHandler.find((a) => a.name === f.appName)
+      const chosen = withHandler.find((a) => a.name === f.appName)
       setClases(
-        (elegido?.dnsApps ?? [])
+        (chosen?.dnsApps ?? [])
           .filter((d) => d.isAppRecordRequestHandler)
           .map((d) => d.classPath),
       )
@@ -124,12 +124,12 @@ export function AddEditRecord(p: AddEditRecordProps) {
     setF((prev) => ({ ...prev, [k]: value }))
 
   async function save() {
-    const pistas = zoneHasSvcbAutoHint(p.records, f.type === 'A', f.type === 'AAAA')
+    const hints = zoneHasSvcbAutoHint(p.records, f.type === 'A', f.type === 'AAAA')
     const r = buildRecordBody(f, {
       zone: p.zone,
       mode: p.mode,
       original: p.original ?? undefined,
-      updateSvcbHints: pistas,
+      updateSvcbHints: hints,
     })
 
     if ('error' in r) {
@@ -151,7 +151,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
 
     p.onExpiryTtl(f.expiryTtl)
     p.onClose()
-    p.onHecho(
+    p.onDone(
       editing
         ? { type: 'success', title: 'Record Updated!', text: 'Resource record was updated successfully.' }
         : { type: 'success', title: 'Record Added!', text: 'Resource record was added successfully.' },

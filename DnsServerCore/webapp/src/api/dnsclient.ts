@@ -7,7 +7,7 @@ the "Resolve" and "Import" buttons share a call.
 */
 
 export const TYPES = ['A','NS','CNAME','SOA','PTR','MX','TXT','RP','AAAA','SRV','NAPTR','DNAME','DS','SSHFP','RRSIG','NSEC','DNSKEY','NSEC3','NSEC3PARAM','TLSA','ZONEMD','SVCB','HTTPS','URI','CAA','ANY','AXFR','ANAME'] as const
-export const PROTOCOLOS = ['UDP','TCP','TLS','HTTPS','QUIC'] as const
+export const PROTOCOLS = ['UDP','TCP','TLS','HTTPS','QUIC'] as const
 
 /*
 Preparing the server before querying (dnsclient.js:99-119). Two things that are

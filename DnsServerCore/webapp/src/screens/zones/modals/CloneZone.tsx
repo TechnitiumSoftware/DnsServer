@@ -8,21 +8,21 @@ import styles from '../Zones.module.css'
 import { noticeFromFailure } from '../../../lib/notice'
 import { Notifier } from '../../../ui/Notifier'
 
-/** `modalCloneZone` (zone.js:1332 y 1346). */
+/** `modalCloneZone` (zone.js:1332 and 1346). */
 export function CloneZone({
   zone,
   open,
   token,
   node = '',
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
   const [blank, setNueva] = useState('')
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -54,7 +54,7 @@ export function CloneZone({
 
     onClose()
     // Upstream's text is like this, with that half-finished sentence. Copied literally.
-    onHecho({ type: 'success', title: 'Zone Cloned!', text: 'Zone was cloned from successfully.' })
+    onDone({ type: 'success', title: 'Zone Cloned!', text: 'Zone was cloned from successfully.' })
   }
 
   return (

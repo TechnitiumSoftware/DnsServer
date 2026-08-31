@@ -51,7 +51,7 @@ Two consequences of that to keep in mind:
     restore `Settings.canDelete` (main.js:906-930).
 */
 
-export const SUBPESTANAS = [
+export const SUB_TABS = [
   'General',
   'Web Service',
   'Optional Protocols',
@@ -63,7 +63,7 @@ export const SUBPESTANAS = [
   'Logging',
 ] as const
 
-export type Subpestana = (typeof SUBPESTANAS)[number]
+export type SubTab = (typeof SUB_TABS)[number]
 
 
 export interface SettingsProps {
@@ -72,7 +72,7 @@ export interface SettingsProps {
   sub?: string | null
   /** Lets the Shell follow the screen when a validation failure forces it to
    *  jump to another sub-tab. */
-  onSubChange?: (sub: Subpestana) => void
+  onSubChange?: (sub: SubTab) => void
   canModify?: boolean
   canFlushCache?: boolean
   canBackup?: boolean
@@ -94,7 +94,7 @@ export function Settings({
   // The validation jump remembers which sub-tab it fired from: as soon as the
   // Shell asks for a different one, it stops holding. Deriving it this way avoids
   // an effect whose only job was to null it out, and the extra render it brings.
-  const [newline, setSalto] = useState<{ tab: Subpestana; desde: string } | null>(null)
+  const [newline, setSalto] = useState<{ tab: SubTab; desde: string } | null>(null)
   const [confirm, setConfirm] = useState<null | 'flush' | 'disable' | 'update'>(null)
   const [modal, setModal] = useState<null | 'backup' | 'restore'>(null)
   const [selection, setSelection] = useState<Record<string, boolean>>(initialBackupSelection)
@@ -104,11 +104,11 @@ export function Settings({
   const load = useCallback(async () => {
     setLoading(true)
     const s = await getSettings(token)
-    aplicar(s)
+    apply(s)
     setLoading(false)
   }, [token])
 
-  function aplicar(s: DnsSettings | null) {
+  function apply(s: DnsSettings | null) {
     setAjustes(s)
     setForm(s ? formularioDesdeAjustes(s) : null)
     setNextList(s?.blockListNextUpdatedOn)
@@ -118,12 +118,12 @@ export function Settings({
     void load()
   }, [load])
 
-  const pedida = (sub ?? 'General') as Subpestana
-  const valida: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'General'
-  const active: Subpestana = newline?.desde === valida ? newline.tab : valida
+  const requested = (sub ?? 'General') as SubTab
+  const valid: SubTab = SUB_TABS.includes(requested) ? requested : 'General'
+  const active: SubTab = newline?.desde === valid ? newline.tab : valid
 
-  const set = useCallback((parcial: Partial<SettingsForm>) => {
-    setForm((f) => (f ? { ...f, ...parcial } : f))
+  const set = useCallback((partial: Partial<SettingsForm>) => {
+    setForm((f) => (f ? { ...f, ...partial } : f))
   }, [])
 
   if (loading) return <Loading />
@@ -140,8 +140,8 @@ export function Settings({
     if (result.error) {
       const { title, text, tab } = result.error
       setNotice({ type: 'warning', title, text })
-      const target = tab as Subpestana
-      setSalto({ tab: target, desde: valida })
+      const target = tab as SubTab
+      setSalto({ tab: target, desde: valid })
       onSubChange?.(target)
       return
     }
@@ -155,7 +155,7 @@ export function Settings({
       return
     }
 
-    aplicar(outcome.data.response)
+    apply(outcome.data.response)
     setNotice({
       type: 'success',
       title: 'Settings Saved!',
@@ -192,10 +192,10 @@ export function Settings({
 
   async function disableBlocking() {
     if (form == null) return
-    const minutos = form.temporaryDisableBlockingMinutes
+    const minutes = form.temporaryDisableBlockingMinutes
     setConfirm(null)
     setBusy(true)
-    const till = await temporaryDisableBlocking(token, minutos)
+    const till = await temporaryDisableBlocking(token, minutes)
     setBusy(false)
     if (till == null) return
 
@@ -204,7 +204,7 @@ export function Settings({
     setNotice({
       type: 'success',
       title: 'Blocking Disabled!',
-      text: `Blocking was successfully disabled temporarily for ${minutos} minute(s).`,
+      text: `Blocking was successfully disabled temporarily for ${minutes} minute(s).`,
     })
   }
 
@@ -262,7 +262,7 @@ export function Settings({
       return
     }
 
-    aplicar(outcome.data.response)
+    apply(outcome.data.response)
     setModal(null)
     setNotice({
       type: 'success',
@@ -346,7 +346,7 @@ export function Settings({
         onClose={() => setConfirm(null)}
         title="Flush Cache"
         label="Flush"
-        variante="primary"
+        variant="primary"
         text="Are you sure to flush the DNS Server cache?"
         busy={busy}
         onConfirm={() => void doFlushCache()}
@@ -356,7 +356,7 @@ export function Settings({
         onClose={() => setConfirm(null)}
         title="Temporary Disable Blocking"
         label="Disable"
-        variante="primary"
+        variant="primary"
         text={`Are you sure to temporarily disable blocking for ${form.temporaryDisableBlockingMinutes} minute(s)?`}
         busy={busy}
         onConfirm={() => void disableBlocking()}
@@ -366,7 +366,7 @@ export function Settings({
         onClose={() => setConfirm(null)}
         title="Update Block Lists"
         label="Update"
-        variante="primary"
+        variant="primary"
         text="Are you sure to force download and update the block lists?"
         busy={busy}
         onConfirm={() => void updateLists()}

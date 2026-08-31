@@ -20,7 +20,7 @@ const DETAIL = {
   isPostProcessor: false,
 }
 
-const AL_DIA: InstalledApp = {
+const UP_TO_DATE: InstalledApp = {
   name: 'What Is My Dns',
   description: 'Returns the IP address of the user DNS Server.',
   version: '9.0',
@@ -58,7 +58,7 @@ function tarjeta(name: string) {
 
 describe('Apps — installed list', () => {
   it('it draws one card per app, with name, version and description', async () => {
-    withApps([AL_DIA, CON_UPDATE])
+    withApps([UP_TO_DATE, CON_UPDATE])
     render(<Apps token="t" />)
 
     expect(await screen.findByRole('listitem', { name: 'What Is My Dns' })).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('Apps — installed list', () => {
   })
 
   it('it announces in the header how many apps have an update', async () => {
-    withApps([AL_DIA, CON_UPDATE])
+    withApps([UP_TO_DATE, CON_UPDATE])
     render(<Apps token="t" />)
 
     expect(await screen.findByText('1 update available')).toBeInTheDocument()
@@ -79,7 +79,7 @@ describe('Apps — installed list', () => {
   })
 
   it('with no updates it does not show the pill', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     render(<Apps token="t" />)
 
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
@@ -87,7 +87,7 @@ describe('Apps — installed list', () => {
   })
 
   it('it announces the new version and offers \"Store Update\" only if there is one', async () => {
-    withApps([AL_DIA, CON_UPDATE])
+    withApps([UP_TO_DATE, CON_UPDATE])
     render(<Apps token="t" />)
 
     await screen.findByRole('listitem', { name: 'NO DATA' })
@@ -101,7 +101,7 @@ describe('Apps — installed list', () => {
   /* apps.js:129-132 — "Update" (your own zip) and "Store Update" are two
      different actions, not two names for the same one. */
   it('each card offers Config, Update and Uninstall', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
 
@@ -111,7 +111,7 @@ describe('Apps — installed list', () => {
   })
 
   it('the detail shows the class, its labels and the data template', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
 
@@ -146,7 +146,7 @@ describe('Apps — desinstalar', () => {
   the operating system's. The text is still upstream's literal (`apps.js:425`).
   */
   it('it asks for confirmation with the literal text of upstream', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     const spy = vi.spyOn(api, 'uninstallApp')
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
@@ -161,7 +161,7 @@ describe('Apps — desinstalar', () => {
   })
 
   it('on confirming it uninstalls and alerts with the literal text', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     const spy = vi
       .spyOn(api, 'uninstallApp')
       .mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
@@ -201,7 +201,7 @@ describe('Apps — Store Update from the card', () => {
 
 describe('Apps — config of the app', () => {
   it('it reads the config from the primary node and opens it in a text editor', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     const spy = vi.spyOn(api, 'getAppConfig').mockResolvedValue({
       kind: 'ok',
       data: { status: 'ok', response: { config: '{ "a": 1 }' } },
@@ -217,7 +217,7 @@ describe('Apps — config of the app', () => {
 
   /* The server returns `config: null` as soon as someone saves an empty one. */
   it('a null config opens the editor empty, not with \"null\"', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     vi.spyOn(api, 'getAppConfig').mockResolvedValue({
       kind: 'ok',
       data: { status: 'ok', response: { config: null } },
@@ -230,7 +230,7 @@ describe('Apps — config of the app', () => {
   })
 
   it('it saves what was typed and alerts with the literal text', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     vi.spyOn(api, 'getAppConfig').mockResolvedValue({
       kind: 'ok',
       data: { status: 'ok', response: { config: '' } },
@@ -292,7 +292,7 @@ describe('Apps — install from file', () => {
 
 describe('Apps — update from file', () => {
   it('it comes with the name filled in and unchangeable, and requires the file', async () => {
-    withApps([AL_DIA])
+    withApps([UP_TO_DATE])
     const spy = vi.spyOn(api, 'updateApp')
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })

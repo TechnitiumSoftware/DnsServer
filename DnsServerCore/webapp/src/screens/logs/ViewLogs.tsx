@@ -40,7 +40,7 @@ Four things from upstream that govern this screen:
 export interface ViewLogsProps {
   token: string | null
   node?: string
-  /** `Logs.canDelete`: borrar un log y borrarlos todos. */
+  /** `Logs.canDelete`: deleting a log and deleting them all. */
   canDeleteLogs?: boolean
   /** `Dashboard.canDelete`: deleting all the statistics. */
   canDeleteStats?: boolean
@@ -77,7 +77,7 @@ export function ViewLogs({
     void load()
   }, [load])
 
-  async function ver(fileName: string) {
+  async function view(fileName: string) {
     setOpen(fileName)
     setCuerpo(null)
     setLoadingBody(true)
@@ -200,7 +200,7 @@ export function ViewLogs({
                     type="button"
                     className={styles.logfile}
                     aria-current={open === f.fileName}
-                    onClick={() => void ver(f.fileName)}
+                    onClick={() => void view(f.fileName)}
                   >
                     <span className={styles.name}>{f.fileName}</span>
                     <span className={styles.sz}>[{f.size}]</span>

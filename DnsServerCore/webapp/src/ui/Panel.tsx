@@ -21,7 +21,7 @@ is also what upstream does, using `div.panel` with its title and no `fieldset`.
 export function Panel({
   title,
   actions,
-  agrupa = false,
+  groups2 = false,
   children,
   className,
 }: {
@@ -46,7 +46,7 @@ export function Panel({
   ended up named the same as the chart it contains, and a screen reader said the
   same name twice in a row.
   */
-  agrupa?: boolean
+  groups2?: boolean
   children: ReactNode
   className?: string
 }) {
@@ -58,7 +58,7 @@ export function Panel({
   if (title == null) return <div className={clases}>{children}</div>
 
   return (
-    <div className={clases} role={agrupa ? 'group' : undefined} aria-labelledby={agrupa ? id : undefined}>
+    <div className={clases} role={groups2 ? 'group' : undefined} aria-labelledby={groups2 ? id : undefined}>
       <div className={styles.header}>
         <h2 className={styles.title} id={id}>
           {title}

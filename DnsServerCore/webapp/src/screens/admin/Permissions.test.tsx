@@ -147,10 +147,10 @@ describe('Permissions — the editing modal', () => {
 
   it('\"Remove\" takes a row out and checking a box shows up in the send', async () => {
     const { user, spy } = await open()
-    const dialogo = screen.getByRole('dialog')
+    const dialog = screen.getByRole('dialog')
 
-    await user.click(within(dialogo).getByLabelText('Everyone Modify'))
-    await user.click(within(dialogo).getAllByRole('button', { name: 'Remove' })[0])
+    await user.click(within(dialog).getByLabelText('Everyone Modify'))
+    await user.click(within(dialog).getAllByRole('button', { name: 'Remove' })[0])
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>

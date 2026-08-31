@@ -81,7 +81,7 @@ it again from meaning one screen rules over the other.
   background: var(--pan);
   position: sticky;
   bottom: 0;
-  box-shadow: var(--e-2), var(--filo);
+  box-shadow: var(--e-2), var(--edge);
 }
 
 .spacer { flex: 1; }

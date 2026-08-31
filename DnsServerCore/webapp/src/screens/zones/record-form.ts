@@ -344,7 +344,7 @@ export function buildRecordBody(
   ctx: RecordContext,
 ): RecordResult {
   const alta = ctx.mode === 'add'
-  const verbo = alta ? 'add' : 'update'
+  const verb = alta ? 'add' : 'update'
   const missing = (text: string, field: keyof RecordForm): RecordResult => ({
     error: { title: 'Missing!', text, field },
   })
@@ -360,7 +360,7 @@ export function buildRecordBody(
   switch (f.type.toUpperCase()) {
     case 'A':
     case 'AAAA': {
-      if (f.value === '') return missing(`Please enter an IP address to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter an IP address to ${verb} the record.`, 'value')
       if (alta) p.ipAddress = f.value
       else {
         p.ipAddress = old.ipAddress ?? ''
@@ -374,7 +374,7 @@ export function buildRecordBody(
 
     case 'NS': {
       if (f.nsNameServer === '') {
-        return missing(`Please enter a name server to ${verbo} the record.`, 'nsNameServer')
+        return missing(`Please enter a name server to ${verb} the record.`, 'nsNameServer')
       }
       if (alta) p.nameServer = f.nsNameServer
       else {
@@ -394,7 +394,7 @@ export function buildRecordBody(
           'name',
         )
       }
-      if (f.value === '') return missing(`Please enter a domain name to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a domain name to ${verb} the record.`, 'value')
       p.cname = f.value
       break
     }
@@ -425,7 +425,7 @@ export function buildRecordBody(
     }
 
     case 'PTR': {
-      if (f.value === '') return missing(`Please enter a suitable value to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a suitable value to ${verb} the record.`, 'value')
       if (alta) p.ptrName = f.value
       else {
         p.ptrName = old.ptrName ?? ''
@@ -436,16 +436,16 @@ export function buildRecordBody(
 
     case 'MX': {
       // An empty preference falls to 1, it does not error.
-      const preferencia = f.mxPreference === '' ? '1' : f.mxPreference
+      const preference = f.mxPreference === '' ? '1' : f.mxPreference
       if (f.mxExchange === '') {
-        return missing(`Please enter a mail exchange domain name to ${verbo} the record.`, 'mxExchange')
+        return missing(`Please enter a mail exchange domain name to ${verb} the record.`, 'mxExchange')
       }
       if (alta) {
-        p.preference = preferencia
+        p.preference = preference
         p.exchange = f.mxExchange
       } else {
         p.preference = old.preference ?? ''
-        p.newPreference = preferencia
+        p.newPreference = preference
         p.exchange = old.exchange ?? ''
         p.newExchange = f.mxExchange
       }
@@ -453,7 +453,7 @@ export function buildRecordBody(
     }
 
     case 'TXT': {
-      if (f.txt === '') return missing(`Please enter a suitable value to ${verbo} the record.`, 'txt')
+      if (f.txt === '') return missing(`Please enter a suitable value to ${verb} the record.`, 'txt')
       if (alta) {
         p.text = f.txt
         p.splitText = String(f.txtSplitText)
@@ -540,7 +540,7 @@ export function buildRecordBody(
     }
 
     case 'DNAME': {
-      if (f.value === '') return missing(`Please enter a domain name to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a domain name to ${verb} the record.`, 'value')
       p.dname = f.value
       break
     }
@@ -550,17 +550,17 @@ export function buildRecordBody(
         return missing('Please enter a name for the DS record.', 'name')
       }
       if (f.dsKeyTag === '') {
-        return missing(`Please enter the Key Tag value to ${verbo} the record.`, 'dsKeyTag')
+        return missing(`Please enter the Key Tag value to ${verb} the record.`, 'dsKeyTag')
       }
       if (f.dsAlgorithm === '') {
-        return missing(`Please select an DNSSEC algorithm to ${verbo} the record.`, 'dsAlgorithm')
+        return missing(`Please select an DNSSEC algorithm to ${verb} the record.`, 'dsAlgorithm')
       }
       if (f.dsDigestType === '') {
-        return missing(`Please select a Digest Type to ${verbo} the record.`, 'dsDigestType')
+        return missing(`Please select a Digest Type to ${verb} the record.`, 'dsDigestType')
       }
       if (f.dsDigest === '') {
         return missing(
-          `Please enter the Digest hash in hex string format to ${verbo} the record.`,
+          `Please enter the Digest hash in hex string format to ${verb} the record.`,
           'dsDigest',
         )
       }
@@ -585,14 +585,14 @@ export function buildRecordBody(
 
     case 'SSHFP': {
       if (f.sshfpAlgorithm === '') {
-        return missing(`Please select an Algorithm to ${verbo} the record.`, 'sshfpAlgorithm')
+        return missing(`Please select an Algorithm to ${verb} the record.`, 'sshfpAlgorithm')
       }
       if (f.sshfpFingerprintType === '') {
-        return missing(`Please select a Fingerprint Type to ${verbo} the record.`, 'sshfpFingerprintType')
+        return missing(`Please select a Fingerprint Type to ${verb} the record.`, 'sshfpFingerprintType')
       }
       if (f.sshfpFingerprint === '') {
         return missing(
-          `Please enter the Fingerprint hash in hex string format to ${verbo} the record.`,
+          `Please enter the Fingerprint hash in hex string format to ${verb} the record.`,
           'sshfpFingerprint',
         )
       }
@@ -614,17 +614,17 @@ export function buildRecordBody(
 
     case 'TLSA': {
       if (f.tlsaCertificateUsage === '') {
-        return missing(`Please select a Certificate Usage to ${verbo} the record.`, 'tlsaCertificateUsage')
+        return missing(`Please select a Certificate Usage to ${verb} the record.`, 'tlsaCertificateUsage')
       }
       if (f.tlsaSelector === '') {
-        return missing(`Please select a Selector to ${verbo} the record.`, 'tlsaSelector')
+        return missing(`Please select a Selector to ${verb} the record.`, 'tlsaSelector')
       }
       if (f.tlsaMatchingType === '') {
-        return missing(`Please select a Matching Type to ${verbo} the record.`, 'tlsaMatchingType')
+        return missing(`Please select a Matching Type to ${verb} the record.`, 'tlsaMatchingType')
       }
       if (f.tlsaCertificateAssociationData === '') {
         return missing(
-          `Please enter the Certificate Association Data to ${verbo} the record.`,
+          `Please enter the Certificate Association Data to ${verb} the record.`,
           'tlsaCertificateAssociationData',
         )
       }
@@ -661,10 +661,10 @@ export function buildRecordBody(
     case 'SVCB':
     case 'HTTPS': {
       if (f.svcbPriority === '') {
-        return missing(`Please enter a Priority value to ${verbo} the record.`, 'svcbPriority')
+        return missing(`Please enter a Priority value to ${verb} the record.`, 'svcbPriority')
       }
       if (f.svcbTargetName === '') {
-        return missing(`Please enter a Target Name to ${verbo} the record.`, 'svcbTargetName')
+        return missing(`Please enter a Target Name to ${verb} the record.`, 'svcbTargetName')
       }
 
       const params = serializeSvcParams(f.svcbParams)
@@ -731,7 +731,7 @@ export function buildRecordBody(
     }
 
     case 'ANAME': {
-      if (f.value === '') return missing(`Please enter a suitable value to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a suitable value to ${verb} the record.`, 'value')
       if (alta) p.aname = f.value
       else {
         p.aname = old.aname ?? ''
@@ -741,22 +741,22 @@ export function buildRecordBody(
     }
 
     case 'FWD': {
-      const reenviador = f.forwarder
-      if (reenviador === '') {
+      const forwarder = f.forwarder
+      if (forwarder === '') {
         return missing(
-          `Please enter a domain name or IP address or URL as a forwarder to ${verbo} the record.`,
+          `Please enter a domain name or IP address or URL as a forwarder to ${verb} the record.`,
           'forwarder',
         )
       }
 
       if (alta) {
         p.protocol = f.forwarderProtocol
-        p.forwarder = reenviador
+        p.forwarder = forwarder
       } else {
         p.protocol = old.protocol ?? ''
         p.newProtocol = f.forwarderProtocol
         p.forwarder = old.forwarder ?? ''
-        p.newForwarder = reenviador
+        p.newForwarder = forwarder
       }
       p.forwarderPriority = f.forwarderPriority
       p.dnssecValidation = String(f.forwarderDnssecValidation)
@@ -766,19 +766,19 @@ export function buildRecordBody(
       sent; when editing, only if the new forwarder is not "this-server". It is
       asymmetric in upstream and it is replicated.
       */
-      const mandarProxy = alta || reenviador !== 'this-server'
+      const mandarProxy = alta || forwarder !== 'this-server'
       if (mandarProxy) {
         p.proxyType = f.proxyType
         if (f.proxyType === 'Http' || f.proxyType === 'Socks5') {
           if (f.proxyAddress === '') {
             return missing(
-              `Please enter a domain name or IP address for Proxy Server Address to ${verbo} the record.`,
+              `Please enter a domain name or IP address for Proxy Server Address to ${verb} the record.`,
               'proxyAddress',
             )
           }
           if (f.proxyPort === '') {
             return missing(
-              `Please enter a port number for Proxy Server Port to ${verbo} the record.`,
+              `Please enter a port number for Proxy Server Port to ${verb} the record.`,
               'proxyPort',
             )
           }

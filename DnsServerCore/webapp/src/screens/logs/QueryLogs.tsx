@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { listApps, type InstalledApp } from '../../api/apps'
 import {
   ENTRIES_PER_PAGE,
-  PROTOCOLOS,
+  PROTOCOLS,
   QCLASSES,
   RCODES,
   RESPONSE_TYPES,
@@ -55,7 +55,7 @@ touching the Shell. It is noted as an integration gap, not half-solved.
 
 export const ENTRIES_PER_PAGE_KEY = 'optQueryLogsEntriesPerPage'
 
-interface Filtros {
+interface Filters {
   appName: string
   classPath: string
   pageNumber: string
@@ -74,7 +74,7 @@ interface Filtros {
 
 /** `resetQueryLogsForm` (logs.js:50). The form returns to its default values and
  *  re-reads from `localStorage` how many entries per page. */
-function filtrosPorDefecto(appName: string, classPath: string): Filtros {
+function defaultFilters(appName: string, classPath: string): Filters {
   let entriesPerPage: string = ENTRIES_PER_PAGE[0]
   try {
     const saved = localStorage.getItem(ENTRIES_PER_PAGE_KEY)
@@ -137,9 +137,9 @@ export function rowClass(entry: QueryLogEntry): string {
 /** The counter's text (logs.js:594-597). */
 export function textoEstado(p: QueryLogPage): string {
   if (p.entries.length === 0) return '0 logs'
-  const primera = p.entries[0].rowNumber
+  const first = p.entries[0].rowNumber
   const last = p.entries[p.entries.length - 1].rowNumber
-  return `${primera}-${last} (${p.entries.length}) of ${p.totalEntries} logs (page ${p.pageNumber} of ${p.totalPages})`
+  return `${first}-${last} (${p.entries.length}) of ${p.totalEntries} logs (page ${p.pageNumber} of ${p.totalPages})`
 }
 
 /*
@@ -159,14 +159,14 @@ export interface QueryLogsProps {
 
 export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   const [apps, setApps] = useState<{ name: string; classPaths: string[] }[] | null>(null)
-  const [f, setF] = useState<Filtros>(() => filtrosPorDefecto('', ''))
+  const [f, setF] = useState<Filters>(() => defaultFilters('', ''))
   const [page, setPage] = useState<QueryLogPage | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState(false)
 
   const desde = useRef<HTMLInputElement>(null)
-  const hasta = useRef<HTMLInputElement>(null)
+  const until = useRef<HTMLInputElement>(null)
   // The dropdown is `ui/Select`, so what gets focused is its trigger.
   const appRef = useRef<HTMLButtonElement>(null)
   const claseRef = useRef<HTMLButtonElement>(null)
@@ -179,10 +179,10 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   }, [f])
 
   useEffect(() => {
-    let vivo = true
+    let live = true
     void (async () => {
       const outcome = await listApps(token)
-      if (!vivo) return
+      if (!live) return
       if (outcome.kind !== 'ok') {
         /*
         Without this, a failure here left the "Source App Name" dropdown at
@@ -197,45 +197,45 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       const list = appsConQueryLogs(outcome.data.response.apps ?? [])
       setApps(list)
       const first = list[0]
-      setF(filtrosPorDefecto(first?.name ?? '', first?.classPaths[0] ?? ''))
+      setF(defaultFilters(first?.name ?? '', first?.classPaths[0] ?? ''))
     })()
     return () => {
-      vivo = false
+      live = false
     }
   }, [token])
 
   const clasesDelApp = apps?.find((a) => a.name === f.appName)?.classPaths ?? []
 
-  const params = useCallback((filtros: Filtros, pageNumber: string): QueryLogsParams => {
+  const params = useCallback((filters: Filters, pageNumber: string): QueryLogsParams => {
     // logs.js:405 — fewer than 1 entry per page falls to 10.
-    const n = Number(filtros.entriesPerPage)
+    const n = Number(filters.entriesPerPage)
     const entriesPerPage = String(n < 1 || Number.isNaN(n) ? 10 : n)
 
     return {
-      name: filtros.appName,
-      classPath: filtros.classPath,
+      name: filters.appName,
+      classPath: filters.classPath,
       pageNumber,
       entriesPerPage,
-      descendingOrder: filtros.descendingOrder,
-      start: aIso(filtros.start),
-      end: aIso(filtros.end),
-      clientIpAddress: filtros.clientIpAddress,
-      protocol: filtros.protocol,
-      responseType: filtros.responseType,
-      rcode: filtros.rcode,
-      qname: filtros.qname,
-      qtype: filtros.qtype,
-      qclass: filtros.qclass,
+      descendingOrder: filters.descendingOrder,
+      start: aIso(filters.start),
+      end: aIso(filters.end),
+      clientIpAddress: filters.clientIpAddress,
+      protocol: filters.protocol,
+      responseType: filters.responseType,
+      rcode: filters.rcode,
+      qname: filters.qname,
+      qtype: filters.qtype,
+      qclass: filters.qclass,
       node,
     }
   }, [node])
 
   const query = useCallback(
     async (pageNumber: string, live: boolean) => {
-      const filtros = filtrosRef.current
+      const filters = filtrosRef.current
 
       // logs.js:389-401 — the app and the class, in that order.
-      if (filtros.appName === '') {
+      if (filters.appName === '') {
         setNotice({
           type: 'warning',
           title: 'Missing!',
@@ -244,7 +244,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         appRef.current?.focus()
         return
       }
-      if (filtros.classPath === '') {
+      if (filters.classPath === '') {
         setNotice({
           type: 'warning',
           title: 'Missing!',
@@ -265,18 +265,18 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         desde.current.focus()
         return
       }
-      if (hasta.current?.validity.badInput === true) {
+      if (until.current?.validity.badInput === true) {
         setNotice({
           type: 'warning',
           title: 'Missing!',
           text: "Please enter correct date and time for 'To' field.",
         })
-        hasta.current.focus()
+        until.current.focus()
         return
       }
 
       if (!live) setBusy(true)
-      const outcome = await queryLogs(token, params(filtros, pageNumber))
+      const outcome = await queryLogs(token, params(filters, pageNumber))
       if (!live) setBusy(false)
 
       if (outcome.kind !== 'ok') {
@@ -315,8 +315,8 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     }
   }, [live])
 
-  function set(parcial: Partial<Filtros>) {
-    setF((prev) => ({ ...prev, ...parcial }))
+  function set(partial: Partial<Filters>) {
+    setF((prev) => ({ ...prev, ...partial }))
   }
 
   function cambiarApp(name: string) {
@@ -327,7 +327,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   function reiniciar() {
     const first = apps?.[0]
-    setF(filtrosPorDefecto(first?.name ?? '', first?.classPaths[0] ?? ''))
+    setF(defaultFilters(first?.name ?? '', first?.classPaths[0] ?? ''))
   }
 
   function toggleLive(checked: boolean) {
@@ -468,7 +468,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 <label htmlFor="ql-end">To</label>
                 <Input
                   id="ql-end"
-                  ref={hasta}
+                  ref={until}
                   type="datetime-local"
                   disabled={live}
                   value={f.end}
@@ -548,7 +548,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   value={f.protocol}
                   onChange={(e) => set({ protocol: e.target.value })}
                 >
-                  {PROTOCOLOS.map((p) => (
+                  {PROTOCOLS.map((p) => (
                     <option key={p.value} value={p.value}>
                       {p.label}
                     </option>
@@ -618,7 +618,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
             <span>{textoEstado(page)}</span>
             {/* logs.js:589 — "Last" is asked for with -1; the server resolves it. */}
             <Pagination
-              ventana={pageWindow(page.pageNumber, page.totalPages)}
+              window={pageWindow(page.pageNumber, page.totalPages)}
               current={page.pageNumber}
               last={-1}
               onIr={(n) => void query(String(n), false)}
@@ -645,7 +645,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
               <tr key={e.rowNumber} className={rowClass(e)}>
                 <td className={styles.mono}>{e.rowNumber}</td>
                 <td className={`${styles.mono} ${styles.nowrap}`}>{fechaHora(e.timestamp)}</td>
-                <td className={`${styles.mono} ${styles.romper}`}>{e.clientIpAddress}</td>
+                <td className={`${styles.mono} ${styles.breakUp}`}>{e.clientIpAddress}</td>
                 <td>{e.protocol}</td>
                 <td>
                   {e.responseType}
@@ -655,12 +655,12 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 </td>
                 <td>{e.rcode}</td>
                 {/* logs.js:518 — the root is written with a dot. */}
-                <td className={`${styles.mono} ${styles.romper}`}>
+                <td className={`${styles.mono} ${styles.breakUp}`}>
                   {e.qname === '' ? '.' : (e.qname ?? '')}
                 </td>
                 <td>{e.qtype ?? ''}</td>
                 <td>{e.qclass ?? ''}</td>
-                <td className={`${styles.mono} ${styles.romper}`}>{e.answer ?? ''}</td>
+                <td className={`${styles.mono} ${styles.breakUp}`}>{e.answer ?? ''}</td>
               </tr>
             ))}
           </Table>

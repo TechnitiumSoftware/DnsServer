@@ -380,8 +380,8 @@ describe('Users — the details modal', () => {
     render(<Users {...props} />)
 
     await user.click(await screen.findByRole('button', { name: 'View Details' }))
-    const dialogo = await screen.findByRole('dialog')
-    expect(within(dialogo).getByText('Total Sessions: 1')).toBeInTheDocument()
-    expect(within(dialogo).getByText('[799a4919af7636e2]')).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Total Sessions: 1')).toBeInTheDocument()
+    expect(within(dialog).getByText('[799a4919af7636e2]')).toBeInTheDocument()
   })
 })

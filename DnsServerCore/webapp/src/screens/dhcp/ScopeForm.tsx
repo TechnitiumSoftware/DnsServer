@@ -42,23 +42,23 @@ here are state, to the same effect:
 
 export function ScopeForm({
   title,
-  inicial,
+  initial,
   busy,
   onSave,
   onCancelar,
   onNotice,
 }: {
   title: 'Add Scope' | 'Edit Scope'
-  inicial: Form
+  initial: Form
   busy: boolean
   onSave: (body: Record<string, string>) => void
   onCancelar: () => void
   onNotice: (e: ScopeError) => void
 }) {
-  const [f, setF] = useState<Form>(inicial)
+  const [f, setF] = useState<Form>(initial)
 
-  function set(parcial: Partial<Form>) {
-    setF((prev) => ({ ...prev, ...parcial }))
+  function set(partial: Partial<Form>) {
+    setF((prev) => ({ ...prev, ...partial }))
   }
 
   function save() {

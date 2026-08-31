@@ -1,6 +1,6 @@
 import { Icon } from './Icon'
 import styles from './Pagination.module.css'
-import type { Pagination as Ventana } from '../lib/pagination'
+import type { Pagination as Window } from '../lib/pagination'
 
 /*
 The page bar: first, previous, the window of ten, next and last.
@@ -16,12 +16,12 @@ asked for: the zone list and Query Logs send `-1` and let the server resolve it
 they have them all. That is why `ultima` is a parameter and not hard-coded.
 */
 export function Pagination({
-  ventana,
+  window,
   current,
   last,
   onIr,
 }: {
-  ventana: Ventana
+  window: Window
   current: number
   /** Which number to ask for as "last". `-1` lets the server resolve it. */
   last: number
@@ -29,22 +29,22 @@ export function Pagination({
 }) {
   return (
     <span className={styles.pg}>
-      {ventana.primera && (
+      {window.first && (
         <button type="button" className={styles.pgb} aria-label="First" onClick={() => onIr(1)}>
-          <Icon name="first" tam={14} />
+          <Icon name="first" size={14} />
         </button>
       )}
-      {ventana.previous != null && (
+      {window.previous != null && (
         <button
           type="button"
           className={styles.pgb}
           aria-label="Previous"
-          onClick={() => onIr(ventana.previous!)}
+          onClick={() => onIr(window.previous!)}
         >
-          <Icon name="chevronLeft" tam={14} />
+          <Icon name="chevronLeft" size={14} />
         </button>
       )}
-      {ventana.pages.map((p) => (
+      {window.pages.map((p) => (
         <button
           key={p}
           type="button"
@@ -55,19 +55,19 @@ export function Pagination({
           {p}
         </button>
       ))}
-      {ventana.next != null && (
+      {window.next != null && (
         <button
           type="button"
           className={styles.pgb}
           aria-label="Next"
-          onClick={() => onIr(ventana.next!)}
+          onClick={() => onIr(window.next!)}
         >
-          <Icon name="chevronRight" tam={14} />
+          <Icon name="chevronRight" size={14} />
         </button>
       )}
-      {ventana.last && (
+      {window.last && (
         <button type="button" className={styles.pgb} aria-label="Last" onClick={() => onIr(last)}>
-          <Icon name="last" tam={14} />
+          <Icon name="last" size={14} />
         </button>
       )}
     </span>

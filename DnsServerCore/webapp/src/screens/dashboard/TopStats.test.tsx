@@ -8,15 +8,15 @@ import { Dashboard } from './Dashboard'
 
 afterEach(() => vi.restoreAllMocks())
 
-const CLIENTES = [
+const CLIENTS = [
   { name: '10.0.0.1', domain: 'pc.casa.test', hits: 1234, rateLimited: false },
   { name: '10.0.0.9', domain: '', hits: 99, rateLimited: true },
 ]
 
-function servidorTop(respuesta: Record<string, unknown>) {
+function servidorTop(response: Record<string, unknown>) {
   return vi.spyOn(client, 'apiRequest').mockResolvedValue({
     kind: 'ok',
-    data: { status: 'ok', response: respuesta },
+    data: { status: 'ok', response: response },
   } as never)
 }
 
@@ -28,7 +28,7 @@ describe('modal Top Stats', () => {
   })
 
   it('the title carries the limit inside it, as in upstream', async () => {
-    servidorTop({ topClients: CLIENTES })
+    servidorTop({ topClients: CLIENTS })
     render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText('Top 1000 Clients')).toBeTruthy()
   })
@@ -47,20 +47,20 @@ describe('modal Top Stats', () => {
   })
 
   it('a client shows its domain under the name', async () => {
-    servidorTop({ topClients: CLIENTES })
+    servidorTop({ topClients: CLIENTS })
     render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText('pc.casa.test')).toBeTruthy()
   })
 
   it('a client with no domain is drawn as the root', async () => {
-    servidorTop({ topClients: CLIENTES })
+    servidorTop({ topClients: CLIENTS })
     render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     await screen.findByText('pc.casa.test')
     expect(screen.getByText('.')).toBeTruthy()
   })
 
   it('a rate-limited client says so after the name', async () => {
-    servidorTop({ topClients: CLIENTES })
+    servidorTop({ topClients: CLIENTS })
     render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText(/10\.0\.0\.9 \(rate limited\)/)).toBeTruthy()
   })
@@ -73,7 +73,7 @@ describe('modal Top Stats', () => {
   })
 
   it('the header switches between Client/Queries and Domain/Hits', async () => {
-    servidorTop({ topClients: CLIENTES })
+    servidorTop({ topClients: CLIENTS })
     const { unmount } = render(
       <TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />,
     )
@@ -108,7 +108,7 @@ describe('the three \"More\" buttons of the Dashboard', () => {
     queryResponseChartData: grafica,
     queryTypeChartData: grafica,
     protocolTypeChartData: grafica,
-    topClients: CLIENTES,
+    topClients: CLIENTS,
     topDomains: [],
     topBlockedDomains: [],
   }
@@ -117,7 +117,7 @@ describe('the three \"More\" buttons of the Dashboard', () => {
     // Before phase 10 the three buttons were in place and did nothing.
     const user = userEvent.setup()
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: DATA } as never)
-    const top = vi.spyOn(api, 'getTop').mockResolvedValue(CLIENTES as never)
+    const top = vi.spyOn(api, 'getTop').mockResolvedValue(CLIENTS as never)
     render(<Dashboard token="t" />)
 
     const panel = (await screen.findByText('Top Clients')).closest('div')!.parentElement!

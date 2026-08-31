@@ -220,7 +220,7 @@ export function MyProfile({
                 <SessionCell session={row} />
               </td>
               <td>
-                <LastSeenCell date={fechaHora(row.lastSeen)} hace={fromNow(row.lastSeen)} />
+                <LastSeenCell date={fechaHora(row.lastSeen)} ago={fromNow(row.lastSeen)} />
               </td>
               <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
               <td>

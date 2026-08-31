@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
-import { aCamino, escribirRuta, readRoute } from './route'
+import { toTrail, escribirRuta, readRoute } from './route'
 import { ChangePassword } from '../screens/modals/ChangePassword'
 import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
@@ -75,7 +75,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
      if not, from the first visible one. See `app/ruta.ts` for the reasoning. */
   const rutaInicial = readRoute(sections)
   const [active, setActive] = useState(() => rutaInicial?.section ?? sections[0]?.id ?? 'about')
-  const [cajon, setCajon] = useState(false)
+  const [drawer, setCajon] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
   const [sub, setSub] = useState<string | null>(rutaInicial?.sub ?? null)
   const [displayName, setDisplayName] = useState(session.displayName)
@@ -142,11 +142,11 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       where we already are, and the back button would go round in circles.
       */
       const section = sections.find((x) => x.id === r.section)
-      const suya = r.sub ?? section?.subs?.[0] ?? null
-      if (suya !== r.sub) escribirRuta({ section: r.section, sub: suya }, true)
+      const own = r.sub ?? section?.subs?.[0] ?? null
+      if (own !== r.sub) escribirRuta({ section: r.section, sub: own }, true)
 
       setActive((v) => (v === r.section ? v : r.section))
-      setSub((v) => (v === suya ? v : suya))
+      setSub((v) => (v === own ? v : own))
     }
     window.addEventListener('popstate', onChanged)
     return () => window.removeEventListener('popstate', onChanged)
@@ -154,16 +154,16 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
   return (
     <div className={styles.shell}>
-      {cajon && (
+      {drawer && (
         <button
           type="button"
-          className={styles.velo}
+          className={styles.veil}
           aria-label="Close menu"
           onClick={() => setCajon(false)}
         />
       )}
 
-      <aside className={styles.side} data-open={cajon}>
+      <aside className={styles.side} data-open={drawer}>
         <div className={styles.sbrand}>
           <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium
         </div>
@@ -191,24 +191,24 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             <div className={styles.group} key={g}>
               {sections.filter((sec) => group.includes(sec.id)).map((sec) => {
                 const active = sec.id === current?.id
-                const primera = sec.subs?.[0] ?? null
+                const first = sec.subs?.[0] ?? null
                 return (
                   <div key={sec.id}>
                     <a
                       className={styles.s}
-                      href={aCamino({ section: sec.id, sub: primera })}
+                      href={toTrail({ section: sec.id, sub: first })}
                       data-active={active}
                       aria-current={active && sec.subs == null ? 'page' : undefined}
                       onClick={(e) => {
                         if (!clicSimple(e)) return
                         e.preventDefault()
                         setActive(sec.id)
-                        setSub(primera)
+                        setSub(first)
                         setCajon(false)
                       }}
                     >
                       <span className={styles.ico}>
-                        <Icon name={ICONS[sec.id] ?? 'about'} tam={16} />
+                        <Icon name={ICONS[sec.id] ?? 'about'} size={16} />
                       </span>
                       {sec.label}
                     </a>
@@ -220,7 +220,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                           <a
                             key={t}
                             className={styles.s2}
-                            href={aCamino({ section: sec.id, sub: t })}
+                            href={toTrail({ section: sec.id, sub: t })}
                             aria-current={active && subActual === t ? 'page' : undefined}
                             onClick={(e) => {
                               if (!clicSimple(e)) return
@@ -257,7 +257,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           */}
           <PieDeEnlaces className={styles.pieEnlaces} />
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
-          <Menu label={displayName} rotulo={displayName} ancla="izquierda" asRow>
+          <Menu label={displayName} rotulo={displayName} anchor="izquierda" asRow>
             {(close) => (
               <>
                 <button type="button" onClick={() => { close(); open('profile') }}>
@@ -300,12 +300,12 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         <header className={styles.rtop}>
           <button
             type="button"
-            className={styles.hamburguesa}
+            className={styles.hamburger}
             aria-label="Menu"
-            aria-expanded={cajon}
+            aria-expanded={drawer}
             onClick={() => setCajon((v) => !v)}
           >
-            <Icon name="menu" tam={18} />
+            <Icon name="menu" size={18} />
           </button>
           <span className={styles.marcaTop}>
             <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium

@@ -144,7 +144,7 @@ function screenSignatures() {
     const s = css(row)
     const inTable = row.closest('td, th') != null
     note(
-      inTable ? 'casilla-de-row' : e.type === 'radio' ? 'radio' : 'settings-checkbox',
+      inTable ? 'row-checkbox' : e.type === 'radio' ? 'radio' : 'settings-checkbox',
       `${s.minHeight} | ${s.gap} | ${s.fontSize} | ${s.color}`,
     )
   }

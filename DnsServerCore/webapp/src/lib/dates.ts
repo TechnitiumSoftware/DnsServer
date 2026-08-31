@@ -61,46 +61,46 @@ export function fechaMinuto(iso: string | null | undefined): string {
   )
 }
 
-const UMBRAL = { ss: 44, s: 45, m: 45, h: 22, d: 26, M: 11 }
+const THRESHOLD = { ss: 44, s: 45, m: 45, h: 22, d: 26, M: 11 }
 
 /*
 moment's `Duration.as(unit)` for a duration made only of milliseconds. Months are
 NOT counted by calendar: `daysToMonths` divides by 146097/4800 = 30.436875 days,
 which is the mean month of the Gregorian calendar.
 */
-function comoMeses(dias: number): number {
-  return (dias * 4800) / 146097
+function asMonths(days: number): number {
+  return (days * 4800) / 146097
 }
 
 /** `moment(x).fromNow()` with the `en` locale. `ahora` is injected so it can be
  *  tested without depending on the clock. */
-export function fromNow(iso: string | null | undefined, ahora: number = Date.now()): string {
+export function fromNow(iso: string | null | undefined, now: number = Date.now()): string {
   if (iso == null) return ''
   const d = parts(iso)
   if (d == null) return ''
 
-  const ms = d.getTime() - ahora
+  const ms = d.getTime() - now
   const futuro = ms > 0
   const abs = Math.abs(ms)
 
-  const segundos = Math.round(abs / 1000)
-  const minutos = Math.round(abs / 60000)
-  const horas = Math.round(abs / 3600000)
-  const dias = Math.round(abs / 86400000)
-  const meses = Math.round(comoMeses(abs / 86400000))
-  const anos = Math.round(comoMeses(abs / 86400000) / 12)
+  const seconds = Math.round(abs / 1000)
+  const minutes = Math.round(abs / 60000)
+  const hours = Math.round(abs / 3600000)
+  const days = Math.round(abs / 86400000)
+  const months = Math.round(asMonths(abs / 86400000))
+  const anos = Math.round(asMonths(abs / 86400000) / 12)
 
   let text: string
-  if (segundos <= UMBRAL.ss) text = 'a few seconds'
-  else if (segundos < UMBRAL.s) text = `${segundos} seconds`
-  else if (minutos <= 1) text = 'a minute'
-  else if (minutos < UMBRAL.m) text = `${minutos} minutes`
-  else if (horas <= 1) text = 'an hour'
-  else if (horas < UMBRAL.h) text = `${horas} hours`
-  else if (dias <= 1) text = 'a day'
-  else if (dias < UMBRAL.d) text = `${dias} days`
-  else if (meses <= 1) text = 'a month'
-  else if (meses < UMBRAL.M) text = `${meses} months`
+  if (seconds <= THRESHOLD.ss) text = 'a few seconds'
+  else if (seconds < THRESHOLD.s) text = `${seconds} seconds`
+  else if (minutes <= 1) text = 'a minute'
+  else if (minutes < THRESHOLD.m) text = `${minutes} minutes`
+  else if (hours <= 1) text = 'an hour'
+  else if (hours < THRESHOLD.h) text = `${hours} hours`
+  else if (days <= 1) text = 'a day'
+  else if (days < THRESHOLD.d) text = `${days} days`
+  else if (months <= 1) text = 'a month'
+  else if (months < THRESHOLD.M) text = `${months} months`
   else if (anos <= 1) text = 'a year'
   else text = `${anos} years`
 
@@ -108,6 +108,6 @@ export function fromNow(iso: string | null | undefined, ahora: number = Date.now
 }
 
 /** `date (time ago)`, which is how upstream composes the ones carrying both. */
-export function fechaConAntiguedad(iso: string, ahora?: number): string {
-  return `${fechaHora(iso)} (${fromNow(iso, ahora)})`
+export function fechaConAntiguedad(iso: string, now?: number): string {
+  return `${fechaHora(iso)} (${fromNow(iso, now)})`
 }

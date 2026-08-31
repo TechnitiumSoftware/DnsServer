@@ -24,10 +24,10 @@ CONVENTIONS.md.
 const NODES = muestra as unknown as Record<string, ListNode>
 
 /** Every scalar value of an object, in depth. */
-function hojas(o: unknown): string[] {
+function leaves(o: unknown): string[] {
   if (o == null) return []
-  if (Array.isArray(o)) return o.flatMap(hojas)
-  if (typeof o === 'object') return Object.values(o as Record<string, unknown>).flatMap(hojas)
+  if (Array.isArray(o)) return o.flatMap(leaves)
+  if (typeof o === 'object') return Object.values(o as Record<string, unknown>).flatMap(leaves)
   if (typeof o === 'boolean') return []
   return [String(o)]
 }
@@ -57,7 +57,7 @@ describe('the table loses nothing from the real JSON', () => {
       const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
       for (const r of node.records) {
-        for (const v of hojas(r.rData)) {
+        for (const v of leaves(r.rData)) {
           expect(text, `falta ${v} de un ${r.type}`).toContain(v)
         }
       }
@@ -68,11 +68,11 @@ describe('the table loses nothing from the real JSON', () => {
       const text = c.textContent ?? ''
       for (const r of node.records as DnsRecord[]) {
         for (const v of [
-          ...hojas(r.responseMetadata),
-          ...hojas(r.nameServerMetadata),
-          ...hojas(r.dnssecRecords),
-          ...hojas(r.glueRecords),
-          ...hojas(r.eDnsClientSubnet),
+          ...leaves(r.responseMetadata),
+          ...leaves(r.nameServerMetadata),
+          ...leaves(r.dnssecRecords),
+          ...leaves(r.glueRecords),
+          ...leaves(r.eDnsClientSubnet),
         ]) {
           expect(text, `falta ${v} de un ${r.type}`).toContain(v)
         }

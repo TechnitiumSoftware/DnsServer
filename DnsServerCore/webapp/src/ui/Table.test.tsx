@@ -37,7 +37,7 @@ function Table({ data }: { data: Row[] }) {
   )
 }
 
-function textos() {
+function texts() {
   return screen.getAllByRole('cell').map((c) => c.textContent)
 }
 
@@ -45,13 +45,13 @@ describe('table sorting', () => {
   it('unsorted: the first click sorts ascending', async () => {
     render(<Table data={[{ name: 'c' }, { name: 'a' }, { name: 'b' }]} />)
     await userEvent.click(screen.getByRole('button', { name: /Name/ }))
-    expect(textos()).toEqual(['a', 'b', 'c'])
+    expect(texts()).toEqual(['a', 'b', 'c'])
   })
 
   it('already ascending: the first click turns it around, like upstream', async () => {
     render(<Table data={[{ name: 'a' }, { name: 'b' }, { name: 'c' }]} />)
     await userEvent.click(screen.getByRole('button', { name: /Name/ }))
-    expect(textos()).toEqual(['c', 'b', 'a'])
+    expect(texts()).toEqual(['c', 'b', 'a'])
   })
 
   it('clicking twice goes back up, and announces it with aria-sort', async () => {
@@ -69,6 +69,6 @@ describe('table sorting', () => {
   it('it sorts by the text you see, case-insensitively', async () => {
     render(<Table data={[{ name: 'Zeta' }, { name: 'alfa' }]} />)
     await userEvent.click(screen.getByRole('button', { name: /Name/ }))
-    expect(textos()).toEqual(['alfa', 'Zeta'])
+    expect(texts()).toEqual(['alfa', 'Zeta'])
   })
 })

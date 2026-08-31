@@ -34,7 +34,7 @@ export function Chart({
   useEffect(() => {
     if (!ref.current) return
     const css = getComputedStyle(document.documentElement)
-    const tinta = css.getPropertyValue('--mute').trim() || '#8b95a7'
+    const ink = css.getPropertyValue('--mute').trim() || '#8b95a7'
     const line = css.getPropertyValue('--line2').trim() || '#1a202b'
 
     chart.current = new ChartJS(ref.current, {
@@ -45,13 +45,13 @@ export function Chart({
         maintainAspectRatio: false,
         interaction: { intersect: false, mode: 'index' },
         plugins: {
-          legend: { labels: { color: tinta, boxWidth: 10, boxHeight: 10, font: { size: 11 } } },
+          legend: { labels: { color: ink, boxWidth: 10, boxHeight: 10, font: { size: 11 } } },
         },
         scales:
           type === 'line'
             ? {
-                x: { ticks: { color: tinta, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: line } },
-                y: { ticks: { color: tinta, font: { size: 10 } }, grid: { color: line }, beginAtZero: true },
+                x: { ticks: { color: ink, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: line } },
+                y: { ticks: { color: ink, font: { size: 10 } }, grid: { color: line }, beginAtZero: true },
               }
             : undefined,
       },

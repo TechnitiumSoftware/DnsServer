@@ -24,23 +24,23 @@ possible destination and Primary was missing. Corrected against the code.
 export type ConversionTarget = 'Primary' | 'Forwarder' | 'Catalog'
 
 export interface ConversionTable {
-  habilitados: ConversionTarget[]
+  enabled2: ConversionTarget[]
   byDefault: ConversionTarget | null
 }
 
 export function conversionTargets(sourceType: string): ConversionTable {
   switch (sourceType) {
     case 'Primary':
-      return { habilitados: ['Forwarder'], byDefault: 'Forwarder' }
+      return { enabled2: ['Forwarder'], byDefault: 'Forwarder' }
     case 'Secondary':
     case 'SecondaryForwarder':
-      return { habilitados: ['Primary', 'Forwarder'], byDefault: 'Primary' }
+      return { enabled2: ['Primary', 'Forwarder'], byDefault: 'Primary' }
     case 'Forwarder':
-      return { habilitados: ['Primary'], byDefault: 'Primary' }
+      return { enabled2: ['Primary'], byDefault: 'Primary' }
     case 'SecondaryCatalog':
-      return { habilitados: ['Catalog'], byDefault: 'Catalog' }
+      return { enabled2: ['Catalog'], byDefault: 'Catalog' }
     default:
-      return { habilitados: [], byDefault: null }
+      return { enabled2: [], byDefault: null }
   }
 }
 
@@ -57,7 +57,7 @@ export function ConvertZone({
   token,
   node = '',
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   sourceType: string
@@ -65,7 +65,7 @@ export function ConvertZone({
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
   const table = conversionTargets(sourceType)
   const [target, setDestino] = useState<ConversionTarget | null>(table.byDefault)
@@ -91,7 +91,7 @@ export function ConvertZone({
     }
 
     onClose()
-    onHecho({ type: 'success', title: 'Zone Converted!', text: 'The zone was converted successfully.' })
+    onDone({ type: 'success', title: 'Zone Converted!', text: 'The zone was converted successfully.' })
   }
 
   return (
@@ -116,7 +116,7 @@ export function ConvertZone({
               <input
                 type="radio"
                 name="convertTo"
-                disabled={!table.habilitados.includes(d)}
+                disabled={!table.enabled2.includes(d)}
                 checked={target === d}
                 onChange={() => setDestino(d)}
               />

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { apiRequest } from './client'
-import { olvidarRaiz } from '../app/base'
+import { forgetRoot } from '../app/base'
 
 function mockFetch(payload: unknown) {
   const spy = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => payload })
@@ -51,7 +51,7 @@ describe('apiRequest', () => {
     meta.setAttribute('content', 'settings/logging')
     document.head.appendChild(meta)
     window.history.replaceState(null, '', '/dns/settings/logging/')
-    olvidarRaiz()
+    forgetRoot()
 
     const spy = mockFetch({ status: 'ok' })
     await apiRequest('user/login')
@@ -59,7 +59,7 @@ describe('apiRequest', () => {
 
     meta.remove()
     window.history.replaceState(null, '', '/')
-    olvidarRaiz()
+    forgetRoot()
   })
 
   it('puts the body in the query when it is a GET', async () => {

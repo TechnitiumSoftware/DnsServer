@@ -5,6 +5,6 @@ import { enabled } from '../model'
  *  derived from the state (see `habilitado` in model.ts). */
 export interface PaneProps {
   f: SettingsForm
-  set: (parcial: Partial<SettingsForm>) => void
+  set: (partial: Partial<SettingsForm>) => void
   en: ReturnType<typeof enabled>
 }

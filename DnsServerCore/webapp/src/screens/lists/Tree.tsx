@@ -15,28 +15,28 @@ and navigating is handing the server the string you can see.
 
 /** Every ancestor of the domain, from the root down and not including it. */
 export function ancestors(domain: string): string[] {
-  const salida: string[] = []
+  const output: string[] = []
   let d = domain
   for (;;) {
     const i = d.indexOf('.')
     if (i === -1) break
     d = d.substring(i + 1)
-    salida.push(d)
+    output.push(d)
   }
-  return salida.reverse()
+  return output.reverse()
 }
 
 export function Tree({
   domain,
   domainIdn,
   zones,
-  onNavegar,
+  onNavigate,
 }: {
   domain: string
   domainIdn?: string
   zones: string[]
   /** `arriba` marks the navigation as upstream's [up] link. */
-  onNavegar: (domain: string, up?: boolean) => void
+  onNavigate: (domain: string, up?: boolean) => void
 }) {
   const string = ancestors(domain)
   const atRoot = domain === ''
@@ -45,8 +45,8 @@ export function Tree({
   let tree = (
     <div className={styles.lvl}>
       {zones.map((z) => (
-        <button key={z} type="button" className={styles.node} onClick={() => onNavegar(z)}>
-          <span className={styles.car}><Icon name="chevronRight" tam={12} /></span>
+        <button key={z} type="button" className={styles.node} onClick={() => onNavigate(z)}>
+          <span className={styles.ch}><Icon name="chevronRight" size={12} /></span>
           <span className={styles.label}>{z}</span>
         </button>
       ))}
@@ -57,24 +57,24 @@ export function Tree({
     tree = (
       <div className={styles.lvl}>
         <button type="button" className={styles.node} aria-current="true" disabled>
-          <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
+          <span className={styles.ch}><Icon name="chevronDown" size={12} /></span>
           <span className={styles.label}>{domainIdn ?? domain}</span>
         </button>
         {tree}
       </div>
     )
 
-    for (const padre of [...string].reverse()) {
+    for (const parent of [...string].reverse()) {
       const inside = tree
       tree = (
         <div className={styles.lvl}>
           <button
             type="button"
             className={styles.node}
-            onClick={() => onNavegar(padre, true)}
+            onClick={() => onNavigate(parent, true)}
           >
-            <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
-            <span className={styles.label}>{padre}</span>
+            <span className={styles.ch}><Icon name="chevronDown" size={12} /></span>
+            <span className={styles.label}>{parent}</span>
           </button>
           {inside}
         </div>
@@ -88,10 +88,10 @@ export function Tree({
         type="button"
         className={styles.node}
         aria-current={atRoot ? 'true' : undefined}
-        onClick={atRoot ? undefined : () => onNavegar('', true)}
+        onClick={atRoot ? undefined : () => onNavigate('', true)}
         disabled={atRoot}
       >
-        <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
+        <span className={styles.ch}><Icon name="chevronDown" size={12} /></span>
         <span className={styles.label}>&lt;ROOT&gt;</span>
       </button>
       {tree}

@@ -18,7 +18,7 @@ import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Tag, type TagTone } from '../../ui/Tag'
-import { Menu, Separador } from '../../ui/Menu'
+import { Menu, Separator } from '../../ui/Menu'
 import { fechaMinuto as date } from '../../lib/dates'
 import { textoDeEstado, pageWindow } from '../../lib/pagination'
 import tbl from '../../ui/Table.module.css'
@@ -71,7 +71,7 @@ export interface ZoneListProps extends ZoneActions {
   onConfirm: (c: Confirmation) => void
   onAdd: () => void
   /** Changes when something from outside (a modal) forces a re-read of the list. */
-  refresco: number
+  refresh: number
 }
 
 export function ZoneList({
@@ -88,7 +88,7 @@ export function ZoneList({
   onClone,
   onPermissions,
   onOptions,
-  refresco,
+  refresh,
 }: ZoneListProps) {
   const [zones, setZones] = useState<Zone[]>([])
   const [pageNumber, setPageNumber] = useState(1)
@@ -100,7 +100,7 @@ export function ZoneList({
   // The filters are form state: they do not apply until "Go" is pressed,
   // just like upstream, where `refreshZones` reads them at that moment.
   const [filtroNombre, setFiltroNombre] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('')
+  const [typeFilter, setFiltroTipo] = useState('')
   const [perPage, setPerPage] = useState(10)
   const [pageField, setPageField] = useState('1')
 
@@ -111,7 +111,7 @@ export function ZoneList({
       setBusy(true)
       const r = await listZones(token, {
         filterName: filtroNombre,
-        filterType: filtroTipo,
+        filterType: typeFilter,
         pageNumber: page,
         zonesPerPage: perPage,
         node,
@@ -134,7 +134,7 @@ export function ZoneList({
       setChecked([])
       nombreRef.current?.focus()
     },
-    [token, node, filtroNombre, filtroTipo, perPage, onNotice],
+    [token, node, filtroNombre, typeFilter, perPage, onNotice],
   )
 
   /*
@@ -150,13 +150,13 @@ export function ZoneList({
   }, [load])
   useEffect(() => {
     void loadRef.current(1)
-  }, [refresco])
+  }, [refresh])
 
   function irA(page: number) {
     void load(page)
   }
 
-  function aplicarFiltros() {
+  function applyFilters() {
     const n = Number(pageField)
     void load(pageField === '' || Number.isNaN(n) ? 1 : n)
   }
@@ -164,7 +164,7 @@ export function ZoneList({
   /** Runs a mutation and refreshes, with upstream's literal alert. */
   async function mutate(
     fn: () => Promise<{ kind: string; message?: string }>,
-    exito: Notice,
+    success: Notice,
   ) {
     setBusy(true)
     const outcome = await fn()
@@ -175,7 +175,7 @@ export function ZoneList({
       return
     }
     await load(pageNumber)
-    onNotice(exito)
+    onNotice(success)
   }
 
   function enable(z: Zone) {
@@ -301,7 +301,7 @@ export function ZoneList({
   const allChecked = zones.length > 0 && checkedOnes.length === zones.length
 
   // The last page is asked for with -1: the server works it out itself.
-  const pagination = <Pagination ventana={pg} current={pageNumber} last={-1} onIr={irA} />
+  const pagination = <Pagination window={pg} current={pageNumber} last={-1} onIr={irA} />
 
   return (
     <>
@@ -315,7 +315,7 @@ export function ZoneList({
           </Button></>}
       />
 
-      <div className={styles.filt}>
+      <div className={styles.flt}>
         <div className={styles.filtAncho}>
           <Field label="Name">
             {(id) => (
@@ -325,7 +325,7 @@ export function ZoneList({
                 placeholder="abc or a* or *b* or a?c"
                 value={filtroNombre}
                 onChange={(e) => setFiltroNombre(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && aplicarFiltros()}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
               />
             )}
           </Field>
@@ -333,7 +333,7 @@ export function ZoneList({
         <div className={styles.filtMedio}>
           <Field label="Type">
             {(id) => (
-              <Select id={id} value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+              <Select id={id} value={typeFilter} onChange={(e) => setFiltroTipo(e.target.value)}>
                 <option value="" />
                 {ZONE_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -344,7 +344,7 @@ export function ZoneList({
             )}
           </Field>
         </div>
-        <div className={styles.filtCorto}>
+        <div className={styles.fltShort}>
           <Field label="Page Number">
             {(id) => (
               <Input
@@ -352,12 +352,12 @@ export function ZoneList({
                 mono
                 value={pageField}
                 onChange={(e) => setPageField(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && aplicarFiltros()}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
               />
             )}
           </Field>
         </div>
-        <div className={styles.filtCorto}>
+        <div className={styles.fltShort}>
           <Field label="Zones Per Page">
             {(id) => (
               <Select id={id} value={String(perPage)} onChange={(e) => setPerPage(Number(e.target.value))}>
@@ -370,7 +370,7 @@ export function ZoneList({
             )}
           </Field>
         </div>
-        <Button variant="primary" disabled={busy} onClick={aplicarFiltros}>
+        <Button variant="primary" disabled={busy} onClick={applyFilters}>
           Go
         </Button>
       </div>
@@ -545,7 +545,7 @@ function ZoneRow(p: RowProps) {
       {/* The monospacing goes on the CELL and the button inherits it: the
           shared class says `font-family: inherit` precisely for this, and putting
           it on the button depended on which module was emitted last. */}
-      <td className={`${tbl.apilada} ${styles.zoneCell}`}>
+      <td className={`${tbl.stacked} ${styles.zoneCell}`}>
         <button
           type="button"
           className={`${styles.zoneLink} ${tbl.entity}`}
@@ -647,7 +647,7 @@ function ZoneRow(p: RowProps) {
                 forty, with "Disable" right next to it and with no undo anywhere
                 in this console.
                 */}
-                <Separador />
+                <Separator />
                 <button type="button" data-variant="danger" disabled={!p.canDelete} onClick={() => { close(); p.onDelete(z) }}>
                   Delete Zone
                 </button>

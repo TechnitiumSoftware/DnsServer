@@ -124,12 +124,12 @@ export function UserDetails({ open, username, token, cluster, onClose, onSaved, 
 
     // "if (sessionTimeoutSeconds === "") sessionTimeoutSeconds = 1800" — it is
     // the modal's only field with a default value (auth.js:1424).
-    const segundos = timeout === '' ? '1800' : timeout
+    const seconds = timeout === '' ? '1800' : timeout
 
     const body: Record<string, string> = {
       user: username,
       disabled: String(disabled),
-      sessionTimeoutSeconds: segundos,
+      sessionTimeoutSeconds: seconds,
     }
     if (!profileLocked) {
       body.displayName = displayName
@@ -307,7 +307,7 @@ export function UserDetails({ open, username, token, cluster, onClose, onSaved, 
                     <SessionCell session={s} />
                   </td>
                   <td className={styles.nowrap}>
-                    <LastSeenCell date={fechaHora(s.lastSeen)} hace={fromNow(s.lastSeen)} />
+                    <LastSeenCell date={fechaHora(s.lastSeen)} ago={fromNow(s.lastSeen)} />
                   </td>
                   <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
                   <td>

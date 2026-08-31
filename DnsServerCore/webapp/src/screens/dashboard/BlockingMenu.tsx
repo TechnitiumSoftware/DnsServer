@@ -29,22 +29,22 @@ The confirmation and alert texts are upstream's literals
 */
 
 /** Upstream's eight durations, with their exact labels. */
-const PLAZOS: { minutos: number; rotulo: string }[] = [
-  { minutos: 1, rotulo: 'Disable Blocking For 1 Minute' },
-  { minutos: 2, rotulo: 'Disable Blocking For 2 Minutes' },
-  { minutos: 5, rotulo: 'Disable Blocking For 5 Minutes' },
-  { minutos: 10, rotulo: 'Disable Blocking For 10 Minutes' },
-  { minutos: 15, rotulo: 'Disable Blocking For 15 Minutes' },
-  { minutos: 30, rotulo: 'Disable Blocking For 30 Minutes' },
-  { minutos: 60, rotulo: 'Disable Blocking For 1 Hour' },
-  { minutos: 180, rotulo: 'Disable Blocking For 3 Hours' },
+const PLAZOS: { minutes: number; rotulo: string }[] = [
+  { minutes: 1, rotulo: 'Disable Blocking For 1 Minute' },
+  { minutes: 2, rotulo: 'Disable Blocking For 2 Minutes' },
+  { minutes: 5, rotulo: 'Disable Blocking For 5 Minutes' },
+  { minutes: 10, rotulo: 'Disable Blocking For 10 Minutes' },
+  { minutes: 15, rotulo: 'Disable Blocking For 15 Minutes' },
+  { minutes: 30, rotulo: 'Disable Blocking For 30 Minutes' },
+  { minutes: 60, rotulo: 'Disable Blocking For 1 Hour' },
+  { minutes: 180, rotulo: 'Disable Blocking For 3 Hours' },
 ]
 
-interface Pendiente {
+interface Pending {
   title: string
   text: string
   label: string
-  variante: 'primary' | 'danger'
+  variant: 'primary' | 'danger'
   hacer: () => Promise<void>
 }
 
@@ -56,7 +56,7 @@ export function BlockingMenu({
   onNotice: (a: { type: AlertType; title: string; text: string }) => void
 }) {
   const [active, setActive] = useState<boolean | null>(null)
-  const [pendiente, setPendiente] = useState<Pendiente | null>(null)
+  const [pending, setPendiente] = useState<Pending | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function mirarEstado() {
@@ -65,12 +65,12 @@ export function BlockingMenu({
     if (s != null) setActive(s.enableBlocking)
   }
 
-  function flip(turnOn: boolean): Pendiente {
+  function flip(turnOn: boolean): Pending {
     return {
       title: turnOn ? 'Enable Blocking' : 'Disable Blocking',
       text: `Are you sure you want to ${turnOn ? 'enable' : 'disable'} blocking?`,
       label: turnOn ? 'Enable' : 'Disable',
-      variante: turnOn ? 'primary' : 'danger',
+      variant: turnOn ? 'primary' : 'danger',
       hacer: async () => {
         const r = await setSettings(token, { enableBlocking: String(turnOn) })
         // The same text as the other thirty-six: it was the only one that said
@@ -86,30 +86,30 @@ export function BlockingMenu({
     }
   }
 
-  function forAWhile(minutos: number): Pendiente {
+  function forAWhile(minutes: number): Pending {
     return {
       title: 'Temporarily Disable Blocking',
-      text: `Are you sure to temporarily disable blocking for ${minutos} minute(s)?`,
+      text: `Are you sure to temporarily disable blocking for ${minutes} minute(s)?`,
       label: 'Disable',
-      variante: 'danger',
+      variant: 'danger',
       hacer: async () => {
-        const till = await temporaryDisableBlocking(token, String(minutos))
+        const till = await temporaryDisableBlocking(token, String(minutes))
         if (till == null) throw new Error('The request failed.')
         setActive(false)
         onNotice({
           type: 'success',
           title: 'Blocking Disabled!',
-          text: `Blocking was successfully disabled temporarily for ${minutos} minute(s).`,
+          text: `Blocking was successfully disabled temporarily for ${minutes} minute(s).`,
         })
       },
     }
   }
 
   async function confirm() {
-    if (pendiente == null) return
+    if (pending == null) return
     setBusy(true)
     try {
-      await pendiente.hacer()
+      await pending.hacer()
       setPendiente(null)
     } catch (e) {
       onNotice({ type: 'danger', title: 'Error!', text: (e as Error).message })
@@ -136,9 +136,9 @@ export function BlockingMenu({
             )}
             {PLAZOS.map((p) => (
               <button
-                key={p.minutos}
+                key={p.minutes}
                 role="menuitem"
-                onClick={() => { close(); setPendiente(forAWhile(p.minutos)) }}
+                onClick={() => { close(); setPendiente(forAWhile(p.minutes)) }}
               >
                 {p.rotulo}
               </button>
@@ -148,11 +148,11 @@ export function BlockingMenu({
       </Menu>
 
       <Confirm
-        open={pendiente != null}
-        title={pendiente?.title ?? ''}
-        text={pendiente?.text ?? ''}
-        label={pendiente?.label ?? ''}
-        variante={pendiente?.variante}
+        open={pending != null}
+        title={pending?.title ?? ''}
+        text={pending?.text ?? ''}
+        label={pending?.label ?? ''}
+        variant={pending?.variant}
         busy={busy}
         onClose={() => setPendiente(null)}
         onConfirm={() => void confirm()}

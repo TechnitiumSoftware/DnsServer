@@ -20,12 +20,12 @@ depending on the table.
   font-weight: 500;
   font-family: inherit;
   white-space: nowrap;
-  box-shadow: var(--filo);
-  transition: border-color var(--t-rapido), background var(--t-rapido);
+  box-shadow: var(--edge);
+  transition: border-color var(--t-fast), background var(--t-fast);
 }
 
 .btn:hover:not(:disabled) { border-color: #2f3846; }
-.btn:active:not(:disabled) { box-shadow: var(--hundido); }
+.btn:active:not(:disabled) { box-shadow: var(--sunken); }
 
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn:focus-visible { outline: var(--focus); outline-offset: var(--focus-offset); }
@@ -59,7 +59,7 @@ Dashboard's custom range.
   border-color: var(--acc);
   color: var(--on-acc);
   font-weight: 550;
-  box-shadow: var(--filo-fuerte);
+  box-shadow: var(--edge-fuerte);
 }
 
 /*

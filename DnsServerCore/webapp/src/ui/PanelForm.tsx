@@ -32,7 +32,7 @@ disappears is the echo.
 */
 export function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <Panel title={title} className={styles.block} agrupa>
+    <Panel title={title} className={styles.block} groups2>
       {children}
     </Panel>
   )
@@ -76,7 +76,7 @@ export function TextRow({
             onChange={(e) => onChange(e.target.value)}
             style={width === 'wide' ? { width: '100%', maxWidth: 420 } : { width }}
           />
-          {suffix && <Coletilla>{suffix}</Coletilla>}
+          {suffix && <Trailer>{suffix}</Trailer>}
         </div>
       )}
     </Row>
@@ -117,8 +117,8 @@ export function AreaRow({
 }
 
 /** The suffix that follows a control: "seconds", "MB", "(0 to disable)". */
-export function Coletilla({ children }: { children: ReactNode }) {
-  return <span className={text.coletilla}>{children}</span>
+export function Trailer({ children }: { children: ReactNode }) {
+  return <span className={text.trailer}>{children}</span>
 }
 
 export interface RadioOption {
@@ -220,8 +220,8 @@ export interface Column<T> {
   type?: 'text' | 'number'
   min?: number
   max?: number
-  /** Cuando la celda no es un campo de texto: el desplegable de algoritmo de TSIG. */
-  render?: (row: T, set: (parcial: Partial<T>) => void, id: string, name: string) => ReactNode
+  /** When the cell is not a text field: the TSIG algorithm dropdown. */
+  render?: (row: T, set: (partial: Partial<T>) => void, id: string, name: string) => ReactNode
 }
 
 /*
@@ -277,8 +277,8 @@ export function EditableList<T extends Record<string, string>>({
         }
       >
         {rows.map((row, i) => {
-          const set = (parcial: Partial<T>) =>
-            onChange(rows.map((r, j) => (j === i ? { ...r, ...parcial } : r)))
+          const set = (partial: Partial<T>) =>
+            onChange(rows.map((r, j) => (j === i ? { ...r, ...partial } : r)))
           return (
             // Rows have no stable identity in upstream: they are numbered with
             // a random number. The index is the same criterion.

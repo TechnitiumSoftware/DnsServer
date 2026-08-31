@@ -6,7 +6,7 @@ import {
   Notices,
   Block,
   Check,
-  Coletilla,
+  Trailer,
   GroupRow,
   Help,
   Note,
@@ -85,7 +85,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
                 value={f.temporaryDisableBlockingMinutes}
                 onChange={(e) => set({ temporaryDisableBlockingMinutes: e.target.value })}
               />
-              <Coletilla>minutes</Coletilla>
+              <Trailer>minutes</Trailer>
             </div>
             <div>
               <Button disabled={off || extra.busy} onClick={extra.onTemporaryDisable}>

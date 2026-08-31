@@ -28,10 +28,10 @@ export function ForgotPassword({
       size="medium"
       title="Forgot Password?"
     >
-      <p className={styles.parrafo}>
+      <p className={styles.paragraph}>
         To reset your password, you need to contact the DNS Server administrator.
       </p>
-      <p className={styles.parrafo}>
+      <p className={styles.paragraph}>
         If you are an administrator, follow these steps to reset the &apos;admin&apos; user&apos;s
         password:
       </p>
@@ -50,16 +50,16 @@ export function ForgotPassword({
           quickly change the password.
         </li>
       </ol>
-      <p className={styles.parrafo}>
+      <p className={styles.paragraph}>
         On Linux, stop the DNS Server by running &apos;sudo systemctl stop dns&apos; command and
         &apos;sudo systemctl start dns&apos; command to start it.
       </p>
-      <p className={styles.parrafo}>
+      <p className={styles.paragraph}>
         On Windows, press Win+R to open Run, enter &apos;services.msc&apos;, and press enter to open
         Services console. Find service named &apos;Technitium DNS Server&apos; and use the Action menu
         to start/stop it.
       </p>
-      <p className={styles.parrafo}>
+      <p className={styles.paragraph}>
         <b>Note: </b>To reset &apos;admin&apos; password, you will need file system access on the
         server running this DNS Server. If the &apos;admin&apos; user does not exists then it will be
         created automatically. If the &apos;admin&apos; user has Two-factor Authentication (2FA)

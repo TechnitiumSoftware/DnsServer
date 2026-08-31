@@ -10,7 +10,7 @@ and that is how a header ended up 21 px shorter than its card.
 /* The logo is shown as it is: no colour box, no crop. */
 .mark { width:38px; height:38px; flex:none; }
 .h1 { margin: 0; font-size: var(--t-7); font-weight: 600; letter-spacing:-.02em; color:var(--ink); }
-.ver { font-family:var(--font-mono); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-1); }
+.view { font-family:var(--font-mono); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-1); }
 .prose { font-size: var(--t-4); line-height:1.7; color:var(--mute); max-width:720px; }
 .prose p { margin: 0 0 var(--s-7); }
 .prose h4 { margin: var(--s-10) 0 var(--s-2); font-size: var(--t-4); color:var(--ink); }

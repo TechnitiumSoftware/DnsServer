@@ -12,7 +12,7 @@ particular the bug the flipping introduced: the handler that closes the menu on
 scroll is shared with `resize`, and there the `target` is `window`, which is not a
 node.
 */
-function Ejemplo({ asRow = false }: { asRow?: boolean } = {}) {
+function Sample({ asRow = false }: { asRow?: boolean } = {}) {
   return (
     <Menu label="Opciones" rotulo="Opciones" asRow={asRow}>
       {(close) => (
@@ -27,7 +27,7 @@ function Ejemplo({ asRow = false }: { asRow?: boolean } = {}) {
 
 describe('Menu', () => {
   it('resizing the window with the menu open closes it, and does not blow up', async () => {
-    render(<Ejemplo />)
+    render(<Sample />)
     await userEvent.click(screen.getByRole('button', { name: 'Opciones' }))
     expect(screen.getByRole('menu')).toBeInTheDocument()
 
@@ -50,7 +50,7 @@ describe('Menu', () => {
   })
 
   it('Escape closes it and returns the focus to the trigger', async () => {
-    render(<Ejemplo />)
+    render(<Sample />)
     const b = screen.getByRole('button', { name: 'Opciones' })
     await userEvent.click(b)
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -68,7 +68,7 @@ describe('Menu', () => {
   it('the row trigger closes on an outside click, just like the button one', async () => {
     render(
       <>
-        <Ejemplo asRow />
+        <Sample asRow />
         <p>outside</p>
       </>,
     )

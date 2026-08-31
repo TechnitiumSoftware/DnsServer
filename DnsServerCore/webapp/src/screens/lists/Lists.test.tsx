@@ -51,8 +51,8 @@ function withNode(...nodes: ListNode[]) {
 }
 
 async function confirm(label: string) {
-  const dialogo = await screen.findByRole('dialog')
-  await userEvent.click(within(dialogo).getByRole('button', { name: label }))
+  const dialog = await screen.findByRole('dialog')
+  await userEvent.click(within(dialog).getByRole('button', { name: label }))
 }
 
 describe('tree navigation', () => {
@@ -94,8 +94,8 @@ describe('tree navigation', () => {
     const spy = withNode(node({ domain: 'a.casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'casa.test' }))
-    const subida = spy.mock.calls.find((c) => c[2] === 'casa.test')
-    expect(subida?.[3]).toBe('up')
+    const upload = spy.mock.calls.find((c) => c[2] === 'casa.test')
+    expect(upload?.[3]).toBe('up')
   })
 
   it('it shows the error message from the server if the listing fails', async () => {
@@ -281,10 +281,10 @@ describe('Allowed', () => {
     withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
-    const dialogo = await screen.findByRole('dialog')
-    await userEvent.click(within(dialogo).getByRole('button', { name: 'Import' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import' }))
     expect(
-      await within(dialogo).findByText('Please enter allowed zones to import.'),
+      await within(dialog).findByText('Please enter allowed zones to import.'),
     ).toBeInTheDocument()
   })
 
@@ -293,9 +293,9 @@ describe('Allowed', () => {
     withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
-    const dialogo = await screen.findByRole('dialog')
-    await userEvent.type(within(dialogo).getByLabelText('Allowed Zones'), 'a.test\n\nb.test')
-    await userEvent.click(within(dialogo).getByRole('button', { name: 'Import' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Allowed Zones'), 'a.test\n\nb.test')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import' }))
     expect(spy.mock.calls[0][2]).toBe('a.test,b.test')
     expect(
       await screen.findByText('Domain names were imported into allowed zone successfully.'),
@@ -356,10 +356,10 @@ describe('Blocked', () => {
     withNode(node())
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
-    const dialogo = await screen.findByRole('dialog')
-    expect(within(dialogo).getByText('Import Blocked Zones')).toBeInTheDocument()
-    await userEvent.type(within(dialogo).getByLabelText('Blocked Zones'), 'ads.test')
-    await userEvent.click(within(dialogo).getByRole('button', { name: 'Import' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Import Blocked Zones')).toBeInTheDocument()
+    await userEvent.type(within(dialog).getByLabelText('Blocked Zones'), 'ads.test')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Import' }))
     expect(
       await screen.findByText('Domain names were imported into blocked zone successfully.'),
     ).toBeInTheDocument()

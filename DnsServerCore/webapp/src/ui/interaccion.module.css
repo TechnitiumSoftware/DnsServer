@@ -19,5 +19,5 @@ if it measured 36.
   position: absolute;
   inset: -8px -6px;
   /* It only widens the target: it must not cover whatever sits beside it. */
-  z-index: var(--capa-golpe);
+  z-index: var(--layer-golpe);
 }

@@ -60,8 +60,8 @@ const ENTRY: QueryLogEntry = {
   answer: 'A 140.82.121.3',
 }
 
-function page(parcial: Partial<QueryLogPage> = {}): QueryLogPage {
-  return { pageNumber: 1, totalPages: 1, totalEntries: 1, entries: [ENTRY], ...parcial }
+function page(partial: Partial<QueryLogPage> = {}): QueryLogPage {
+  return { pageNumber: 1, totalPages: 1, totalEntries: 1, entries: [ENTRY], ...partial }
 }
 
 function withApps(list: InstalledApp[]) {

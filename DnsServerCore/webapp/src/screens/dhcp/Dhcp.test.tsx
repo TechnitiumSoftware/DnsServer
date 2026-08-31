@@ -7,7 +7,7 @@ import type { DhcpLease, DhcpScope, DhcpScopeRow } from '../../api/dhcp'
 
 afterEach(() => vi.restoreAllMocks())
 
-const DINAMICA: DhcpLease = {
+const DYNAMIC: DhcpLease = {
   scope: 'Default',
   type: 'Dynamic',
   hardwareAddress: 'A4-83-E7-2B-19-0C',
@@ -19,7 +19,7 @@ const DINAMICA: DhcpLease = {
 }
 
 const RESERVED: DhcpLease = {
-  ...DINAMICA,
+  ...DYNAMIC,
   type: 'Reserved',
   hardwareAddress: 'DC-A6-32-7F-44-81',
   clientIdentifier: '1-DC-A6-32-7F-44-81',
@@ -71,7 +71,7 @@ function row(name: string) {
 
 describe('DHCP › Leases', () => {
   it('it draws one row per lease and the total in the footer', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVED] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DYNAMIC, RESERVED] })
     render(<Dhcp token="t" sub="Leases" />)
 
     expect(await screen.findByText('192.168.1.42')).toBeInTheDocument()
@@ -98,7 +98,7 @@ describe('DHCP › Leases', () => {
   })
 
   it('each row offers only the conversion its type calls for', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVED] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DYNAMIC, RESERVED] })
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
 
@@ -116,7 +116,7 @@ describe('DHCP › Leases', () => {
 
   it('reserving confirms, calls the endpoint with the clientIdentifier and alerts with the literal text', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DYNAMIC] })
     const spy = vi.spyOn(api, 'convertToReservedLease').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -159,7 +159,7 @@ describe('DHCP › Leases', () => {
 
   it('removing a lease opens the full modal and deletes it from the table', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DYNAMIC] })
     const spy = vi.spyOn(api, 'removeLease').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -181,7 +181,7 @@ describe('DHCP › Leases', () => {
 
   it('if removing fails, the alert comes out INSIDE the modal and the row is still there', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DYNAMIC] })
     vi.spyOn(api, 'removeLease').mockResolvedValue({ kind: 'error', message: 'DHCP scope does not exists: Default' })
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -196,7 +196,7 @@ describe('DHCP › Leases', () => {
   })
 
   it('without delete permission removing is not offered; without modify permission, neither is converting', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DYNAMIC] })
     render(<Dhcp token="t" sub="Leases" canModify={false} canDelete={false} />)
     await screen.findByText('192.168.1.42')
 
@@ -261,7 +261,7 @@ describe('DHCP › Scopes', () => {
     const spy = vi.spyOn(api, 'deleteScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
-    const llamadasIniciales = list.mock.calls.length
+    const initialCalls = list.mock.calls.length
 
     await user.click(screen.getByRole('button', { name: /^Actions for / }))
     await user.click(await screen.findByRole('button', { name: 'Delete Scope' }))
@@ -273,7 +273,7 @@ describe('DHCP › Scopes', () => {
     expect(spy).toHaveBeenCalledWith('t', 'Default', '')
     expect(await screen.findByText('Scope Deleted!')).toBeInTheDocument()
     expect(screen.getByText('No Scope Found')).toBeInTheDocument()
-    expect(list.mock.calls).toHaveLength(llamadasIniciales)
+    expect(list.mock.calls).toHaveLength(initialCalls)
   })
 
   it('without permissions neither \"Add Scope\", nor \"Enable\"/\"Disable\", nor \"Delete\" show', async () => {
@@ -420,11 +420,11 @@ describe('DHCP › Scopes — the form', () => {
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
-    const antes = list.mock.calls.length
+    const before2 = list.mock.calls.length
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(await screen.findByText('Total Scopes: 1')).toBeInTheDocument()
-    expect(list.mock.calls.length).toBeGreaterThan(antes)
+    expect(list.mock.calls.length).toBeGreaterThan(before2)
   })
 })

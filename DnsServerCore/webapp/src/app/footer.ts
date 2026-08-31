@@ -46,7 +46,7 @@ It goes on its own line and not as a sixth link: the five above are PRODUCT
 destinations and this is an authorship credit. Put in the same row, with the same
 pipes, it would read as one more Technitium site.
 */
-export const CREDITO_TEMA = {
+export const THEME_CREDIT = {
   text: 'agarmoli',
   href: 'https://github.com/agarmoli',
   /* Starts with the visible text, which is what "label in name" requires. */

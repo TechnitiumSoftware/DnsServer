@@ -63,13 +63,13 @@ function Import({
   open,
   token,
   onClose,
-  onHecho,
+  onDone,
 }: {
   list: DomainList
   open: boolean
   token: string | null
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
   const [text, setTexto] = useState('')
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -117,7 +117,7 @@ function Import({
     }
 
     onClose()
-    onHecho({
+    onDone({
       type: 'success',
       title: 'Imported!',
       text: esAllowed
@@ -140,7 +140,7 @@ function Import({
       }
     >
       <Notifier notice={notice} onClose={() => setNotice(null)} />
-      <p className={styles.parrafo}>{intro}</p>
+      <p className={styles.paragraph}>{intro}</p>
       <LabeledTextarea
         label={label}
         ref={area}
@@ -187,7 +187,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
   /** Wraps a mutation: runs it, and on failure draws the server's error. */
   async function mutate(
     fn: () => Promise<{ kind: string; message?: string }>,
-    exito: Notice,
+    success: Notice,
     after: () => Promise<void>,
   ) {
     setBusy(true)
@@ -199,7 +199,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
       return
     }
     await after()
-    setNotice(exito)
+    setNotice(success)
   }
 
   const domain = node?.domain ?? ''
@@ -210,7 +210,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
   // Cache: Delete hangs off the NODE. Allowed/Blocked: off there being records.
   const mayDelete = esCache ? domain !== '' : records.length > 0
 
-  function navegar(d: string, up?: boolean) {
+  function navigate(d: string, up?: boolean) {
     void load(d, up)
   }
 
@@ -401,7 +401,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
                     value={field}
                     onChange={(e) => setField(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') navegar(field)
+                      if (e.key === 'Enter') navigate(field)
                     }}
                   />
                 )}
@@ -410,7 +410,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
                   screens (Cache, Allowed and Blocked), and it also says better
                   what it does —it takes you to that point of the tree, it sends
                   nothing. */}
-              <Button variant="primary" onClick={() => navegar(field)}>
+              <Button variant="primary" onClick={() => navigate(field)}>
                 Browse
               </Button>
             </div>
@@ -424,7 +424,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
             domain={domain}
             domainIdn={node?.domainIdn}
             zones={zones}
-            onNavegar={navegar}
+            onNavigate={navigate}
           />
         </div>
 
@@ -434,7 +434,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
               {records.length} records at <span className={styles.mono}>{nodeTitle}</span>
             </span>
             <div className={styles.countActs}>
-              <Button size="sm" onClick={() => navegar(domain)}>
+              <Button size="sm" onClick={() => navigate(domain)}>
                 Refresh
               </Button>
               {mayDelete && (
@@ -476,7 +476,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
           open={importAbierto}
           token={token}
           onClose={() => setImportAbierto(false)}
-          onHecho={setNotice}
+          onDone={setNotice}
         />
       )}
     </>

@@ -40,13 +40,13 @@
 .field input, .field select { width: 100%; }
 
 /* The count is `ui/count.module.css`'s: see there for why. */
-.count { composes: barra above from '../../ui/count.module.css'; }
+.count { composes: bar above from '../../ui/count.module.css'; }
 .mono { composes: mono from '../../ui/text.module.css'; }
 .nowrap { white-space: nowrap; }
-.romper { word-break: break-all; }
+.breakUp { word-break: break-all; }
 .rtt { font-size: var(--t-2); color: var(--faint); }
 
-/* Los cinco fondos de fila de upstream (logs.js:452-508), tal cual. */
+/* Upstream's five row backgrounds (logs.js:452-508), as they are. */
 .rServerFailure { background: rgba(217, 83, 79, 0.1); }
 .rBlocked { background: rgba(255, 165, 0, 0.1); }
 .rNxDomain { background: rgba(120, 120, 120, 0.1); }

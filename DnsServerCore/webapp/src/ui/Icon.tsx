@@ -224,13 +224,13 @@ const PATHS: Record<IconName, ReactElement> = {
 
 export function Icon({
   name,
-  tam = 16,
+  size = 16,
   ...rest
-}: { name: IconName; tam?: number } & Omit<SVGProps<SVGSVGElement>, 'ref'>) {
+}: { name: IconName; size?: number } & Omit<SVGProps<SVGSVGElement>, 'ref'>) {
   return (
     <svg
-      width={tam}
-      height={tam}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"

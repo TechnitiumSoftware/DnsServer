@@ -3,7 +3,7 @@ The query bar. `align-items: flex-end` is what lines the buttons up with the
 bottom edge of the fields; before it was achieved with a `marginBottom: 1` put by
 hand on each button, which is the symptom of a row that does not align.
 */
-.filt {
+.flt {
   display: flex;
   align-items: flex-end;
   gap: var(--s-8);
@@ -11,7 +11,7 @@ hand on each button, which is the symptom of a row that does not align.
   background: var(--pan);
   border: 1px solid var(--line);
   border-radius: var(--r-4);
-  box-shadow: var(--e-1), var(--filo);
+  box-shadow: var(--e-1), var(--edge);
   margin-bottom: var(--gap-bloque);
   flex-wrap: wrap;
 }
@@ -42,6 +42,6 @@ hand on each button, which is the symptom of a row that does not align.
 browser draws its own `<details>` triangle, so it is replaced with the icon set's
 chevron —the same treatment as in Apps.
 */
-.crudas { margin-top: var(--s-8); border-top: 1px solid var(--line); padding-top: var(--s-8); }
-.crudas pre { margin-top: var(--s-7); }
+.raw { margin-top: var(--s-8); border-top: 1px solid var(--line); padding-top: var(--s-8); }
+.raw pre { margin-top: var(--s-7); }
 

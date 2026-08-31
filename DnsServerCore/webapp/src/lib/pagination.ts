@@ -16,7 +16,7 @@ not just one. With fewer than ten pages they are all visible.
 
 export interface Pagination {
   pages: number[]
-  primera: boolean
+  first: boolean
   previous: number | null
   next: number | null
   last: boolean
@@ -38,7 +38,7 @@ export function pageWindow(pageNumber: number, totalPages: number): Pagination {
 
   return {
     pages,
-    primera: pageNumber > 1,
+    first: pageNumber > 1,
     previous: pageNumber > 1 ? pageNumber - 1 : null,
     next: pageNumber < totalPages ? pageNumber + 1 : null,
     last: pageNumber < totalPages,

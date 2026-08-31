@@ -19,10 +19,10 @@ title out again.
 .name { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .date { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 /* The count is `ui/count.module.css`'s: see there for why. */
-.total { composes: recuento below from '../../ui/count.module.css'; }
+.total { composes: count2 below from '../../ui/count.module.css'; }
 .kv { composes: kv from '../../ui/kv.module.css'; }
 
-.parrafo { composes: parrafo from '../../ui/text.module.css'; }
+.paragraph { composes: paragraph from '../../ui/text.module.css'; }
 .list { margin: 0 0 var(--s-7); padding-left: var(--s-10); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
 
 /* ---- Scope form ----

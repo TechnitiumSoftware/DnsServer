@@ -45,7 +45,7 @@ interface Props {
 export function Permissions({ token, cluster, onNotice }: Props) {
   const [secciones, setSecciones] = useState<SectionPermission[]>([])
   const [loading, setLoading] = useState(true)
-  const [editar, setEditar] = useState<string | null>(null)
+  const [edit, setEditar] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -150,9 +150,9 @@ export function Permissions({ token, cluster, onNotice }: Props) {
         </>
       )}
 
-      {editar != null && (
+      {edit != null && (
         <EditPermissions
-          section={editar}
+          section={edit}
           token={token}
           primaryNode={primaryNodeName(cluster)}
           onClose={() => setEditar(null)}
@@ -388,12 +388,12 @@ function PermissionsTable({
   rows: readonly Row[]
   onChange: (f: readonly Row[]) => void
 }) {
-  const { rows: visibles, sort, toggle } = useOrden(PERMISSION_KEYS, rows as Row[])
+  const { rows: visible, sort, toggle } = useOrden(PERMISSION_KEYS, rows as Row[])
 
   // The checkbox writes over the ORIGINAL list: the sorting only changes the
   // order things are drawn in, not the data's.
-  function set(row: Row, parcial: Partial<Row>) {
-    onChange(rows.map((f) => (f.name === row.name ? { ...f, ...parcial } : f)))
+  function set(row: Row, partial: Partial<Row>) {
+    onChange(rows.map((f) => (f.name === row.name ? { ...f, ...partial } : f)))
   }
 
   return (
@@ -414,7 +414,7 @@ function PermissionsTable({
             </>
           }
         >
-          {visibles.map((f) => (
+          {visible.map((f) => (
             <tr key={f.name}>
               <td className={styles.who}>{f.name}</td>
               <td>

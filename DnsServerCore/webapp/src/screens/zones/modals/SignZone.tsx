@@ -7,11 +7,11 @@ import {
   ALGORITHMS,
   CURVAS_ECDSA,
   CURVAS_EDDSA,
-  GENERACIONES,
+  GENERATIONS,
   HASHES_RSA,
-  PRUEBAS_NX,
+  NX_PROOFS,
   TAMANOS_RSA,
-  curvaPorDefecto,
+  defaultCurve,
 } from './dnssec-options'
 import type { Notice } from '../types'
 import styles from '../Zones.module.css'
@@ -47,7 +47,7 @@ interface Formulario {
   zskRolloverDays: string
 }
 
-function inicial(): Formulario {
+function initial(): Formulario {
   return {
     algorithm: 'ECDSA',
     hashAlgorithm: 'SHA256',
@@ -72,30 +72,30 @@ export function SignZone({
   token,
   node = '',
   onClose,
-  onHecho,
+  onDone,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
   onClose: () => void
-  onHecho: (a: Notice) => void
+  onDone: (a: Notice) => void
 }) {
-  const [f, setF] = useState<Formulario>(inicial)
+  const [f, setF] = useState<Formulario>(initial)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setF(inicial())
+    setF(initial())
     setNotice(null)
   }, [open])
 
   const set = <K extends keyof Formulario>(k: K, value: Formulario[K]) =>
     setF((prev) => ({ ...prev, [k]: value }))
 
-  function cambiarAlgoritmo(algorithm: Algorithm) {
-    setF((prev) => ({ ...prev, algorithm, curve: curvaPorDefecto(algorithm) }))
+  function changeAlgorithm(algorithm: Algorithm) {
+    setF((prev) => ({ ...prev, algorithm, curve: defaultCurve(algorithm) }))
   }
 
   async function sign() {
@@ -129,7 +129,7 @@ export function SignZone({
     }
 
     onClose()
-    onHecho({ type: 'success', title: 'Zone Signed!', text: 'The primary zone was signed successfully.' })
+    onDone({ type: 'success', title: 'Zone Signed!', text: 'The primary zone was signed successfully.' })
   }
 
   const esRsa = f.algorithm === 'RSA'
@@ -158,7 +158,7 @@ export function SignZone({
                 type="radio"
                 name="signAlgorithm"
                 checked={f.algorithm === a.value}
-                onChange={() => cambiarAlgoritmo(a.value as Algorithm)}
+                onChange={() => changeAlgorithm(a.value as Algorithm)}
               />
               {a.label}
             </label>
@@ -222,7 +222,7 @@ export function SignZone({
         />
 
         <GroupRow modal label="Proof of Non-Existence">
-          {PRUEBAS_NX.map((n) => (
+          {NX_PROOFS.map((n) => (
             <label key={n.value} className={styles.chk}>
               <input
                 type="radio"
@@ -364,7 +364,7 @@ function SigningKey({
   return (
     <div className={styles.group}>
       <div className={styles.groupTitle}>{title}</div>
-      {GENERACIONES.map((g) => (
+      {GENERATIONS.map((g) => (
         <label key={g.value} className={styles.chk}>
           <input
             type="radio"

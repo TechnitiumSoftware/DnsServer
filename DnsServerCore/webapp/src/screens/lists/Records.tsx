@@ -17,7 +17,7 @@ just as badly as the rest.
 */
 
 // The same cut-off as in Zones: it was 48 here and 64 there, for the same control.
-const CORTE = 64
+const CUTOFF = 64
 
 function Value({ e }: { e: Entry }) {
   const [open, setOpen] = useState(false)
@@ -26,8 +26,8 @@ function Value({ e }: { e: Entry }) {
 
   return (
     <>
-      <span className={styles.key}>{e.value.slice(0, CORTE)}…</span>{' '}
-      <button type="button" className={styles.verlo} onClick={() => setOpen(true)}>
+      <span className={styles.key}>{e.value.slice(0, CUTOFF)}…</span>{' '}
+      <button type="button" className={styles.showIt} onClick={() => setOpen(true)}>
         show full
       </button>
     </>

@@ -25,15 +25,15 @@ Administration) and what gets consulted (Logs, About).
 .slist { padding: var(--s-9) var(--s-6); display:flex; flex-direction:column; gap: var(--s-1); }
 .group { display:flex; flex-direction:column; gap: var(--s-1); }
 .group + .group { margin-top: var(--s-9); }
-.s { display:flex; text-decoration:none; align-items:center; gap: var(--s-7); padding: var(--s-6) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; width:100%; transition: background var(--t-rapido), color var(--t-rapido); }
+.s { display:flex; text-decoration:none; align-items:center; gap: var(--s-7); padding: var(--s-6) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; width:100%; transition: background var(--t-fast), color var(--t-fast); }
 .s:hover { background:var(--hover); color:var(--ink); }
-.s[data-active='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; box-shadow: var(--filo-fuerte); }
+.s[data-active='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; box-shadow: var(--edge-fuerte); }
 .s[data-active='true'] .ico { opacity:1; }
 .ico { display:inline-flex; flex:none; opacity:.85; }
 .sub { display:flex; flex-direction:column; gap: var(--s-1); margin: var(--s-3) 0 var(--s-5) var(--s-11); padding-left: var(--s-7); border-left:1px solid var(--line); }
-.s2 { display:block; text-decoration:none; padding: var(--s-4) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; transition: background var(--t-rapido), color var(--t-rapido); }
+.s2 { display:block; text-decoration:none; padding: var(--s-4) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; transition: background var(--t-fast), color var(--t-fast); }
 .s2:hover { color:var(--ink); }
-.s2[aria-current='page'] { color:var(--acc); font-weight: 550; background:var(--pan2); box-shadow: var(--filo); }
+.s2[aria-current='page'] { color:var(--acc); font-weight: 550; background:var(--pan2); box-shadow: var(--edge); }
 .main { min-width:0; }
 /*
 The header ONLY exists on a narrow screen.
@@ -68,14 +68,14 @@ looking at it from a phone when something has stopped resolving.
 
 /* The drawer's trigger and the header's mark only exist on a narrow screen; on a
    wide one the side panel is already in sight. */
-.hamburguesa,
+.hamburger,
 .marcaTop {
   display: none;
 }
 
 /* The padding goes here and not inside the media query: without declaring it,
    the browser puts in its own —1px 6px— and that is a value we did not choose. */
-.hamburguesa { padding: 0; }
+.hamburger { padding: 0; }
 
 @media (max-width: 900px) {
   .shell { grid-template-columns: 1fr; }
@@ -84,13 +84,13 @@ looking at it from a phone when something has stopped resolving.
     display: flex; align-items: center; gap: var(--s-6);
     padding: 0 var(--s-9); height: 52px;
     border-bottom: 1px solid var(--line); background: var(--pan);
-    box-shadow: var(--filo); font-size: var(--t-4); color: var(--mute);
-    position: sticky; top: 0; z-index: var(--capa-pegajosa);
+    box-shadow: var(--edge); font-size: var(--t-4); color: var(--mute);
+    position: sticky; top: 0; z-index: var(--layer-sticky);
   }
 
   .side {
     position: fixed;
-    z-index: var(--capa-cajon);
+    z-index: var(--layer-drawer);
     top: 0;
     left: 0;
     width: 264px;
@@ -102,15 +102,15 @@ looking at it from a phone when something has stopped resolving.
 
   .side[data-open='true'] { transform: none; }
 
-  .velo {
+  .veil {
     position: fixed;
     inset: 0;
-    z-index: var(--capa-velo);
+    z-index: var(--layer-veil);
     background: rgba(5, 7, 10, 0.6);
     border: 0;
   }
 
-  .hamburguesa {
+  .hamburger {
     display: inline-flex;
     align-items: center;
     justify-content: center;

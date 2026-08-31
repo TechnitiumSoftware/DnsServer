@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { Admin, SUBPESTANAS } from './Admin'
+import { Admin, SUB_TABS } from './Admin'
 import * as client from '../../api/client'
 import { CLUSTER_SIN_INICIAR, GROUPS, PERMISSIONS, ADMIN_SESSION, SSO, ADMIN_USER } from './admin.fixture'
 
@@ -51,7 +51,7 @@ describe('Admin — the sub-navigation belongs to the Shell', () => {
       SSO: 'Single Sign-On (SSO)',
       Cluster: 'Cluster Not Initialized',
     }
-    for (const sub of SUBPESTANAS) {
+    for (const sub of SUB_TABS) {
       servidor()
       const { unmount } = render(<Admin token="tok" sub={sub} />)
       expect(await screen.findAllByText(marcas[sub])).not.toHaveLength(0)

@@ -23,7 +23,7 @@ route in `<meta name="ruta">`, and the root comes from subtracting it from the
 
 export { aSlug } from './slug'
 import { aSlug } from './slug'
-export { olvidarRaiz, raizDeLaApp } from './base'
+export { forgetRoot, raizDeLaApp } from './base'
 import { raizDeLaApp } from './base'
 
 export interface Route {
@@ -41,10 +41,10 @@ export interface Route {
 /** What the address bar says, resolved against the visible sections. */
 export function readRoute(secciones: Section[]): Route | null {
   const base = raizDeLaApp()
-  const camino = window.location.pathname
-  if (!camino.startsWith(base)) return null
+  const trail = window.location.pathname
+  if (!trail.startsWith(base)) return null
 
-  const [sectionId, slugSub] = camino.slice(base.length).split('/').filter(Boolean)
+  const [sectionId, slugSub] = trail.slice(base.length).split('/').filter(Boolean)
   if (sectionId == null) return null
 
   const section = secciones.find((s) => s.id === sectionId)
@@ -55,7 +55,7 @@ export function readRoute(secciones: Section[]): Route | null {
   return { section: section.id, sub }
 }
 
-export function aCamino({ section, sub }: Route): string {
+export function toTrail({ section, sub }: Route): string {
   return raizDeLaApp() + (sub == null ? `${section}/` : `${section}/${aSlug(sub)}/`)
 }
 
@@ -70,7 +70,7 @@ export function aCamino({ section, sub }: Route): string {
  * bar.
  */
 export function escribirRuta(route: Route, reemplazar = false): void {
-  const blank = aCamino(route) + window.location.search
+  const blank = toTrail(route) + window.location.search
   if (window.location.pathname + window.location.search === blank) return
   if (reemplazar) window.history.replaceState(null, '', blank)
   else window.history.pushState(null, '', blank)

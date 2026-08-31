@@ -29,7 +29,7 @@ measured 62×17 in one place and 44×18 in another: two sizes for the same contr
 and both below the 24 minimum. `.golpe` enlarges the target without moving the
 drawing. And `nowrap`: the key preceding it breaks, the button does NOT.
 */
-.verlo {
+.showIt {
   composes: golpe from './interaccion.module.css';
   border: 0;
   background: transparent;

@@ -15,7 +15,7 @@ is given a body —panel, border and corners— instead of being left floating.
   border: 1px solid var(--line);
   border-radius: var(--r-4);
   background: var(--pan);
-  box-shadow: var(--e-1), var(--filo);
+  box-shadow: var(--e-1), var(--edge);
 }
 
 .table { border-collapse: collapse; width: 100%; }
@@ -28,11 +28,11 @@ is given a body —panel, border and corners— instead of being left floating.
   /* The same label as a panel title: see `--rotulo-*` in tokens. The table
      header was at `--t-2` when the `--t-1` token itself has said, ever since it
      was written, "small-caps label, table header, pill". */
-  font-size: var(--rotulo-tam);
+  font-size: var(--rotulo-size);
   text-transform: uppercase;
-  letter-spacing: var(--rotulo-interletrado);
+  letter-spacing: var(--rotulo-tracking);
   color: var(--mute);
-  font-weight: var(--rotulo-peso);
+  font-weight: var(--rotulo-weight);
   padding: var(--s-5) var(--s-7);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -50,7 +50,7 @@ is given a body —panel, border and corners— instead of being left floating.
 /* The last row carries no line: the panel border closes it. */
 .table tbody tr:last-child td { border-bottom: 0; }
 
-.table tbody tr { transition: background var(--t-rapido); }
+.table tbody tr { transition: background var(--t-fast); }
 .table tbody tr:hover { background: var(--hover); }
 
 /*
@@ -108,10 +108,10 @@ out Zones' monospacing. It is the same trap already noted in `Menu.module.css`.
 }
 
 /* Metadata: the date, the "N ago", the counter. They accompany, they do not compete. */
-.meta { composes: coletilla from './text.module.css'; }
+.meta { composes: trailer from './text.module.css'; }
 
 /* A cell with several lines inside aligns to the top; the rest, to the middle. */
-.apilada { vertical-align: top; }
+.stacked { vertical-align: top; }
 
 /*
 The "there is nothing here" row. It was written with
@@ -169,7 +169,7 @@ saying nothing, because "this is sortable" is the same on all of them.
   display: inline-flex;
   color: var(--faint);
   opacity: 0;
-  transition: opacity var(--t-rapido);
+  transition: opacity var(--t-fast);
 }
 
 .sort:hover .flecha,
@@ -179,7 +179,7 @@ saying nothing, because "this is sortable" is the same on all of them.
 
 /* Ascending and descending are the SAME chevron rotated, not two different
    characters: that way the arrow turns on click instead of jumping. */
-.flecha svg { transition: transform var(--t-rapido), color var(--t-rapido); }
+.flecha svg { transition: transform var(--t-fast), color var(--t-fast); }
 .flecha svg[data-desc='true'] { transform: rotate(180deg); }
 
 .sort:hover .flecha,
@@ -223,7 +223,7 @@ space and copes with one row having three actions and the next one five.
   border-radius: var(--r-2);
   overflow: hidden;
   background: var(--pan2);
-  box-shadow: var(--filo);
+  box-shadow: var(--edge);
 }
 
 /*

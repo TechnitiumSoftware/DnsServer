@@ -35,7 +35,7 @@ export function AppCard({
       <div className={styles.ah}>
         <div>
           <h2>{app.name}</h2>
-          <div className={styles.ver}>
+          <div className={styles.view}>
             v{app.version} ·{' '}
             {hayUpdate ? (
               <span className={styles.blank}>Update v{app.updateVersion}</span>
@@ -51,7 +51,7 @@ export function AppCard({
       {app.dnsApps.length > 0 && (
         <Details className={styles.details} summary="More Details">
           {app.dnsApps.map((d) => (
-            <div key={d.classPath} className={styles.clase}>
+            <div key={d.classPath} className={styles.cls}>
               <div className={styles.clasePath}>{d.classPath}</div>
               <div className={styles.caps}>
                 {dnsAppLabels(d).map((l) => (

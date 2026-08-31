@@ -68,7 +68,7 @@ export function TopStats({
     })
   }, [type, range, token])
 
-  const esCliente = type === 'TopClients'
+  const isClient = type === 'TopClients'
 
   return (
     <Dialog
@@ -108,7 +108,7 @@ export function TopStats({
                   {f.name}
                   {f.rateLimited ? ' (rate limited)' : ''}
                 </span>
-                {esCliente && (
+                {isClient && (
                   <span className={styles.topDomain}>
                     {f.domain === '' || f.domain == null ? '.' : f.domain}
                   </span>

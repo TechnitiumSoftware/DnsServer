@@ -13,7 +13,7 @@ import { ImportZone } from './modals/ImportZone'
 import { ZoneOptions } from './modals/ZoneOptions'
 import { ZonePermissions } from './modals/ZonePermissions'
 import { PropiedadesDnssec } from './modals/DnssecProperties'
-import { VerDs } from './modals/ViewDs'
+import { ViewDs } from './modals/ViewDs'
 import type { Notice, Confirmation } from './types'
 import { Notifier } from '../../ui/Notifier'
 
@@ -96,7 +96,7 @@ export function Zones({
   }
 
   /** After a mutating modal: refreshes whatever is in front. */
-  function hecho(a: Notice) {
+  function done(a: Notice) {
     setNotice(a)
     if (open == null) refreshList()
     else refreshZone()
@@ -124,7 +124,7 @@ export function Zones({
           onClone={(z) => openModal('clone', z)}
           onPermissions={(z) => openModal('permissions', z)}
           onOptions={(z) => openModal('options', z)}
-          refresco={listRefresh}
+          refresh={listRefresh}
         />
       ) : (
         <ZoneRecords
@@ -139,17 +139,17 @@ export function Zones({
           }}
           onNotice={setNotice}
           onConfirm={setConfirmation}
-          onAddRecord={(zone, regs) => {
+          onAddRecord={(zone, recs) => {
             setRecordMode('add')
             setZoneDetails(zone)
-            setRecords(regs)
+            setRecords(recs)
             setOriginalRecord(null)
             openModal('record', open)
           }}
-          onEditRecord={(zone, record, regs) => {
+          onEditRecord={(zone, record, recs) => {
             setRecordMode('update')
             setZoneDetails(zone)
-            setRecords(regs)
+            setRecords(recs)
             setOriginalRecord(record)
             openModal('record', open)
           }}
@@ -160,9 +160,9 @@ export function Zones({
           onOptions={(z) => openModal('options', z)}
           onSign={(z) => openModal('sign', z)}
           onUnsign={(z) => openModal('unsign', z)}
-          onVerDs={(z) => openModal('viewds', z)}
+          onViewDs={(z) => openModal('viewds', z)}
           onPropiedadesDnssec={(z) => openModal('dnssec', z)}
-          refresco={zoneRefresh}
+          refresh={zoneRefresh}
           expiryTtlDelModal={expiryTtlDelModal}
         />
       )}
@@ -172,7 +172,7 @@ export function Zones({
         title={confirmation?.title ?? ''}
         text={confirmation?.text}
         label={confirmation?.label ?? ''}
-        variante={confirmation?.danger ? 'danger' : 'primary'}
+        variant={confirmation?.danger ? 'danger' : 'primary'}
         onClose={() => setConfirmation(null)}
         onConfirm={() => confirmation?.action()}
       />
@@ -197,7 +197,7 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
       <CloneZone
@@ -206,7 +206,7 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
       <ConvertZone
@@ -216,7 +216,7 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
       <ZoneOptions
@@ -225,7 +225,7 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
       <ZonePermissions
@@ -235,7 +235,7 @@ export function Zones({
         node={node}
         canModify={canModify}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
       <SignZone
@@ -244,7 +244,7 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
       <UnsignZone
@@ -253,10 +253,10 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
       />
 
-      <VerDs
+      <ViewDs
         zone={modalZone}
         open={modal === 'viewds'}
         token={token}
@@ -284,7 +284,7 @@ export function Zones({
         token={token}
         node={node}
         onClose={() => setModal(null)}
-        onHecho={hecho}
+        onDone={done}
         onExpiryTtl={setExpiryTtlDelModal}
       />
     </>

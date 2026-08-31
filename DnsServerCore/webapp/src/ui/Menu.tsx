@@ -31,7 +31,7 @@ export function Menu({
   label,
   rotulo,
   onOpen,
-  ancla = 'derecha',
+  anchor = 'derecha',
   asRow = false,
   children,
 }: {
@@ -47,7 +47,7 @@ export function Menu({
    */
   onOpen?: () => void
   /** Which edge the list aligns to against the trigger. */
-  ancla?: 'derecha' | 'izquierda'
+  anchor?: 'derecha' | 'izquierda'
   /** The trigger fills the width of its column, with the label on the left. */
   asRow?: boolean
   children: (close: () => void) => ReactNode
@@ -86,14 +86,14 @@ export function Menu({
     const MARGEN = 8
     const below = window.innerHeight - r.bottom - MARGEN
     const above = r.top - MARGEN
-    const borde = ancla === 'izquierda' ? { left: r.left } : { right: window.innerWidth - r.right }
+    const edge2 = anchor === 'izquierda' ? { left: r.left } : { right: window.innerWidth - r.right }
 
     setBox(
       below < above && below < 240
-        ? { ...borde, bottom: window.innerHeight - r.top + 4, maxHeight: above }
-        : { ...borde, top: r.bottom + 4, maxHeight: below },
+        ? { ...edge2, bottom: window.innerHeight - r.top + 4, maxHeight: above }
+        : { ...edge2, top: r.bottom + 4, maxHeight: below },
     )
-  }, [open, ancla])
+  }, [open, anchor])
 
   useEffect(() => {
     if (!open) return
@@ -148,7 +148,7 @@ export function Menu({
           onClick={toggleOpen}
         >
           {rotulo}
-          <Icon name="chevronDown" tam={12} />
+          <Icon name="chevronDown" size={12} />
         </button>
       ) : (
         <Button
@@ -161,11 +161,11 @@ export function Menu({
           onClick={toggleOpen}
         >
           {rotulo == null ? (
-            <Icon name="plus" tam={16} />
+            <Icon name="plus" size={16} />
           ) : (
             <>
               {rotulo}
-              <Icon name="chevronDown" tam={12} />
+              <Icon name="chevronDown" size={12} />
             </>
           )}
         </Button>
@@ -179,6 +179,6 @@ export function Menu({
   )
 }
 
-export function Separador() {
+export function Separator() {
   return <div className={styles.sep} role="separator" />
 }

@@ -10,14 +10,14 @@ afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-function servidor(overrides: Record<string, unknown> = {}, respuestaSet?: Record<string, unknown>) {
+function servidor(overrides: Record<string, unknown> = {}, setResponse?: Record<string, unknown>) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'admin/sso/get') return ok({ response: { ...SSO, ...overrides }, server: 'x' })
     if (path === 'admin/sso/set') {
-      // El `set` NO devuelve `localGroups`: es la respuesta literal de la
-      // instancia de referencia.
-      const { localGroups: _noGroups, ...resto } = { ...SSO, ...overrides }
-      return ok({ response: respuestaSet ?? resto, server: 'x' })
+      // The `set` does NOT return `localGroups`: this is the literal response
+      // of the reference instance.
+      const { localGroups: _noGroups, ...rest } = { ...SSO, ...overrides }
+      return ok({ response: setResponse ?? rest, server: 'x' })
     }
     return ok({ response: {}, server: 'x' })
   })

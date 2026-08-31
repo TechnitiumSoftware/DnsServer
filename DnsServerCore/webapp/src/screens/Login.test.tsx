@@ -153,11 +153,11 @@ describe('Forgot Password?', () => {
 
     await user.click(screen.getByRole('button', { name: 'Forgot Password?' }))
 
-    const dialogo = await screen.findByRole('dialog')
+    const dialog = await screen.findByRole('dialog')
     expect(
-      within(dialogo).getByText('To reset your password, you need to contact the DNS Server administrator.'),
+      within(dialog).getByText('To reset your password, you need to contact the DNS Server administrator.'),
     ).toBeTruthy()
-    expect(within(dialogo).getByText('resetadmin.config')).toBeTruthy()
+    expect(within(dialog).getByText('resetadmin.config')).toBeTruthy()
   })
 
   it('it calls no endpoint: it is only text', async () => {

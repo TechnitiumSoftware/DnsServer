@@ -18,7 +18,7 @@ describe('page window', () => {
 
   it('on the first it offers neither "previous" nor "first"', () => {
     const p = pageWindow(1, 5)
-    expect(p.primera).toBe(false)
+    expect(p.first).toBe(false)
     expect(p.previous).toBeNull()
     expect(p.next).toBe(2)
     expect(p.last).toBe(true)

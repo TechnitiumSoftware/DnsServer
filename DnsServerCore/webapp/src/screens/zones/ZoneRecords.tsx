@@ -23,7 +23,7 @@ import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { DataCell } from './DataCell'
 import { fechaMinuto as date } from '../../lib/dates'
-import { Menu, Separador } from '../../ui/Menu'
+import { Menu, Separator } from '../../ui/Menu'
 import { filterBy } from './filter'
 import { textoDeEstado, pageWindow } from '../../lib/pagination'
 import { rowActions, recordCells, nombreRelativo, ocultarDnssec, type Cell } from './record-view'
@@ -69,10 +69,10 @@ export interface ZoneRecordsProps {
   onOptions: (zone: string) => void
   onSign: (zone: string) => void
   onUnsign: (zone: string) => void
-  onVerDs: (zone: string) => void
+  onViewDs: (zone: string) => void
   onPropiedadesDnssec: (zone: string) => void
   /** Changes when an external modal forces a re-read of the zone. */
-  refresco: number
+  refresh: number
   /*
   The expiry TTL left over in the record modal. It is NOT a whim:
   `updateRecordState` reads it from the modal's field instead of the row, so
@@ -91,7 +91,7 @@ Upstream's `#` column is sortable too and here it is not: sorting by the row
 number the sort itself has just handed out leads nowhere.
 */
 function cellText(c: Cell): string {
-  switch (c.clase) {
+  switch (c.cls) {
     case 'value':
       return c.text
     case 'pairs':
@@ -120,7 +120,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
   const [ocultarDnssecRegs, setOcultarDnssecRegs] = useState(readHideDnssec)
 
   const [filtroNombre, setFiltroNombre] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('')
+  const [typeFilter, setFiltroTipo] = useState('')
   const [perPage, setPerPage] = useState(10)
   const [page, setPage] = useState(1)
 
@@ -139,19 +139,19 @@ export function ZoneRecords(p: ZoneRecordsProps) {
 
   useEffect(() => {
     void load()
-  }, [load, p.refresco])
+  }, [load, p.refresh])
 
   // The DNSSEC filtering comes before the name/type filter, just as in
   // upstream: `editZoneRecords` ya llega recortado a `showEditZonePage`.
-  const visibles = useMemo(() => {
+  const visible = useMemo(() => {
     const signed = isSigned(zoneInfo?.dnssecStatus)
     const base = ocultarDnssecRegs && signed ? ocultarDnssec(records) : records
-    return filterBy(base, { name: filtroNombre, type: filtroTipo }, zone)
-  }, [records, ocultarDnssecRegs, zoneInfo, filtroNombre, filtroTipo, zoneInfo])
+    return filterBy(base, { name: filtroNombre, type: typeFilter }, zone)
+  }, [records, ocultarDnssecRegs, zoneInfo, filtroNombre, typeFilter, zoneInfo])
 
-  const { rows: sorted, sort, toggle } = useOrden(KEYS, visibles)
+  const { rows: sorted, sort, toggle } = useOrden(KEYS, visible)
 
-  const totalPages = Math.max(1, Math.ceil(visibles.length / perPage))
+  const totalPages = Math.max(1, Math.ceil(visible.length / perPage))
   const currentPage = Math.min(Math.max(page, 1), totalPages)
   const inicio = (currentPage - 1) * perPage
   const onPage = sorted.slice(inicio, inicio + perPage)
@@ -159,7 +159,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
   const cab = zoneInfo ? zoneHeader(zoneInfo.type, zoneInfo.dnssecStatus) : null
 
   /** Runs a mutation on a record and reloads the whole zone. */
-  async function mutateRecord(fn: () => Promise<{ kind: string; message?: string }>, exito: Notice) {
+  async function mutateRecord(fn: () => Promise<{ kind: string; message?: string }>, success: Notice) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
@@ -169,14 +169,14 @@ export function ZoneRecords(p: ZoneRecordsProps) {
       return
     }
     await load()
-    onNotice(exito)
+    onNotice(success)
   }
 
   function cambiarEstado(r: ResourceRecord, disable: boolean) {
     const name = r.name === '' ? '.' : r.name
-    const pistas = zoneHasSvcbAutoHint(records, r.type === 'A', r.type === 'AAAA')
+    const hints = zoneHasSvcbAutoHint(records, r.type === 'A', r.type === 'AAAA')
     const body = {
-      ...cuerpoCambioDeEstado(zone, r, disable, pistas),
+      ...cuerpoCambioDeEstado(zone, r, disable, hints),
       expiryTtl: p.expiryTtlDelModal,
     }
 
@@ -204,9 +204,9 @@ export function ZoneRecords(p: ZoneRecordsProps) {
 
   function removeRecord(r: ResourceRecord) {
     const name = r.name === '' ? '.' : r.name
-    const pistas = zoneHasSvcbAutoHint(records, r.type === 'A', r.type === 'AAAA')
+    const hints = zoneHasSvcbAutoHint(records, r.type === 'A', r.type === 'AAAA')
     const body = cuerpoBorrado(zone, r)
-    if (r.type === 'A' || r.type === 'AAAA') body.updateSvcbHints = String(pistas)
+    if (r.type === 'A' || r.type === 'AAAA') body.updateSvcbHints = String(hints)
 
     p.onConfirm({
       title: 'Delete Record',
@@ -224,7 +224,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
 
   /* ── Actions on the whole zone ─────────────────────────────────────── */
 
-  async function mutateZone(fn: () => Promise<{ kind: string; message?: string }>, exito: Notice, volver = false) {
+  async function mutateZone(fn: () => Promise<{ kind: string; message?: string }>, success: Notice, volver = false) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
@@ -233,7 +233,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
       onNotice(noticeFromFailure(outcome))
       return
     }
-    onNotice(exito)
+    onNotice(success)
     if (volver) p.onVolver()
     else await load()
   }
@@ -319,13 +319,13 @@ export function ZoneRecords(p: ZoneRecordsProps) {
 
   const state = zoneState(zoneInfo as unknown as Zone)
   const signed = isSigned(zoneInfo.dnssecStatus)
-  const text = textoDeEstado(inicio + 1, onPage.length, visibles.length, currentPage, totalPages, 'records')
+  const text = textoDeEstado(inicio + 1, onPage.length, visible.length, currentPage, totalPages, 'records')
   const pg = pageWindow(currentPage, totalPages)
 
   /* Here the last page is calculated on the client: the records are all
      loaded, there is no need to ask the server. */
   const pagination = (
-    <Pagination ventana={pg} current={currentPage} last={totalPages} onIr={setPage} />
+    <Pagination window={pg} current={currentPage} last={totalPages} onIr={setPage} />
   )
 
   return (
@@ -424,19 +424,19 @@ export function ZoneRecords(p: ZoneRecordsProps) {
                         {ocultarDnssecRegs ? 'Show DNSSEC Records' : 'Hide DNSSEC Records'}
                       </button>
                     )}
-                    {cab.verDs && (
-                      <button type="button" onClick={() => { close(); p.onVerDs(zone) }}>
+                    {cab.viewDs && (
+                      <button type="button" onClick={() => { close(); p.onViewDs(zone) }}>
                         View DS Info
                       </button>
                     )}
-                    {cab.propiedades && (
+                    {cab.properties && (
                       <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onPropiedadesDnssec(zone) }}>
                         DNSSEC Properties
                       </button>
                     )}
                     {cab.unsign && (
                       <>
-                        <Separador />
+                        <Separator />
                         <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onUnsign(zone) }}>
                           Unsign Zone
                         </button>
@@ -450,7 +450,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
         }
       />
 
-      <div className={styles.filt}>
+      <div className={styles.flt}>
         <div className={styles.filtAncho}>
           <Field label="Name">
             {(id) => (
@@ -463,18 +463,18 @@ export function ZoneRecords(p: ZoneRecordsProps) {
             )}
           </Field>
         </div>
-        <div className={styles.filtCorto}>
+        <div className={styles.fltShort}>
           <Field label="Type">
             {(id) => (
               <Input
                 id={id}
-                value={filtroTipo}
+                value={typeFilter}
                 onChange={(e) => { setFiltroTipo(e.target.value); setPage(1) }}
               />
             )}
           </Field>
         </div>
-        <div className={styles.filtCorto}>
+        <div className={styles.fltShort}>
           <Field label="Records Per Page">
             {(id) => (
               <Select
@@ -541,7 +541,7 @@ export function ZoneRecords(p: ZoneRecordsProps) {
                   <DataCell record={r} notifyFailedFor={zoneInfo.notifyFailedFor} />
                 </td>
                 <td className={tbl.actionsCell}>
-                  {!actions.ocultas && (
+                  {!actions.hidden && (
                     <div className={tbl.actions}>
                       <RowAction
                         icon="edit"

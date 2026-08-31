@@ -30,11 +30,11 @@ the cursor is.
   color: var(--ink);
   font-family: inherit;
   min-width: 0;
-  box-shadow: var(--hundido);
+  box-shadow: var(--sunken);
   transition:
-    border-color var(--t-rapido),
-    box-shadow var(--t-rapido),
-    background-color var(--t-rapido);
+    border-color var(--t-fast),
+    box-shadow var(--t-fast),
+    background-color var(--t-fast);
 }
 
 .input::placeholder { color: var(--faint); }
@@ -45,7 +45,7 @@ the cursor is.
   outline: none;
   border-color: var(--acc);
   background-color: #0e131b;
-  box-shadow: var(--hundido), var(--halo-foco);
+  box-shadow: var(--sunken), var(--halo-foco);
 }
 
 .input:disabled { opacity: 0.45; cursor: default; }

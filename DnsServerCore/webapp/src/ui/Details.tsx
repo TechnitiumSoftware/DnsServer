@@ -15,7 +15,7 @@ export function Details({
   return (
     <details className={[styles.details, className].filter(Boolean).join(' ')}>
       <summary>
-        <Icon name="chevronRight" tam={12} className={styles.chevron} />
+        <Icon name="chevronRight" size={12} className={styles.chevron} />
         {summary}
       </summary>
       {children}

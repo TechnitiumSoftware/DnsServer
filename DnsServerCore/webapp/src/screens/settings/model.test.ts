@@ -4,8 +4,8 @@ import { buildBody, formularioDesdeAjustes, enabled, cleanList, listToText } fro
 
 const base = () => formularioDesdeAjustes(SETTINGS)
 
-function body(parcial: Partial<ReturnType<typeof base>> = {}) {
-  const r = buildBody({ ...base(), ...parcial })
+function body(partial: Partial<ReturnType<typeof base>> = {}) {
+  const r = buildBody({ ...base(), ...partial })
   expect(r.error).toBeUndefined()
   return r.body!
 }
@@ -99,7 +99,7 @@ describe('enabled', () => {
 })
 
 describe('construirCuerpo — validation order of saveDnsSettings', () => {
-  const casos: [string, Record<string, unknown>, string][] = [
+  const cases: [string, Record<string, unknown>, string][] = [
     ['dnsServerDomain', { dnsServerDomain: '' }, 'Please enter server domain name.'],
     ['ECS IPv4', { eDnsClientSubnetIPv4PrefixLength: '' }, 'Please enter EDNS Client Subnet IPv4 prefix length.'],
     ['ECS IPv6', { eDnsClientSubnetIPv6PrefixLength: '' }, 'Please enter EDNS Client Subnet IPv6 prefix length.'],
@@ -138,8 +138,8 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
     ['forwarderConcurrency', { forwarderConcurrency: '' }, 'Please enter a value for Forwarder Concurrency.'],
   ]
 
-  it.each(casos)('%s vacío da el aviso literal de upstream', (_n, parcial, text) => {
-    const r = buildBody({ ...base(), ...parcial } as ReturnType<typeof base>)
+  it.each(cases)('%s vacío da el aviso literal de upstream', (_n, partial, text) => {
+    const r = buildBody({ ...base(), ...partial } as ReturnType<typeof base>)
     expect(r.error?.title).toBe('Missing!')
     expect(r.error?.text).toBe(text)
     expect(r.body).toBeUndefined()

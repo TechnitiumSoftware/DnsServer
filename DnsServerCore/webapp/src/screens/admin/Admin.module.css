@@ -9,7 +9,7 @@
 
 
 /* The count is `ui/count.module.css`'s: see there for why. */
-.count { composes: barra below from '../../ui/count.module.css'; }
+.count { composes: bar below from '../../ui/count.module.css'; }
 
 /* The first column's user / group / section name opens its record. */
 .link { composes: entityLink from '../../ui/Table.module.css'; word-break: break-all; }
@@ -42,7 +42,7 @@
 .block { composes: block from '../../ui/PanelForm.module.css'; }
 
 .ctlLine { composes: inline from '../../ui/PanelForm.module.css'; }
-.suffix { composes: coletilla from '../../ui/text.module.css'; }
+.suffix { composes: trailer from '../../ui/text.module.css'; }
 .help { composes: help from '../../ui/Form.module.css'; }
 .notas { composes: notices from '../../ui/PanelForm.module.css'; }
 .group { composes: group from '../../ui/Form.module.css'; }
@@ -50,7 +50,7 @@
 /* The width only: the trigger's box is set by `ui/Select`. */
 .select { max-width: 420px; }
 
-/* Tabla editable dentro de un formulario: scopes y mapa de grupos de SSO. */
+/* Editable table inside a form: SSO scopes and group map. */
 /*
 The editable table is `ui/EditableTable.module.css`'s. It was written here and in
 two other modules with the same values copied by hand.
@@ -65,9 +65,9 @@ two other modules with the same values copied by hand.
 
 /* Modal body: the same rows, but with a narrower label. */
 .mval { font-size: var(--t-4); font-weight: 600; color:var(--ink); padding-top: var(--s-5); }
-.parrafo { composes: parrafo from '../../ui/text.module.css'; }
+.paragraph { composes: paragraph from '../../ui/text.module.css'; }
 .sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight: 550; color:var(--ink); }
-.salida { display:flex; flex-direction:column; gap: var(--s-5); }
+.output { display:flex; flex-direction:column; gap: var(--s-5); }
 .link { font-size: var(--t-3); }
 .link a { color:var(--acc); }
 
