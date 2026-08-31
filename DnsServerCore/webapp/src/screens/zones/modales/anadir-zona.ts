@@ -29,7 +29,14 @@ export type TipoAlta =
   | 'SecondaryCatalog'
   | 'SecondaryRoot'
 
-export const TIPOS_ALTA: { valor: TipoAlta; etiqueta: string }[] = [
+export interface TipoDeAlta {
+  valor: TipoAlta
+  etiqueta: string
+  /** Referencia externa que upstream pinta entre paréntesis tras la etiqueta. */
+  referencia?: { texto: string; href: string }
+}
+
+export const TIPOS_ALTA: TipoDeAlta[] = [
   { valor: 'Primary', etiqueta: 'Primary Zone (default)' },
   { valor: 'Secondary', etiqueta: 'Secondary Zone' },
   { valor: 'Stub', etiqueta: 'Stub Zone' },
@@ -37,7 +44,12 @@ export const TIPOS_ALTA: { valor: TipoAlta; etiqueta: string }[] = [
   { valor: 'SecondaryForwarder', etiqueta: 'Secondary Conditional Forwarder Zone' },
   { valor: 'Catalog', etiqueta: 'Catalog Zone' },
   { valor: 'SecondaryCatalog', etiqueta: 'Secondary Catalog Zone' },
-  { valor: 'SecondaryRoot', etiqueta: 'Secondary ROOT Zone (RFC 8806)' },
+  {
+    valor: 'SecondaryRoot',
+    etiqueta: 'Secondary ROOT Zone',
+    // Upstream enlaza el RFC desde la propia etiqueta del tipo.
+    referencia: { texto: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
+  },
 ]
 
 /** Las direcciones de los trece servidores raíz, copiadas literales de zone.js:3020. */

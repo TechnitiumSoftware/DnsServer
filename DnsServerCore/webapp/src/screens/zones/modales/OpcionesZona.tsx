@@ -24,6 +24,8 @@ import {
 import type { Aviso } from '../tipos'
 import pag from '../../../ui/Pagination.module.css'
 import styles from '../Zones.module.css'
+import { Externo } from '../../../ui/Externo'
+import { RFC_ZONEMD } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 
 /*
@@ -291,7 +293,7 @@ export function OpcionesZona({
                           checked={f.validateZone}
                           onChange={(ev) => set('validateZone', ev.target.checked)}
                         />
-                        Use ZONEMD to Validate Zone
+                        Use <Externo href={RFC_ZONEMD}>ZONEMD</Externo> to Validate Zone
                       </label>
                     )}
                   </>

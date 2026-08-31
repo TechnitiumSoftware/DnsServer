@@ -39,6 +39,8 @@ import {
 import type { Aviso, Confirmacion } from '../tipos'
 import tbl from '../../../ui/Table.module.css'
 import styles from '../Zones.module.css'
+import { Externo } from '../../../ui/Externo'
+import { RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { Th, useOrden, type Claves } from '../../../ui/Table'
 
@@ -578,6 +580,12 @@ export function PropiedadesDnssec({
                     />
                   )}
                 </Field>
+                <div className={styles.ayuda}>
+                  The number of iterations used by NSEC3 for hashing the domain names. It is
+                  recommended to use 0 iterations since more iterations will increase computational
+                  costs for both the DNS Server and resolver while not providing much value against
+                  &quot;zone walking&quot; [<Externo href={RFC_NSEC3_ITERACIONES}>RFC 9276</Externo>].
+                </div>
                 <Field label="NSEC3 Salt Length">
                   {(id) => (
                     <Input
@@ -589,6 +597,11 @@ export function PropiedadesDnssec({
                     />
                   )}
                 </Field>
+                <div className={styles.ayuda}>
+                  The number of bytes of random salt to generate to be used with the NSEC3 hash
+                  computation. It is recommended to not use salt by setting the length to 0
+                  [<Externo href={RFC_NSEC3_SAL}>RFC 9276</Externo>].
+                </div>
               </>
             )}
 

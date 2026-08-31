@@ -22,6 +22,8 @@ import {
   type TipoAlta,
 } from './anadir-zona'
 import frm from '../../../ui/Form.module.css'
+import { Ayuda, Externo } from '../../../ui/Externo'
+import { RFC_ZONEMD } from '../referencias'
 
 /*
 `modalAddZone` (zone.js:2726 y 2911). Ocho tipos de zona, cada uno con su
@@ -162,7 +164,23 @@ export function AnadirZona({
                   checked={f.tipo === t.valor}
                   onChange={() => cambiarTipo(t.valor)}
                 />
-                {t.etiqueta}
+                {/*
+                `.chk` es `display:flex`, así que cada hijo del rótulo es un
+                ítem: sin este `span` el enlace y los paréntesis se separaban en
+                tres cajas —«Secondary ROOT Zone ( RFC 8806 )»— y el enlace
+                dejaba de estar dentro de una frase, que es lo que le da la
+                excepción de tamaño de objetivo. Envuelto, vuelve a ser texto.
+                */}
+                <span>
+                  {t.etiqueta}
+                  {t.referencia && (
+                    <>
+                      {' ('}
+                      <Externo href={t.referencia.href}>{t.referencia.texto}</Externo>
+                      {')'}
+                    </>
+                  )}
+                </span>
               </label>
             ))}
           </div>
@@ -310,7 +328,7 @@ export function AnadirZona({
                   checked={f.validateZone}
                   onChange={(e) => set('validateZone', e.target.checked)}
                 />
-                Use ZONEMD to Validate Zone
+                Use <Externo href={RFC_ZONEMD}>ZONEMD</Externo> to Validate Zone
               </label>
               <div className={styles.ayuda}>
                 When enabled, the secondary zone will be validated using the ZONEMD record after every
@@ -453,6 +471,11 @@ export function AnadirZona({
             )}
           </>
         )}
+
+        {/* Upstream cierra este diálogo con su enlace de ayuda (`modalAddZone`). */}
+        <Ayuda href="https://blog.technitium.com/2022/06/how-to-self-host-your-own-domain-name.html">
+          Help: How To Self Host Your Own Domain Name
+        </Ayuda>
       </div>
     </Dialog>
   )
