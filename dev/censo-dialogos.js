@@ -1,169 +1,170 @@
 /*
-El censo de diálogos: abre uno por uno TODOS los de la consola y les pasa la
-misma batería.
+The dialog census: opens EVERY dialog in the console one by one and runs the same
+battery of checks on each.
 
-Nació de un fallo propio. Se revisaban «a ojo» los que uno se acordaba de abrir,
-y así se coló que la tabla de sesiones de «User Details» no se veía: su
-envoltorio medía 831×2 —aplastado a cero— mientras la tabla que contenía medía
-814×298. Se veía el rótulo, una línea y «Total Sessions: 3», y ni una fila.
+It was born from a mistake of our own. The ones you happened to remember to open
+were reviewed "by eye", and that is how it slipped through that the sessions
+table in "User Details" was not visible: its wrapper measured 831×2 —squashed to
+zero— while the table inside it measured 814×298. You could see the label, one
+line and "Total Sessions: 3", and not a single row.
 
-Por eso la comprobación de `aplastados` es la primera de la lista: un elemento
-con contenido y sin altura no lo detecta ninguna medida de contraste ni de
-espaciado, y es de lo peor que puede pasar —la pantalla miente sin avisar—.
+That is why the `squashed` check is first on the list: an element with content and
+no height is not detected by any contrast or spacing measurement, and it is about
+the worst thing that can happen —the screen lies without saying so—.
 
-    await censarTodos()          los abre todos y devuelve sólo los problemas
-    await censarTodos(true)      además, la ficha de cada uno
+    await censarTodos()          opens them all and returns only the problems
+    await censarTodos(true)      plus the record for each one
 
-Se pega en la consola del navegador o se pasa a `browser_evaluate`.
+Paste it into the browser console or pass it to `browser_evaluate`.
 */
 
-const espera = (t) => new Promise((r) => setTimeout(r, t))
-const hasta = async (fn, ms = 9000) => {
+const wait = (t) => new Promise((r) => setTimeout(r, t))
+const until = async (fn, ms = 9000) => {
   const t0 = Date.now()
-  while (Date.now() - t0 < ms) { const v = fn(); if (v) return v; await espera(120) }
+  while (Date.now() - t0 < ms) { const v = fn(); if (v) return v; await wait(120) }
   return null
 }
 
-const dialogo = () => document.querySelector('[role="dialog"]')
+const dialog = () => document.querySelector('[role="dialog"]')
 
-async function cerrar() {
+async function close() {
   const c = document.querySelector('[role="dialog"] [class*="_close_"]')
-  if (c) { c.click(); await hasta(() => !dialogo()) }
+  if (c) { c.click(); await until(() => !dialog()) }
   document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-  await espera(220)
+  await wait(220)
 }
 
-async function irSeccion(n) {
-  await cerrar()
+async function goToSection(n) {
+  await close()
   for (const t of document.querySelectorAll('nav[aria-label="Sections"] a')) {
-    if (t.textContent.trim() === n) { t.click(); await espera(1200) }
+    if (t.textContent.trim() === n) { t.click(); await wait(1200) }
   }
 }
 
-async function irSub(n) {
-  await cerrar()
+async function goToSub(n) {
+  await close()
   const b = [...document.querySelectorAll('nav [class*="_sub_"] a')].find((x) => x.textContent.trim() === n)
   if (!b) return false
-  b.click(); await espera(1100); return true
+  b.click(); await wait(1100); return true
 }
 
-/** La batería. Devuelve los problemas encontrados, no una nota. */
-function revisar() {
-  const d = dialogo()
-  if (!d) return { problemas: ['no abrió'] }
-  const cuerpo = [...d.children].find((c) => /_body_/.test(c.className))
-  const pie = [...d.children].find((c) => /_foot_/.test(c.className))
+/** The battery. Returns the problems found, not a score. */
+function inspect() {
+  const d = dialog()
+  if (!d) return { problemas: ['did not open'] }
+  const body = [...d.children].find((c) => /_body_/.test(c.className))
+  const foot = [...d.children].find((c) => /_foot_/.test(c.className))
   const r = d.getBoundingClientRect()
-  const problemas = []
+  const problems = []
 
-  /* 1. Aplastados: contenido dentro de una caja sin altura. Es el que se coló. */
+  /* 1. Squashed: content inside a box with no height. This is the one that slipped through. */
   for (const e of d.querySelectorAll('*')) {
     const b = e.getBoundingClientRect()
     if (b.height < 8 && e.scrollHeight > 24 && b.width > 40) {
-      problemas.push(`APLASTADO ${e.tagName}.${(typeof e.className === 'string' ? e.className : '').split(' ')[0]} ` +
-        `${Math.round(b.width)}×${Math.round(b.height)} con ${e.scrollHeight}px dentro`)
+      problems.push(`SQUASHED ${e.tagName}.${(typeof e.className === 'string' ? e.className : '').split(' ')[0]} ` +
+        `${Math.round(b.width)}×${Math.round(b.height)} with ${e.scrollHeight}px inside`)
     }
   }
 
-  /* 2. Filas que existen en el DOM y no se ven. */
+  /* 2. Rows that exist in the DOM and are not visible. */
   for (const t of d.querySelectorAll('table')) {
-    const filas = [...t.querySelectorAll('tbody tr')]
-    const visibles = filas.filter((f) => f.getBoundingClientRect().height > 4).length
-    if (filas.length && visibles < filas.length) {
-      problemas.push(`FILAS INVISIBLES ${visibles}/${filas.length}`)
+    const rows = [...t.querySelectorAll('tbody tr')]
+    const visible = rows.filter((f) => f.getBoundingClientRect().height > 4).length
+    if (rows.length && visible < rows.length) {
+      problems.push(`INVISIBLE ROWS ${visible}/${rows.length}`)
     }
   }
 
-  /* 3. Lo que ya medía `medir()`, si está inyectado. */
+  /* 3. What `medir()` already measured, if it is injected. */
   if (typeof medir === 'function') {
     const m = medir(d)
-    for (const c of m.contraste) problemas.push(`CONTRASTE ${c.cr} «${c.texto}»`)
-    for (const t of m.tactil) problemas.push(`OBJETIVO ${t}`)
-    for (const n of m.sinNombre) problemas.push(`SIN NOMBRE ${n.slice(0, 50)}`)
+    for (const c of m.contraste) problems.push(`CONTRAST ${c.cr} «${c.texto}»`)
+    for (const t of m.tactil) problems.push(`TARGET ${t}`)
+    for (const n of m.sinNombre) problems.push(`NO NAME ${n.slice(0, 50)}`)
   }
 
-  /* 4. El diálogo no debe rodar: rueda su cuerpo. */
-  if (d.scrollHeight > d.clientHeight + 1) problemas.push('RUEDA EL DIÁLOGO ENTERO')
-  if (d.scrollWidth > d.clientWidth + 1) problemas.push('DESBORDA EN HORIZONTAL')
-  if (r.height > innerHeight) problemas.push(`NO CABE ${Math.round(r.height)} > ${innerHeight}`)
+  /* 4. The dialog must not scroll: its body scrolls. */
+  if (d.scrollHeight > d.clientHeight + 1) problems.push('THE WHOLE DIALOG SCROLLS')
+  if (d.scrollWidth > d.clientWidth + 1) problems.push('OVERFLOWS HORIZONTALLY')
+  if (r.height > innerHeight) problems.push(`DOES NOT FIT ${Math.round(r.height)} > ${innerHeight}`)
 
-  /* 5. El pie: la acción primero, el descarte después. */
-  const botones = pie ? [...pie.querySelectorAll('button')].map((b) => b.textContent.trim()) : []
-  if (botones.length > 1 && /^(close|cancel)$/i.test(botones[0])) {
-    problemas.push(`PIE AL REVÉS ${botones.join(' · ')}`)
+  /* 5. The footer: the action first, the dismissal after. */
+  const buttons = foot ? [...foot.querySelectorAll('button')].map((b) => b.textContent.trim()) : []
+  if (buttons.length > 1 && /^(close|cancel)$/i.test(buttons[0])) {
+    problems.push(`FOOTER REVERSED ${buttons.join(' · ')}`)
   }
 
   return {
     titulo: d.querySelector('[class*="_title_"]')?.textContent.trim().slice(0, 34),
     talla: d.getAttribute('data-tamano'),
     caja: `${Math.round(r.width)}×${Math.round(r.height)}`,
-    pie: botones.join(' · '),
-    ruedaCuerpo: cuerpo ? cuerpo.scrollHeight > cuerpo.clientHeight : false,
-    problemas,
+    pie: buttons.join(' · '),
+    ruedaCuerpo: body ? body.scrollHeight > body.clientHeight : false,
+    problemas: problems,
   }
 }
 
-/** Las recetas para abrir cada diálogo. */
-async function abrir(receta) {
-  await cerrar()
-  if (receta.seccion) await irSeccion(receta.seccion)
-  if (receta.sub) await irSub(receta.sub)
-  if (receta.antes) { await receta.antes(); await espera(900) }
+/** The recipes for opening each dialog. */
+async function open(recipe) {
+  await close()
+  if (recipe.seccion) await goToSection(recipe.seccion)
+  if (recipe.sub) await goToSub(recipe.sub)
+  if (recipe.antes) { await recipe.antes(); await wait(900) }
 
-  const pulsa = (sel, texto) => {
+  const press = (sel, text) => {
     const b = [...document.querySelectorAll(sel)].find(
-      (x) => (x.getAttribute('aria-label') || x.textContent).trim() === texto,
+      (x) => (x.getAttribute('aria-label') || x.textContent).trim() === text,
     )
     if (b) b.click()
     return !!b
   }
 
-  if (receta.boton && !pulsa('main button', receta.boton)) return { problemas: [`sin botón «${receta.boton}»`] }
+  if (recipe.boton && !press('main button', recipe.boton)) return { problemas: [`no button «${recipe.boton}»`] }
 
-  if (receta.celda) {
-    if (!pulsa('main tbody button', receta.celda)) return { problemas: [`sin celda «${receta.celda}»`] }
+  if (recipe.celda) {
+    if (!press('main tbody button', recipe.celda)) return { problemas: [`no cell «${recipe.celda}»`] }
   }
 
-  if (receta.menu) {
-    const [disparador, item] = receta.menu
-    if (receta.fila) {
-      const f = [...document.querySelectorAll('main tbody tr')].find((x) => x.innerText.includes(receta.fila))
-      if (!f) return { problemas: [`sin fila «${receta.fila}»`] }
+  if (recipe.menu) {
+    const [trigger, item] = recipe.menu
+    if (recipe.fila) {
+      const f = [...document.querySelectorAll('main tbody tr')].find((x) => x.innerText.includes(recipe.fila))
+      if (!f) return { problemas: [`no row «${recipe.fila}»`] }
       const b = [...f.querySelectorAll('button')].find((x) => /Actions/.test(x.getAttribute('aria-label') || ''))
-      if (!b) return { problemas: ['sin menú de fila'] }
+      if (!b) return { problemas: ['no row menu'] }
       b.click()
-    } else if (!pulsa('main button', disparador)) {
-      return { problemas: [`sin menú «${disparador}»`] }
+    } else if (!press('main button', trigger)) {
+      return { problemas: [`no menu «${trigger}»`] }
     }
-    const m = await hasta(() => { const l = document.querySelectorAll('[role="menu"]'); return l.length ? l[l.length - 1] : null })
-    if (!m) return { problemas: ['el menú no abre'] }
+    const m = await until(() => { const l = document.querySelectorAll('[role="menu"]'); return l.length ? l[l.length - 1] : null })
+    if (!m) return { problemas: ['the menu does not open'] }
     const it = [...m.querySelectorAll('button')].find((x) => x.textContent.trim() === item)
-    if (!it) return { problemas: [`sin «${item}» en el menú`] }
+    if (!it) return { problemas: [`no «${item}» in the menu`] }
     it.click()
   }
 
-  if (receta.usuario) {
+  if (recipe.usuario) {
     const b = [...document.querySelectorAll('header button')].find((x) => /Administrator/.test(x.textContent))
     b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.click()
-    const lista = await hasta(() => document.querySelector('[class*="_menuList_"]'))
-    if (!lista) return { problemas: ['el menú de usuario no abre'] }
-    const it = [...lista.querySelectorAll('button')].find((x) => x.textContent.trim() === receta.usuario)
-    if (!it) return { problemas: [`sin «${receta.usuario}»`] }
+    const list = await until(() => document.querySelector('[class*="_menuList_"]'))
+    if (!list) return { problemas: ['the account menu does not open'] }
+    const it = [...list.querySelectorAll('button')].find((x) => x.textContent.trim() === recipe.usuario)
+    if (!it) return { problemas: [`no «${recipe.usuario}»`] }
     it.click()
   }
 
-  if (!await hasta(() => dialogo())) return { problemas: ['no abrió'] }
-  await espera(receta.espera ?? 700)
-  return revisar()
+  if (!await until(() => dialog())) return { problemas: ['did not open'] }
+  await wait(recipe.espera ?? 700)
+  return inspect()
 }
 
-async function censarTodos(recetas, todo = false) {
+async function censarTodos(recipes, all = false) {
   const out = []
-  for (const receta of recetas) {
-    const r = await abrir(receta)
-    r.nombre = receta.nombre
-    if (todo || r.problemas.length) out.push(r)
+  for (const recipe of recipes) {
+    const r = await open(recipe)
+    r.nombre = recipe.nombre
+    if (all || r.problemas.length) out.push(r)
   }
-  await cerrar()
+  await close()
   return out
 }

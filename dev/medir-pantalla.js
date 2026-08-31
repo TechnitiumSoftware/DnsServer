@@ -1,57 +1,60 @@
 /*
-Las mediciones de la revisión pantalla a pantalla, en un solo sitio.
+The measurements for the screen-by-screen review, all in one place.
 
-Se pega en la consola del navegador —o se pasa a `browser_evaluate`— y devuelve
-todo lo que un número puede contestar de la pantalla que esté abierta. Está aquí
-y no en el bundle a propósito: es herramienta de revisión, no de la consola.
+Paste it into the browser console —or pass it to `browser_evaluate`— and it
+returns everything a number can answer about whichever screen is open. It lives
+here and not in the bundle on purpose: it is a review tool, not part of the
+console.
 
-    medir()            la pantalla actual
-    await recorrer()   las doce secciones, una tras otra
+    medir()            the current screen
+    await recorrer()   the twelve sections, one after another
 
-Lo que NO contesta esto es si la pantalla se entiende, si el dato domina sobre
-los controles y si el estado vacío dice qué hacer. Para eso, la captura.
+What this does NOT answer is whether the screen makes sense, whether the data
+dominates over the controls, and whether the empty state says what to do. For
+that, the screenshot.
 */
 
-const ESCALA = new Set([0, 2, 4, 6, 7, 8, 9, 10, 12, 14, 16, 24, 32])
+const SCALE = new Set([0, 2, 4, 6, 7, 8, 9, 10, 12, 14, 16, 24, 32])
 
 const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) }
 const lum = (s) => { const m = s.match(/[\d.]+/g); return m ? 0.2126*lin(+m[0]) + 0.7152*lin(+m[1]) + 0.0722*lin(+m[2]) : null }
 const ratio = (a, b) => { const hi = Math.max(a, b), lo = Math.min(a, b); return (hi + 0.05) / (lo + 0.05) }
 
 /*
-Un color declarado en una regla casi nunca es `rgb(...)`: es `var(--hover)`, un
-hexadecimal o un nombre. Se normaliza dejando que lo haga el navegador —un nodo
-suelto al que se le asigna el valor— y resolviendo antes las variables contra el
-elemento, que es quien sabe cuánto vale `--hover` en su rama del árbol.
+A colour declared in a rule is almost never `rgb(...)`: it is `var(--hover)`, a
+hex value or a name. It is normalised by letting the browser do it —a detached
+node the value is assigned to— resolving the variables first against the element,
+which is the one that knows what `--hover` is worth in its branch of the tree.
 
-Esto no es un detalle: la primera versión del barrido sólo entendía `rgb()`, y de
-33 reglas de hover y foco medía 3. Devolvía lista vacía y parecía un aprobado.
+This is not a detail: the first version of the sweep only understood `rgb()`, and
+out of 33 hover and focus rules it measured 3. It returned an empty list and
+looked like a pass.
 */
-const normalizador = document.createElement('span')
-function resolverColor(valor, el) {
-  let v = valor
+const normaliser = document.createElement('span')
+function resolveColour(value, el) {
+  let v = value
   for (let i = 0; i < 4 && v.includes('var('); i++) {
-    v = v.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/g, (_, nombre, porDefecto) => {
-      const leido = getComputedStyle(el).getPropertyValue(nombre).trim()
-      return leido || (porDefecto ?? '').trim()
+    v = v.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/g, (_, name, fallback) => {
+      const read = getComputedStyle(el).getPropertyValue(name).trim()
+      return read || (fallback ?? '').trim()
     })
   }
-  // Una variable puede valer un shorthand entero: `--focus` es `2px solid #f5a524`,
-  // no un color. Sin recortar el trozo de color, lum() parsea el `2px` y devuelve
-  // una luminancia inventada — y con ella un contraste que no significa nada.
-  const soloColor = v.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b[a-z]+\b(?=\s*$)/i)
-  if (soloColor) v = soloColor[0]
-  normalizador.style.color = ''
-  normalizador.style.color = v
-  if (!normalizador.style.color) return v
-  document.body.appendChild(normalizador)
-  const rgb = getComputedStyle(normalizador).color
-  normalizador.remove()
+  // A variable can be worth a whole shorthand: `--focus` is `2px solid #f5a524`,
+  // not a colour. Without cutting out the colour part, lum() parses the `2px` and
+  // returns an invented luminance — and with it a contrast that means nothing.
+  const colourOnly = v.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b[a-z]+\b(?=\s*$)/i)
+  if (colourOnly) v = colourOnly[0]
+  normaliser.style.color = ''
+  normaliser.style.color = v
+  if (!normaliser.style.color) return v
+  document.body.appendChild(normaliser)
+  const rgb = getComputedStyle(normaliser).color
+  normaliser.remove()
   return rgb
 }
 
-/** El fondo que se ve de verdad, subiendo hasta el primer opaco. */
-function fondoReal(el) {
+/** The background actually seen, walking up to the first opaque one. */
+function realBackground(el) {
   for (let e = el; e; e = e.parentElement) {
     const m = getComputedStyle(e).backgroundColor.match(/[\d.]+/g)
     if (m && (m.length < 4 || +m[3] > 0.95)) return getComputedStyle(e).backgroundColor
@@ -59,15 +62,15 @@ function fondoReal(el) {
   return getComputedStyle(document.body).backgroundColor
 }
 
-/** El área sensible real, contando el pseudo-elemento que la amplíe. */
-function areaSensible(el) {
+/** The real hit area, counting any pseudo-element that enlarges it. */
+function hitArea(el) {
   const r = el.getBoundingClientRect()
   let { width: w, height: h } = r
   const a = getComputedStyle(el, '::after')
   if (a.content !== 'none' && a.position === 'absolute') {
-    for (const [lado, eje] of [['top','h'],['bottom','h'],['left','w'],['right','w']]) {
-      const v = parseFloat(a[lado]) || 0
-      if (v < 0) { if (eje === 'h') h += -v; else w += -v }
+    for (const [side, axis] of [['top','h'],['bottom','h'],['left','w'],['right','w']]) {
+      const v = parseFloat(a[side]) || 0
+      if (v < 0) { if (axis === 'h') h += -v; else w += -v }
     }
   }
   const lab = el.tagName === 'INPUT' ? el.closest('label') : null
@@ -76,193 +79,194 @@ function areaSensible(el) {
 }
 
 /*
-Un enlace DENTRO de una frase no incumple el mínimo de 24 px, y no es una manga
-ancha: WCAG 2.2 lo exime literalmente —«Inline: the target is in a sentence or
-its size is otherwise constrained by the line-height of non-target text»—. Y con
-razón: ampliarle el área sensible le haría tapar las palabras de al lado.
+A link INSIDE a sentence does not breach the 24 px minimum, and this is not
+leniency: WCAG 2.2 exempts it literally —«Inline: the target is in a sentence or
+its size is otherwise constrained by the line-height of non-target text»—. And
+rightly so: enlarging its hit area would make it cover the words next to it.
 
-Sin esta excepción el barrido levantaba quince enlaces de ayuda de 12 px como si
-fueran defectos, y el arreglo habría sido peor que el problema.
+Without this exception the sweep raised fifteen 12 px help links as if they were
+defects, and the fix would have been worse than the problem.
 */
-function enLinea(el) {
+function isInline(el) {
   if (el.tagName !== 'A' || getComputedStyle(el).display !== 'inline') return false
   const p = el.parentElement
   if (!p) return false
-  const textoAlrededor = [...p.childNodes]
+  const surroundingText = [...p.childNodes]
     .filter((n) => n !== el)
     .map((n) => n.textContent.trim())
     .join('')
-  return textoAlrededor.length > 0
+  return surroundingText.length > 0
 }
 
-function medir(raiz = document.querySelector('main') || document.body) {
+function medir(root = document.querySelector('main') || document.body) {
   const out = { contraste: [], espaciado: [], tactil: [], sinNombre: [], desborde: null, ritmo: [] }
-  const vistos = new Set()
+  const seen = new Set()
 
-  for (const el of raiz.querySelectorAll('*')) {
+  for (const el of root.querySelectorAll('*')) {
     const r = el.getBoundingClientRect()
     if (!r.width || !r.height) continue
     const c = getComputedStyle(el)
 
-    // 1. contraste del texto propio
+    // 1. contrast of its own text
     if ([...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim().length > 1)) {
-      const lt = lum(c.color), lf = lum(fondoReal(el))
+      const lt = lum(c.color), lf = lum(realBackground(el))
       if (lt != null && lf != null) {
-        const cr = ratio(lt, lf), tam = parseFloat(c.fontSize)
-        const min = (tam >= 18.66 || (tam >= 14 && +c.fontWeight >= 700)) ? 3 : 4.5
+        const cr = ratio(lt, lf), size = parseFloat(c.fontSize)
+        const min = (size >= 18.66 || (size >= 14 && +c.fontWeight >= 700)) ? 3 : 4.5
         if (cr < min) out.contraste.push({ cr: +cr.toFixed(2), min, texto: el.textContent.trim().slice(0, 40) })
       }
     }
 
-    // 2. espaciado fuera de la escala
+    // 2. spacing outside the scale
     for (const p of ['paddingTop','paddingRight','paddingBottom','paddingLeft',
                      'marginTop','marginRight','marginBottom','marginLeft','rowGap','columnGap']) {
       const n = Math.round(parseFloat(c[p]) * 100) / 100
-      if (!c[p].endsWith('px') || !n || ESCALA.has(n)) continue
+      if (!c[p].endsWith('px') || !n || SCALE.has(n)) continue
       const k = `${n}px ${p} ${el.tagName}.${(typeof el.className === 'string' ? el.className : '').split(' ')[0]}`
-      if (!vistos.has(k)) { vistos.add(k); out.espaciado.push(k) }
+      if (!seen.has(k)) { seen.add(k); out.espaciado.push(k) }
     }
 
-    // 3. controles: tamaño y nombre
+    // 3. controls: size and name
     if (['BUTTON','A','INPUT','SELECT','TEXTAREA'].includes(el.tagName)) {
-      const { w, h } = areaSensible(el)
-      if ((w < 24 || h < 24) && !enLinea(el)) out.tactil.push(`${el.tagName} ${w}×${h}  ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24)}`)
+      const { w, h } = hitArea(el)
+      if ((w < 24 || h < 24) && !isInline(el)) out.tactil.push(`${el.tagName} ${w}×${h}  ${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 24)}`)
       if (['BUTTON','A'].includes(el.tagName)) {
-        const nombre = (el.getAttribute('aria-label') || el.textContent || '').trim()
-        const etiquetado = el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
-        if (!nombre && !etiquetado) out.sinNombre.push(el.outerHTML.slice(0, 90))
+        const name = (el.getAttribute('aria-label') || el.textContent || '').trim()
+        const labelled = el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
+        if (!name && !labelled) out.sinNombre.push(el.outerHTML.slice(0, 90))
       }
     }
   }
 
-  // 4. desborde horizontal
+  // 4. horizontal overflow
   const d = document.documentElement
   out.desborde = d.scrollWidth > d.clientWidth ? `${d.scrollWidth} > ${d.clientWidth}` : null
 
-  // 5. ritmo vertical entre bloques de primer nivel
-  const hijos = [...raiz.children].filter(e => e.getBoundingClientRect().height > 0)
-  for (let i = 1; i < hijos.length; i++) {
-    out.ritmo.push(Math.round(hijos[i].getBoundingClientRect().top - hijos[i - 1].getBoundingClientRect().bottom))
+  // 5. vertical rhythm between top-level blocks
+  const children = [...root.children].filter(e => e.getBoundingClientRect().height > 0)
+  for (let i = 1; i < children.length; i++) {
+    out.ritmo.push(Math.round(children[i].getBoundingClientRect().top - children[i - 1].getBoundingClientRect().bottom))
   }
   return out
 }
 
-/** El contraste de un estado contra su reposo. Se le pasa el elemento apuntado. */
-function medirEstado(el, fondoReposo) {
-  return +ratio(lum(fondoReal(el)), lum(fondoReposo)).toFixed(3)
+/** The contrast of a state against its resting look. Pass it the element being pointed at. */
+function medirEstado(el, restingBackground) {
+  return +ratio(lum(realBackground(el)), lum(restingBackground)).toFixed(3)
 }
 
 async function recorrer(ms = 650) {
-  const espera = (t) => new Promise(r => setTimeout(r, t))
-  const todo = {}
+  const wait = (t) => new Promise(r => setTimeout(r, t))
+  const all = {}
   for (const t of document.querySelectorAll('nav[aria-label="Sections"] a')) {
-    t.click(); await espera(ms)
-    todo[t.textContent.trim().replace(/[^\w ]/g, '')] = medir()
+    t.click(); await wait(ms)
+    all[t.textContent.trim().replace(/[^\w ]/g, '')] = medir()
   }
-  return todo
+  return all
 }
 
 /*
-El barrido de estados: hover y foco de TODA la pantalla, no control a control.
+The state sweep: hover and focus across the WHOLE screen, not control by control.
 
-`medirEstado` obliga a apuntar un elemento y saberse su reposo de memoria, así
-que en la práctica se mide un botón y se dan por buenos los otros cuarenta. Esto
-lo hace al revés: lee las reglas `:hover` y `:focus-visible` de las hojas de
-estilo, busca a quién le tocan en esta pantalla, y compara el color que la regla
-declara contra el fondo real que ese elemento tiene AHORA, en reposo.
+`medirEstado` forces you to point at an element and know its resting look from
+memory, so in practice you measure one button and take the other forty on faith.
+This does it the other way round: it reads the `:hover` and `:focus-visible` rules
+from the stylesheets, finds who they apply to on this screen, and compares the
+colour the rule declares against the real background that element has NOW, at
+rest.
 
-Por debajo de 1.20:1 el ojo no separa dos planos. Así salió el `--hover` que era
-un color fijo y daba 1.11:1 sobre el escalón elevado.
+Below 1.20:1 the eye does not separate two planes. That is how the `--hover` that
+was a fixed colour and gave 1.11:1 over the raised step came out.
 
     barridoEstados()
 */
 /*
-De qué color se pinta un estado, según lo que la regla haya escrito.
+What colour a state is painted, according to what the rule wrote.
 
-Con `background-color: var(--hover)` basta leer la longhand. Con la forma
-abreviada `background: var(--hover)` NO: el navegador guarda el shorthand como
-«sustitución pendiente» y devuelve cadena vacía en todas sus longhands. De 33
-reglas de hover y foco, eso dejaba fuera a 22 — las que más importan, porque
-escribir la abreviada es lo natural.
+With `background-color: var(--hover)` reading the longhand is enough. With the
+shorthand `background: var(--hover)` it is NOT: the browser stores the shorthand
+as a "pending substitution" and returns an empty string for all its longhands.
+Out of 33 hover and focus rules, that left 22 out — the ones that matter most,
+because writing the shorthand is the natural thing to do.
 */
-function coloresDeLaRegla(estilo) {
-  const salida = []
+function ruleColours(style) {
+  const out = []
   for (const prop of ['background-color', 'background', 'border-color', 'border',
                       'outline-color', 'outline', 'box-shadow']) {
-    const v = estilo.getPropertyValue(prop).trim()
+    const v = style.getPropertyValue(prop).trim()
     if (!v || v === 'transparent' || v === 'inherit' || v === 'none') continue
     const m = v.match(/var\([^()]*(?:\([^()]*\)[^()]*)*\)|#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/i)
-    if (m) salida.push({ color: m[0], prop })
-    else if (prop.endsWith('-color')) salida.push({ color: v, prop })
+    if (m) out.push({ color: m[0], prop })
+    else if (prop.endsWith('-color')) out.push({ color: v, prop })
   }
-  return salida
+  return out
 }
 
-function barridoEstados(raiz = document.body, minimo = 1.2) {
-  const flojos = []
-  const vistos = new Set()
-  let reglas = 0, pares = 0
+function barridoEstados(root = document.body, minimum = 1.2) {
+  const weak = []
+  const seen = new Set()
+  let rules = 0, pairs = 0
 
-  for (const hoja of document.styleSheets) {
-    let cssReglas
-    try { cssReglas = hoja.cssRules } catch { continue }  // hoja de otro origen
-    for (const regla of cssReglas) {
-      if (!regla.selectorText || !/:(hover|focus-visible)\b/.test(regla.selectorText)) continue
+  for (const sheet of document.styleSheets) {
+    let cssRules
+    try { cssRules = sheet.cssRules } catch { continue }  // cross-origin sheet
+    for (const rule of cssRules) {
+      if (!rule.selectorText || !/:(hover|focus-visible)\b/.test(rule.selectorText)) continue
 
-      const decls = coloresDeLaRegla(regla.style)
+      const decls = ruleColours(rule.style)
       if (!decls.length) continue
-      reglas++
-      // Un `outline` con offset y una `box-shadow` se pintan FUERA de la caja:
-      // se ven contra el fondo del padre, no contra el del propio elemento.
-      // Compararlos contra el elemento daba 1.00:1 en la pestaña seleccionada
-      // —anillo ámbar sobre botón ámbar— y ahí no hay defecto ninguno: el anillo
-      // cae sobre la barra lateral, que es oscura.
+      rules++
+      // An `outline` with an offset and a `box-shadow` are painted OUTSIDE the
+      // box: they are seen against the parent's background, not the element's
+      // own. Comparing them against the element gave 1.00:1 on the selected tab
+      // —amber ring over amber button— and there is no defect there at all: the
+      // ring falls on the sidebar, which is dark.
 
 
-      for (const sel of regla.selectorText.split(',')) {
+      for (const sel of rule.selectorText.split(',')) {
         const base = sel.replace(/:(hover|focus-visible)\b/g, '').trim()
         if (!base) continue
-        let elementos
-        try { elementos = raiz.querySelectorAll(base) } catch { continue }
-        for (const el of elementos) {
+        let elements
+        try { elements = root.querySelectorAll(base) } catch { continue }
+        for (const el of elements) {
           const r = el.getBoundingClientRect()
           if (!r.width || !r.height) continue
-          /* Una regla de hover suele cambiar VARIAS cosas a la vez: la casilla
-             marcada tiñe un `border-color` que ya valía lo mismo y a la vez
-             añade un anillo de `box-shadow` que sí se ve. Quedarse con la
-             primera propiedad daba 1.00:1 y un defecto que no existe. Se mide
-             cada canal y manda el que MÁS cambia: si uno solo se percibe, el
-             estado se percibe. */
-          let mejor = null
+          /* A hover rule usually changes SEVERAL things at once: the checked
+             checkbox tints a `border-color` that was already worth the same and
+             at the same time adds a `box-shadow` ring that is visible. Keeping
+             the first property gave 1.00:1 and a defect that does not exist. Each
+             channel is measured and the one that changes MOST wins: if a single
+             one is perceived, the state is perceived. */
+          let best = null
           for (const decl of decls) {
-            const declarado = resolverColor(decl.color, el)
-            const ld = lum(declarado)
+            const declared = resolveColour(decl.color, el)
+            const ld = lum(declared)
             if (ld == null) continue
-            const fuera = decl.prop.startsWith('outline') || decl.prop === 'box-shadow'
-            const reposo = fondoReal(fuera ? (el.parentElement ?? el) : el)
-            const cr = +ratio(ld, lum(reposo)).toFixed(3)
-            if (mejor == null || cr > mejor.cr) mejor = { cr, decl, declarado, reposo }
+            const outside = decl.prop.startsWith('outline') || decl.prop === 'box-shadow'
+            const resting = realBackground(outside ? (el.parentElement ?? el) : el)
+            const cr = +ratio(ld, lum(resting)).toFixed(3)
+            if (best == null || cr > best.cr) best = { cr, decl, declared, resting }
           }
-          if (mejor == null) continue
-          pares++
-          const { cr, decl, declarado, reposo } = mejor
-          if (cr >= minimo) continue
+          if (best == null) continue
+          pairs++
+          const { cr, decl, declared, resting } = best
+          if (cr >= minimum) continue
           const k = `${sel}|${cr}`
-          if (vistos.has(k)) continue
-          vistos.add(k)
-          flojos.push({
+          if (seen.has(k)) continue
+          seen.add(k)
+          weak.push({
             cr,
-            estado: /focus-visible/.test(sel) ? 'foco' : 'hover',
+            estado: /focus-visible/.test(sel) ? 'focus' : 'hover',
             selector: sel.trim().slice(0, 60),
-            declarado: `${decl.prop}: ${decl.color} = ${declarado}`,
-            reposo,
+            declarado: `${decl.prop}: ${decl.color} = ${declared}`,
+            reposo: resting,
             ejemplo: (el.textContent || el.tagName).trim().slice(0, 30),
           })
         }
       }
     }
   }
-  // El recuento va en la respuesta a propósito: un barrido que no mide ningún
-  // par también devuelve [], y eso no es un aprobado, es una herramienta muerta.
-  return { reglas, pares, flojos: flojos.sort((a, b) => a.cr - b.cr) }
+  // The counts are in the response on purpose: a sweep that measures no pairs
+  // also returns [], and that is not a pass, it is a dead tool.
+  return { reglas: rules, pares: pairs, flojos: weak.sort((a, b) => a.cr - b.cr) }
 }

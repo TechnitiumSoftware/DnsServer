@@ -1,41 +1,40 @@
 #!/usr/bin/env bash
-# Compara la consola de dev (5380) con la de referencia (5381).
-# Uso: ./check-paridad.sh [ruta]   (por defecto: /)
+# Compares the dev console (5380) against the reference one (5381).
+# Usage: ./check-paridad.sh [path]   (default: /)
 #
-# Compara CONTENIDO, no bytes: se normalizan los finales de línea antes de
-# hashear. Hace falta porque el .gitattributes de upstream usa `* text=auto`,
-# así que el repositorio guarda LF y el checkout convierte según la plataforma:
-# nuestro árbol en Linux tiene LF, y la imagen oficial de Docker trae CRLF
-# porque se construyó en Windows. Sin normalizar, dos ficheros idénticos
-# saldrían distintos por 7.426 bytes de más (uno por línea, en el caso de
-# index.html).
+# It compares CONTENT, not bytes: line endings are normalised before hashing.
+# This is needed because upstream's .gitattributes uses `* text=auto`, so the
+# repository stores LF and the checkout converts according to the platform: our
+# tree on Linux has LF, and the official Docker image ships CRLF because it was
+# built on Windows. Without normalising, two identical files would come out
+# different by 7,426 extra bytes (one per line, in the case of index.html).
 set -euo pipefail
 
-RUTA="${1:-/}"
-DEV="http://127.0.0.1:5380${RUTA}"
-REF="http://127.0.0.1:5381${RUTA}"
+PATH_="${1:-/}"
+DEV="http://127.0.0.1:5380${PATH_}"
+REF="http://127.0.0.1:5381${PATH_}"
 
 for url in "$DEV" "$REF"; do
   if ! curl -sfo /dev/null "$url"; then
-    echo "FALLO: $url no responde"
+    echo "FAILED: $url does not answer"
     exit 1
   fi
 done
 
-hash_normalizado() {
+normalised_hash() {
   curl -s "$1" | tr -d '\r' | sha256sum | cut -d' ' -f1
 }
 
-d=$(hash_normalizado "$DEV")
-r=$(hash_normalizado "$REF")
+d=$(normalised_hash "$DEV")
+r=$(normalised_hash "$REF")
 
 echo "dev $d"
 echo "ref $r"
 
 if [ "$d" = "$r" ]; then
-  echo "IDENTICOS"
+  echo "IDENTICAL"
   exit 0
 else
-  echo "DISTINTOS"
+  echo "DIFFERENT"
   exit 2
 fi

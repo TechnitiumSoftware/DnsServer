@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# El servidor honra X-Forwarded-Prefix y monta un PathBase
-# (DnsWebService.cs:1943-1945). Esta comprobación simula ese proxy y verifica
-# que el bundle se pide en relativo, no en absoluto.
+# The server honours X-Forwarded-Prefix and mounts a PathBase
+# (DnsWebService.cs:1943-1945). This check simulates that proxy and verifies the
+# bundle is requested relatively, not absolutely.
 set -euo pipefail
 
-PREFIJO="/dns"
+PREFIX="/dns"
 BASE="http://127.0.0.1:5380"
 
-html=$(curl -s -H "X-Forwarded-Prefix: ${PREFIJO}" -H "X-Forwarded-Proto: https" "${BASE}/")
+html=$(curl -s -H "X-Forwarded-Prefix: ${PREFIX}" -H "X-Forwarded-Proto: https" "${BASE}/")
 
-rutas=$(echo "$html" | grep -oE '(src|href)="[^"]+"' | sed -E 's/^(src|href)="//; s/"$//')
+paths=$(echo "$html" | grep -oE '(src|href)="[^"]+"' | sed -E 's/^(src|href)="//; s/"$//')
 
-echo "Rutas emitidas:"
-echo "$rutas" | sed 's/^/  /'
+echo "Emitted paths:"
+echo "$paths" | sed 's/^/  /'
 
-if echo "$rutas" | grep -q '^/'; then
-  echo "FALLO: hay rutas absolutas. Con un proxy en ${PREFIJO} el navegador las pediría fuera del prefijo y darían 404."
+if echo "$paths" | grep -q '^/'; then
+  echo "FAILED: there are absolute paths. Behind a proxy at ${PREFIX} the browser would request them outside the prefix and they would 404."
   exit 1
 fi
 
-echo "OK: todas las rutas son relativas; sobreviven a un proxy con prefijo."
+echo "OK: every path is relative; they survive a prefixed proxy."

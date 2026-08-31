@@ -1,11 +1,11 @@
-# Harness de desarrollo de technitium-ui. NO es el compose de producción de
-# upstream (ese es ../docker-compose.yml y no se toca).
+# technitium-ui development harness. This is NOT upstream's production compose
+# (that one is ../docker-compose.yml and is left alone).
 #
-#   dev  -> imagen oficial + nuestro www/ montado encima  -> 127.0.0.1:5380
-#   ref  -> imagen oficial intacta (consola de upstream)  -> 127.0.0.1:5381
+#   dev  -> official image + our www/ mounted on top   -> 127.0.0.1:5380
+#   ref  -> official image untouched (upstream console) -> 127.0.0.1:5381
 #
-# Sin puerto 53 (systemd-resolved lo ocupa en WSL) y sin DHCP: aquí solo se
-# prueba la consola web.
+# No port 53 (systemd-resolved holds it on WSL) and no DHCP: only the web
+# console is exercised here.
 services:
   dev:
     container_name: technitium-ui-dev
@@ -32,9 +32,9 @@ services:
       - ref-config:/etc/dns
     restart: unless-stopped
 
-  # Sólo para revisar los 9 diálogos de Cluster, que sin un segundo nodo no se
-  # pueden ni abrir. NO se usa `ref` para esto: unirlo a un cluster sincroniza su
-  # configuración con la del primario y lo inutiliza como referencia de upstream.
+  # Only for reviewing the 9 Cluster dialogs, which without a second node cannot
+  # even be opened. `ref` is NOT used for this: joining it to a cluster syncs its
+  # config with the primary and destroys its value as the upstream reference.
   nodo2:
     container_name: technitium-ui-nodo2
     image: docker.io/technitium/dns-server:latest
@@ -44,8 +44,8 @@ services:
       - DNS_SERVER_DOMAIN=nodo2.technitium-ui.test
       - DNS_SERVER_ADMIN_PASSWORD=technitium-ui-dev
     volumes:
-      # También con la consola nueva: los diálogos «Promote To Primary» y
-      # «Edit Node» del primario SÓLO existen desde la consola de un secundario.
+      # With the new console too: the "Promote To Primary" and "Edit Node"
+      # dialogs of the primary ONLY exist from a secondary's console.
       - ../DnsServerCore/www:/opt/technitium/dns/www:ro
       - nodo2-config:/etc/dns
     restart: unless-stopped

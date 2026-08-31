@@ -1,39 +1,39 @@
 #!/usr/bin/env bash
-# Empaqueta medir-pantalla.js como snippet de Playwright, para inyectarlo con
-# browser_run_code_unsafe --filename sin tener que pegarlo en cada sesión. El
-# servidor MCP sólo lee dentro del repo de ORBITLAB, así que la salida va ahí.
+# Packages medir-pantalla.js as a Playwright snippet, to inject it with
+# browser_run_code_unsafe --filename instead of pasting it every session. The
+# MCP server only reads inside the ORBITLAB repo, so the output goes there.
 #
-# El fichero se serializa como literal JSON, no como plantilla: `medir-pantalla.js`
-# lleva sus propias plantillas con acento grave, y meterlas dentro de otra
-# —String.raw incluida— produce un `SyntaxError` en cuanto se evalúa.
+# The file is serialised as a JSON literal, not as a template: `medir-pantalla.js`
+# carries its own backtick templates, and nesting them inside another one
+# —String.raw included— produces a `SyntaxError` as soon as it is evaluated.
 set -euo pipefail
 cd "$(dirname "$0")"
-DESTINO="${1:-../../../.playwright-mcp/inyectar-medicion.js}"
-mkdir -p "$(dirname "$DESTINO")"
+TARGET="${1:-../../../.playwright-mcp/inyectar-medicion.js}"
+mkdir -p "$(dirname "$TARGET")"
 
-python3 - "$DESTINO" <<'PY'
+python3 - "$TARGET" <<'PY'
 import json, sys, pathlib
 
 import re
-# Los comentarios son la mitad del fichero y no sirven de nada dentro del
-# navegador; fuera, que este payload viaja entero en cada inyección.
-fuente = pathlib.Path('medir-pantalla.js').read_text(encoding='utf-8')
-fuente = re.sub(r'/\*[\s\S]*?\*/', '', fuente)
-fuente = re.sub(r'^\s*//.*$', '', fuente, flags=re.M)
-fuente = re.sub(r'^[ \t]+', '', fuente, flags=re.M)
-fuente = re.sub(r'\n\s*\n+', '\n', fuente)
-expuestas = ['medir', 'medirEstado', 'recorrer', 'barridoEstados']
-cuerpo = fuente + '\n' + ''.join(f'window.{n}={n};' for n in expuestas)
+# The comments are half the file and are of no use inside the browser; out they
+# go, because this payload travels whole on every injection.
+source = pathlib.Path('medir-pantalla.js').read_text(encoding='utf-8')
+source = re.sub(r'/\*[\s\S]*?\*/', '', source)
+source = re.sub(r'^\s*//.*$', '', fuente, flags=re.M)
+source = re.sub(r'^[ \t]+', '', fuente, flags=re.M)
+source = re.sub(r'\n\s*\n+', '\n', source)
+exposed = ['medir', 'medirEstado', 'recorrer', 'barridoEstados']
+body = source + '\n' + ''.join(f'window.{n}={n};' for n in exposed)
 
 pathlib.Path(sys.argv[1]).write_text(
     'async (page) => {\n'
-    f'  const boot = "(()=>{{" + {json.dumps(cuerpo)} + "}})()";\n'
+    f'  const boot = "(()=>{{" + {json.dumps(body)} + "}})()";\n'
     '  await page.addInitScript(boot);\n'
     '  await page.evaluate(boot);\n'
     '  return await page.evaluate(() => '
-    f'({json.dumps(expuestas)}.map((n) => `${{n}}:${{typeof window[n]}}`)));\n'
+    f'({json.dumps(exposed)}.map((n) => `${{n}}:${{typeof window[n]}}`)));\n'
     '}\n',
     encoding='utf-8',
 )
 PY
-echo "$DESTINO"
+echo "$TARGET"
