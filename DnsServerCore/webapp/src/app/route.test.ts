@@ -151,19 +151,19 @@ describe('writeRoute', () => {
 })
 
 /*
-El nombre del `<meta>` lo escribe el build y lo lee la aplicación, y son dos
-ficheros distintos. Los casos de arriba no pueden ver esa junta porque escriben
-el meta con el mismo nombre con el que lo leen: siempre están de acuerdo consigo
-mismos.
+The name of the `<meta>` is written by the build and read by the application, and
+those are two different files. The cases above cannot see that joint because they
+mount the meta under the same name they then read it by: they always agree with
+themselves.
 
-Y esa junta se rompió de verdad. Al pasar `ruta` a `route`, `vite.config.ts`
-empezó a emitir `<meta name="route">` mientras `app/base.ts` seguía buscando
-`meta[name="ruta"]` —dentro de una cadena, que es justo donde el renombrado no
-entra—. Resultado: la raíz caía al `pathname` completo y desde `/dhcp/scopes/`
-la consola pedía `/dhcp/scopes/api/status`. 404 en 31 de las 32 rutas, con el
-typecheck, el lint y las 821 pruebas en verde.
+And that joint really did break. On renaming `ruta` to `route`, `vite.config.ts`
+started emitting `<meta name="route">` while `app/base.ts` kept looking for
+`meta[name="ruta"]` —inside a string, which is exactly where a rename does not
+reach. The result: the root fell back to the whole `pathname` and from
+`/dhcp/scopes/` the console asked for `/dhcp/scopes/api/status`. A 404 on 31 of
+the 32 routes, with typecheck, lint and 821 tests all green.
 
-Este caso lee los dos ficheros de disco y comprueba que dicen el mismo nombre.
+This case reads both files and checks they say the same name.
 */
 describe('the `<meta>` name is the same on both sides of the build', () => {
   it('vite.config.ts writes the one app/base.ts reads', async () => {

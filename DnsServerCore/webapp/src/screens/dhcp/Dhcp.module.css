@@ -33,16 +33,16 @@ title out again.
 .bar { composes: bar from '../../ui/PanelForm.module.css'; }
 
 /*
-Tres clases que el formulario de scope PEDÍA y que no estaban aquí, así que
-`styles.ctlLine`, `styles.suffix` y `styles.area` valían `undefined` y el
-navegador no aplicaba nada. No se veía en typecheck ni en las pruebas —una clase
-que no existe no es un error de tipos, es una cadena vacía— y se destapó midiendo
-en el navegador: los sufijos «Days / Hours / Minutes» del tiempo de concesión
-salían a 13 px y en color de texto principal en vez de a 11,5 y apagados.
+Three classes the scope form ASKED FOR that were not here, so `styles.ctlLine`,
+`styles.suffix` and `styles.area` were `undefined` and the browser applied
+nothing. Neither typecheck nor the tests could see it —a class that does not
+exist is not a type error, it is an empty string— and it turned up by measuring
+in the browser: the "Days / Hours / Minutes" suffixes of the lease time came out
+at 13 px in the main ink colour instead of at 11.5 and muted.
 
-Son las mismas tres que ya declaran Administration y Zones, compuestas de las
-mismas fuentes: es exactamente el fallo que este proyecto persigue —lo mismo
-escrito en varios sitios— sólo que aquí faltaba una de las copias.
+They are the same three Administration and Zones already declare, composed from
+the same sources: it is exactly the defect this project chases —the same thing
+written in several places— except that here one of the copies was missing.
 */
 .ctlLine { composes: inline from '../../ui/PanelForm.module.css'; }
 .suffix { composes: trailer from '../../ui/text.module.css'; }
