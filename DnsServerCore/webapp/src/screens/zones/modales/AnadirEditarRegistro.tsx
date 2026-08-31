@@ -7,7 +7,6 @@ import {
   type Registro,
   type ZonaDeRegistros,
 } from '../../../api/registros'
-import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
@@ -30,6 +29,7 @@ import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { GroupRow } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalAddEditRecord` (zone.js:4395 alta, 5295 edición). Un solo formulario para
@@ -172,13 +172,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.campos}>
         <Field label="Name">

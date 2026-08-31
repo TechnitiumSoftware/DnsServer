@@ -11,11 +11,12 @@ import {Empty, Loading} from '../../ui/Empty'
 import styles from './Dashboard.module.css'
 import { Cuerpo, Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { type AlertType } from '../../ui/Alert'
 import { MenuBloqueo } from './MenuBloqueo'
 import { instantesDelRango, loQueFalta } from './rango-personalizado'
 import { Segmentado } from '../../ui/Segmentado'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Las once métricas, en el orden de upstream y con sus etiquetas literales.
@@ -239,13 +240,7 @@ export function Dashboard({ token }: { token: string | null }) {
         </div>
       )}
 
-      {aviso && (
-        <div className={styles.aviso}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (

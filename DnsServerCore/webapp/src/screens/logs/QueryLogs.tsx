@@ -12,7 +12,6 @@ import {
   type QueryLogPage,
   type QueryLogsParams,
 } from '../../api/logs'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -24,6 +23,7 @@ import styles from './Logs.module.css'
 import { ventanaDePaginas } from '../../lib/paginacion'
 import { Paginacion } from '../../ui/Paginacion'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Logs › Query Logs (logs.js:20-101 y 270-710).
@@ -409,11 +409,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         </>}
       />
 
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fs}>
         <h3 className={styles.fsTitle}>Filters</h3>

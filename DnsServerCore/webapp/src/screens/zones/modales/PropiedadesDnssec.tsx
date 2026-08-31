@@ -44,6 +44,7 @@ import { RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { Th, useOrden, type Claves, Tabla } from '../../../ui/Table'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalDnssecProperties` (zone.js:6799-7400). Es la pantalla más viva del
@@ -327,13 +328,7 @@ export function PropiedadesDnssec({
       tamano="ancho"
       title={`DNSSEC Properties - ${zone === '.' ? '<root>' : zone}`}
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       {cargando && props == null ? (
         <Loading>Loading DNSSEC properties…</Loading>

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { updateApp } from '../../api/apps'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de `showUpdateAppModal` / `updateApp` (apps.js:211-218 y 381-423).
@@ -72,11 +72,7 @@ export function UpdateApp({
         </>
       }
     >
-      {alert && (
-        <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-          {alert.text}
-        </Alert>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="App Name" value={name} disabled readOnly />
       <LabeledInput label="App Zip File" type="file" ref={fileRef} />
     </Dialog>

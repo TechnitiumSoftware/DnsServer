@@ -1,13 +1,14 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../api/client'
 import { getStatus } from '../api/status'
-import { Alert, type AlertType } from '../ui/Alert'
+import { type AlertType } from '../ui/Alert'
 import { Button } from '../ui/Button'
 import { LabeledInput } from '../ui/Field'
 import { ForgotPassword } from './modals/ForgotPassword'
 import styles from './Login.module.css'
 import { urlPublica } from '../app/base'
-import { PIE } from '../app/pie'
+import { PieDeEnlaces } from '../ui/PieDeEnlaces'
+import { Avisador } from '../ui/Avisador'
 
 /*
 Pantalla de login. Réplica de `login()` en
@@ -192,13 +193,7 @@ export function Login({
           <span className={styles.name}>Technitium DNS Server</span>
         </div>
 
-        {alert && (
-          <div className={styles.alertSlot}>
-            <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-              {alert.text}
-            </Alert>
-          </div>
-        )}
+        <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
 
         <form
           className={styles.form}
@@ -260,14 +255,7 @@ export function Login({
 
       {/* El pie de upstream se ve también en su pantalla de login, porque cuelga
           del `body` y no del panel. Ver `app/pie.ts`. */}
-      <div className={styles.pie}>
-        {PIE.map((e, i) => (
-          <Fragment key={e.href}>
-            {i > 0 && <span className={styles.sep}> | </span>}
-            <a href={e.href} aria-label={e.nombre} target="_blank" rel="noreferrer">{e.texto}</a>
-          </Fragment>
-        ))}
-      </div>
+      <PieDeEnlaces className={styles.pie} />
 
       <ForgotPassword open={olvido} onOpenChange={setOlvido} />
     </div>

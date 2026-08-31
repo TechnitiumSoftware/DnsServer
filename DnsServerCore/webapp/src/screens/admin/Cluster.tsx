@@ -38,6 +38,7 @@ import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { GroupRow } from '../../ui/Form'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 La sub-pestaña Cluster (`cluster.js` entera, 1.055 líneas). Doce endpoints y
@@ -612,11 +613,7 @@ function NuevoCluster({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       {cargando ? (
         <Loading />
       ) : yaEsta ? null : (
@@ -833,11 +830,7 @@ function UnirseCluster({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       {cargando ? (
         <Loading />
       ) : yaEsta ? null : (
@@ -1139,11 +1132,7 @@ function OpcionesCluster({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       {cargando ? (
         <Loading />
       ) : (
@@ -1243,11 +1232,7 @@ function EditarNodoPropio({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       {cargando ? (
         <Loading />
       ) : (
@@ -1330,11 +1315,7 @@ function EditarNodoPrimario({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <MRow label="Primary Node URL" help="The Web Service HTTPS URL of the Primary node in the Cluster.">
         {(id) => (
           <Input
@@ -1413,11 +1394,7 @@ function QuitarNodo({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <p className={styles.parrafo}>
         The Remove Node process will ask the selected Secondary node to leave the Cluster gracefully.
         The Secondary will then initiate Leave Cluster process as if the Leave Cluster action was
@@ -1485,11 +1462,7 @@ function PromocionarNodo({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <p className={styles.parrafo}>
         The promote To Primary node process will resync complete configuration from the Primary node
         and then proceed to delete it from the Cluster followed by upgrading the selected Secondary
@@ -1562,11 +1535,7 @@ function DejarCluster({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <p className={styles.parrafo}>
         The Leave Cluster process will remove all Cluster configuration from this Secondary node and
         leave the Cluster gracefully. There will be no data loss except for the Cluster
@@ -1630,11 +1599,7 @@ function BorrarCluster({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <p className={styles.parrafo}>
         The Delete Cluster process will remove all Cluster configuration from this Primary node.
         There will be no data loss except for the Cluster configuration. You will need to

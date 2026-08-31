@@ -29,6 +29,7 @@ import frm from '../../../ui/Form.module.css'
 import { GroupRow } from '../../../ui/Form'
 import { Segmentado } from '../../../ui/Segmentado'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalZoneOptions` (zone.js:1524 y 2380). Cinco pestañas y una matriz de
@@ -127,13 +128,7 @@ export function OpcionesZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       {cargando || f == null || e == null ? (
         <Loading>Loading zone options…</Loading>

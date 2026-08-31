@@ -14,7 +14,6 @@ import {
   type ListaDominios,
   type NodoLista,
 } from '../../api/zonelists'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Confirmar } from '../../ui/Confirmar'
 import { Dialog } from '../../ui/Dialog'
@@ -25,6 +24,7 @@ import { Arbol } from './Arbol'
 import { Registros } from './Registros'
 import styles from './Listas.module.css'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Cache, Allowed y Blocked. Una sola pantalla porque en upstream son tres copias
@@ -138,13 +138,7 @@ function Importar({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <p className={styles.parrafo}>{intro}</p>
       <LabeledTextarea
         label={etiqueta}
@@ -385,13 +379,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
           )}</>}
       />
 
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.brow}>
         <div className={styles.tree}>

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { apiRequest } from '../../api/client'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /* Réplica de `createMyApiToken()` (auth.js:337-381). */
 export function CreateApiToken({
@@ -62,11 +63,7 @@ export function CreateApiToken({
         </>
       }
     >
-      {alert && (
-        <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-          {alert.text}
-        </Alert>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="Username" value={username} readOnly />
       <LabeledInput label="Token Name" value={name} onChange={(e) => setName(e.target.value)} />
       {created && <LabeledInput label="Token" mono value={created} readOnly />}

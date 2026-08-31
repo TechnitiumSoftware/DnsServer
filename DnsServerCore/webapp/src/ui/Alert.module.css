@@ -42,10 +42,16 @@ Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
 .danger  { composes: dan from './tonos.module.css'; }
 
 /*
-El aire que deja un aviso debajo, cuando va suelto sobre el contenido de una
-pantalla. Estaba escrito en seis módulos con dos nombres —`.aviso` y
-`.avisoHueco`— y con dos distancias: 24 px en cinco pantallas y 14 en el
-Dashboard, sin que la diferencia significara nada. `--hueco-bloque` es el token
-que nombra esa distancia; el número suelto no nombraba nada.
+El aire que deja un aviso debajo. Estaba escrito en once módulos con tres
+nombres —`.aviso`, `.avisoHueco` y `.alertSlot`— y salían cuatro distancias:
+24 px en Zones y sus modales, Listas, Administration, Dashboard, DNS Client y
+Apps; 14 en DHCP, en Logs y en el login; y 12 en los cuatro modales de cuenta,
+donde el aviso iba suelto y se quedaba con el `gap` del contenedor.
+
+La resta es la misma que hace la cabecera de sección: en un contenedor `flex`
+con `gap`, el margen del hijo SE SUMA al hueco, así que 24 de margen dentro de
+un `gap` de 14 dan 38. `--hueco` lo declara `.pantalla` en
+`SectionHeader.module.css` y se hereda; fuera de ahí no existe y la reserva
+vale 0, que es justo lo que hace falta.
 */
-.hueco { margin-bottom: var(--hueco-bloque); }
+.hueco { margin-bottom: calc(var(--hueco-bloque) - var(--hueco, 0px)); }

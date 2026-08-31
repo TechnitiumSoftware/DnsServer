@@ -7,6 +7,7 @@ import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { GroupRow } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalConvertZone` (zone.js:1387 y 1443).
@@ -106,13 +107,7 @@ export function ConvertirZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.campos}>
         <GroupRow modal label="Convert To">

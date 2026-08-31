@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input } from '../../ui/Field'
@@ -28,6 +27,7 @@ import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { nuncaUsado } from '../../api/zones'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 `refreshAdminUsers` y las siete acciones de la fila (auth.js:1083-1698).
@@ -403,11 +403,7 @@ function AnadirUsuario({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <MRow label="Display Name">
         {(id) => (
           <Input
@@ -523,11 +519,7 @@ function ResetearContrasena({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <MRow label="Username">{(id) => <Input id={id} value={username} readOnly />}</MRow>
       <MRow label="New Password">
         {(id) => (

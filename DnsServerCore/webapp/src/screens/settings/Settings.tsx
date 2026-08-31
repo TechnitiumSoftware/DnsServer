@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { openDownload } from '../../api/user'
@@ -29,6 +28,7 @@ import { Fallo, Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
 import formulario from '../../ui/Ajustes.module.css'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Settings. La pantalla más grande de la consola: en upstream, sólo la sub-pestaña
@@ -279,11 +279,7 @@ export function Settings({
           así que no servía ni para orientarse ni para buscar con Ctrl+F. */}
       <SectionHeader seccion="Settings" titulo={activa} />
 
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div>
         {activa === 'General' && <General {...props} />}

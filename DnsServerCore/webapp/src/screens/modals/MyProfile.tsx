@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiRequest } from '../../api/client'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
@@ -11,6 +11,7 @@ import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
@@ -133,11 +134,7 @@ export function MyProfile({
         </>
       }
     >
-      {alert && (
-        <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-          {alert.text}
-        </Alert>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="Username" value={profile?.username ?? ''} readOnly />
       <LabeledInput label="User Type" value={profile?.isSsoUser ? 'Remote/SSO' : 'Local'} readOnly />
       {/* auth.js:667-674 — en un usuario de SSO el 2FA no lo lleva esta consola. */}

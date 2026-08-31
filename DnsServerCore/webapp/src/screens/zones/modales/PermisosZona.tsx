@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { getZonePermissions, serializarPermisos, setZonePermissions } from '../../../api/zones'
-import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Select } from '../../../ui/Field'
@@ -9,6 +8,7 @@ import type { Aviso } from '../tipos'
 import { Tabla } from '../../../ui/Table'
 import styles from '../Zones.module.css'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalEditPermissions` para una zona (zone.js:2544 y 2616).
@@ -129,13 +129,7 @@ export function PermisosZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       {cargando ? (
         <Loading>Loading permissions…</Loading>

@@ -9,6 +9,7 @@ import styles from '../Zones.module.css'
 import frm from '../../../ui/Form.module.css'
 import { GroupRow, Row } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalImportZone` (zone.js:1227 y 1251). Dos formas de dar el fichero —subirlo
@@ -97,13 +98,7 @@ export function ImportarZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.campos}>
         <GroupRow modal label="Import Options">

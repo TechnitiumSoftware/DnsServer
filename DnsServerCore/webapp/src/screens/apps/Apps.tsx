@@ -6,7 +6,7 @@ import {
   uninstallApp,
   type InstalledApp,
 } from '../../api/apps'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { AppConfig } from './AppConfig'
@@ -18,6 +18,7 @@ import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de la pestaña Apps (apps.js + index.html:807-835).
@@ -131,13 +132,7 @@ export function Apps({ token }: { token: string | null }) {
 
   return (
     <>
-      {alert && (
-        <div className={styles.aviso}>
-          <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-            {alert.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
 
       <SectionHeader
         titulo="Apps"

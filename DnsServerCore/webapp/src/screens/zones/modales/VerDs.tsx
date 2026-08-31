@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { verDs, type InfoDs } from '../../../api/dnssec'
-import { Alert } from '../../../ui/Alert'
 import { Dialog } from '../../../ui/Dialog'
 import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
 import type { Aviso } from '../tipos'
 import { Tabla } from '../../../ui/Table'
 import styles from '../Zones.module.css'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalDnssecViewDs` (zone.js:6734). Es un visor: no hay nada que guardar.
@@ -73,13 +73,7 @@ export function VerDs({
       tamano="ancho"
       title={`View DS Info - ${zone === '.' ? '<root>' : zone}`}
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <p className={styles.parrafo}>
         Use the DNS Key data given below to add DS records for your zone. Before adding the DS records, you

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createZone, listCatalogs } from '../../../api/zones'
 import { getTsigKeyNames } from '../../../api/settings'
-import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
@@ -25,6 +24,7 @@ import { Ayuda, Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
 import { GroupRow, Row } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalAddZone` (zone.js:2726 y 2911). Ocho tipos de zona, cada uno con su
@@ -128,13 +128,7 @@ export function AnadirZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.campos}>
         <Field label="Zone">

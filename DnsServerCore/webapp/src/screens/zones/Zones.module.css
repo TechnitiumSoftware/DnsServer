@@ -33,7 +33,6 @@
 
 /* Menú desplegable de acciones de fila y de cabecera */
 
-.avisoHueco { composes: hueco from '../../ui/Alert.module.css'; }
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 

@@ -1,0 +1,31 @@
+/*
+Los cinco enlaces de upstream que cuelgan del `body`. Ver `app/pie.ts` para
+cuáles son y por qué están.
+
+El marcado y el tratamiento del enlace estaban escritos dos veces —en el panel
+lateral y en la pantalla de login— y de ahí salieron dos objetivos distintos
+para el mismo enlace: `padding: var(--s-2) var(--s-1)` en uno y
+`var(--s-1) 0` en el otro. Aquí van una vez.
+
+Lo que sí decide cada sitio es el CUERPO y la alineación: en el panel va apretado
+contra el borde y en el login centrado bajo la tarjeta. Eso lo pone el
+`className` de quien lo usa.
+*/
+
+.pie { color: var(--faint); }
+
+/* El nombre no se parte —«DNS Client» caía en dos renglones—, pero el corte
+   sigue siendo posible: el separador va suelto entre las anclas, con sus
+   espacios, igual que en upstream. Ponerle `nowrap` al envoltorio en vez de al
+   enlace dejaba la lista sin un solo punto de corte y el lateral desbordaba
+   47 px en horizontal. */
+.pie a {
+  color: var(--faint);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: var(--s-2) var(--s-1);
+}
+
+.pie a:hover { color: var(--ink); text-decoration: underline; }
+
+.sep { color: var(--line); }

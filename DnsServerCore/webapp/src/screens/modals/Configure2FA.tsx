@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { apiRequest } from '../../api/client'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de `showConfigure2FAModal` / `enable2FA` / `disable2FA`
@@ -109,11 +110,7 @@ export function Configure2FA({
         </>
       }
     >
-      {alert && (
-        <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-          {alert.text}
-        </Alert>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       {!enabled && init && (
         <>
           <img

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { Registro, ZonaDeRegistros } from '../../api/registros'
-import { Alert } from '../../ui/Alert'
 import { Confirmar } from '../../ui/Confirmar'
 import { ListaZonas } from './ListaZonas'
 import { RegistrosZona } from './RegistrosZona'
@@ -16,7 +15,7 @@ import { PermisosZona } from './modales/PermisosZona'
 import { PropiedadesDnssec } from './modales/PropiedadesDnssec'
 import { VerDs } from './modales/VerDs'
 import type { Aviso, Confirmacion } from './tipos'
-import styles from './Zones.module.css'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 La sección Zones entera: la lista, la vista de una zona y los diez modales.
@@ -105,13 +104,7 @@ export function Zones({
 
   return (
     <>
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       {abierta == null ? (
         <ListaZonas

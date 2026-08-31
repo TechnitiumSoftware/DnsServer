@@ -28,7 +28,6 @@
 .meta { composes: meta from '../../ui/registro.module.css'; }
 .firmas { margin: var(--s-5) 0 0; padding: var(--s-6) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-2); font:var(--t-2)/1.6 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; }
 
-.avisoHueco { composes: hueco from '../../ui/Alert.module.css'; }
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .area { min-height:260px; resize:vertical; }
 

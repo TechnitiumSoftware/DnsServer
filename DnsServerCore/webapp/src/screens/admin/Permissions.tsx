@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -17,6 +16,7 @@ import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
 import { Th, useOrden, type Claves } from '../../ui/Table'
 import { Select } from '../../ui/Select'
 import { TablaEditable } from '../../ui/TablaEditable'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` y
@@ -300,11 +300,7 @@ function EditarPermisos({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       {cargando ? (
         <Loading />
       ) : (

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select, Textarea } from '../../ui/Field'
@@ -29,6 +28,7 @@ import {
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
 import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 `showUserDetailsModal` / `saveUserDetails` / `deleteUserSession`
@@ -185,11 +185,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
           </>
         }
       >
-        {aviso && (
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        )}
+        <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
         {cargando || detalle == null ? (
           <Loading />

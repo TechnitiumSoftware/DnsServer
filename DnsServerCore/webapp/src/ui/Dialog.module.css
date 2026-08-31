@@ -85,8 +85,14 @@ tiene, y por una razón: sus confirmaciones son `confirm()` del navegador.
   background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer;
 }
 .body {
+  /* El hueco del cuerpo, declarado con nombre para que quien traiga su propio
+     margen inferior —el aviso— pueda restarlo: en flex el margen del hijo SE
+     SUMA al `gap`, y sin la resta el aviso quedaba a 36 px del formulario
+     dentro del diálogo y a 24 en una pantalla. Mismo mecanismo que en
+     `SectionHeader.module.css`. */
+  --hueco: var(--s-8);
   padding: var(--s-3) var(--s-10) var(--s-9);
-  display: flex; flex-direction: column; gap: var(--s-8);
+  display: flex; flex-direction: column; gap: var(--hueco);
   overflow-y: auto; min-height: 0;
 }
 

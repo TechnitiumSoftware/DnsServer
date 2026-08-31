@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { downloadAndInstall, downloadAndUpdate, listStoreApps, uninstallApp, type StoreApp } from '../../api/apps'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { error, type AlertState } from './Apps'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de `modalStoreApps` (index.html:6148-6183) y de las tres acciones que
@@ -116,11 +116,7 @@ export function StoreApps({
       tamano="medio"
       title="DNS App Store"
     >
-      {alert && (
-        <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-          {alert.text}
-        </Alert>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
 
       {storeApps === null ? (
         <Loading />

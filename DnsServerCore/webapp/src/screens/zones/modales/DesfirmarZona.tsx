@@ -6,6 +6,7 @@ import { Dialog } from '../../../ui/Dialog'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalDnssecUnsignZone` (zone.js:6673 y 6681). No tiene formulario: es un modal
@@ -62,13 +63,7 @@ export function DesfirmarZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <Alert type="warning" title="Warning!">
         Unsigning the zone without removing all DS records from its parent zone will cause

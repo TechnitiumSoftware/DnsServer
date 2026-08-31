@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
 import { aCamino, escribirRuta, leerRuta } from './ruta'
 import { ChangePassword } from '../screens/modals/ChangePassword'
@@ -19,7 +19,7 @@ import styles from './Shell.module.css'
 import { Icono, type NombreIcono } from '../ui/Icono'
 import { urlPublica } from './base'
 import { Menu } from '../ui/Menu'
-import { PIE } from './pie'
+import { PieDeEnlaces } from '../ui/PieDeEnlaces'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
 
@@ -254,14 +254,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           «About» no se repite porque en este rediseño es una sección del panel,
           justo encima.
           */}
-          <div className={styles.pieEnlaces}>
-            {PIE.map((e, i) => (
-              <Fragment key={e.href}>
-                {i > 0 && <span className={styles.sep}> | </span>}
-                <a href={e.href} aria-label={e.nombre} target="_blank" rel="noreferrer">{e.texto}</a>
-              </Fragment>
-            ))}
-          </div>
+          <PieDeEnlaces className={styles.pieEnlaces} />
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <Menu etiqueta={displayName} rotulo={displayName} ancla="izquierda" comoFila>
             {(cerrar) => (

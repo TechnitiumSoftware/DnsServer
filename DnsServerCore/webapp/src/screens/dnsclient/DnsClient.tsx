@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PROTOCOLOS, TIPOS, prepararServidor, resolve } from '../../api/dnsclient'
-import { Alert, type AlertType } from '../../ui/Alert'
+import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { LabeledInput, LabeledSelect } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -9,6 +9,7 @@ import { Detalles } from '../../ui/Detalles'
 import styles from './DnsClient.module.css'
 import { Cuerpo, Panel } from '../../ui/Panel'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de `resolveQuery()` (dnsclient.js:95-210). Los dos botones llaman al
@@ -91,13 +92,7 @@ export function DnsClient({ token }: { token: string | null }) {
     <>
       <SectionHeader titulo="DNS Client" />
 
-      {alert && (
-        <div className={styles.aviso}>
-          <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-            {alert.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
 
       {/*
       La barra de consulta usaba etiquetas hechas a mano con `style` en línea

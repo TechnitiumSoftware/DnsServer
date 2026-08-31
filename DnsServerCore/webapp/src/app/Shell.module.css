@@ -49,16 +49,7 @@ porque el lateral es un cajón cerrado y su disparador tiene que estar fuera.
 .pieLateral { margin-top:auto; padding: var(--s-8) var(--s-9); border-top:1px solid var(--line); display:flex; flex-direction:column; gap: var(--s-4); }
 /* Los enlaces del pie: lo bastante pequeños para no competir con la
    navegación y lo bastante altos para poder pulsarlos. */
-.pieEnlaces { font-size: var(--t-2); line-height: 1.9; color:var(--faint); margin-bottom: var(--s-4); }
-.pieEnlaces a { color:var(--faint); text-decoration:none; padding: var(--s-1) 0; }
-/* El nombre no se parte —«DNS Client» caía en dos renglones—, pero el corte
-   sigue siendo posible: el separador va suelto entre las anclas, con sus
-   espacios, igual que en upstream. Ponerle `nowrap` al envoltorio en vez de al
-   enlace dejaba la lista sin un solo punto de corte y el lateral desbordaba
-   47 px en horizontal. */
-.pieEnlaces a { white-space: nowrap; }
-.pieEnlaces a:hover { color:var(--ink); text-decoration:underline; }
-.sep { color:var(--line); }
+.pieEnlaces { font-size: var(--t-2); line-height: 1.9; margin-bottom: var(--s-4); }
 .host { composes: anotacion from '../ui/texto.module.css'; word-break: break-all; }
 /* Se abre hacia arriba: está al pie de la ventana, no bajo un cabecero. */
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { setAppConfig } from '../../api/apps'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Field } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
 import styles from './Apps.module.css'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Réplica de `modalAppConfig` (index.html:6255-6280) y `saveAppConfig`
@@ -72,11 +72,7 @@ export function AppConfig({
         </>
       }
     >
-      {alert && (
-        <Alert type={alert.type} title={alert.title} onDismiss={() => setAlert(null)}>
-          {alert.text}
-        </Alert>
-      )}
+      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <p className={styles.nota}>
         Edit the <code>dnsApp.config</code> config file below as required by the DNS application.
       </p>

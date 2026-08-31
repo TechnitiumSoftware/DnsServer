@@ -1,4 +1,3 @@
-import { Alert } from '../../ui/Alert'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
@@ -10,18 +9,7 @@ export { Check } from '../../ui/Check'
 
 export type { Aviso } from '../../lib/aviso'
 export { avisoDeFallo } from '../../lib/aviso'
-import type { Aviso } from '../../lib/aviso'
 
-export function Avisador({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: () => void }) {
-  if (aviso == null) return null
-  return (
-    <div className={styles.avisoHueco}>
-      <Alert type={aviso.type} title={aviso.title} onDismiss={onCerrar}>
-        {aviso.text}
-      </Alert>
-    </div>
-  )
-}
 
 
 /*
@@ -82,4 +70,5 @@ export function SelectorNodo({
 
 export { CeldaSesion } from '../../ui/Sesion'
 export { Confirmar } from '../../ui/Confirmar'
+export { Avisador } from '../../ui/Avisador'
 export { styles as adminStyles }

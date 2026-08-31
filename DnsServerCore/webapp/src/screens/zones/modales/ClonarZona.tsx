@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloneZone } from '../../../api/zones'
-import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { LabeledInput } from '../../../ui/Field'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /** `modalCloneZone` (zone.js:1332 y 1346). */
 export function ClonarZona({
@@ -70,13 +70,7 @@ export function ClonarZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <div className={styles.campos}>
         {/* El origen es de sólo lectura: upstream lo guarda en un input oculto. */}
         <LabeledInput label="Source Zone" mono readOnly value={zone} />

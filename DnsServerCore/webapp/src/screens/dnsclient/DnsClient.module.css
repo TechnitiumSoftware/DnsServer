@@ -16,7 +16,6 @@ puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
   flex-wrap: wrap;
 }
 
-.aviso { composes: hueco from '../../ui/Alert.module.css'; }
 
 .ancho { flex: 1 1 240px; min-width: 240px; }
 .medio { flex: 1 1 200px; min-width: 200px; }

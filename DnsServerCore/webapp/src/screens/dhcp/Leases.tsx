@@ -6,7 +6,6 @@ import {
   removeLease,
   type DhcpLease,
 } from '../../api/dhcp'
-import { Alert } from '../../ui/Alert'
 import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
@@ -20,6 +19,7 @@ import styles from './Dhcp.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 DHCP › Leases (dhcp.js:37-199).
@@ -160,11 +160,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         acciones={<><Button onClick={() => void cargar()}>Refresh</Button></>}
       />
 
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <Tabla
         cabecera={
@@ -271,11 +267,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
           </>
         }
       >
-        {avisoModal && (
-          <Alert type={avisoModal.type} title={avisoModal.title} onDismiss={() => setAvisoModal(null)}>
-            {avisoModal.text}
-          </Alert>
-        )}
+        <Avisador aviso={avisoModal} onCerrar={() => setAvisoModal(null)} />
         <p className={styles.parrafo}>
           <b>Warning!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP
           address from the client side. Make sure that the client assigned this lease is not

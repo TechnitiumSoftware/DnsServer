@@ -8,7 +8,6 @@ import {
   type LogFile,
 } from '../../api/logs'
 import { deleteAllStats } from '../../api/dashboard'
-import { Alert } from '../../ui/Alert'
 import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -16,6 +15,7 @@ import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
 import { Cuerpo, Panel } from '../../ui/Panel'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 Logs › View Logs (logs.js:105-268).
@@ -181,11 +181,7 @@ export function ViewLogs({
           )}</>}
       />
 
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.dos}>
         <Panel titulo="Log Files" className={styles.panel}>

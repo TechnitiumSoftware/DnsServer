@@ -3,7 +3,6 @@
    cuatro tablas de la consola se lean igual; el formulario de SSO repite las
    filas `210px 1fr` de Settings por el mismo motivo. */
 
-.avisoHueco { composes: hueco from '../../ui/Alert.module.css'; }
 
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nowrap { white-space:nowrap; }

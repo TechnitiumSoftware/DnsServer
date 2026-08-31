@@ -8,7 +8,6 @@ import {
   setScope,
   type DhcpScopeRow,
 } from '../../api/dhcp'
-import { Alert } from '../../ui/Alert'
 import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -22,6 +21,7 @@ import styles from './Dhcp.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { avisoDeFallo } from '../../lib/aviso'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 DHCP › Scopes (dhcp.js:201-684).
@@ -160,11 +160,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
   if (edicion != null) {
     return (
       <div className={styles.wrap}>
-        {aviso && (
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        )}
+        <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
         <ScopeForm
           key={edicion.titulo + edicion.form.oldName}
           titulo={edicion.titulo}
@@ -201,11 +197,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
           )}</>}
       />
 
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <Tabla
         cabecera={

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select, Textarea } from '../../ui/Field'
@@ -25,6 +24,7 @@ import {
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
+import { Avisador } from '../../ui/Avisador'
 
 /*
 `refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` y
@@ -247,11 +247,7 @@ function AnadirGrupo({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       <MRow label="Name">
         {(id) => (
           <Input
@@ -354,11 +350,7 @@ function DetalleGrupo({
         </>
       }
     >
-      {aviso && (
-        <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-          {aviso.text}
-        </Alert>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
       {cargando ? (
         <Loading />
       ) : (

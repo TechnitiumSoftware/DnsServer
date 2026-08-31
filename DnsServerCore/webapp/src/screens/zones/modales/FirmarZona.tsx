@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { signZone, type Algoritmo, type NxProof } from '../../../api/dnssec'
-import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
@@ -20,6 +19,7 @@ import { Ayuda, Externo } from '../../../ui/Externo'
 import { AYUDA_DNSSEC, RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import { GroupRow } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
+import { Avisador } from '../../../ui/Avisador'
 
 /*
 `modalDnssecSignZone` (zone.js:6539 y 6578).
@@ -148,13 +148,7 @@ export function FirmarZona({
         </>
       }
     >
-      {aviso && (
-        <div className={styles.avisoHueco}>
-          <Alert type={aviso.type} title={aviso.title} onDismiss={() => setAviso(null)}>
-            {aviso.text}
-          </Alert>
-        </div>
-      )}
+      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div className={styles.campos}>
         <GroupRow modal label="DNSKEY Algorithm">
