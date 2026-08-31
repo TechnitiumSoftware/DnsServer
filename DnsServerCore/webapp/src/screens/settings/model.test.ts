@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SETTINGS } from './ajustes.fixture'
+import { SETTINGS } from './settings.fixture'
 import { buildBody, formularioDesdeAjustes, enabled, cleanList, listToText } from './model'
 
 const base = () => formularioDesdeAjustes(SETTINGS)

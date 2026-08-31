@@ -5,11 +5,11 @@ import { Button } from '../../ui/Button'
 import { LabeledInput, LabeledSelect } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
-import { Details } from '../../ui/Detalles'
+import { Details } from '../../ui/Details'
 import styles from './DnsClient.module.css'
 import { Body, Panel } from '../../ui/Panel'
-import { noticeFromFailure } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 A replica of `resolveQuery()` (dnsclient.js:95-210). Both buttons call the same

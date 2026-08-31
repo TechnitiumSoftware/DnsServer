@@ -1,7 +1,7 @@
 /*
 The scope form's pieces are the panel-form kit's, `ui/Ajustes`, the same ones
 Settings uses. They were written twice —see the comment in
-`ui/Ajustes.module.css`— and the copy showed on screen.
+`ui/PanelForm.module.css`— and the copy showed on screen.
 */
 export {
   AreaRow,
@@ -15,4 +15,4 @@ export {
   TextRow,
   Warning,
   type Column,
-} from '../../ui/Ajustes'
+} from '../../ui/PanelForm'

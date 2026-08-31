@@ -4,12 +4,12 @@
    rows for the same reason. */
 
 
-.mono { composes: mono from '../../ui/texto.module.css'; }
+.mono { composes: mono from '../../ui/text.module.css'; }
 .nowrap { white-space:nowrap; }
 
 
-/* The count is `ui/recuento.module.css`'s: see there for why. */
-.count { composes: barra below from '../../ui/recuento.module.css'; }
+/* The count is `ui/count.module.css`'s: see there for why. */
+.count { composes: barra below from '../../ui/count.module.css'; }
 
 /* The first column's user / group / section name opens its record. */
 .link { composes: entityLink from '../../ui/Table.module.css'; word-break: break-all; }
@@ -39,33 +39,33 @@
 }
 
 /* SSO and the Cluster modals: label + control rows, as in Settings. */
-.block { composes: block from '../../ui/Ajustes.module.css'; }
+.block { composes: block from '../../ui/PanelForm.module.css'; }
 
-.ctlLine { composes: inline from '../../ui/Ajustes.module.css'; }
-.suffix { composes: coletilla from '../../ui/texto.module.css'; }
+.ctlLine { composes: inline from '../../ui/PanelForm.module.css'; }
+.suffix { composes: coletilla from '../../ui/text.module.css'; }
 .help { composes: help from '../../ui/Form.module.css'; }
-.notas { composes: notices from '../../ui/Ajustes.module.css'; }
+.notas { composes: notices from '../../ui/PanelForm.module.css'; }
 .group { composes: group from '../../ui/Form.module.css'; }
-.area { composes: area from '../../ui/Ajustes.module.css'; }
+.area { composes: area from '../../ui/PanelForm.module.css'; }
 /* The width only: the trigger's box is set by `ui/Select`. */
 .select { max-width: 420px; }
 
 /* Tabla editable dentro de un formulario: scopes y mapa de grupos de SSO. */
 /*
-The editable table is `ui/TablaEditable.module.css`'s. It was written here and in
+The editable table is `ui/EditableTable.module.css`'s. It was written here and in
 two other modules with the same values copied by hand.
 */
-.edit { composes: table from '../../ui/TablaEditable.module.css'; }
+.edit { composes: table from '../../ui/EditableTable.module.css'; }
 
 .edit input, .edit select { width:100%; }
 .tdel { width:84px; }
 /* The same save bar as Settings and DHCP: STICKY. Without that, in a form as
    long as SSO's the button stays up top as you scroll down. */
-.bar { composes: bar from '../../ui/Ajustes.module.css'; }
+.bar { composes: bar from '../../ui/PanelForm.module.css'; }
 
 /* Modal body: the same rows, but with a narrower label. */
 .mval { font-size: var(--t-4); font-weight: 600; color:var(--ink); padding-top: var(--s-5); }
-.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
+.parrafo { composes: parrafo from '../../ui/text.module.css'; }
 .sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .salida { display:flex; flex-direction:column; gap: var(--s-5); }
 .link { font-size: var(--t-3); }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select, Textarea } from '../../ui/Field'
-import { AgentCell, LastSeenCell } from '../../ui/Sesion'
+import { AgentCell, LastSeenCell } from '../../ui/SessionCells'
 import { Loading } from '../../ui/Empty'
 import {
   deleteAdminSession,
@@ -13,8 +13,8 @@ import {
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { cleanList } from '../settings/model'
-import { addToList, BLANK_OPTION, NONE_OPTION } from './tabla'
-import { fechaHora, fromNow } from './fechas'
+import { addToList, BLANK_OPTION, NONE_OPTION } from './table'
+import { fechaHora, fromNow } from './dates'
 import {
   noticeFromFailure,
   SessionCell,
@@ -24,11 +24,11 @@ import {
   MValue,
   adminStyles as styles,
   type Notice,
-} from './partes'
+} from './parts'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
 import { Th, useOrden, type Keys, Table } from '../../ui/Table'
-import { Notifier } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Notifier'
 import { Menu } from '../../ui/Menu'
 
 /*

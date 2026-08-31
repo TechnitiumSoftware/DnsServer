@@ -3,7 +3,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select, Textarea } from '../../ui/Field'
-import { Radios } from '../../ui/Ajustes'
+import { Radios } from '../../ui/PanelForm'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
@@ -24,7 +24,7 @@ import {
   type ClusterState,
 } from '../../api/admin-cluster'
 import { cleanList } from '../settings/model'
-import { fromNow, fechaMinuto } from './fechas'
+import { fromNow, fechaMinuto } from './dates'
 import {
   noticeFromFailure,
   Check,
@@ -33,12 +33,12 @@ import {
   NodePicker,
   adminStyles as styles,
   type Notice,
-} from './partes'
+} from './parts'
 import tbl from '../../ui/Table.module.css'
 import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { GroupRow } from '../../ui/Form'
-import { Notifier } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 The Cluster sub-tab (the whole of `cluster.js`, 1,055 lines). Twelve endpoints

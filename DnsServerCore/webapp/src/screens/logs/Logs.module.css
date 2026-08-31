@@ -13,9 +13,9 @@
 .pbList { padding: var(--s-5); }
 
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
-.logfile { composes: row from '../../ui/lista.module.css'; justify-content: space-between; }
+.logfile { composes: row from '../../ui/list.module.css'; justify-content: space-between; }
 .logfile .name { font-family: var(--font-mono); }
-.sz { composes: anotacionMinima from '../../ui/texto.module.css'; }
+.sz { composes: anotacionMinima from '../../ui/text.module.css'; }
 .out {
   margin: 0; padding: var(--s-8); background: var(--field); border: 1px solid var(--line);
   border-radius: var(--r-3); font-family: var(--font-mono); font-size: var(--t-3); color: var(--ink);
@@ -39,9 +39,9 @@
 .field label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
 .field input, .field select { width: 100%; }
 
-/* The count is `ui/recuento.module.css`'s: see there for why. */
-.count { composes: barra above from '../../ui/recuento.module.css'; }
-.mono { composes: mono from '../../ui/texto.module.css'; }
+/* The count is `ui/count.module.css`'s: see there for why. */
+.count { composes: barra above from '../../ui/count.module.css'; }
+.mono { composes: mono from '../../ui/text.module.css'; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }
 .rtt { font-size: var(--t-2); color: var(--faint); }

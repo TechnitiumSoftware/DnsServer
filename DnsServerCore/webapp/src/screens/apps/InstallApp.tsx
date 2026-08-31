@@ -4,7 +4,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
-import { Notifier } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 A replica of `showInstallAppModal` / `installApp` (apps.js:198-209 and 330-379).

@@ -50,7 +50,7 @@ the cursor is.
 
 .input:disabled { opacity: 0.45; cursor: default; }
 
-.mono { composes: mono from './texto.module.css'; }
+.mono { composes: mono from './text.module.css'; }
 
 @media (prefers-reduced-motion: reduce) {
   .input { transition: none; }

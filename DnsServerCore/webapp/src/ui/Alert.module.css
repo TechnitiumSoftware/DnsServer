@@ -35,11 +35,11 @@ one wins, which is what was drawn and what is seen on the first pass.
 
 .close:hover { opacity: 1; }
 
-/* The tones come from `ui/tonos.module.css`, shared with the pill. */
-.success { composes: ok from './tonos.module.css'; }
-.info    { composes: info from './tonos.module.css'; }
-.warning { composes: warn from './tonos.module.css'; }
-.danger  { composes: dan from './tonos.module.css'; }
+/* The tones come from `ui/tones.module.css`, shared with the pill. */
+.success { composes: ok from './tones.module.css'; }
+.info    { composes: info from './tones.module.css'; }
+.warning { composes: warn from './tones.module.css'; }
+.danger  { composes: dan from './tones.module.css'; }
 
 /*
 The air an alert leaves beneath it. It was written across eleven modules under

@@ -16,7 +16,7 @@
 .text { min-width: 0; }
 
 .help {
-  composes: withCode from './texto.module.css';
+  composes: withCode from './text.module.css';
   font-size: var(--t-3);
   color: var(--mute);
   line-height: 1.55;

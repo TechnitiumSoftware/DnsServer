@@ -13,7 +13,7 @@ where the relationship comes from.
 */
 .tile { composes: panel from '../../ui/Panel.module.css'; padding: var(--s-8); }
 .tile .v { font:600 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
-.p { composes: anotacionMinima from '../../ui/texto.module.css'; }
+.p { composes: anotacionMinima from '../../ui/text.module.css'; }
 .tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight: 550; }
 /*
 Only the eleven metrics carry the colour swatch, since they ARE series of the
@@ -51,7 +51,7 @@ panel and in the dialog that expands it.
 .topTable td { vertical-align: top; }
 /*
 The footer's "Total Domains: N" is the same count any other table in the console
-carries (`ui/recuento.module.css`), even though here it travels in a `tfoot`
+carries (`ui/count.module.css`), even though here it travels in a `tfoot`
 instead of in a `div`: it was at 11.5 px and weight 550 when on the other nine
 screens it is at 12.5 and normal weight.
 */
@@ -69,7 +69,7 @@ screens it is at 12.5 and normal weight.
 .limited td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
 .topDomain { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
-.topConteo { composes: mono from '../../ui/texto.module.css'; }
+.topConteo { composes: mono from '../../ui/text.module.css'; }
 
 /* The right rail was a fixed `310px`: at 1024 px it squeezed the chart down to
    425 px and at 390 px it pushed it off the screen. */

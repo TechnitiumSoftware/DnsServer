@@ -1,5 +1,5 @@
 import { Notices, Block, Check, GroupRow, Radios, TextRow, Warning } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /* Settings > Logging (index.html:2359-2476). Dos bloques. */
 export function Logging({ f, set, en }: PaneProps) {

@@ -8,10 +8,10 @@ import {
   setScope,
   type DhcpScopeRow,
 } from '../../api/dhcp'
-import { Confirm } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirm'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
-import { errorNotice, type Notice } from './avisos'
+import { errorNotice, type Notice } from './notices'
 import { formularioDesdeScope, formularioNuevo, type ScopeForm as Form } from './model'
 import { ScopeForm } from './ScopeForm'
 import { Loading } from '../../ui/Empty'
@@ -20,8 +20,8 @@ import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
-import { noticeFromFailure } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 DHCP › Scopes (dhcp.js:201-684).

@@ -6,7 +6,7 @@ import { Groups } from './Groups'
 import { Permissions } from './Permissions'
 import { Sso } from './Sso'
 import { Cluster } from './Cluster'
-import { Notifier, type Notice } from './partes'
+import { Notifier, type Notice } from './parts'
 
 /*
 Administration. Six sub-tabs and thirty endpoints: the console's second largest

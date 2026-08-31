@@ -5,7 +5,7 @@ import { Cluster } from './Cluster'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, CLUSTER_SECUNDARIO, CLUSTER_SIN_INICIAR } from './admin.fixture'
 import type { ClusterState } from '../../api/admin-cluster'
-import { choose, optionsOf } from '../../test/desplegable'
+import { choose, optionsOf } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

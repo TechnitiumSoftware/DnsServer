@@ -6,20 +6,20 @@ import {
   removeLease,
   type DhcpLease,
 } from '../../api/dhcp'
-import { Confirm } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirm'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
-import { fechaMinuto } from './fechas'
-import type { Notice } from './avisos'
+import { fechaMinuto } from './dates'
+import type { Notice } from './notices'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
-import { noticeFromFailure } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 DHCP › Leases (dhcp.js:37-199).

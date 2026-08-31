@@ -1,7 +1,7 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import type { ReactNode } from 'react'
 import { Button } from './Button'
-import { Icon } from './Icono'
+import { Icon } from './Icon'
 import styles from './Dialog.module.css'
 
 /*

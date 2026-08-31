@@ -11,7 +11,7 @@ import {
   ADMIN_USER,
   NEW_USER,
 } from './admin.fixture'
-import { choose } from '../../test/desplegable'
+import { choose } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

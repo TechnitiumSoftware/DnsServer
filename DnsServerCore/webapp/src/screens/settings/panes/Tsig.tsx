@@ -1,6 +1,6 @@
 import { Select } from '../../../ui/Field'
 import { Notices, Block, EditableList, Note } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /** The dropdown's eight algorithms, with their literal labels (`addTsigKeyRow`,
  *  main.js:2260). A new key's default value is `hmac-sha256`, same as upstream's

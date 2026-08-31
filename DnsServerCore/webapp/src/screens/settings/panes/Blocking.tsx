@@ -1,5 +1,5 @@
 import { Button } from '../../../ui/Button'
-import { fechaHora } from '../../../lib/fechas'
+import { fechaHora } from '../../../lib/dates'
 import { Input } from '../../../ui/Field'
 import {
   AreaRow,
@@ -18,7 +18,7 @@ import {
   settingsStyles as styles,
 } from '../parts'
 import { HelpText } from '../../../ui/Form'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /*
 Settings > Blocking (index.html:2066-2190).

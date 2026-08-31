@@ -8,14 +8,14 @@ import {
   type LogFile,
 } from '../../api/logs'
 import { deleteAllStats } from '../../api/dashboard'
-import { Confirm } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirm'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
 import { Body, Panel } from '../../ui/Panel'
-import { noticeFromFailure, type Notice } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { noticeFromFailure, type Notice } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 Logs › View Logs (logs.js:105-268).

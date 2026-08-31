@@ -7,6 +7,6 @@ need it; this one has no reason to go along. Upstream does not stretch it either
 it puts it in a `col-sm-7`.
 */
 .estrecha { max-width: 420px; }
-.mono { composes: mono from '../../ui/texto.module.css'; }
-/* The count is `ui/recuento.module.css`'s: see there for why. */
-.total { composes: recuento below from '../../ui/recuento.module.css'; }
+.mono { composes: mono from '../../ui/text.module.css'; }
+/* The count is `ui/count.module.css`'s: see there for why. */
+.total { composes: recuento below from '../../ui/count.module.css'; }

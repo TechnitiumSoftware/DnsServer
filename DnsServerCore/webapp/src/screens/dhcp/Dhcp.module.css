@@ -15,19 +15,19 @@ title out again.
 */
 .wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 
-.mono { composes: mono from '../../ui/texto.module.css'; }
+.mono { composes: mono from '../../ui/text.module.css'; }
 .name { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .date { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
-/* The count is `ui/recuento.module.css`'s: see there for why. */
-.total { composes: recuento below from '../../ui/recuento.module.css'; }
+/* The count is `ui/count.module.css`'s: see there for why. */
+.total { composes: recuento below from '../../ui/count.module.css'; }
 .kv { composes: kv from '../../ui/kv.module.css'; }
 
-.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
+.parrafo { composes: parrafo from '../../ui/text.module.css'; }
 .list { margin: 0 0 var(--s-7); padding-left: var(--s-10); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
 
 /* ---- Scope form ----
 
    The block, the row, the area, the alerts and the editable list are
-   `ui/Ajustes.module.css`'s, shared with Settings. */
+   `ui/PanelForm.module.css`'s, shared with Settings. */
 
-.bar { composes: bar from '../../ui/Ajustes.module.css'; }
+.bar { composes: bar from '../../ui/PanelForm.module.css'; }

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Groups } from './Groups'
 import * as client from '../../api/client'
 import { GROUPS } from './admin.fixture'
-import { choose } from '../../test/desplegable'
+import { choose } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

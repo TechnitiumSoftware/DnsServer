@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Notifier } from './Avisador'
+import { Notifier } from './Notifier'
 
 /*
 The air it leaves beneath is measured in the browser, not here: jsdom does not lay

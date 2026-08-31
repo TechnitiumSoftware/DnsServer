@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Icon } from './Icono'
+import { Icon } from './Icon'
 import styles from './SectionHeader.module.css'
 
 /*

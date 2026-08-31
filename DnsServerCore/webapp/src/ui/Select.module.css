@@ -34,7 +34,7 @@ to weigh the same. What changes is that this one opens.
 
 .trigger:disabled { opacity: 0.45; cursor: default; }
 
-.value { composes: truncado from './texto.module.css'; }
+.value { composes: truncado from './text.module.css'; }
 .emptyText { color: var(--faint); }
 
 .chevron { color: var(--mute); flex: none; transition: transform var(--t-rapido); }

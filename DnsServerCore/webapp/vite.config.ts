@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { RUTAS_ESTATICAS } from './src/app/rutas-estaticas.js'
+import { RUTAS_ESTATICAS } from './src/app/static-routes.js'
 
 /*
 Una carpeta con su `index.html` por cada ruta de la consola.

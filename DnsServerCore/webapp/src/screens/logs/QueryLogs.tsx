@@ -15,15 +15,15 @@ import {
 import { Button } from '../../ui/Button'
 import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
-import { aIso, fechaHora } from './fechas'
+import { aIso, fechaHora } from './dates'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import { Table } from '../../ui/Table'
 import styles from './Logs.module.css'
-import { pageWindow } from '../../lib/paginacion'
-import { Pagination } from '../../ui/Paginacion'
-import { noticeFromFailure, type Notice } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { pageWindow } from '../../lib/pagination'
+import { Pagination } from '../../ui/Pagination'
+import { noticeFromFailure, type Notice } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 Logs › Query Logs (logs.js:20-101 and 270-710).

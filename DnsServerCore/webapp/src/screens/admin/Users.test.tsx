@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Users } from './Users'
 import * as client from '../../api/client'
 import { USER_DETAIL, ADMIN_USER, NEW_USER, SSO_USER } from './admin.fixture'
-import { choose } from '../../test/desplegable'
+import { choose } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

@@ -11,10 +11,10 @@
 .filtCorto { width:120px; }
 
 /* Count and pagination */
-/* The count is `ui/recuento.module.css`'s: see there for why. */
-.count { composes: barra above from '../../ui/recuento.module.css'; }
+/* The count is `ui/count.module.css`'s: see there for why. */
+.count { composes: barra above from '../../ui/count.module.css'; }
 .countPie { margin-top: var(--gap-group); margin-bottom: 0; }
-.mono { composes: mono from '../../ui/texto.module.css'; }
+.mono { composes: mono from '../../ui/text.module.css'; }
 
 /* Tabla */
 .num { color:var(--faint); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
@@ -24,23 +24,23 @@
 .zoneCell { font-family: var(--font-mono); }
 .zoneLink { composes: entityLink from '../../ui/Table.module.css'; }
 
-.ttl { composes: ttl from '../../ui/registro.module.css'; }
+.ttl { composes: ttl from '../../ui/record.module.css'; }
 
 .kv { composes: kv from '../../ui/kv.module.css'; }
 .val { font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); word-break:break-word; }
-.key { composes: key from '../../ui/registro.module.css'; }
-.verlo { composes: verlo from '../../ui/registro.module.css'; }
-.meta { composes: meta from '../../ui/registro.module.css'; }
+.key { composes: key from '../../ui/record.module.css'; }
+.verlo { composes: verlo from '../../ui/record.module.css'; }
+.meta { composes: meta from '../../ui/record.module.css'; }
 
 /* Dropdown menu for row and header actions */
 
-.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
+.parrafo { composes: parrafo from '../../ui/text.module.css'; }
 .salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 
 /* Formularios de modal */
 .fields { display:flex; flex-direction:column; gap: var(--s-8); }
-.inline { composes: inline from '../../ui/Ajustes.module.css'; }
-.suffix { composes: coletilla from '../../ui/texto.module.css'; }
+.inline { composes: inline from '../../ui/PanelForm.module.css'; }
+.suffix { composes: coletilla from '../../ui/text.module.css'; }
 /* The same row as `ui/Check.module.css`, which is where the minimum height
    lives: without it, the radios of "Add Zone", "Import" and "Convert" were 19 px. */
 .chk { composes: check from '../../ui/Check.module.css'; }

@@ -11,12 +11,12 @@ import {
   type SectionPermission,
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
-import { addToTable, BLANK_OPTION, NONE_OPTION, serializeTable, type Cell } from './tabla'
-import { noticeFromFailure, MRow, adminStyles as styles, type Notice } from './partes'
+import { addToTable, BLANK_OPTION, NONE_OPTION, serializeTable, type Cell } from './table'
+import { noticeFromFailure, MRow, adminStyles as styles, type Notice } from './parts'
 import { Th, useOrden, type Keys } from '../../ui/Table'
 import { Select } from '../../ui/Select'
-import { EditableTable } from '../../ui/TablaEditable'
-import { Notifier } from '../../ui/Avisador'
+import { EditableTable } from '../../ui/EditableTable'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` and
@@ -400,7 +400,7 @@ function PermissionsTable({
     <>
       <p className={styles.sub}>{title}</p>
       {/* The editable one does not carry the data table's panel wrapper: it is
-          another piece (`ui/TablaEditable.module.css`) and lives INSIDE a panel. */}
+          another piece (`ui/EditableTable.module.css`) and lives INSIDE a panel. */}
       <div>
         <EditableTable
       className={styles.edit}

@@ -108,7 +108,7 @@ out Zones' monospacing. It is the same trap already noted in `Menu.module.css`.
 }
 
 /* Metadata: the date, the "N ago", the counter. They accompany, they do not compete. */
-.meta { composes: coletilla from './texto.module.css'; }
+.meta { composes: coletilla from './text.module.css'; }
 
 /* A cell with several lines inside aligns to the top; the rest, to the middle. */
 .apilada { vertical-align: top; }

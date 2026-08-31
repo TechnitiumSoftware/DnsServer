@@ -10,7 +10,7 @@ import {
   TextRow,
   Warning,
 } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /*
 Settings > General. Ten blocks, in the order of upstream's `div.well`

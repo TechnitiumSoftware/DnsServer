@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Icon } from './Icono'
+import { Icon } from './Icon'
 import styles from './Alert.module.css'
 
 /*

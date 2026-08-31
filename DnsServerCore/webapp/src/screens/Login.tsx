@@ -7,8 +7,8 @@ import { LabeledInput } from '../ui/Field'
 import { ForgotPassword } from './modals/ForgotPassword'
 import styles from './Login.module.css'
 import { urlPublica } from '../app/base'
-import { PieDeEnlaces } from '../ui/PieDeEnlaces'
-import { Notifier } from '../ui/Avisador'
+import { PieDeEnlaces } from '../ui/FooterLinks'
+import { Notifier } from '../ui/Notifier'
 
 /*
 The login screen. A replica of `login()` in

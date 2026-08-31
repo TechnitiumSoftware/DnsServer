@@ -25,5 +25,5 @@ export {
   panelFormStyles,
   type Column,
   type RadioOption,
-} from '../../ui/Ajustes'
+} from '../../ui/PanelForm'
 export { default as settingsStyles } from './Settings.module.css'

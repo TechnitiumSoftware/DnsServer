@@ -4,8 +4,8 @@ import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
-import { noticeFromFailure } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /* A replica of `createMyApiToken()` (auth.js:337-381). */
 export function CreateApiToken({

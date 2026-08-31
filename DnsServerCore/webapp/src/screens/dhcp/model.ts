@@ -1,5 +1,5 @@
 import type { DhcpScope } from '../../api/dhcp'
-import { serializeTable } from '../../lib/tabla-serie'
+import { serializeTable } from '../../lib/table-serialise'
 
 /*
 The form of a DHCP scope: 36 fields, five of them editable tables.

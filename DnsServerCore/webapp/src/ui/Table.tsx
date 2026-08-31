@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from './Button'
-import { Icon, type IconName } from './Icono'
+import { Icon, type IconName } from './Icon'
 import styles from './Table.module.css'
 
 /*

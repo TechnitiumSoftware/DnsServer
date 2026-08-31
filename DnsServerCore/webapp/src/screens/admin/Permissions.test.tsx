@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Permissions } from './Permissions'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, PERMISSIONS } from './admin.fixture'
-import { choose } from '../../test/desplegable'
+import { choose } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

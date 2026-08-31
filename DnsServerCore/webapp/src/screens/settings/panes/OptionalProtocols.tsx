@@ -1,5 +1,5 @@
 import { AreaRow, Notices, Block, Check, GroupRow, Help, Note, Plain, Pre, TextRow } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 const PROXY_PROTOCOL = (
   <a href="https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt" target="_blank" rel="noreferrer">

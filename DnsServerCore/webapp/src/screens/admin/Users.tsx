@@ -15,19 +15,19 @@ import {
 } from '../../api/admin'
 import type { ClusterState } from '../../api/admin-cluster'
 import { UserDetails } from './UserDetails'
-import { fechaHora } from './fechas'
+import { fechaHora } from './dates'
 import {
   noticeFromFailure,
   Confirm,
   MRow,
   adminStyles as styles,
   type Notice,
-} from './partes'
+} from './parts'
 import tbl from '../../ui/Table.module.css'
 import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { neverUsed } from '../../api/zones'
-import { Notifier } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 `refreshAdminUsers` and the row's seven actions (auth.js:1083-1698).

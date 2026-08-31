@@ -6,15 +6,15 @@ import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import { getSsoConfig, setSsoConfig, type SsoConfig } from '../../api/admin'
-import { serializeTable, type Cell } from './tabla'
+import { serializeTable, type Cell } from './table'
 import {
   noticeFromFailure,
   Check,
   Confirm,
   adminStyles as styles,
   type Notice,
-} from './partes'
-import { EditableTable } from '../../ui/TablaEditable'
+} from './parts'
+import { EditableTable } from '../../ui/EditableTable'
 import { GroupRow, Row } from '../../ui/Form'
 
 /*

@@ -6,8 +6,8 @@ import { error, type AlertState } from './Apps'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
-import { Notifier } from '../../ui/Avisador'
-import { Confirm } from '../../ui/Confirmar'
+import { Notifier } from '../../ui/Notifier'
+import { Confirm } from '../../ui/Confirm'
 
 /*
 A replica of `modalStoreApps` (index.html:6148-6183) and of the three actions

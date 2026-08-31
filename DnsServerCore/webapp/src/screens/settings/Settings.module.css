@@ -1,7 +1,7 @@
 /* Settings. The console's biggest screen: in upstream, the General sub-tab is
    5,452 px tall.
 
-   Almost everything this screen draws lives in `ui/Ajustes.module.css`: the
+   Almost everything this screen draws lives in `ui/PanelForm.module.css`: the
    block, the row, the area, the alerts, the editable list and the save bar. It
    shares them with DHCP, which is the other big form. What is left here is only
    what belongs to Settings and to nobody else. */
@@ -13,7 +13,7 @@
    so they do not dance about on reload. */
 .stack { composes: group from '../../ui/Form.module.css'; }
 .inline { display: flex; align-items: center; gap: var(--s-7); flex-wrap: wrap; }
-.val { composes: mono from '../../ui/texto.module.css'; font-size: var(--t-4); color: var(--ink); }
+.val { composes: mono from '../../ui/text.module.css'; font-size: var(--t-4); color: var(--ink); }
 
 /* Two consecutive alerts inside a modal: they group closer together than the
    rest of the body, because they say the same thing about the same thing. */

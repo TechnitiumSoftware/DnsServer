@@ -17,9 +17,9 @@ import { UpdateApp } from './UpdateApp'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
-import { noticeFromFailure } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
-import { Confirm } from '../../ui/Confirmar'
+import { noticeFromFailure } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
+import { Confirm } from '../../ui/Confirm'
 
 /*
 A replica of the Apps tab (apps.js + index.html:807-835).

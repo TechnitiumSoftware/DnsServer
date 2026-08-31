@@ -26,9 +26,9 @@ import { Logging } from './panes/Logging'
 import { BackupDialog, Confirm, RestoreDialog } from './dialogs'
 import { Failure, Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
-import formulario from '../../ui/Ajustes.module.css'
-import { noticeFromFailure, type Notice } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import formulario from '../../ui/PanelForm.module.css'
+import { noticeFromFailure, type Notice } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 Settings. The console's biggest screen: in upstream, the General sub-tab alone is

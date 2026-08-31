@@ -5,7 +5,7 @@ import { Dialog } from '../../ui/Dialog'
 import { Field } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
 import styles from './Apps.module.css'
-import { Notifier } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 A replica of `modalAppConfig` (index.html:6255-6280) and `saveAppConfig`

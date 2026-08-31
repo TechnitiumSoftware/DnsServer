@@ -8,7 +8,7 @@ import * as apps from '../../api/apps'
 import type { InstalledApp } from '../../api/apps'
 import type { QueryLogEntry, QueryLogPage } from '../../api/logs'
 import { rowClass, pageRange, textoEstado } from './QueryLogs'
-import { choose, optionsOf, valorDe } from '../../test/desplegable'
+import { choose, optionsOf, valorDe } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

@@ -1,6 +1,6 @@
 import { dnsAppLabels, type InstalledApp } from '../../api/apps'
 import { Button } from '../../ui/Button'
-import { Details } from '../../ui/Detalles'
+import { Details } from '../../ui/Details'
 import { Chip } from '../../ui/Tag'
 import styles from './Apps.module.css'
 

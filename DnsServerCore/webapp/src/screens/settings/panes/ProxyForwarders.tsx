@@ -9,7 +9,7 @@ import {
   Radios,
   TextRow,
 } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /*
 Settings > Proxy & Forwarders (index.html:2192-2358). Three blocks.

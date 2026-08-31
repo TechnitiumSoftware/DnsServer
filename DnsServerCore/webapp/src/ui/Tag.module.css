@@ -17,11 +17,11 @@ one thing on one screen and another on the next.
   white-space: nowrap;
 }
 
-/* The tones come from `ui/tonos.module.css`, shared with the alert. */
-.ok   { composes: ok from './tonos.module.css'; }
-.warn { composes: warn from './tonos.module.css'; }
-.dan  { composes: dan from './tonos.module.css'; }
-.info { composes: info from './tonos.module.css'; }
+/* The tones come from `ui/tones.module.css`, shared with the alert. */
+.ok   { composes: ok from './tones.module.css'; }
+.warn { composes: warn from './tones.module.css'; }
+.dan  { composes: dan from './tones.module.css'; }
+.info { composes: info from './tones.module.css'; }
 
 /*
 The code chip: a record type (`A`, `SOA`), an app's class. It is not a state pill

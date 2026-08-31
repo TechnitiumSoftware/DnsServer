@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
-import { Icon } from './Icono'
+import { Icon } from './Icon'
 import styles from './Select.module.css'
 
 /*

@@ -12,7 +12,7 @@ import { Input } from '../../ui/Field'
 The "are you sure?" step is `ui/Confirmar`, the same dialog the other five
 screens use. It is re-exported under the name it is asked for by here.
 */
-export { Confirm } from '../../ui/Confirmar'
+export { Confirm } from '../../ui/Confirm'
 
 function ItemList({
   selection,

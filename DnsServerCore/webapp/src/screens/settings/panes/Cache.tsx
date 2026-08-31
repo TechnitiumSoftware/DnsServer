@@ -1,5 +1,5 @@
 import { Notices, Block, Check, GroupRow, Note, Plain, TextRow } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /* Settings > Cache (index.html:1911-2064). Cuatro bloques. */
 export function Cache({ f, set, en }: PaneProps) {

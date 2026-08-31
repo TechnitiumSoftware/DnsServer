@@ -12,11 +12,11 @@ import styles from './Dashboard.module.css'
 import { Body, Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
 import { type AlertType } from '../../ui/Alert'
-import { BlockingMenu } from './MenuBloqueo'
-import { instantesDelRango, loQueFalta } from './rango-personalizado'
-import { Segmented } from '../../ui/Segmentado'
-import { noticeFromFailure } from '../../lib/aviso'
-import { Notifier } from '../../ui/Avisador'
+import { BlockingMenu } from './BlockingMenu'
+import { instantesDelRango, loQueFalta } from './custom-range'
+import { Segmented } from '../../ui/Segmented'
+import { noticeFromFailure } from '../../lib/notice'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 The eleven metrics, in upstream's order and with its literal labels. Each one's

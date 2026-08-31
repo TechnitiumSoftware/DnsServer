@@ -11,7 +11,7 @@ import {
   settingsStyles as settings,
 } from '../parts'
 import { Textarea } from '../../../ui/Field'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /*
 Settings > Recursion (index.html:1794-1910). Three blocks.

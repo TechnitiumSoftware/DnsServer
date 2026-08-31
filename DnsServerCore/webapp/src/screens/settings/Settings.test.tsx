@@ -2,9 +2,9 @@ import { describe, expect, it, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Settings } from './Settings'
-import { SETTINGS } from './ajustes.fixture'
+import { SETTINGS } from './settings.fixture'
 import * as client from '../../api/client'
-import { valorDe } from '../../test/desplegable'
+import { valorDe } from '../../test/dropdown'
 
 afterEach(() => vi.restoreAllMocks())
 

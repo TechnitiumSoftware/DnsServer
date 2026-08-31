@@ -1,0 +1,49 @@
+/*
+The cells of a DNS records table. Zones uses them —a zone's records— and the
+lists screens too —the Allowed and Blocked entries— which are the same table
+looking at two different places, and each had them written twice.
+
+They are cells and not components because the markup changes (a `<td>`, a `<dd>`,
+a `<span>` inside a compound value); what does not change, and must not, is how
+they read.
+*/
+
+/* The TTL: monospaced and unbroken, with its unit muted beside it. */
+.ttl {
+  composes: mono from './text.module.css';
+  white-space: nowrap;
+}
+
+.ttl small { color: var(--faint); }
+
+/* A public key or a hex string: it breaks by characters, not by words, because
+   it has none. */
+.key {
+  word-break: break-all;
+  color: var(--mute);
+}
+
+/*
+"show full", the button that expands that key. It sat inside a truncated key and
+measured 62×17 in one place and 44×18 in another: two sizes for the same control,
+and both below the 24 minimum. `.golpe` enlarges the target without moving the
+drawing. And `nowrap`: the key preceding it breaks, the button does NOT.
+*/
+.verlo {
+  composes: golpe from './interaccion.module.css';
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: var(--t-3);
+  color: var(--acc);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* The detail line under a record's value. */
+.meta {
+  margin-top: var(--s-4);
+  font-size: var(--t-2);
+  color: var(--faint);
+}

@@ -52,7 +52,7 @@ outside it.
 /* The footer links: small enough not to compete with the navigation and tall
    enough to be pressable. */
 .pieEnlaces { font-size: var(--t-2); line-height: 1.9; margin-bottom: var(--s-4); }
-.host { composes: anotacion from '../ui/texto.module.css'; word-break: break-all; }
+.host { composes: anotacion from '../ui/text.module.css'; word-break: break-all; }
 /* It opens upwards: it sits at the foot of the window, not under a header. */
 .body { padding: var(--s-11) var(--s-11) var(--s-11); min-width:0; }
 

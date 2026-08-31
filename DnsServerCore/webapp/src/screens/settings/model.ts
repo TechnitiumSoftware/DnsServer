@@ -1,5 +1,5 @@
 import type { DnsSettings } from '../../api/settings'
-import { serializeTable, type Cell } from '../../lib/tabla-serie'
+import { serializeTable, type Cell } from '../../lib/table-serialise'
 
 /*
 The model of the Settings form.

@@ -1,5 +1,5 @@
 import { AreaRow, Notices, Block, Check, GroupRow, Help, Note, Plain, Pre, TextRow } from '../parts'
-import type { PaneProps } from './tipos'
+import type { PaneProps } from './types'
 
 /*
 Settings > Web Service (index.html:1416-1560).

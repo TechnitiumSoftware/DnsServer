@@ -13,18 +13,18 @@ import {
   type AdminGroup,
 } from '../../api/admin'
 import { cleanList } from '../settings/model'
-import { addToList, BLANK_OPTION, NONE_OPTION } from './tabla'
+import { addToList, BLANK_OPTION, NONE_OPTION } from './table'
 import {
   noticeFromFailure,
   Confirm,
   MRow,
   adminStyles as styles,
   type Notice,
-} from './partes'
+} from './parts'
 import tbl from '../../ui/Table.module.css'
 import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
-import { Notifier } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Notifier'
 
 /*
 `refreshAdminGroups`, `addGroup`, `showGroupDetailsModal`, `saveGroupDetails` and

@@ -1,7 +1,7 @@
 import { Button } from './Button'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './Menu.module.css'
-import { Icon } from './Icono'
+import { Icon } from './Icon'
 
 /*
 The `⋮` menu on each row. Upstream solves it with the Bootstrap 3 dropdown; here
