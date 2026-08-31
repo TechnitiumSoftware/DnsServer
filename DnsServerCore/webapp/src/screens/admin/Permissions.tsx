@@ -19,20 +19,21 @@ import { TablaEditable } from '../../ui/TablaEditable'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-`refreshAdminPermissions`, `showEditSectionPermissionsModal` y
+`refreshAdminPermissions`, `showEditSectionPermissionsModal` and
 `saveSectionPermissions` (auth.js:1938-2150).
 
-Tres cosas que gobiernan esta pantalla:
+Three things that govern this screen:
 
-  · La tabla de la lista es de SÓLO LECTURA: los permisos se editan en el modal.
-    Aquí las casillas se pintan deshabilitadas, que es el equivalente del
-    `glyphicon-ok` de upstream sin dejar de parecerse a la tabla del modal.
-  · La lista de grupos que ofrece el modal INCLUYE `Everyone`, y la de
-    `groups/list` no. Son dos listas distintas del servidor y no se pueden
-    intercambiar (comprobado en vivo contra una v15.4).
-  · `permissions/set` viaja con `node` = nombre del nodo PRIMARIO del cluster, no
-    con el nodo que se esté mirando; cadena vacía cuando no hay cluster. Y pide
-    permiso `Administration.canDelete`, no `canModify` (WebServiceAuthApi.cs:1533).
+  · The list's table is READ-ONLY: permissions are edited in the modal. Here the
+    checkboxes are drawn disabled, which is the equivalent of upstream's
+    `glyphicon-ok` while still resembling the modal's table.
+  · The group list the modal offers INCLUDES `Everyone`, and `groups/list`'s does
+    not. They are two different lists from the server and cannot be swapped
+    (checked live against a v15.4).
+  · `permissions/set` travels with `node` = the name of the cluster's PRIMARY
+    node, not the node being looked at; an empty string when there is no cluster.
+    And it asks for `Administration.canDelete`, not `canModify`
+    (WebServiceAuthApi.cs:1533).
 */
 
 interface Props {
@@ -74,9 +75,9 @@ export function Permissions({ token, cluster, onAviso }: Props) {
         <Loading />
       ) : (
         <>
-          {/* El nombre de la sección es el título del panel, no un enlace: estaba
-              como botón naranja y hacía lo mismo que el «Edit Permissions» de al
-              lado. Upstream tampoco lo enlaza (`auth.js:1975`). */}
+          {/* The section's name is the panel's title, not a link: it was an
+              orange button and did the same thing as the "Edit Permissions" next
+              to it. Upstream does not link it either (`auth.js:1975`). */}
           {secciones.map((s) => (
             <Panel
               key={s.section}
@@ -286,11 +287,11 @@ function EditarPermisos({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Permissions - ${seccion}`}
-      /* El MISMO diálogo abierto desde una zona ya iba ancho, y desde aquí iba a
-         560: dos anchuras para la misma cosa. No es que apretara —la tabla se
-         encoge y cabe en las tres tallas, comprobado—, es que sus dos entradas
-         tenían que verse igual. Va con el arreglo del título, que también se
-         había desviado entre las dos. */
+      /* The SAME dialog opened from a zone already went wide, and from here
+         it went to 560: two widths for the same thing. It is not that it was
+         cramped —the table shrinks and fits in all three sizes, measured— it is
+         that its two entrances had to look the same. It goes with the title fix,
+         which had also drifted between the two. */
       tamano="medio"
       acciones={
         <>
@@ -389,8 +390,8 @@ function TablaPermisos({
 }) {
   const { filas: visibles, orden, alternar } = useOrden(CLAVES_PERMISO, filas as Fila[])
 
-  // La casilla escribe sobre la lista ORIGINAL: la ordenación sólo cambia el
-  // orden en que se pinta, no el de los datos.
+  // The checkbox writes over the ORIGINAL list: the sorting only changes the
+  // order things are drawn in, not the data's.
   function set(fila: Fila, parcial: Partial<Fila>) {
     onChange(filas.map((f) => (f.nombre === fila.nombre ? { ...f, ...parcial } : f)))
   }
@@ -398,8 +399,8 @@ function TablaPermisos({
   return (
     <>
       <p className={styles.sub}>{titulo}</p>
-      {/* La editable no lleva el envoltorio con panel de la tabla de datos: es
-          otra pieza (`ui/TablaEditable.module.css`) y vive DENTRO de un panel. */}
+      {/* The editable one does not carry the data table's panel wrapper: it is
+          another piece (`ui/TablaEditable.module.css`) and lives INSIDE a panel. */}
       <div>
         <TablaEditable
       className={styles.edit}
@@ -449,8 +450,8 @@ function TablaPermisos({
             </tr>
           ))}
         </TablaEditable>
-        {/* Upstream no pone ningún texto cuando la tabla del modal está vacía;
-            aquí tampoco, para no inventar un literal que no existe. */}
+        {/* Upstream puts no text when the modal's table is empty; nor does it
+            here, so as not to invent a literal that does not exist. */}
       </div>
     </>
   )

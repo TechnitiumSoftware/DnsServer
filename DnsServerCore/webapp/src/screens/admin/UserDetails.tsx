@@ -33,21 +33,21 @@ import { Menu } from '../../ui/Menu'
 
 /*
 `showUserDetailsModal` / `saveUserDetails` / `deleteUserSession`
-(auth.js:1244-1481). Es el modal más cargado de Administration y lo abren DOS
-sitios: la pestaña Users (con fila que actualizar) y la pestaña Sessions (sin
-ella). Upstream distingue los dos casos por si el enlace traía `data-id`, y en
-el segundo refresca la lista de sesiones al guardar en vez de repintar la fila.
+(auth.js:1244-1481). It is Administration's most loaded modal and TWO places open
+it: the Users tab (with a row to update) and the Sessions tab (without one).
+Upstream tells the two cases apart by whether the link carried a `data-id`, and
+in the second it refreshes the sessions list on save instead of redrawing the row.
 
-Dos reglas de la interfaz que salen del propio usuario y no de los permisos:
+Two interface rules that come from the user themselves and not from permissions:
 
-  · Un usuario de SSO tiene el nombre y el nombre visible bloqueados, porque los
-    gobierna el proveedor (WebServiceAuthApi.cs:1085 y 1093 lo rechazan).
-  · Su pertenencia a grupos se bloquea SÓLO si además `ssoManagedGroups` está
-    activo (línea 1119). Son dos condiciones distintas y no se pueden unificar.
+  · An SSO user has the name and the display name locked, because the provider
+    governs them (WebServiceAuthApi.cs:1085 and 1093 reject them).
+  · Their group membership is locked ONLY if `ssoManagedGroups` is also on (line
+    1119). They are two different conditions and cannot be merged.
 
-Y una consecuencia importante: los campos bloqueados NO se envían. Upstream
-compone la query mirando el `disabled` de cada campo, así que un usuario de SSO
-guarda únicamente `disabled` y `sessionTimeoutSeconds`.
+And an important consequence: the locked fields are NOT sent. Upstream composes
+the query by looking at each field's `disabled`, so an SSO user saves only
+`disabled` and `sessionTimeoutSeconds`.
 */
 
 interface Props {
@@ -56,7 +56,7 @@ interface Props {
   token: string | null
   cluster: ClusterState | null
   onCerrar: () => void
-  /** La pestaña Users repinta su fila; la pestaña Sessions recarga la lista. */
+  /** The Users tab redraws its row; the Sessions tab reloads the list. */
   alGuardar: (u: AdminUserDetails) => void
   onAviso: (a: Aviso) => void
 }
@@ -122,8 +122,8 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
   async function guardar() {
     if (detalle == null || username == null) return
 
-    // «if (sessionTimeoutSeconds === "") sessionTimeoutSeconds = 1800» — es el
-    // único campo del modal con valor por defecto (auth.js:1424).
+    // "if (sessionTimeoutSeconds === "") sessionTimeoutSeconds = 1800" — it is
+    // the modal's only field with a default value (auth.js:1424).
     const segundos = timeout === '' ? '1800' : timeout
 
     const body: Record<string, string> = {
@@ -153,8 +153,8 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
 
   async function borrarSesion(s: AdminSession) {
     setPorBorrar(null)
-    // auth.js:1382 — aquí el `node` viaja SÓLO si la sesión es un token de API.
-    // La pestaña Sessions lo manda siempre; este modal no.
+    // auth.js:1382 — here the `node` travels ONLY if the session is an API token.
+    // The Sessions tab always sends it; this modal does not.
     const node = s.type === 'ApiToken' ? primaryNodeName(cluster) : undefined
     const outcome = await deleteAdminSession(token, s.partialToken, node)
 
@@ -315,11 +315,11 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                   </td>
                   <td className={tbl.celdaAcciones}>
                     <div className={tbl.acciones}>
-                      {/* Dentro del menú, como en «Administration > Sessions» y
-                          como upstream, que también lo pone en un desplegable
-                          (`auth.js`, `deleteUserSession`). Suelto era el único
-                          «Delete» de una fila sin la fricción que la regla
-                          exige, en una consola sin deshacer. */}
+                      {/* Inside the menu, as in "Administration > Sessions" and as
+                          in upstream, which also puts it in a dropdown
+                          (`auth.js`, `deleteUserSession`). Loose it was the only
+                          row "Delete" without the friction the rule demands, in a
+                          console with no undo. */}
                       <Menu etiqueta={`Actions for ${s.partialToken}`}>
                         {(cerrar) => (
                           <button

@@ -31,20 +31,20 @@ import { Menu } from '../../ui/Menu'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-`refreshAdminSessions`, `showCreateApiTokenModal`, `createApiToken` y
+`refreshAdminSessions`, `showCreateApiTokenModal`, `createApiToken` and
 `deleteAdminSession` (auth.js:856-1082).
 
-Tres cosas que no se ven mirando la tabla:
+Three things you do not see by looking at the table:
 
-  · El botón «Create Token» se esconde cuando este servidor NO es el nodo
-    primario del cluster (auth.js:915-918), porque el endpoint sólo corre allí
-    (DnsWebService.cs:2298). La comprobación es contra el `server` de la
-    envoltura de la respuesta, no contra el dominio de la sesión.
-  · Al borrar, el `node` que viaja depende del TIPO de sesión: el nodo primario
-    si es un token de API, el nodo elegido en el desplegable en cualquier otro
-    caso (auth.js:1050-1055).
-  · El aviso de éxito del borrado sale en la PÁGINA; el del modal de crear
-    token, dentro del modal. Upstream elige el sitio en cada llamada.
+  · The "Create Token" button hides when this server is NOT the cluster's primary
+    node (auth.js:915-918), because the endpoint only runs there
+    (DnsWebService.cs:2298). The check is against the `server` of the response's
+    envelope, not against the session's domain.
+  · When deleting, the `node` that travels depends on the session's TYPE: the
+    primary node if it is an API token, the node chosen in the dropdown in any
+    other case (auth.js:1050-1055).
+  · The delete's success alert comes out on the PAGE; the create-token modal's,
+    inside the modal. Upstream picks the place on each call.
 */
 
 interface Props {
@@ -53,8 +53,8 @@ interface Props {
   onAviso: (a: Aviso) => void
 }
 
-/* `sortTable('tbodyAdminSessions', 0..4)`. La celda «Session» se lee como se
-   pinta: nombre del token si lo tiene, el token parcial y su tipo. */
+/* `sortTable('tbodyAdminSessions', 0..4)`. The "Session" cell is read as it is
+   drawn: the token's name if it has one, the partial token and its type. */
 const CLAVES: Claves<AdminSession> = {
   username: (s) => s.username,
   session: (s) =>
@@ -209,9 +209,9 @@ export function Sessions({ token, cluster, onAviso }: Props) {
         onCreado={() => void cargar()}
       />
 
-      {/* Se monta sólo cuando hace falta para que su carga arranque de cero cada
-          vez que se abre, igual que en upstream. Al guardar desde aquí upstream
-          NO repinta ninguna fila: recarga la lista de sesiones (auth.js:1467). */}
+      {/* It is mounted only when needed so its load starts from scratch every
+          time it opens, just as in upstream. On saving from here upstream does NOT
+          redraw any row: it reloads the sessions list (auth.js:1467). */}
       {verUsuario != null && (
         <UserDetails
           abierto
@@ -228,10 +228,10 @@ export function Sessions({ token, cluster, onAviso }: Props) {
 }
 
 /*
-`showCreateApiTokenModal` (auth.js:936). Es el hermano administrativo del modal
-«Create API Token» del menú de usuario: aquí el nombre de usuario se ELIGE de un
-desplegable cargado con `admin/users/list`, y el endpoint es
-`admin/sessions/createToken`, no `user/createToken`.
+`showCreateApiTokenModal` (auth.js:936). It is the administrative sibling of the
+user menu's "Create API Token" modal: here the username is CHOSEN from a dropdown
+loaded with `admin/users/list`, and the endpoint is
+`admin/sessions/createToken`, not `user/createToken`.
 */
 function CrearApiToken({
   abierto,

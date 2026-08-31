@@ -1,22 +1,24 @@
 import { limpiarLista } from '../../../api/zonelists'
 
 /*
-El formulario de `modalAddZone` y su validación (`addZone`, zone.js:2911).
+The `modalAddZone` form and its validation (`addZone`, zone.js:2911).
 
-Se separa del componente porque es lo único de este modal que puede fallar en
-silencio: qué parámetros viajan depende del tipo elegido, y **cada tipo manda un
-conjunto distinto**. Aquí se replica el `switch` entero y se prueba solo.
+It is kept apart from the component because it is the only thing in this modal
+that can fail silently: which parameters travel depends on the chosen type, and
+**each type sends a different set**. The whole `switch` is replicated here and it
+tests on its own.
 
-Dos rarezas del original:
+Two oddities of the original:
 
-  · **«Secondary ROOT Zone» no es un tipo**: es una Secondary con las trece
-    direcciones de los servidores raíz precargadas, `zoneTransferProtocol=Tcp`
-    y `validateZone=true`. El tipo que viaja es `Secondary`.
+  · **"Secondary ROOT Zone" is not a type**: it is a Secondary with the thirteen
+    root server addresses preloaded, `zoneTransferProtocol=Tcp` and
+    `validateZone=true`. The type that travels is `Secondary`.
 
-  · **Los tipos Catalog y Secondary Catalog no aparecen en el `switch`** de
-    parámetros: caen al `default` y no mandan ninguno más allá de zona y tipo…
-    salvo SecondaryCatalog, que sí tiene su rama junto a SecondaryForwarder.
-    Catalog, por tanto, no puede registrarse en otro catálogo al crearse.
+  · **The Catalog and Secondary Catalog types do not appear in the parameter
+    `switch`**: they fall to the `default` and send none beyond zone and type…
+    except SecondaryCatalog, which does have its branch next to
+    SecondaryForwarder. Catalog, therefore, cannot register itself in another
+    catalog on creation.
 */
 
 export type TipoAlta =
@@ -32,7 +34,7 @@ export type TipoAlta =
 export interface TipoDeAlta {
   valor: TipoAlta
   etiqueta: string
-  /** Referencia externa que upstream pinta entre paréntesis tras la etiqueta. */
+  /** An external reference upstream draws in brackets after the label. */
   referencia?: { texto: string; href: string }
 }
 
@@ -47,12 +49,12 @@ export const TIPOS_ALTA: TipoDeAlta[] = [
   {
     valor: 'SecondaryRoot',
     etiqueta: 'Secondary ROOT Zone',
-    // Upstream enlaza el RFC desde la propia etiqueta del tipo.
+    // Upstream links the RFC from the type's own label.
     referencia: { texto: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
   },
 ]
 
-/** Las direcciones de los trece servidores raíz, copiadas literales de zone.js:3020. */
+/** The addresses of the thirteen root servers, copied literally from zone.js:3020. */
 export const RAICES =
   '199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]'
 
@@ -103,7 +105,7 @@ export function formularioAltaInicial(useSoaSerialDateScheme: boolean, dnssecVal
     zone: '',
     tipo: 'Primary',
     catalog: '',
-    // Los dos heredan del ajuste global de la pantalla de Settings, no de false.
+    // Both inherit from the global setting on the Settings screen, not from false.
     useSoaSerialDateScheme,
     primaryNameServerAddresses: '',
     zoneTransferProtocol: 'Tcp',
@@ -125,35 +127,35 @@ export function formularioAltaInicial(useSoaSerialDateScheme: boolean, dnssecVal
 export interface ErrorAlta {
   title: string
   text: string
-  /** Qué campo recibe el foco, igual que hace upstream. */
+  /** Which field receives the focus, just as upstream does. */
   campo: keyof FormularioAlta
 }
 
 export type ResultadoAlta = { error: ErrorAlta } | { parametros: Record<string, string> }
 
 export interface SeccionesAlta {
-  /** Sólo si además el desplegable trajo catálogos (`hasItems`). */
+  /** Only if the dropdown also brought catalogs (`hasItems`). */
   catalogo: boolean
   ficheroDeZona: boolean
   serieSoa: boolean
   servidoresPrimarios: boolean
-  /** El rótulo y la ayuda cambian: opcional para Secondary y Stub, obligatorio
-   *  para las dos secundarias de reenvío y catálogo. */
+  /** The label and the help change: optional for Secondary and Stub, required
+   *  for the two forwarder and catalog secondaries. */
   servidoresPrimariosObligatorios: boolean
   protocoloTransferencia: boolean
   tsig: boolean
   validarZona: boolean
   casillaInicializarForwarder: boolean
   camposDeForwarder: boolean
-  /** «Secondary ROOT» fija la zona a «.» y bloquea el campo. */
+  /** "Secondary ROOT" pins the zone to "." and locks the field. */
   zonaFija: string | null
 }
 
 /**
- * Qué secciones del formulario se ven, por tipo. Réplica literal del
- * manejador de `rdAddZoneType` (zone.js:26-118), incluido que **Catalog no
- * enseña NADA**: no tiene rama en el `switch`, así que sólo quedan el nombre y
- * el tipo.
+ * Which sections of the form show, by type. A literal replica of the
+ * `rdAddZoneType` handler (zone.js:26-118), including that **Catalog shows
+ * NOTHING**: it has no branch in the `switch`, so only the name and the type
+ * remain.
  */
 export function seccionesVisibles(tipo: TipoAlta, initializeForwarder: boolean): SeccionesAlta {
   const base: SeccionesAlta = {
@@ -188,7 +190,7 @@ export function seccionesVisibles(tipo: TipoAlta, initializeForwarder: boolean):
       return { ...base, catalogo: true, servidoresPrimarios: true }
 
     case 'Forwarder':
-      // El fichero de zona y los campos del reenviador se excluyen entre sí.
+      // The zone file and the forwarder fields are mutually exclusive.
       return {
         ...base,
         catalogo: true,
@@ -215,7 +217,7 @@ export function seccionesVisibles(tipo: TipoAlta, initializeForwarder: boolean):
   }
 }
 
-/** El ejemplo del campo «Forwarder» cambia con el protocolo (zone.js:139-152). */
+/** The "Forwarder" field's example changes with the protocol (zone.js:139-152). */
 export function ejemploDeForwarder(protocolo: string): string {
   switch (protocolo) {
     case 'Tls':
@@ -228,7 +230,7 @@ export function ejemploDeForwarder(protocolo: string): string {
   }
 }
 
-/** Los campos del proxy se apagan con «No Proxy» y «Default Proxy». */
+/** The proxy fields go off with "No Proxy" and "Default Proxy". */
 export function proxyEditable(proxyType: string): boolean {
   return proxyType !== 'NoProxy' && proxyType !== 'DefaultProxy'
 }
@@ -284,7 +286,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
       p.forwarder = forwarder
       p.dnssecValidation = String(f.dnssecValidation)
 
-      // «this-server» no admite proxy: upstream ni siquiera manda `proxyType`.
+      // "this-server" takes no proxy: upstream does not even send `proxyType`.
       if (forwarder !== 'this-server') {
         p.proxyType = f.proxyType
 
@@ -351,7 +353,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
   return { parametros: { zone: f.zone, type, ...p } }
 }
 
-/** Sólo Primary y Forwarder aceptan un fichero de zona al crear (zone.js:3030). */
+/** Only Primary and Forwarder accept a zone file on creation (zone.js:3030). */
 export function admiteFicheroDeZona(tipo: TipoAlta): boolean {
   return tipo === 'Primary' || tipo === 'Forwarder'
 }

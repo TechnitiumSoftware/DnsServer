@@ -9,28 +9,28 @@ import { Cluster } from './Cluster'
 import { Avisador, type Aviso } from './partes'
 
 /*
-Administration. Seis sub-pestañas y treinta endpoints: el segundo bloque más
-grande de la consola después de Zones.
+Administration. Six sub-tabs and thirty endpoints: the console's second largest
+block after Zones.
 
-La sub-navegación NO se monta aquí. Igual que en Settings, las sub-pestañas
-viven en el panel lateral del Shell y llegan por la prop `sub`. Este componente
-sólo decide qué panel pinta y sostiene las dos cosas que las seis comparten: el
-aviso de página y el estado del cluster.
+The sub-navigation is NOT mounted here. Just as in Settings, the sub-tabs live in
+the Shell's side panel and arrive through the `sub` prop. This component only
+decides which panel it draws and holds the two things all six share: the page
+alert and the cluster's state.
 
-Sobre los permisos, y va contra la intuición: **upstream NO oculta ni deshabilita
-NADA dentro de Administration**. La única comprobación que hace es
-`permissions.Administration.canView` para enseñar o esconder la sección entera
-(main.js:165 y 240), y a partir de ahí muestra todos los botones y deja que el
-servidor rechace lo que no toque. Por eso este componente no recibe props de
-permiso: añadirlas sería añadir comportamiento. Los permisos que consume cada
-acción están anotados en `src/api/admin.ts` y `src/api/admin-cluster.ts`.
+About the permissions, and it goes against intuition: **upstream hides and
+disables NOTHING inside Administration**. The only check it makes is
+`permissions.Administration.canView` to show or hide the whole section
+(main.js:165 and 240), and from there it shows every button and lets the server
+reject whatever it should. That is why this component receives no permission
+props: adding them would be adding behaviour. The permissions each action
+consumes are noted in `src/api/admin.ts` and `src/api/admin-cluster.ts`.
 
-Sobre el cluster: upstream lee `clusterInitialized` y `clusterNodes` de
-`sessionData.info`, que llega en el login. La sesión que reparte el Shell no los
-expone, así que aquí se piden una vez con `admin/cluster/state` —el mismo dato,
-y permitido con el mismo `canView` que hace falta para ver la sección— y se
-comparten con las seis sub-pestañas. La sub-pestaña Cluster lo refresca cada vez
-que cambia, igual que hace `reloadAdminClusterView`.
+About the cluster: upstream reads `clusterInitialized` and `clusterNodes` from
+`sessionData.info`, which arrives on login. The session the Shell hands out does
+not expose them, so here they are asked for once with `admin/cluster/state` —the
+same datum, and allowed with the same `canView` needed to see the section— and
+shared with the six sub-tabs. The Cluster sub-tab refreshes it every time it
+changes, just as `reloadAdminClusterView` does.
 */
 
 export const SUBPESTANAS = ['Sessions', 'Users', 'Groups', 'Permissions', 'SSO', 'Cluster'] as const
@@ -39,10 +39,10 @@ export type Subpestana = (typeof SUBPESTANAS)[number]
 
 export interface AdminProps {
   token: string | null
-  /** Sub-pestaña activa, la que marca el panel lateral del Shell. */
+  /** The active sub-tab, the one the Shell's side panel marks. */
   sub?: string | null
-  /** Presente por simetría con Settings; Administration nunca cambia de
-   *  sub-pestaña por su cuenta, así que hoy no se invoca. */
+  /** Present for symmetry with Settings; Administration never changes sub-tab on
+   *  its own, so today it is not invoked. */
   onSubChange?: (sub: Subpestana) => void
 }
 
@@ -60,8 +60,8 @@ export function Admin({ token, sub }: AdminProps) {
     }
   }, [token])
 
-  // Estable entre renders: las sub-pestañas la meten en las dependencias de su
-  // `useCallback` de carga, y una función nueva por render las recargaría en
+  // Stable across renders: the sub-tabs put it in the dependencies of their
+  // loading `useCallback`, and a new function per render would reload them in
   // bucle.
   const avisar = useCallback((a: Aviso) => setAviso(a), [])
   const alCluster = useCallback((s: ClusterState) => setCluster(s), [])

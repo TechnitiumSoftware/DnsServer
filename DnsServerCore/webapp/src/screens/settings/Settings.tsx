@@ -31,24 +31,24 @@ import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-Settings. La pantalla más grande de la consola: en upstream, sólo la sub-pestaña
-General mide 5.452 px de alto.
+Settings. The console's biggest screen: in upstream, the General sub-tab alone is
+5,452 px tall.
 
-La sub-navegación NO se monta aquí. Las nueve sub-pestañas viven en el panel
-lateral del Shell, anidadas bajo Settings, y llegan por la prop `sub`. Este
-componente sólo decide qué panel pinta y mantiene UN ÚNICO estado de formulario
-para las nueve: upstream tampoco tiene nueve formularios, tiene uno solo con
-nueve pestañas, y «Save Settings» manda SIEMPRE los campos de las nueve estés
-donde estés. Trocearlo por pestaña cambiaría lo que se guarda.
+The sub-navigation is NOT mounted here. The nine sub-tabs live in the Shell's
+side panel, nested under Settings, and arrive through the `sub` prop. This
+component only decides which panel it draws and keeps A SINGLE form state for the
+nine: upstream does not have nine forms either, it has one with nine tabs, and
+"Save Settings" ALWAYS sends the fields of all nine wherever you are. Chopping it
+up per tab would change what gets saved.
 
-Dos consecuencias de eso que hay que tener presentes:
+Two consequences of that to keep in mind:
 
-  · Un fallo de validación puede estar en otra sub-pestaña. Upstream le da el
-    foco al campo aunque su pestaña esté oculta y el usuario no ve nada. Aquí el
-    aviso dice qué falta y la pantalla salta a la sub-pestaña del campo.
-  · Los tres permisos de la barra son distintos: guardar exige
-    `Settings.canModify`, vaciar la caché `Cache.canDelete`, y copia y
-    restauración `Settings.canDelete` (main.js:906-930).
+  · A validation failure can be on another sub-tab. Upstream focuses the field
+    even when its tab is hidden and the user sees nothing. Here the alert says
+    what is missing and the screen jumps to the field's sub-tab.
+  · The three permissions on the bar are different: saving requires
+    `Settings.canModify`, flushing the cache `Cache.canDelete`, and backup and
+    restore `Settings.canDelete` (main.js:906-930).
 */
 
 export const SUBPESTANAS = [
@@ -68,10 +68,10 @@ export type Subpestana = (typeof SUBPESTANAS)[number]
 
 export interface SettingsProps {
   token: string | null
-  /** Sub-pestaña activa, la que marca el panel lateral del Shell. */
+  /** The active sub-tab, the one the Shell's side panel marks. */
   sub?: string | null
-  /** Permite al Shell seguir a la pantalla cuando un fallo de validación la
-   *  obliga a saltar a otra sub-pestaña. */
+  /** Lets the Shell follow the screen when a validation failure forces it to
+   *  jump to another sub-tab. */
   onSubChange?: (sub: Subpestana) => void
   canModify?: boolean
   canFlushCache?: boolean
@@ -91,9 +91,9 @@ export function Settings({
   const [cargando, setCargando] = useState(true)
   const [ocupado, setOcupado] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  // El salto por validación recuerda desde qué sub-pestaña se disparó: en cuanto
-  // el Shell pide otra distinta, deja de valer. Derivarlo así evita un efecto
-  // que sólo servía para ponerlo a null y el render de más que trae consigo.
+  // The validation jump remembers which sub-tab it fired from: as soon as the
+  // Shell asks for a different one, it stops holding. Deriving it this way avoids
+  // an effect whose only job was to null it out, and the extra render it brings.
   const [salto, setSalto] = useState<{ tab: Subpestana; desde: string } | null>(null)
   const [confirmar, setConfirmar] = useState<null | 'flush' | 'disable' | 'update'>(null)
   const [modal, setModal] = useState<null | 'backup' | 'restore'>(null)
@@ -214,7 +214,7 @@ export function Settings({
     const ok = await forceUpdateBlockLists(token)
     setOcupado(false)
     if (!ok) return
-    // main.js:2356 — la etiqueta pasa a «Updating Now» sin recargar los ajustes.
+    // main.js:2356 — the label becomes "Updating Now" without reloading the settings.
     setProximaLista(new Date(0).toISOString())
     setAviso({
       type: 'success',
@@ -242,8 +242,8 @@ export function Settings({
   }
 
   async function hacerRestore(fichero: File | null, borrar: boolean) {
-    // El orden de validación es el de upstream: primero el fichero, después
-    // que haya al menos un elemento marcado (main.js:3137-3160).
+    // The validation order is upstream's: the file first, then that there is
+    // at least one item checked (main.js:3137-3160).
     if (fichero == null) {
       setAvisoModal({ title: 'Missing!', text: 'Please select a backup zip file to restore.' })
       return
@@ -275,8 +275,9 @@ export function Settings({
 
   return (
     <div className={styles.wrap}>
-      {/* El título es la sub-pestaña, no «Settings»: las nueve decían lo mismo,
-          así que no servía ni para orientarse ni para buscar con Ctrl+F. */}
+      {/* The title is the sub-tab, not "Settings": all nine said the same
+          thing, so it was no use either for orienting yourself or for finding it
+          with Ctrl+F. */}
       <SectionHeader seccion="Settings" titulo={activa} />
 
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />

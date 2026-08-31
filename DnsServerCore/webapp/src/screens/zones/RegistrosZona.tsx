@@ -39,14 +39,14 @@ import { Paginacion } from '../../ui/Paginacion'
 import { avisoDeFallo } from '../../lib/aviso'
 
 /*
-Los registros de una zona. Réplica de `showEditZone` (zone.js:3079) y
+A zone's records. A replica of `showEditZone` (zone.js:3079) and
 `showEditZonePage` (3500).
 
-**Aquí la paginación es del cliente**, al revés que en la lista de zonas:
-`zones/records/get` no pagina, trae la zona entera y upstream la corta en el
-navegador. Si esto se hiciera con la paginación por defecto de una librería de
-tablas, la lista de zonas se rompería y ésta no, o al revés; por eso las dos
-están escritas a mano y separadas.
+**Here the pagination is the client's**, the opposite of the zone list:
+`zones/records/get` does not paginate, it brings the whole zone and upstream cuts
+it in the browser. If this were done with a table library's default pagination,
+the zone list would break and this one would not, or the other way round; that is
+why both are written by hand and kept apart.
 */
 
 const REGISTROS_POR_PAGINA = [10, 25, 50] as const
@@ -71,24 +71,24 @@ export interface RegistrosZonaProps {
   onDesfirmar: (zone: string) => void
   onVerDs: (zone: string) => void
   onPropiedadesDnssec: (zone: string) => void
-  /** Cambia cuando un modal externo obliga a releer la zona. */
+  /** Changes when an external modal forces a re-read of the zone. */
   refresco: number
   /*
-  El TTL de expiración que quedó en el modal de registro. NO es un capricho:
-  `updateRecordState` lo lee del campo del modal en vez de la fila, así que
-  deshabilitar un registro manda lo que haya quedado ahí de la última vez —o
-  vacío si el modal no se ha abierto. Es un fallo de upstream y se replica; ver
-  CONVENCIONES.md.
+  The expiry TTL left over in the record modal. It is NOT a whim:
+  `updateRecordState` reads it from the modal's field instead of the row, so
+  disabling a record sends whatever was left there from last time —or empty if
+  the modal has not been opened. It is a bug of upstream's and it is replicated;
+  see CONVENCIONES.md.
   */
   expiryTtlDelModal: string
 }
 
 /*
-`sortTable('tableEditZoneBody', 0..4)` en upstream, que ordena por el texto de
-la celda. «Data» se lee por sus celdas ya formateadas, que es lo que se ve.
+`sortTable('tableEditZoneBody', 0..4)` in upstream, which sorts by the cell's
+text. "Data" is read through its already-formatted cells, which is what you see.
 
-La columna `#` de upstream también es ordenable y aquí no: ordenar por el número
-de fila que la propia ordenación acaba de repartir no lleva a ningún sitio.
+Upstream's `#` column is sortable too and here it is not: sorting by the row
+number the sort itself has just handed out leads nowhere.
 */
 function textoDeCelda(c: Celda): string {
   switch (c.clase) {
@@ -141,7 +141,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     void cargar()
   }, [cargar, p.refresco])
 
-  // El filtrado de DNSSEC es previo al filtro de nombre/tipo, igual que en
+  // The DNSSEC filtering comes before the name/type filter, just as in
   // upstream: `editZoneRecords` ya llega recortado a `showEditZonePage`.
   const visibles = useMemo(() => {
     const firmada = estaFirmada(zona?.dnssecStatus)
@@ -158,7 +158,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
 
   const cab = zona ? cabeceraDeZona(zona.type, zona.dnssecStatus) : null
 
-  /** Ejecuta una mutación sobre un registro y recarga la zona entera. */
+  /** Runs a mutation on a record and reloads the whole zone. */
   async function mutarRegistro(fn: () => Promise<{ kind: string; message?: string }>, exito: Aviso) {
     setOcupado(true)
     const outcome = await fn()
@@ -188,7 +188,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
           : { type: 'success', title: 'Record Enabled!', text: 'Resource record was enabled successfully.' },
       )
 
-    // Sólo deshabilitar pregunta; habilitar no (zone.js:6241).
+    // Only disabling asks; enabling does not (zone.js:6241).
     if (!deshabilitar) {
       void ejecutar()
       return
@@ -222,7 +222,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     })
   }
 
-  /* ── Acciones sobre la zona entera ─────────────────────────────────── */
+  /* ── Actions on the whole zone ─────────────────────────────────────── */
 
   async function mutarZona(fn: () => Promise<{ kind: string; message?: string }>, exito: Aviso, volver = false) {
     setOcupado(true)
@@ -322,8 +322,8 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   const texto = textoDeEstado(inicio + 1, enPagina.length, visibles.length, paginaActual, totalPages, 'records')
   const pg = ventanaDePaginas(paginaActual, totalPages)
 
-  /* Aquí la última página se calcula en el cliente: los registros están todos
-     cargados, no hay que preguntarle al servidor. */
+  /* Here the last page is calculated on the client: the records are all
+     loaded, there is no need to ask the server. */
   const paginacion = (
     <Paginacion ventana={pg} actual={paginaActual} ultima={totalPages} onIr={setPagina} />
   )
@@ -506,9 +506,9 @@ export function RegistrosZona(p: RegistrosZonaProps) {
             <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
             <Th campo="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
             <Th campo="data" orden={orden} onOrdenar={alternar}>Data</Th>
-            {/* La columna de acciones reservaba 230 px con tres rótulos
-                dentro; con iconos le bastan 120 y los 110 que sobran se los
-                queda el dato, que es de lo que va la tabla. */}
+            {/* The actions column reserved 230 px with three labels inside;
+                with icons 120 is enough and the 110 left over go to the data,
+                which is what the table is about. */}
             <th style={{ width: 120 }} />
           </>
         }
@@ -555,8 +555,8 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                         disabled={acciones.soloEdicion || !p.canModify || ocupado}
                         onClick={() => cambiarEstado(r, !r.disabled)}
                       />
-                      {/* Borrar, dentro del menú: la misma regla que en la
-                          lista de zonas. */}
+                      {/* Delete, inside the menu: the same rule as in the zone
+                          list. */}
                       <Menu etiqueta={`Actions for ${nombreRelativo(r.name, zone)} ${r.type}`}>
                         {(cerrar) => (
                           <button
@@ -582,7 +582,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         {paginacion}
       </div>
 
-      {/* La expiración de la zona secundaria, que upstream pinta junto al título. */}
+      {/* The secondary zone's expiry, which upstream draws next to the title. */}
       {'expiry' in zona && (zona as { expiry?: string }).expiry != null && (
         <div className={styles.meta}>Expiry: {fecha((zona as { expiry?: string }).expiry)}</div>
       )}

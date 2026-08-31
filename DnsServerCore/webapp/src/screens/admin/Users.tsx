@@ -30,18 +30,18 @@ import { nuncaUsado } from '../../api/zones'
 import { Avisador } from '../../ui/Avisador'
 
 /*
-`refreshAdminUsers` y las siete acciones de la fila (auth.js:1083-1698).
+`refreshAdminUsers` and the row's seven actions (auth.js:1083-1698).
 
-Cinco de esas siete acciones —guardar el modal, activar, desactivar, quitar el
-2FA y resetear la contraseña— salen por el MISMO endpoint `admin/users/set`,
-porque el servidor sólo toca los campos que llegan. La sexta y la séptima son
-`admin/users/create` y `admin/users/delete`.
+Five of those seven actions —saving the modal, enabling, disabling, clearing the
+2FA and resetting the password— go out through the SAME `admin/users/set`
+endpoint, because the server only touches the fields that arrive. The sixth and
+seventh are `admin/users/create` and `admin/users/delete`.
 
-Dos asimetrías de upstream que se replican tal cual:
+Two asymmetries of upstream's that are replicated as they are:
 
-  · Desactivar pide confirmación; ACTIVAR no.
-  · «Reset Password» y «Disable 2FA» sólo se ofrecen a un usuario local, y
-    «Disable 2FA» además sólo si lo tiene puesto (auth.js:1150-1157).
+  · Disabling asks for confirmation; ENABLING does not.
+  · "Reset Password" and "Disable 2FA" are only offered to a local user, and
+    "Disable 2FA" only if they have it on (auth.js:1150-1157).
 */
 
 interface Props {
@@ -55,7 +55,7 @@ type Accion =
   | { tipo: '2fa'; user: AdminUser }
   | { tipo: 'delete'; user: AdminUser }
 
-/** La fecha de un acceso, o «Never» si es el centinela de .NET. */
+/** The date of a login, or "Never" if it is .NET's sentinel. */
 function acceso(iso: string, direccion: string): string {
   return nuncaUsado(iso) ? 'Never' : `${fechaHora(iso)} from ${direccion}`
 }
@@ -102,9 +102,9 @@ export function Users({ token, cluster, onAviso }: Props) {
     setUsuarios((lista) => lista.map((x) => (x.username === u.username ? u : x)))
   }
 
-  /** Cambiar el nombre de usuario desde el modal deja la fila sin pareja por
-   *  `username`; upstream la sustituye por posición. Aquí se hace por índice
-   *  del usuario que se abrió, que es lo mismo. */
+  /** Changing the username from the modal leaves the row with no match by
+   *  `username`; upstream replaces it by position. Here it is done by the index
+   *  of the user that was opened, which is the same thing. */
   function reemplazarPor(anterior: string, u: AdminUser) {
     setUsuarios((lista) => lista.map((x) => (x.username === anterior ? u : x)))
   }
@@ -192,13 +192,13 @@ export function Users({ token, cluster, onAviso }: Props) {
                   )}
                 </td>
                 {/*
-                Upstream formatea la fecha sin mirar si es el mínimo de .NET
-                (auth.js:1141), así que a un usuario que no ha entrado nunca
-                le enseña «0000-12-31 23:45:16 from 0.0.0.0» —el año cero,
-                porque convierte a hora local una fecha anterior a los husos—
-                y una dirección que no existe. Eso no es un dato: es un valor
-                centinela filtrándose a la pantalla. Se dice «Never», que es
-                lo que significa, igual que se hizo con la columna DNSSEC.
+                Upstream formats the date without checking whether it is .NET's
+                minimum (auth.js:1141), so for a user who has never logged in it
+                shows "0000-12-31 23:45:16 from 0.0.0.0" —year zero, because it
+                converts to local time a date older than time zones— and an
+                address that does not exist. That is not a datum: it is a
+                sentinel value leaking onto the screen. It says "Never", which is
+                what it means, just as was done with the DNSSEC column.
                 */}
                 <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
                 <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
@@ -328,7 +328,7 @@ export function Users({ token, cluster, onAviso }: Props) {
   )
 }
 
-/* `addUser` (auth.js:1178). El orden de las cuatro validaciones es contrato. */
+/* `addUser` (auth.js:1178). The order of the four validations is contract. */
 function AnadirUsuario({
   abierto,
   token,
@@ -455,10 +455,10 @@ function AnadirUsuario({
 }
 
 /*
-`showResetUserPasswordModal` / `resetUserPassword` (auth.js:1546-1627).
-Upstream REUTILIZA el modal «Change Password» cambiando su título a «Reset
-Password», escondiendo la contraseña actual y el OTP, y renombrando el botón a
-«Reset». El aviso de éxito sale en la PÁGINA, porque el modal ya se ha cerrado.
+`showResetUserPasswordModal` / `resetUserPassword` (auth.js:1546-1627). Upstream
+REUSES the "Change Password" modal by changing its title to "Reset Password",
+hiding the current password and the OTP, and renaming the button to "Reset". The
+success alert comes out on the PAGE, because the modal has already closed.
 */
 function ResetearContrasena({
   username,

@@ -22,23 +22,23 @@ import { Avisador } from '../../ui/Avisador'
 import { Confirmar } from '../../ui/Confirmar'
 
 /*
-Réplica de la pestaña Apps (apps.js + index.html:807-835).
+A replica of the Apps tab (apps.js + index.html:807-835).
 
-Dos cosas de upstream que se conservan aunque el dibujo del rediseño enseñe sólo
-tres botones por tarjeta:
+Two things from upstream that are kept even though the redesign mockup shows only
+three buttons per card:
 
-  1. «Update» y «Store Update» son acciones DISTINTAS (apps.js:130-131). La
-     primera sube un zip propio; la segunda descarga la versión de la tienda.
-     Fundirlas quitaría funcionalidad, así que «Store Update» sigue ahí y sólo
-     aparece cuando el servidor dice `updateAvailable`.
-  2. El desplegable «More Details» con las clases del app, sus etiquetas y la
-     `recordDataTemplate` (apps.js:74-113). Esa plantilla es lo que se copia
-     para escribir un registro APP; sin ella la pantalla pierde utilidad real.
+  1. "Update" and "Store Update" are DIFFERENT actions (apps.js:130-131). The
+     first uploads your own zip; the second downloads the store's version.
+     Merging them would remove functionality, so "Store Update" stays and only
+     appears when the server says `updateAvailable`.
+  2. The "More Details" disclosure with the app's classes, their labels and the
+     `recordDataTemplate` (apps.js:74-113). That template is what gets copied to
+     write an APP record; without it the screen loses real usefulness.
 
-Lo que NO está: el badge Enabled/Disabled ni el botón «Enable» del dibujo. La
-API no tiene ese concepto —ni `apps/list` ni `WriteAppAsJson` traen nada
-parecido— y un app instalado está siempre activo. Inventarlo sería añadir
-funcionalidad.
+What is NOT here: the Enabled/Disabled badge nor the mockup's "Enable" button.
+The API has no such concept —neither `apps/list` nor `WriteAppAsJson` bring
+anything like it— and an installed app is always active. Inventing it would be
+adding functionality.
 */
 export interface AlertState { type: AlertType; title: string; text: string }
 
@@ -74,12 +74,12 @@ export function Apps({ token }: { token: string | null }) {
   }, [recargar])
 
   /*
-  apps.js:425-449 — la confirmación y el aviso son literales de upstream.
+  apps.js:425-449 — the confirmation and the alert are upstream literals.
 
-  El paso de confirmar es `ui/Confirmar`, como en las otras once acciones
-  destructivas de la consola. Aquí se había quedado el `confirm()` nativo del
-  navegador: el mismo diálogo del sistema operativo que el rediseño sustituyó en
-  todas partes, en una acción que desinstala una aplicación del servidor.
+  The confirmation step is `ui/Confirmar`, as in the console's other eleven
+  destructive actions. Here the browser's native `confirm()` had been left
+  behind: the same operating-system dialog the redesign replaced everywhere, on
+  an action that uninstalls an application from the server.
   */
   async function desinstalar(name: string) {
     setOcupado(name)
@@ -98,7 +98,7 @@ export function Apps({ token }: { token: string | null }) {
     await recargar()
   }
 
-  // apps.js:253-290, con `isModal` a false: el aviso sale en la página.
+  // apps.js:253-290, with `isModal` false: the alert comes out on the page.
   async function actualizarDesdeTienda(app: InstalledApp) {
     if (!app.updateUrl) return
 
@@ -118,8 +118,8 @@ export function Apps({ token }: { token: string | null }) {
     await recargar()
   }
 
-  // apps.js:459-491 — la config se lee ANTES de abrir el modal, y del nodo
-  // primario del clúster. `config` puede venir nula; el editor queda vacío.
+  // apps.js:459-491 — the config is read BEFORE opening the modal, and from the
+  // cluster's primary node. `config` can come null; the editor is left empty.
   async function abrirConfig(name: string) {
     setOcupado(name)
     const outcome = await getAppConfig(token, name)
@@ -132,9 +132,9 @@ export function Apps({ token }: { token: string | null }) {
     setModal({ kind: 'config', name, config: outcome.data.response.config ?? '' })
   }
 
-  // El recuento de apps instaladas ya no va en la cabecera: la píldora de
-  // cabecera es para ESTADO, y un recuento con ese mismo aspecto era una de las
-  // incongruencias. Aquí sólo queda lo que sí es estado: hay actualizaciones.
+  // The installed-apps count no longer goes in the header: the header pill
+  // is for STATE, and a count that looked exactly like it was one of the
+  // inconsistencies. What is left here is what really is state: there are updates.
   const conUpdate = (apps ?? []).filter((a) => a.updateAvailable).length
 
   return (

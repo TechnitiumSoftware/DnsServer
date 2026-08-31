@@ -26,17 +26,18 @@ import { Avisador } from '../../ui/Avisador'
 /*
 DHCP › Scopes (dhcp.js:201-684).
 
-Cuatro asimetrías de upstream que parecen descuidos y no lo son, y que se
-replican tal cual:
+Four asymmetries of upstream's that look like oversights and are not, and that
+are replicated as they are:
 
-  1. **Habilitar un scope NO pide confirmación; deshabilitarlo, sí**
-     (dhcp.js:583 vs 615). Sólo el camino que corta el servicio pregunta.
-  2. **Borrar tampoco recarga la lista**: quita la fila y recalcula el pie
-     (dhcp.js:662-668). Habilitar, deshabilitar y guardar sí recargan.
-  3. **El formulario sustituye a la tabla**, no se abre en un modal.
-  4. **El permiso de borrar un scope es `Delete`, no `Modify`**
-     (`WebServiceDhcpApi.cs:761`), mientras que habilitar y deshabilitar son
-     `Modify`. Guardar es `Modify`.
+  1. **Enabling a scope does NOT ask for confirmation; disabling it does**
+     (dhcp.js:583 vs 615). Only the path that cuts the service asks.
+  2. **Deleting does not reload the list either**: it removes the row and
+     recalculates the footer (dhcp.js:662-668). Enable, disable and save do
+     reload.
+  3. **The form replaces the table**, it does not open in a modal.
+  4. **The permission to delete a scope is `Delete`, not `Modify`**
+     (`WebServiceDhcpApi.cs:761`), while enabling and disabling are `Modify`.
+     Saving is `Modify`.
 */
 
 export interface ScopesProps {
@@ -50,8 +51,8 @@ export interface ScopesProps {
 
 type Edicion = { titulo: 'Add Scope' | 'Edit Scope'; form: Form }
 
-/* `sortTable('tableDhcpScopesBody', 0..3)`. Se ordena por el texto de la celda,
-   que en las dos columnas compuestas son sus dos pares rótulo/valor. */
+/* `sortTable('tableDhcpScopesBody', 0..3)`. It sorts by the cell's text, which
+   in the two composite columns is their two label/value pairs. */
 const CLAVES: Claves<DhcpScopeRow> = {
   name: (s) => s.name,
   range: (s) => `Range ${s.startingAddress} - ${s.endingAddress} Mask ${s.subnetMask}`,
@@ -68,7 +69,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     null,
   )
 
-  // Un fallo al cargar no se pinta como lista vacía; ver `Leases`.
+  // A failure on load is not drawn as an empty list; see `Leases`.
   const cargar = useCallback(async () => {
     setScopes(null)
     const r = await listScopes(token, node)
@@ -84,8 +85,8 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     void cargar()
   }, [cargar])
 
-  // El hook va ANTES de cualquier return: si no, dejaría de llamarse en cuanto
-  // la tabla está cargando.
+  // The hook goes BEFORE any return: otherwise it would stop being called as soon
+  // as the table is loading.
   const { filas: scopesVisibles, orden, alternar } = useOrden(CLAVES, scopes ?? [])
 
   async function editar(nombre: string) {
@@ -148,7 +149,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     const outcome = await deleteScope(token, nombre, node)
     setOcupado(false)
     if (outcome.kind !== 'ok') return
-    // dhcp.js:662 — quita la fila; no vuelve a pedir la lista.
+    // dhcp.js:662 — it removes the row; it does not ask for the list again.
     setScopes((prev) => prev?.filter((s) => s.name !== nombre) ?? prev)
     setAviso({
       type: 'success',
@@ -235,8 +236,8 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                 <dd>{s.broadcastAddress}</dd>
               </dl>
             </td>
-            {/* `interfaceAddress` se OMITE cuando es nulo; upstream pinta
-                una celda vacía (dhcp.js:228). */}
+            {/* `interfaceAddress` is OMITTED when null; upstream draws an
+                empty cell (dhcp.js:228). */}
             <td className={styles.mono}>{s.interfaceAddress ?? ''}</td>
             <td>
               <Tag tone={s.enabled ? 'ok' : 'neutral'}>
@@ -252,7 +253,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                   onClick={() => void editar(s.name)}
                 />
                 {canModify && (
-                  /* dhcp.js:615 — habilitar no pregunta nada; deshabilitar sí. */
+                  /* dhcp.js:615 — enabling asks nothing; disabling does. */
                   <AccionFila
                     icono="energia"
                     nombre={s.enabled ? 'Disable Scope' : 'Enable Scope'}
@@ -285,10 +286,10 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
       </Tabla>
 
       <div className={styles.total}>
-        {/* El pie es el recuento y nada más. Cuando no hay filas, quien lo dice
-            es la propia tabla —con su fila centrada, como el resto de la
-            consola y como upstream (`dhcp.js:74`)—; aquí quedaba flotando
-            fuera del panel, bajo una tabla con el cuerpo en blanco. */}
+        {/* The footer is the count and nothing else. When there are no rows,
+            the one that says so is the table itself —with its centred row, like
+            the rest of the console and like upstream (`dhcp.js:74`)—; here it was
+            left floating outside the panel, under a table with a blank body. */}
         <span>{`Total Scopes: ${scopes.length}`}</span>
       </div>
 

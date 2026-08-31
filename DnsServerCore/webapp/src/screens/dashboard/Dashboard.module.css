@@ -1,25 +1,25 @@
 /*
-El panel lo pinta `ui/Panel`. Aquí sólo quedan los ajustes propios de esta
-pantalla, si los hay: replicar su marcado con `composes:` era lo que había, y
-así fue como una cabecera acabó midiendo 21 px menos que su tarjeta.
+The panel is drawn by `ui/Panel`. What is left here is only this screen's own
+adjustments, if any: replicating its markup with `composes:` was what there was,
+and that is how a header ended up 21 px shorter than its card.
 */
 .tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--hueco-bloque); }
 /*
-El color de la métrica es el de SU SERIE en la gráfica de abajo: la relación es
-la que hace útil el tile. Estaba dicho con un filo de 3 px a la izquierda, que
-es la marca de fábrica de una interfaz generada y además no se parece a nada de
-la gráfica. Se dice con la misma muestra que usa una leyenda, que es de donde
-viene la relación.
+The metric's colour is that of ITS SERIES in the chart below: that relationship
+is what makes the tile useful. It used to be said with a 3 px edge on the left,
+which is the factory mark of a generated interface and moreover looks like
+nothing in the chart. It is said with the same swatch a legend uses, which is
+where the relationship comes from.
 */
 .tile { composes: panel from '../../ui/Panel.module.css'; padding: var(--s-8); }
 .tile .v { font:600 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
 .p { composes: anotacionMinima from '../../ui/texto.module.css'; }
 .tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight: 550; }
 /*
-La muestra de color sólo la llevan las once métricas, que SON series de la
-gráfica de abajo. Los seis contadores del servidor comparten estilo de rótulo
-pero no son series de nada, así que no la llevan: una muestra de color que no
-remite a ninguna línea es decoración.
+Only the eleven metrics carry the colour swatch, since they ARE series of the
+chart below. The six server counters share the label style but are series of
+nothing, so they do not carry it: a colour swatch that points at no line is
+decoration.
 */
 .tile .k::before { content:''; width:7px; height:7px; border-radius: var(--r-full); background:var(--tc); flex:none; }
 .counters .k::before { display:none; }
@@ -35,25 +35,25 @@ remite a ninguna línea es decoración.
 .toprow:last-child { border-bottom:0; }
 .toprow .n { color:var(--ink); font-family:var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .toprow .c { color:var(--mute); font-family:var(--font-mono); flex:none; }
-/* Modal «Top Stats»: la lista larga detrás de los botones «More». */
+/* "Top Stats" modal: the long list behind the "More" buttons. */
 .topTablaWrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
 /*
-La tabla del diálogo «More» es la tabla de la consola, con una diferencia que sí
-tiene razón de ser: la cabecera se queda pegada arriba porque la lista puede
-tener trescientas filas dentro de un diálogo que rueda.
+The "More" dialog's table is the console's table, with one difference that does
+have a reason: the header stays stuck to the top because the list can have three
+hundred rows inside a dialog that scrolls.
 
-Antes era una tabla aparte —cabecera a `--t-2` y sobre `--pan` en vez de
-`--pan2`— y por eso el mismo dato se veía distinto en el panel del Dashboard y
-en el diálogo que lo amplía.
+It used to be a table apart —header at `--t-2` and over `--pan` instead of
+`--pan2`— and that is why the same datum looked different in the Dashboard's
+panel and in the dialog that expands it.
 */
 .topTabla { composes: tabla from '../../ui/Table.module.css'; }
 .topTabla thead th { position: sticky; top: 0; }
 .topTabla td { vertical-align: top; }
 /*
-El «Total Domains: N» del pie es el mismo recuento que lleva cualquier otra
-tabla de la consola (`ui/recuento.module.css`), aunque aquí viaje en un `tfoot`
-en vez de en un `div`: iba a 11,5 px y peso 550 cuando en las otras nueve
-pantallas va a 12,5 y peso normal.
+The footer's "Total Domains: N" is the same count any other table in the console
+carries (`ui/recuento.module.css`), even though here it travels in a `tfoot`
+instead of in a `div`: it was at 11.5 px and weight 550 when on the other nine
+screens it is at 12.5 and normal weight.
 */
 .topTabla tfoot th {
   padding: var(--s-6) var(--s-7);
@@ -65,14 +65,14 @@ pantallas va a 12,5 y peso normal.
   letter-spacing: normal;
   background: transparent;
 }
-/* Upstream pinta la fila entera en naranja cuando el cliente está limitado. */
+/* Upstream draws the whole row in orange when the client is rate limited. */
 .limitada td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
 .topDominio { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
 .topConteo { composes: mono from '../../ui/texto.module.css'; }
 
-/* El raíl derecho era `310px` fijos: a 1024 px estrujaba la gráfica a 425 px y
-   a 390 px la sacaba de la pantalla. */
+/* The right rail was a fixed `310px`: at 1024 px it squeezed the chart down to
+   425 px and at 390 px it pushed it off the screen. */
 @media (max-width: 1080px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
@@ -80,14 +80,14 @@ pantallas va a 12,5 y peso normal.
 @media (max-width: 720px) {
 }
 
-/* La leyenda de una gráfica ya trae su propio hueco arriba. */
+/* A chart's legend already brings its own space on top. */
 .pbAjustado { padding-top: var(--s-2); }
 
-/* El aviso de las acciones de la propia pantalla —hoy, el menú de bloqueo—. */
-/* La cabecera de un panel puede llevar más de un control. */
+/* The alert for the screen's own actions —today, the blocking menu. */
+/* A panel's header can carry more than one control. */
 .accionesPanel { display: flex; align-items: center; gap: var(--s-4); }
 
-/* El rango personalizado: dos fechas y el botón, en una línea. */
+/* The custom range: two dates and the button, on one line. */
 .rangoPropio { display:flex; align-items:flex-end; gap: var(--s-7); flex-wrap:wrap; margin-bottom: var(--s-9); }
 .rangoPropio label { display:flex; flex-direction:column; gap: var(--s-3); font-size: var(--t-3); color:var(--mute); }
 .rangoPropio input {

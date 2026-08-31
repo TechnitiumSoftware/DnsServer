@@ -16,18 +16,18 @@ import { Confirmar } from '../../ui/Confirmar'
 import { Menu } from '../../ui/Menu'
 
 /*
-Réplica de `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
+A replica of `showMyProfileModal` / `saveMyProfile` (auth.js:642-794).
 
-Dos detalles del contrato: el nombre visible se DESHABILITA para usuarios de
-SSO, y por eso `displayName` sólo se manda si el campo no está deshabilitado
-(auth.js:756-761). El tipo de usuario se muestra como «Remote/SSO» o «Local».
+Two details of the contract: the display name is DISABLED for SSO users, and that
+is why `displayName` is only sent if the field is not disabled (auth.js:756-761).
+The user type is shown as "Remote/SSO" or "Local".
 */
 interface Profile {
   displayName: string
   username: string
   isSsoUser: boolean
   totpEnabled: boolean
-  /** Los grupos de los que el usuario es miembro (auth.js:678-687). */
+  /** The groups the user is a member of (auth.js:678-687). */
   memberOfGroups: string[]
   sessionTimeoutSeconds: number
   sessions: SessionRow[]
@@ -65,8 +65,8 @@ export function MyProfile({
   const [reloadKey, setReloadKey] = useState(0)
   const [porBorrar, setPorBorrar] = useState<SessionRow | null>(null)
 
-  // Limpiar el aviso SÓLO al abrir. Si se limpiara también al recargar, el
-  // mensaje de «sesión borrada» se perdería, porque borrar dispara una recarga.
+  // Clear the alert ONLY on opening. Were it cleared on reload too, the
+  // "session deleted" message would be lost, since deleting triggers a reload.
   useEffect(() => {
     if (open) setAlert(null)
   }, [open])
@@ -84,12 +84,12 @@ export function MyProfile({
   }, [open, token, reloadKey])
 
   /*
-  auth.js:795-838 — antes de borrar una sesión upstream pide confirmación con
-  este texto exacto, y el mensaje de éxito también es literal.
+  auth.js:795-838 — before deleting a session upstream asks for confirmation
+  with this exact text, and the success message is literal too.
 
-  La confirmación es `ui/Confirmar`, la misma que usan «Administration >
-  Sessions» y «User Details» para esta misma acción. Aquí se había quedado el
-  `confirm()` nativo del navegador.
+  The confirmation is `ui/Confirmar`, the same one "Administration > Sessions"
+  and "User Details" use for this very action. Here the browser's native
+  `confirm()` had been left behind.
   */
   async function borrarSesion(row: SessionRow) {
     const outcome = await deleteSession(token, row.partialToken)
@@ -143,7 +143,7 @@ export function MyProfile({
       <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="Username" value={profile?.username ?? ''} readOnly />
       <LabeledInput label="User Type" value={profile?.isSsoUser ? 'Remote/SSO' : 'Local'} readOnly />
-      {/* auth.js:667-674 — en un usuario de SSO el 2FA no lo lleva esta consola. */}
+      {/* auth.js:667-674 — on an SSO user the 2FA is not this console's business. */}
       <LabeledInput
         label="2FA Status"
         value={
@@ -174,10 +174,10 @@ export function MyProfile({
 
       <div>
         <div className={styles.caption}>Member Of</div>
-        {/* La tabla de la consola, no una propia: `ui/Table.module.css`. Este
-            módulo tenía la suya con una cuarta densidad de celda y sin el panel
-            que la envuelve, así que la misma tabla de sesiones se veía de dos
-            maneras según se abriera desde «My Profile» o desde «User Details». */}
+        {/* The console's table, not one of its own: `ui/Table.module.css`. This
+            module had its own with a fourth cell density and without the panel
+            that wraps it, so the same sessions table looked two different ways
+            depending on whether it opened from "My Profile" or "User Details". */}
         <Tabla
           className={styles.estrecha}
           cabecera={
@@ -204,10 +204,11 @@ export function MyProfile({
               <Th campo="type" orden={orden} onOrdenar={alternar}>Session</Th>
               <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
               <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-              {/* Upstream la tiene (`index.html`, tabla de `tbodyMyProfileActiveSessions`:
-                  Session · Last Seen · Remote Address · User Agent) y aquí se había
-                  perdido: era la única de las tres tablas de sesiones de la consola
-                  sin ella, y es la que dice DESDE DÓNDE está abierta cada sesión. */}
+              {/* Upstream has it (`index.html`, the `tbodyMyProfileActiveSessions`
+                  table: Session · Last Seen · Remote Address · User Agent) and here
+                  it had been lost: it was the only one of the console's three
+                  sessions tables without it, and it is the one that says WHERE each
+                  session is open from. */}
               <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
               <th className={tbl.celdaAcciones} />
             </>
@@ -227,8 +228,8 @@ export function MyProfile({
               </td>
               <td className={tbl.celdaAcciones}>
                 <div className={tbl.acciones}>
-                  {/* En un desplegable, como en las otras dos tablas de sesiones
-                      y como upstream (`auth.js`, `deleteMySession`). */}
+                  {/* In a dropdown, as in the other two sessions tables and as in
+                      upstream (`auth.js`, `deleteMySession`). */}
                   <Menu etiqueta={`Actions for ${row.partialToken}`}>
                     {(cerrar) => (
                       <button

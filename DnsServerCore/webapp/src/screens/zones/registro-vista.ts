@@ -2,25 +2,25 @@ import type { Registro } from '../../api/registros'
 import { fechaConAntiguedad, fechaHora, fechaMinuto } from '../../lib/fechas'
 
 /*
-Qué se pinta en la celda «Data» de cada registro. Réplica de
-`getZoneRecordRowHtml` (zone.js:3649-4235), tipo por tipo.
+What gets drawn in each record's "Data" cell. A replica of
+`getZoneRecordRowHtml` (zone.js:3649-4235), type by type.
 
-El original mezcla el pintado y la extracción de los `data-record-*` en la misma
-función; aquí sólo está el pintado. La otra mitad vive en
+The original mixes the drawing and the extraction of the `data-record-*` in the
+same function; here there is only the drawing. The other half lives in
 `api/registros.ts::identidadRegistro`.
 
-Reglas que se replican y no se «arreglan»:
+Rules that are replicated and not "fixed":
 
-  · **Los dos puntos van pegados o separados según el rótulo**, y no de forma
-    uniforme: `<b>Preference: </b>` con espacio y `<b>Exchange:</b>` sin él.
-    Aquí el rótulo se guarda ya con su forma final.
+  · **The colon goes attached or separated depending on the label**, and not
+    uniformly: `<b>Preference: </b>` with a space and `<b>Exchange:</b>` without
+    it. Here the label is stored already in its final form.
 
-  · **`ipv4hint` e `ipv6hint` se ocultan de la tabla de parámetros de un SVCB**
-    cuando su pista automática está activa: el valor lo pone el servidor y
-    enseñarlo confundiría.
+  · **`ipv4hint` and `ipv6hint` are hidden from an SVCB's parameter table** when
+    their automatic hint is on: the value is set by the server and showing it
+    would confuse.
 
-  · **Un DNSKEY sin `dnsKeyState` no enseña la fila «Key State»** en vez de
-    enseñarla vacía.
+  · **A DNSKEY without `dnsKeyState` does not show the "Key State" row** instead
+    of showing it empty.
 */
 
 export type Celda =
@@ -31,14 +31,14 @@ export type Celda =
 
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
-/** `algorithm (algorithmNumber)`, que upstream compone en cuatro sitios. */
+/** `algorithm (algorithmNumber)`, which upstream composes in four places. */
 function conNumero(nombre: unknown, numero: unknown): string {
   return `${s(nombre)} (${s(numero)})`
 }
 
 /**
- * El escapado de un TXT antes de pintarlo: barras, retornos y saltos se
- * enseñan como secuencias, y las comillas se escapan (zone.js:3778 y 3789).
+ * The escaping of a TXT before drawing it: backslashes, carriage returns and
+ * newlines are shown as sequences, and quotes are escaped (zone.js:3778 and 3789).
  */
 export function escaparTxt(texto: string): string {
   return texto
@@ -102,7 +102,7 @@ export function celdasDeRegistro(r: Registro): Celda[] {
       break
 
     case 'TXT': {
-      // Partido, cada cadena va entre comillas y en su propia línea.
+      // Split, each string goes in quotes and on a line of its own.
       if (d.splitText === true) {
         const cadenas = (d.characterStrings ?? []) as string[]
         salida.push({ clase: 'lineas', lineas: cadenas.map((c) => `"${escaparTxt(c)}"`) })
@@ -400,9 +400,9 @@ export function celdasDeRegistro(r: Registro): Celda[] {
 }
 
 /**
- * El pie de la celda: expiración, último uso, última modificación y
- * comentarios. `0001-01-01T00:00:00` es «nunca» y la última modificación con
- * esa fecha **no se enseña en absoluto**.
+ * The cell's footer: expiry, last used, last modified and comments.
+ * `0001-01-01T00:00:00` is "never" and a last modification with that date is
+ * **not shown at all**.
  */
 export function pieDeRegistro(r: Registro, ahora?: number): { etiqueta: string; valor: string }[] {
   const pares: { etiqueta: string; valor: string }[] = []
@@ -413,7 +413,7 @@ export function pieDeRegistro(r: Registro, ahora?: number): { etiqueta: string; 
     pares.push({ etiqueta: 'Expires On:', valor: fechaConAntiguedad(caduca.toISOString(), ahora) })
   }
 
-  // `0001-01-01T00:00:00` es «nunca», y ahí upstream NO pone la antigüedad.
+  // `0001-01-01T00:00:00` is "never", and there upstream does NOT put the age.
   const nunca = r.lastUsedOn === '0001-01-01T00:00:00'
   pares.push({
     etiqueta: 'Last Used:',
@@ -427,7 +427,7 @@ export function pieDeRegistro(r: Registro, ahora?: number): { etiqueta: string; 
   return pares
 }
 
-/** El nombre que se enseña: relativo a la zona, y `@` en el ápice. */
+/** The name that is shown: relative to the zone, and `@` at the apex. */
 export function nombreRelativo(nombreCompleto: string, zone: string): string {
   const nombre = nombreCompleto === '' ? '.' : nombreCompleto
   const minus = nombre.toLowerCase()
@@ -441,15 +441,15 @@ export function nombreRelativo(nombreCompleto: string, zone: string): string {
 export interface AccionesDeFila {
   /** La columna entera desaparece. */
   ocultas: boolean
-  /** Se ven pero Enable/Disable/Delete están apagados; Edit no. */
+  /** They show but Enable/Disable/Delete are off; Edit is not. */
   soloEdicion: boolean
 }
 
 /**
- * Qué botones ofrece una fila. Depende del tipo de ZONA y del tipo de
- * REGISTRO, y las tres combinaciones no se solapan como uno esperaría: en una
- * zona de catálogo el SOA se puede editar pero el resto de registros no ofrece
- * ni un botón (zone.js:4195-4232).
+ * Which buttons a row offers. It depends on the ZONE type and on the RECORD
+ * type, and the three combinations do not overlap the way one would expect: in a
+ * catalog zone the SOA can be edited but the rest of the records offer not a
+ * single button (zone.js:4195-4232).
  */
 export function accionesDeFila(tipoZona: string, tipoRegistro: string): AccionesDeFila {
   switch (tipoZona) {
@@ -473,7 +473,7 @@ export function accionesDeFila(tipoZona: string, tipoRegistro: string): Acciones
   }
 }
 
-/** Los cinco tipos que esconde «Hide DNSSEC Records» (zone.js:3446-3460). */
+/** The five types "Hide DNSSEC Records" hides (zone.js:3446-3460). */
 export const TIPOS_DNSSEC = ['RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM']
 
 export function ocultarDnssec(registros: Registro[]): Registro[] {
@@ -483,9 +483,10 @@ export function ocultarDnssec(registros: Registro[]): Registro[] {
 /* ── Fechas ───────────────────────────────────────────────────────────── */
 
 /*
-Las fechas se unificaron en `src/lib/fechas.ts` al integrar las fases 4, 8 y 9:
-las tres habían escrito su propia copia de `moment().format()` y `fromNow()`.
-Se reexportan con los nombres que usa esta pantalla para no tocar sus llamadas.
+The dates were unified into `src/lib/fechas.ts` when integrating phases 4, 8 and
+9: all three had written their own copy of `moment().format()` and `fromNow()`.
+They are re-exported under the names this screen uses so as not to touch its
+calls.
 */
 export {
   fechaMinuto as fechaCorta,

@@ -11,11 +11,11 @@ import { urlPublica } from '../../app/base'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
 
-/* Los dos destinos que se repiten, para que el texto y el título no se separen. */
+/* The two destinations that repeat, so text and title do not drift apart. */
 const API_DOCS = 'https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md'
 const DONAR = 'https://go.technitium.com/?id=35'
 
-/** Enlace externo: siempre en pestaña nueva y sin ceder el `opener`. */
+/** External link: always in a new tab and without handing over the `opener`. */
 function Enlace({
   href,
   clase,
@@ -34,11 +34,11 @@ function Enlace({
 
 export function About({ token, info }: { token: string | null; info?: Info }) {
   /*
-  «sin-mirar» es un estado REAL —el servidor dice que tiene los avisos de
-  actualización apagados— y por eso no vale para contar un fallo: con la
-  llamada caída la pantalla decía «Update notifications are turned off for this
-  server.», que es una afirmación sobre la configuración del servidor y no sobre
-  lo que acaba de pasar. De ahí el quinto estado.
+  "sin-mirar" is a REAL state —the server says it has update notifications
+  switched off— and that is why it is no good for reporting a failure: with the
+  call fallen over the screen said "Update notifications are turned off for this
+  server.", which is a claim about the server's configuration and not about what
+  just happened. Hence the fifth state.
   */
   const [update, setUpdate] = useState<'sin-mirar' | 'mirando' | 'al-dia' | 'hay' | 'fallo'>(
     'sin-mirar',
@@ -73,9 +73,9 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
       <Panel className={styles.panel}>
         <Cuerpo>
           <div className={styles.head}>
-            {/* El logo de Technitium, no una inicial nuestra. Upstream lo pone
-                justo aquí (`index.html:3483`) y el fichero viaja en `public/img/`
-                desde el andamiaje: lo teníamos y no lo usábamos. */}
+            {/* Technitium's logo, not an initial of ours. Upstream puts it right
+                here (`index.html:3483`) and the file travels in `public/img/`
+                since the scaffolding: we had it and were not using it. */}
             <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={38} height={38} />
             <div>
               <h2 className={styles.h1}>Technitium DNS Server</h2>
@@ -83,18 +83,19 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             </div>
           </div>
           {/*
-          El texto y los enlaces son los de upstream, literales.
+          The text and the links are upstream's, literal.
 
-          Esta pantalla se había quedado con la prosa y sin los destinos: de los
-          nueve enlaces del panel original sobrevivía uno (GitHub). Faltaban
-          enteras «Help Topics», «Support» y «Donate», y en las que quedaban el
-          texto seguía diciendo «read the change log» sin que «change log»
-          llevara a ninguna parte.
+          This screen had been left with the prose and without the destinations:
+          of the original panel's nine links, one survived (GitHub). "Help
+          Topics", "Support" and "Donate" were missing entirely, and in the ones
+          that remained the text still said "read the change log" without "change
+          log" leading anywhere.
 
-          No es un detalle de estilo. Un fork que borra del panel del autor su
-          enlace de donaciones, su correo de soporte y su documentación está
-          quitando funcionalidad al producto ajeno que dice sólo repintar; es de
-          la misma familia que sustituir su logo por una inicial propia.
+          It is not a styling detail. A fork that deletes the author's donation
+          link, support address and documentation from their panel is removing
+          functionality from someone else's product it claims only to be
+          repainting; it is of the same family as replacing their logo with an
+          initial of its own.
           */}
           <div className={styles.prose}>
             <p>Copyright (C) 2026 Shreyas Zare (shreyas@technitium.com)</p>
@@ -172,9 +173,9 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
           <Cuerpo>
             {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {/*
-            main.js:751-767 — el título por defecto es «New Update Available!» y
-            el MENSAJE lo manda el servidor; si no viene, upstream no enseña
-            ninguno. La frase que había aquí estaba inventada, y en castellano.
+            main.js:751-767 — the default title is "New Update Available!" and
+            the MESSAGE is sent by the server; if it does not come, upstream shows
+            none. The sentence that was here was invented, and in Spanish.
             */}
             {update === 'hay' && <Alert type="success" title="New Update Available!" />}
             {update === 'sin-mirar' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
