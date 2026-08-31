@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getSettings, setSettings, temporaryDisableBlocking } from '../../api/settings'
-import { Confirmar } from '../admin/partes'
+import { Confirmar } from '../../ui/Confirmar'
 import { Menu } from '../../ui/Menu'
 import type { AlertType } from '../../ui/Alert'
 

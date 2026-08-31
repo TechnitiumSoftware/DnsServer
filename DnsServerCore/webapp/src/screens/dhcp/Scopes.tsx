@@ -9,8 +9,8 @@ import {
   type DhcpScopeRow,
 } from '../../api/dhcp'
 import { Alert } from '../../ui/Alert'
+import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
-import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { errorAviso, type Aviso } from './avisos'
 import { formularioDesdeScope, formularioNuevo, type ScopeForm as Form } from './model'
@@ -303,34 +303,23 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         <span>{`Total Scopes: ${scopes.length}`}</span>
       </div>
 
-      <Dialog
-        open={confirmar !== null}
-        onOpenChange={(o) => !o && setConfirmar(null)}
-        title={confirmar?.accion === 'delete' ? 'Delete Scope' : 'Disable Scope'}
-        acciones={
-          <>
-            <Button
-              variant="danger"
-              disabled={ocupado}
-              onClick={() => {
-                if (!confirmar) return
-                if (confirmar.accion === 'delete') void borrar(confirmar.nombre)
-                else void deshabilitar(confirmar.nombre)
-              }}
-            >
-              {confirmar?.accion === 'delete' ? 'Delete' : 'Disable'}
-            </Button>
-          </>
-        }
-        cerrar="Cancel"
-        tamano="compacto"
-      >
-        <p className={styles.parrafo}>
-          {confirmar?.accion === 'delete'
+      <Confirmar
+        abierto={confirmar !== null}
+        titulo={confirmar?.accion === 'delete' ? 'Delete Scope' : 'Disable Scope'}
+        texto={
+          confirmar?.accion === 'delete'
             ? `Are you sure you want to delete the DHCP scope '${confirmar.nombre}'?`
-            : `Are you sure you want to disable the DHCP scope '${confirmar?.nombre ?? ''}'?`}
-        </p>
-      </Dialog>
+            : `Are you sure you want to disable the DHCP scope '${confirmar?.nombre ?? ''}'?`
+        }
+        etiqueta={confirmar?.accion === 'delete' ? 'Delete' : 'Disable'}
+        ocupado={ocupado}
+        onCerrar={() => setConfirmar(null)}
+        onConfirmar={() => {
+          if (!confirmar) return
+          if (confirmar.accion === 'delete') void borrar(confirmar.nombre)
+          else void deshabilitar(confirmar.nombre)
+        }}
+      />
     </div>
   )
 }

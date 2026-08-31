@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { Registro, ZonaDeRegistros } from '../../api/registros'
 import { Alert } from '../../ui/Alert'
-import { Button } from '../../ui/Button'
-import { Dialog } from '../../ui/Dialog'
+import { Confirmar } from '../../ui/Confirmar'
 import { ListaZonas } from './ListaZonas'
 import { RegistrosZona } from './RegistrosZona'
 import { AnadirEditarRegistro } from './modales/AnadirEditarRegistro'
@@ -175,7 +174,15 @@ export function Zones({
         />
       )}
 
-      <Confirmar c={confirmacion} onCerrar={() => setConfirmacion(null)} />
+      <Confirmar
+        abierto={confirmacion !== null}
+        titulo={confirmacion?.titulo ?? ''}
+        texto={confirmacion?.texto}
+        etiqueta={confirmacion?.etiqueta ?? ''}
+        variante={confirmacion?.peligro ? 'danger' : 'primary'}
+        onCerrar={() => setConfirmacion(null)}
+        onConfirmar={() => confirmacion?.accion()}
+      />
 
       <AnadirZona
         abierto={modal === 'add'}
@@ -291,39 +298,3 @@ export function Zones({
   )
 }
 
-/** Un `confirm()` de upstream. El texto puede traer saltos de línea. */
-function Confirmar({ c, onCerrar }: { c: Confirmacion | null; onCerrar: () => void }) {
-  const [ocupado, setOcupado] = useState(false)
-
-  return (
-    <Dialog
-      open={c !== null}
-      onOpenChange={(o) => !o && onCerrar()}
-      title={c?.titulo ?? ''}
-      acciones={
-        <>
-          <Button
-            variant={c?.peligro ? 'danger' : 'primary'}
-            disabled={ocupado}
-            onClick={() => {
-              if (!c) return
-              setOcupado(true)
-              void c.accion().finally(() => {
-                setOcupado(false)
-                onCerrar()
-              })
-            }}
-          >
-            {c?.etiqueta ?? ''}
-          </Button>
-        </>
-      }
-      cerrar="Cancel"
-        tamano="compacto"
-    >
-      <p className={styles.parrafo} style={{ whiteSpace: 'pre-wrap' }}>
-        {c?.texto}
-      </p>
-    </Dialog>
-  )
-}

@@ -60,7 +60,6 @@
 .check { display: flex; align-items: center; gap: var(--s-5); font-size: var(--t-4); cursor: pointer; min-height: 26px; padding: var(--s-2) 0; color: var(--ink); }
 .check input { flex: none; }
 
-.parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 
 @media (max-width: 720px) {
   .frow { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }

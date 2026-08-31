@@ -7,6 +7,7 @@ import {
   type DhcpLease,
 } from '../../api/dhcp'
 import { Alert } from '../../ui/Alert'
+import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -248,30 +249,20 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         <span>{`Total Leases: ${leases.length}`}</span>
       </div>
 
-      <Dialog
-        open={confirmar !== null}
-        onOpenChange={(o) => !o && setConfirmar(null)}
-        title={confirmar?.tipo === 'dynamic' ? 'Convert To Dynamic Lease' : 'Convert To Reserved Lease'}
-        acciones={
-          <>
-            <Button
-              variant="primary"
-              disabled={ocupado}
-              onClick={() => confirmar && void convertir(confirmar.i, confirmar.tipo)}
-            >
-              Convert
-            </Button>
-          </>
-        }
-        cerrar="Cancel"
-        tamano="compacto"
-      >
-        <p className={styles.parrafo}>
-          {confirmar?.tipo === 'dynamic'
+      <Confirmar
+        abierto={confirmar !== null}
+        titulo={confirmar?.tipo === 'dynamic' ? 'Convert To Dynamic Lease' : 'Convert To Reserved Lease'}
+        texto={
+          confirmar?.tipo === 'dynamic'
             ? 'Are you sure you want to convert the reserved lease to dynamic lease?'
-            : 'Are you sure you want to convert the dynamic lease to reserved lease?'}
-        </p>
-      </Dialog>
+            : 'Are you sure you want to convert the dynamic lease to reserved lease?'
+        }
+        etiqueta="Convert"
+        variante="primary"
+        ocupado={ocupado}
+        onCerrar={() => setConfirmar(null)}
+        onConfirmar={() => confirmar && void convertir(confirmar.i, confirmar.tipo)}
+      />
 
       {/* index.html:6587-6617 — el modal «Remove Lease?» completo, con sus dos
           advertencias, su recomendación y su lista de alternativas. */}

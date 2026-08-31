@@ -16,6 +16,7 @@ import {
 } from '../../api/zonelists'
 import { Alert, type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
+import { Confirmar } from '../../ui/Confirmar'
 import { Dialog } from '../../ui/Dialog'
 import { Field, Input, LabeledTextarea } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
@@ -50,46 +51,6 @@ interface Confirmacion {
 }
 
 const TITULO: Record<Lista, string> = { cache: 'Cache', allowed: 'Allowed', blocked: 'Blocked' }
-
-function Confirmar({
-  c,
-  onCerrar,
-}: {
-  c: Confirmacion | null
-  onCerrar: () => void
-}) {
-  const [ocupado, setOcupado] = useState(false)
-
-  return (
-    <Dialog
-      open={c !== null}
-      onOpenChange={(o) => !o && onCerrar()}
-      title={c?.titulo ?? ''}
-      acciones={
-        <>
-          <Button
-            variant="danger"
-            disabled={ocupado}
-            onClick={() => {
-              if (!c) return
-              setOcupado(true)
-              void c.accion().finally(() => {
-                setOcupado(false)
-                onCerrar()
-              })
-            }}
-          >
-            {c?.etiqueta ?? ''}
-          </Button>
-        </>
-      }
-      cerrar="Cancel"
-        tamano="compacto"
-    >
-      <p className={styles.parrafo}>{c?.texto}</p>
-    </Dialog>
-  )
-}
 
 /*
 `importAllowedZones` / `importBlockedZones` (other-zones.js:589-661). El aviso de
@@ -523,7 +484,14 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
         </div>
       </div>
 
-      <Confirmar c={confirmacion} onCerrar={() => setConfirmacion(null)} />
+      <Confirmar
+        abierto={confirmacion !== null}
+        titulo={confirmacion?.titulo ?? ''}
+        texto={confirmacion?.texto}
+        etiqueta={confirmacion?.etiqueta ?? ''}
+        onCerrar={() => setConfirmacion(null)}
+        onConfirmar={() => confirmacion?.accion()}
+      />
 
       {!esCache && (
         <Importar

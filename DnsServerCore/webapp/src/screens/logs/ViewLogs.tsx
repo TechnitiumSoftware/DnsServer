@@ -9,8 +9,8 @@ import {
 } from '../../api/logs'
 import { deleteAllStats } from '../../api/dashboard'
 import { Alert, type AlertType } from '../../ui/Alert'
+import { Confirmar } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
-import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
@@ -247,30 +247,19 @@ export function ViewLogs({
         )}
       </div>
 
-      <Dialog
-        open={confirmar !== null}
-        onOpenChange={(o) => !o && setConfirmar(null)}
-        title={confirmar ? TEXTO_CONFIRM[confirmar].titulo : ''}
-        acciones={
-          <>
-            <Button
-              variant="danger"
-              disabled={ocupado}
-              onClick={() => {
-                if (confirmar === 'log') void borrarLog()
-                else if (confirmar === 'allLogs') void borrarTodos()
-                else if (confirmar === 'allStats') void borrarStats()
-              }}
-            >
-              {confirmar ? TEXTO_CONFIRM[confirmar].etiqueta : ''}
-            </Button>
-          </>
-        }
-        cerrar="Cancel"
-        tamano="compacto"
-      >
-        <p className={styles.parrafo}>{confirmar ? TEXTO_CONFIRM[confirmar].texto : ''}</p>
-      </Dialog>
+      <Confirmar
+        abierto={confirmar !== null}
+        titulo={confirmar ? TEXTO_CONFIRM[confirmar].titulo : ''}
+        texto={confirmar ? TEXTO_CONFIRM[confirmar].texto : ''}
+        etiqueta={confirmar ? TEXTO_CONFIRM[confirmar].etiqueta : ''}
+        ocupado={ocupado}
+        onCerrar={() => setConfirmar(null)}
+        onConfirmar={() => {
+          if (confirmar === 'log') void borrarLog()
+          else if (confirmar === 'allLogs') void borrarTodos()
+          else if (confirmar === 'allStats') void borrarStats()
+        }}
+      />
     </div>
   )
 }

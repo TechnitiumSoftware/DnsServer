@@ -1,4 +1,5 @@
 import { Button } from '../../../ui/Button'
+import { fechaHora } from '../../../lib/fechas'
 import { Input } from '../../../ui/Field'
 import {
   AreaRow,
@@ -37,16 +38,9 @@ export interface BlockingExtra {
   ocupado?: boolean
 }
 
-/** `moment(x).local().format("YYYY-MM-DD HH:mm:ss")` sin moment. */
-export function fechaLocal(iso: string): string {
-  const d = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
-}
-
 export function textoProximaActualizacion(iso: string | null | undefined): string {
   if (iso == null) return 'Not Scheduled'
-  return Date.now() < new Date(iso).getTime() ? fechaLocal(iso) : 'Updating Now'
+  return Date.now() < new Date(iso).getTime() ? fechaHora(iso) : 'Updating Now'
 }
 
 export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExtra }) {
@@ -79,7 +73,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
             <div className={styles.val}>
               {extra.temporaryDisableBlockingTill == null
                 ? 'Not Set'
-                : fechaLocal(extra.temporaryDisableBlockingTill)}
+                : fechaHora(extra.temporaryDisableBlockingTill)}
             </div>
             <div className={ajustes.enLinea}>
               <Input

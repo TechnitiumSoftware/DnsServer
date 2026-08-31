@@ -24,7 +24,7 @@ import { Cache } from './panes/Cache'
 import { Blocking } from './panes/Blocking'
 import { ProxyForwarders } from './panes/ProxyForwarders'
 import { Logging } from './panes/Logging'
-import { BackupDialog, Confirm, RestoreDialog } from './dialogs'
+import { BackupDialog, Confirmar, RestoreDialog } from './dialogs'
 import { Fallo, Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
 import formulario from '../../ui/Ajustes.module.css'
@@ -351,32 +351,35 @@ export function Settings({
         )}
       </div>
 
-      <Confirm
-        open={confirmar === 'flush'}
-        onOpenChange={(o) => setConfirmar(o ? 'flush' : null)}
-        title="Flush Cache"
+      <Confirmar
+        abierto={confirmar === 'flush'}
+        onCerrar={() => setConfirmar(null)}
+        titulo="Flush Cache"
         etiqueta="Flush"
+        variante="primary"
         texto="Are you sure to flush the DNS Server cache?"
         ocupado={ocupado}
-        onConfirm={() => void vaciarCache()}
+        onConfirmar={() => void vaciarCache()}
       />
-      <Confirm
-        open={confirmar === 'disable'}
-        onOpenChange={(o) => setConfirmar(o ? 'disable' : null)}
-        title="Temporary Disable Blocking"
+      <Confirmar
+        abierto={confirmar === 'disable'}
+        onCerrar={() => setConfirmar(null)}
+        titulo="Temporary Disable Blocking"
         etiqueta="Disable"
+        variante="primary"
         texto={`Are you sure to temporarily disable blocking for ${form.temporaryDisableBlockingMinutes} minute(s)?`}
         ocupado={ocupado}
-        onConfirm={() => void desactivarBloqueo()}
+        onConfirmar={() => void desactivarBloqueo()}
       />
-      <Confirm
-        open={confirmar === 'update'}
-        onOpenChange={(o) => setConfirmar(o ? 'update' : null)}
-        title="Update Block Lists"
+      <Confirmar
+        abierto={confirmar === 'update'}
+        onCerrar={() => setConfirmar(null)}
+        titulo="Update Block Lists"
         etiqueta="Update"
+        variante="primary"
         texto="Are you sure to force download and update the block lists?"
         ocupado={ocupado}
-        onConfirm={() => void actualizarListas()}
+        onConfirmar={() => void actualizarListas()}
       />
 
       <BackupDialog

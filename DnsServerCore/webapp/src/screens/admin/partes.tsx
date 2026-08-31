@@ -1,7 +1,4 @@
-import { type ReactNode } from 'react'
 import { Alert, type AlertType } from '../../ui/Alert'
-import { Button } from '../../ui/Button'
-import { Dialog } from '../../ui/Dialog'
 import type { ClusterState } from '../../api/admin-cluster'
 import styles from './Admin.module.css'
 import frm from '../../ui/Form.module.css'
@@ -38,48 +35,6 @@ export function Avisador({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: (
   )
 }
 
-/*
-Los `confirm()` nativos de upstream. El texto y el paso son los mismos: sigue
-haciendo falta confirmar antes de que salga la petición.
-*/
-export function Confirmar({
-  abierto,
-  titulo,
-  texto,
-  etiqueta,
-  variante = 'danger',
-  ocupado,
-  onCerrar,
-  onConfirmar,
-}: {
-  abierto: boolean
-  titulo: string
-  texto: ReactNode
-  etiqueta: string
-  variante?: 'primary' | 'danger'
-  ocupado?: boolean
-  onCerrar: () => void
-  onConfirmar: () => void
-}) {
-  return (
-    <Dialog
-      open={abierto}
-      onOpenChange={(o) => !o && onCerrar()}
-      title={titulo}
-      acciones={
-        <>
-          <Button variant={variante} disabled={ocupado} onClick={onConfirmar}>
-            {etiqueta}
-          </Button>
-        </>
-      }
-      cerrar="Cancel"
-      tamano="compacto"
-    >
-      <div className={styles.parrafo}>{texto}</div>
-    </Dialog>
-  )
-}
 
 /*
 `MRow` es la fila de `ui/Form` en su variante de modal. Era una tercera copia
@@ -138,4 +93,5 @@ export function SelectorNodo({
 
 
 export { CeldaSesion } from '../../ui/Sesion'
+export { Confirmar } from '../../ui/Confirmar'
 export { styles as adminStyles }
