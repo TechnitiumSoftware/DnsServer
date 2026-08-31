@@ -250,7 +250,7 @@ describe('Settings — action bar', () => {
     servidor()
     await mount()
     await userEvent.click(screen.getByRole('button', { name: 'Backup Settings' }))
-    for (const etiqueta of [
+    for (const label of [
       'Authentication Config File (auth.config)',
       'Cluster Config File (cluster.config)',
       'Web Service Config And Certificate File (webservice.config, *.pfx & *.p12)',
@@ -264,7 +264,7 @@ describe('Settings — action bar', () => {
       'DHCP Scope Files (*.scope)',
       'Dashboard Stats Files (*.stat, *.dstat)',
     ]) {
-      await userEvent.click(screen.getByLabelText(etiqueta))
+      await userEvent.click(screen.getByLabelText(label))
     }
     await userEvent.click(screen.getByRole('button', { name: 'Backup' }))
     expect(await screen.findByText('Please select at least one item to backup.')).toBeInTheDocument()

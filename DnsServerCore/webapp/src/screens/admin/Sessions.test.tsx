@@ -6,10 +6,10 @@ import * as client from '../../api/client'
 import {
   CLUSTER_PRIMARIO,
   CLUSTER_SIN_INICIAR,
-  SESION_ADMIN,
-  SESION_TOKEN,
-  USUARIO_ADMIN,
-  USUARIO_NUEVO,
+  ADMIN_SESSION,
+  TOKEN_SESSION,
+  ADMIN_USER,
+  NEW_USER,
 } from './admin.fixture'
 import { choose } from '../../test/desplegable'
 
@@ -20,10 +20,10 @@ const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 function servidor(overrides: Record<string, unknown> = {}, server = 'ref.technitium-ui.test') {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'admin/sessions/list') {
-      return ok({ response: { sessions: [SESION_ADMIN, SESION_TOKEN] }, server, ...overrides })
+      return ok({ response: { sessions: [ADMIN_SESSION, TOKEN_SESSION] }, server, ...overrides })
     }
     if (path === 'admin/users/list') {
-      return ok({ response: { users: [USUARIO_ADMIN, USUARIO_NUEVO] }, server })
+      return ok({ response: { users: [ADMIN_USER, NEW_USER] }, server })
     }
     if (path === 'admin/sessions/createToken') {
       return ok({
@@ -35,7 +35,7 @@ function servidor(overrides: Record<string, unknown> = {}, server = 'ref.technit
   })
 }
 
-const props = { token: 'tok', cluster: null, onAviso: vi.fn() }
+const props = { token: 'tok', cluster: null, onNotice: vi.fn() }
 
 describe('Sessions — the table', () => {
   it('it draws each session with its partial token, its type and the total', async () => {
@@ -53,7 +53,7 @@ describe('Sessions — the table', () => {
   it('a session type it does not know is not swallowed: it comes out as \"Unknown\"', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(
       ok({
-        response: { sessions: [{ ...SESION_ADMIN, type: 'Marciana' }] },
+        response: { sessions: [{ ...ADMIN_SESSION, type: 'Marciana' }] },
         server: 'x',
       }),
     )
@@ -68,12 +68,12 @@ describe('Sessions — the table', () => {
   })
 
   it('if the server fails it alerts with ITS message and does not blow up', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
-    render(<Sessions {...props} onAviso={onAviso} />)
+    render(<Sessions {...props} onNotice={onNotice} />)
 
     expect(await screen.findByText('Total Sessions: 0')).toBeInTheDocument()
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'danger',
       title: 'Error!',
       text: 'Access was denied.',
@@ -176,16 +176,16 @@ describe('Sessions — deleting a session', () => {
   })
 
   it('on deleting, the success alert is the upstream literal and comes out on the page', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     servidor()
     const user = userEvent.setup()
-    render(<Sessions {...props} onAviso={onAviso} />)
+    render(<Sessions {...props} onNotice={onNotice} />)
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     await user.click(await screen.findByRole('button', { name: 'Delete Session' }))
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Session Deleted!',
       text: 'The user session was deleted successfully.',

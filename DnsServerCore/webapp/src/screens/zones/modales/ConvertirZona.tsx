@@ -21,30 +21,30 @@ This screen's mockup drew "Secondary / Forwarder / Catalog": Secondary is not a
 possible destination and Primary was missing. Corrected against the code.
 */
 
-export type DestinoConversion = 'Primary' | 'Forwarder' | 'Catalog'
+export type ConversionTarget = 'Primary' | 'Forwarder' | 'Catalog'
 
-export interface TablaConversion {
-  habilitados: DestinoConversion[]
-  porDefecto: DestinoConversion | null
+export interface ConversionTable {
+  habilitados: ConversionTarget[]
+  byDefault: ConversionTarget | null
 }
 
-export function destinosDeConversion(sourceType: string): TablaConversion {
+export function conversionTargets(sourceType: string): ConversionTable {
   switch (sourceType) {
     case 'Primary':
-      return { habilitados: ['Forwarder'], porDefecto: 'Forwarder' }
+      return { habilitados: ['Forwarder'], byDefault: 'Forwarder' }
     case 'Secondary':
     case 'SecondaryForwarder':
-      return { habilitados: ['Primary', 'Forwarder'], porDefecto: 'Primary' }
+      return { habilitados: ['Primary', 'Forwarder'], byDefault: 'Primary' }
     case 'Forwarder':
-      return { habilitados: ['Primary'], porDefecto: 'Primary' }
+      return { habilitados: ['Primary'], byDefault: 'Primary' }
     case 'SecondaryCatalog':
-      return { habilitados: ['Catalog'], porDefecto: 'Catalog' }
+      return { habilitados: ['Catalog'], byDefault: 'Catalog' }
     default:
-      return { habilitados: [], porDefecto: null }
+      return { habilitados: [], byDefault: null }
   }
 }
 
-const ETIQUETAS: Record<DestinoConversion, string> = {
+const LABELS: Record<ConversionTarget, string> = {
   Primary: 'Primary Zone',
   Forwarder: 'Conditional Forwarder Zone',
   Catalog: 'Catalog Zone',
@@ -56,7 +56,7 @@ export function ConvertZone({
   open,
   token,
   node = '',
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   zone: string
@@ -64,63 +64,63 @@ export function ConvertZone({
   open: boolean
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
-  const table = destinosDeConversion(sourceType)
-  const [destino, setDestino] = useState<DestinoConversion | null>(table.porDefecto)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const table = conversionTargets(sourceType)
+  const [target, setDestino] = useState<ConversionTarget | null>(table.byDefault)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setDestino(destinosDeConversion(sourceType).porDefecto)
-    setAviso(null)
+    setDestino(conversionTargets(sourceType).byDefault)
+    setNotice(null)
   }, [open, sourceType])
 
   async function convert() {
-    if (destino == null) return
+    if (target == null) return
 
     setBusy(true)
-    const outcome = await convertZone(token, zone, destino, node)
+    const outcome = await convertZone(token, zone, target, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     onHecho({ type: 'success', title: 'Zone Converted!', text: 'The zone was converted successfully.' })
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Convert Zone - ${zone === '.' ? '<root>' : zone}`}
       actions={
         <>
-          <Button variant="primary" disabled={busy || destino == null} onClick={() => void convert()}>
+          <Button variant="primary" disabled={busy || target == null} onClick={() => void convert()}>
             Convert Zone
           </Button>
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.fields}>
         <GroupRow modal label="Convert To">
-          {(['Primary', 'Forwarder', 'Catalog'] as DestinoConversion[]).map((d) => (
+          {(['Primary', 'Forwarder', 'Catalog'] as ConversionTarget[]).map((d) => (
             <label key={d} className={styles.chk}>
               <input
                 type="radio"
                 name="convertTo"
                 disabled={!table.habilitados.includes(d)}
-                checked={destino === d}
+                checked={target === d}
                 onChange={() => setDestino(d)}
               />
-              {ETIQUETAS[d]}
+              {LABELS[d]}
             </label>
           ))}
         </GroupRow>

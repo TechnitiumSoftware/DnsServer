@@ -3,7 +3,7 @@ import {
   buildUpload,
   downloadAndInstall,
   downloadAndUpdate,
-  etiquetasDnsApp,
+  dnsAppLabels,
   getAppConfig,
   installApp,
   listApps,
@@ -125,7 +125,7 @@ describe('apps — zip upload', () => {
 
 })
 
-describe('etiquetasDnsApp', () => {
+describe('dnsAppLabels', () => {
   const base = {
     classPath: 'X.App',
     description: '',
@@ -140,12 +140,12 @@ describe('etiquetasDnsApp', () => {
   }
 
   it('with no capability at all, the label is \"Generic\"', () => {
-    expect(etiquetasDnsApp(base)).toEqual(['Generic'])
+    expect(dnsAppLabels(base)).toEqual(['Generic'])
   })
 
   it('it honours the upstream order and does not add \"Generic\" if there is any', () => {
     expect(
-      etiquetasDnsApp({
+      dnsAppLabels({
         ...base,
         isAppRecordRequestHandler: true,
         isQueryLogger: true,
@@ -156,7 +156,7 @@ describe('etiquetasDnsApp', () => {
 
   it('it covers the seven capabilities with the upstream texts', () => {
     expect(
-      etiquetasDnsApp({
+      dnsAppLabels({
         ...base,
         isAppRecordRequestHandler: true,
         isRequestController: true,

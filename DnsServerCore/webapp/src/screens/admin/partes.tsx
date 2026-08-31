@@ -38,7 +38,7 @@ export function MValue({ label, value }: { label: string; value: string }) {
 the cluster is initialised; if not, it hides and its value is the empty string.
 Each option is labelled "name (type lowercased)".
 */
-export function SelectorNodo({
+export function NodePicker({
   cluster,
   value,
   onChange,
@@ -68,7 +68,7 @@ export function SelectorNodo({
 }
 
 
-export { CeldaSesion } from '../../ui/Sesion'
+export { SessionCell } from '../../ui/Sesion'
 export { Confirm } from '../../ui/Confirmar'
 export { Notifier } from '../../ui/Avisador'
 export { styles as adminStyles }

@@ -5,9 +5,9 @@ export type { Notice } from '../../lib/aviso'
  * `\n\n` of the bulk delete and of the resync).
  */
 export interface Confirmation {
-  titulo: string
+  title: string
   text: string
-  etiqueta: string
-  peligro?: boolean
+  label: string
+  danger?: boolean
   action: () => Promise<void>
 }

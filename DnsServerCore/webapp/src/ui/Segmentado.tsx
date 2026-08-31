@@ -12,22 +12,22 @@ look alike and are not the same thing, so the caller decides.
 export function Segmented<T extends string>({
   options,
   active,
-  onElegir,
-  etiqueta,
+  onChoose,
+  label,
   comoPestanas = false,
 }: {
-  options: { id: T; etiqueta: string }[]
+  options: { id: T; label: string }[]
   active: T
-  onElegir: (id: T) => void
+  onChoose: (id: T) => void
   /** The group's name, for whoever does not see the screen. */
-  etiqueta: string
+  label: string
   comoPestanas?: boolean
 }) {
   return (
     <div
       className={styles.seg}
       role={comoPestanas ? 'tablist' : 'group'}
-      aria-label={etiqueta}
+      aria-label={label}
     >
       {options.map((o) => (
         <button
@@ -37,9 +37,9 @@ export function Segmented<T extends string>({
           role={comoPestanas ? 'tab' : undefined}
           aria-selected={comoPestanas ? o.id === active : undefined}
           aria-pressed={comoPestanas ? undefined : o.id === active}
-          onClick={() => onElegir(o.id)}
+          onClick={() => onChoose(o.id)}
         >
-          {o.etiqueta}
+          {o.label}
         </button>
       ))}
     </div>

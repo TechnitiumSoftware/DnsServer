@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  construirCuerpoRegistro,
-  formularioDesdeRegistro,
-  formularioVacio,
+  buildRecordBody,
+  formFromRecord,
+  emptyForm,
   serializeSvcParams,
   RECORD_TYPES,
-  type ContextoRegistro,
-  type FormularioRegistro,
+  type RecordContext,
+  type RecordForm,
 } from './registro-form'
 import type { ResourceRecord } from '../../api/registros'
 
@@ -27,20 +27,20 @@ function reg(type: string, rData: Record<string, unknown>, extra: Partial<Resour
   }
 }
 
-function form(cambios: Partial<FormularioRegistro>): FormularioRegistro {
-  return { ...formularioVacio(), ...cambios }
+function form(cambios: Partial<RecordForm>): RecordForm {
+  return { ...emptyForm(), ...cambios }
 }
 
-const ALTA: ContextoRegistro = { zone: 'casa.test', mode: 'add', updateSvcbHints: false }
+const ADD: RecordContext = { zone: 'casa.test', mode: 'add', updateSvcbHints: false }
 
-function body(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
-  const r = construirCuerpoRegistro(f, ctx)
+function body(f: RecordForm, ctx: RecordContext = ADD) {
+  const r = buildRecordBody(f, ctx)
   if ('error' in r) throw new Error(`esperaba cuerpo, salió el aviso: ${r.error.text}`)
   return r.body
 }
 
-function error(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
-  const r = construirCuerpoRegistro(f, ctx)
+function error(f: RecordForm, ctx: RecordContext = ADD) {
+  const r = buildRecordBody(f, ctx)
   if ('body' in r) throw new Error('esperaba un aviso y salió un cuerpo')
   return r.error
 }
@@ -154,7 +154,7 @@ describe('add — the body', () => {
       matchingType: 'Full',
       certificateAssociationData: 'OLD',
     })
-    const ctx: ContextoRegistro = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
+    const ctx: RecordContext = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
     expect(body(f, ctx)).toMatchObject({ newTlsaCertificateAssociationData: 'ABCD' })
   })
 
@@ -166,7 +166,7 @@ describe('add — the body', () => {
 })
 
 describe('edit — sends the old value AND the new one', () => {
-  const ctxDe = (original: ResourceRecord): ContextoRegistro => ({
+  const ctxDe = (original: ResourceRecord): RecordContext => ({
     zone: 'casa.test',
     mode: 'update',
     original,
@@ -229,8 +229,8 @@ describe('edit — sends the old value AND the new one', () => {
     const original = reg('FWD', {
       protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'DefaultProxy',
     })
-    const conProxy = body(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxDe(original))
-    expect(conProxy).toHaveProperty('proxyType')
+    const withProxy = body(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxDe(original))
+    expect(withProxy).toHaveProperty('proxyType')
 
     const esteServidor = body(
       form({ type: 'FWD', name: 'x', forwarder: 'this-server' }),
@@ -256,7 +256,7 @@ describe('edit — sends the old value AND the new one', () => {
 
 describe('SOA — it is only edited, and validates seven fields in order', () => {
   const original = reg('SOA', {})
-  const ctx: ContextoRegistro = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
+  const ctx: RecordContext = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
 
   it('the order is primary, responsible, serial, refresh, retry, expire and minimum', () => {
     const fields = [
@@ -269,7 +269,7 @@ describe('SOA — it is only edited, and validates seven fields in order', () =>
       'soaMinimum',
     ] as const
 
-    const accumulated: Partial<FormularioRegistro> = { type: 'SOA', name: '@' }
+    const accumulated: Partial<RecordForm> = { type: 'SOA', name: '@' }
     for (const field of fields) {
       expect(error(form(accumulated), ctx).field).toBe(field)
       accumulated[field] = 'x'
@@ -311,23 +311,23 @@ describe('parameters of an SVCB', () => {
 
 describe('filling the form from a record', () => {
   it('the name is shown relative to the zone', () => {
-    expect(formularioDesdeRegistro(reg('A', { ipAddress: '1.1.1.1' }), 'casa.test').name).toBe('www')
+    expect(formFromRecord(reg('A', { ipAddress: '1.1.1.1' }), 'casa.test').name).toBe('www')
   })
 
   it('the apex is shown as @', () => {
     const r = reg('SOA', {}, { name: 'casa.test' })
-    expect(formularioDesdeRegistro(r, 'casa.test').name).toBe('@')
+    expect(formFromRecord(r, 'casa.test').name).toBe('@')
   })
 
   it('an SVCB with an empty target is shown as the root', () => {
     const r = reg('SVCB', { svcPriority: 1, svcTargetName: '', svcParams: { alpn: 'h2' } })
-    const f = formularioDesdeRegistro(r, 'casa.test')
+    const f = formFromRecord(r, 'casa.test')
     expect(f.svcbTargetName).toBe('.')
     expect(f.svcbParams).toEqual([{ key: 'alpn', value: 'h2' }])
   })
 
   it('the glue of an NS is shown one address per line', () => {
     const r = reg('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
-    expect(formularioDesdeRegistro(r, 'casa.test').nsGlue).toBe('10.0.0.1\n10.0.0.2')
+    expect(formFromRecord(r, 'casa.test').nsGlue).toBe('10.0.0.1\n10.0.0.2')
   })
 })

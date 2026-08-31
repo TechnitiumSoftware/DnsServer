@@ -37,7 +37,7 @@ const SCOPE: DhcpScopeRow = {
   broadcastAddress: '192.168.1.255',
 }
 
-const DETALLE: DhcpScope = {
+const DETAIL: DhcpScope = {
   name: 'Default',
   startingAddress: '192.168.1.1',
   endingAddress: '192.168.1.254',
@@ -307,7 +307,7 @@ describe('DHCP › Scopes — the form', () => {
   it('\"Edit\" loads the scope and fills the form', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
-    const spy = vi.spyOn(api, 'getScope').mockResolvedValue(DETALLE)
+    const spy = vi.spyOn(api, 'getScope').mockResolvedValue(DETAIL)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
 
@@ -358,7 +358,7 @@ describe('DHCP › Scopes — the form', () => {
   it('changing the name of an existing scope sends the old one in `name` and the new one in `newName`', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
-    vi.spyOn(api, 'getScope').mockResolvedValue(DETALLE)
+    vi.spyOn(api, 'getScope').mockResolvedValue(DETAIL)
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')

@@ -44,17 +44,17 @@ the PAGE, not in a modal: upstream calls `showAlert` with no destination.
 
 interface Props {
   token: string | null
-  onAviso: (a: Notice) => void
+  onNotice: (a: Notice) => void
 }
 
-interface FilaGrupo {
+interface GroupListRow {
   remoteGroup: string
   localGroup: string
 }
 
-export function Sso({ token, onAviso }: Props) {
+export function Sso({ token, onNotice }: Props) {
   const [loading, setLoading] = useState(true)
-  const [gruposLocales, setGruposLocales] = useState<string[]>([])
+  const [localGroups, setLocalGroups] = useState<string[]>([])
   const [enabled, setEnabled] = useState(false)
   const [authority, setAuthority] = useState('')
   const [clientId, setClientId] = useState('')
@@ -63,9 +63,9 @@ export function Sso({ token, onAviso }: Props) {
   const [scopes, setScopes] = useState<string[]>([])
   const [allowSignup, setAllowSignup] = useState(false)
   const [onlyMapped, setOnlyMapped] = useState(false)
-  const [groupMap, setGroupMap] = useState<FilaGrupo[]>([])
+  const [groupMap, setGroupMap] = useState<GroupListRow[]>([])
   const [busy, setBusy] = useState(false)
-  const [confirm, setConfirmar] = useState<null | 'authority' | 'metadata'>(null)
+  const [confirm, setConfirm] = useState<null | 'authority' | 'metadata'>(null)
 
   function aplicar(c: SsoConfig) {
     setEnabled(c.ssoEnabled)
@@ -79,7 +79,7 @@ export function Sso({ token, onAviso }: Props) {
     setGroupMap(c.ssoGroupMap.map((g) => ({ ...g })))
     // `localGroups` only arrives on the `get`: if it does not come, the one already
     // there is kept instead of emptying the group map's dropdowns.
-    if (c.localGroups != null) setGruposLocales(c.localGroups)
+    if (c.localGroups != null) setLocalGroups(c.localGroups)
   }
 
   const load = useCallback(async () => {
@@ -88,11 +88,11 @@ export function Sso({ token, onAviso }: Props) {
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
     aplicar(outcome.data.response)
-  }, [token, onAviso])
+  }, [token, onNotice])
 
   useEffect(() => {
     void load()
@@ -110,21 +110,21 @@ export function Sso({ token, onAviso }: Props) {
 
   function save(saltarAuthority = false, saltarMetadata = false) {
     if (enabled && authority === '') {
-      onAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Authority URL.' })
+      onNotice({ type: 'warning', title: 'Missing!', text: 'Please enter the Authority URL.' })
       return
     }
     if (enabled && clientId === '') {
-      onAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Client ID.' })
+      onNotice({ type: 'warning', title: 'Missing!', text: 'Please enter the Client ID.' })
       return
     }
     if (enabled && clientSecret === '') {
-      onAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Client Secret.' })
+      onNotice({ type: 'warning', title: 'Missing!', text: 'Please enter the Client Secret.' })
       return
     }
 
     const s = serializeTable(scopes.map((v): Cell[] => [{ type: 'text', value: v }]))
     if (!s.ok) {
-      onAviso({ type: 'warning', title: s.failure.title, text: s.failure.text })
+      onNotice({ type: 'warning', title: s.failure.title, text: s.failure.text })
       return
     }
 
@@ -135,23 +135,23 @@ export function Sso({ token, onAviso }: Props) {
       ]),
     )
     if (!g.ok) {
-      onAviso({ type: 'warning', title: g.failure.title, text: g.failure.text })
+      onNotice({ type: 'warning', title: g.failure.title, text: g.failure.text })
       return
     }
 
     if (!saltarAuthority && authority.startsWith('http:')) {
-      setConfirmar('authority')
+      setConfirm('authority')
       return
     }
     if (!saltarMetadata && metadata.startsWith('http:')) {
-      setConfirmar('metadata')
+      setConfirm('metadata')
       return
     }
 
-    void enviar(s.value === '' ? 'false' : s.value, g.value === '' ? 'false' : g.value)
+    void submit(s.value === '' ? 'false' : s.value, g.value === '' ? 'false' : g.value)
   }
 
-  async function enviar(ssoScopes: string, ssoGroupMap: string) {
+  async function submit(ssoScopes: string, ssoGroupMap: string) {
     setBusy(true)
     const outcome = await setSsoConfig(token, {
       ssoEnabled: String(enabled),
@@ -167,11 +167,11 @@ export function Sso({ token, onAviso }: Props) {
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
     aplicar(outcome.data.response)
-    onAviso({
+    onNotice({
       type: 'success',
       title: 'SSO Config Saved!',
       text: 'Single Sign-On (SSO) config was saved successfully.',
@@ -184,7 +184,7 @@ export function Sso({ token, onAviso }: Props) {
     <>
       <SectionHeader
         section="Administration"
-        titulo="Single Sign-On (SSO)"
+        title="Single Sign-On (SSO)"
       />
 
       {/* No legend: it was the second of four consecutive "Single Sign-On
@@ -341,7 +341,7 @@ export function Sso({ token, onAviso }: Props) {
                             )
                           }
                         >
-                          {gruposLocales.map((g) => (
+                          {localGroups.map((g) => (
                             <option key={g} value={g}>
                               {g}
                             </option>
@@ -364,7 +364,7 @@ export function Sso({ token, onAviso }: Props) {
                     onClick={() =>
                       setGroupMap((list) => [
                         ...list,
-                        { remoteGroup: '', localGroup: gruposLocales[0] ?? '' },
+                        { remoteGroup: '', localGroup: localGroups[0] ?? '' },
                       ])
                     }
                   >
@@ -455,25 +455,25 @@ export function Sso({ token, onAviso }: Props) {
 
       <Confirm
         open={confirm === 'authority'}
-        titulo="Save Config"
+        title="Save Config"
         text="WARNING! The SSO Authority must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
-        etiqueta="OK"
+        label="OK"
         variante="primary"
-        onCerrar={() => setConfirmar(null)}
-        onConfirmar={() => {
-          setConfirmar(null)
+        onClose={() => setConfirm(null)}
+        onConfirm={() => {
+          setConfirm(null)
           save(true)
         }}
       />
       <Confirm
         open={confirm === 'metadata'}
-        titulo="Save Config"
+        title="Save Config"
         text="WARNING! The Metadata Address must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
-        etiqueta="OK"
+        label="OK"
         variante="primary"
-        onCerrar={() => setConfirmar(null)}
-        onConfirmar={() => {
-          setConfirmar(null)
+        onClose={() => setConfirm(null)}
+        onConfirm={() => {
+          setConfirm(null)
           save(true, true)
         }}
       />

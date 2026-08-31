@@ -3,9 +3,9 @@ import { listApps } from '../../../api/apps'
 import {
   addRecord,
   updateRecord,
-  zonaTienePistaSvcbAuto,
+  zoneHasSvcbAutoHint,
   type ResourceRecord,
-  type ZonaDeRegistros,
+  type ZoneDetails,
 } from '../../../api/registros'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
@@ -18,10 +18,10 @@ import {
 } from './anadir-zona'
 import {
   RECORD_TYPES,
-  construirCuerpoRegistro,
-  formularioDesdeRegistro,
-  formularioVacio,
-  type FormularioRegistro,
+  buildRecordBody,
+  formFromRecord,
+  emptyForm,
+  type RecordForm,
   type RecordMode,
 } from '../registro-form'
 import { typesHiddenWhenAdding } from '../vista-zona'
@@ -43,12 +43,12 @@ because the server identifies the record by its content and changing the type
 would be deleting one and creating another.
 */
 
-const ALGORITMOS_DS = [
+const DS_ALGORITHMS = [
   'RSAMD5 (1)', 'RSASHA1 (5)', 'RSASHA256 (8)', 'RSASHA512 (10)',
   'ECDSAP256SHA256 (13)', 'ECDSAP384SHA384 (14)', 'ED25519 (15)', 'ED448 (16)',
 ]
 const DIGESTS_DS = ['SHA1 (1)', 'SHA256 (2)', 'SHA384 (4)']
-const ALGORITMOS_SSHFP = ['RSA', 'DSA', 'ECDSA', 'Ed25519', 'Ed448']
+const SSHFP_ALGORITHMS = ['RSA', 'DSA', 'ECDSA', 'Ed25519', 'Ed448']
 const HUELLAS_SSHFP = ['SHA1', 'SHA256']
 const USOS_TLSA = ['PKIX-TA', 'PKIX-EE', 'DANE-TA', 'DANE-EE']
 const SELECTORES_TLSA = ['Cert', 'SPKI']
@@ -58,22 +58,22 @@ export interface AddEditRecordProps {
   open: boolean
   mode: RecordMode
   zone: string
-  zoneInfo: ZonaDeRegistros | null
+  zoneInfo: ZoneDetails | null
   /** Every record in the zone: they are needed for the SVCB hints. */
   records: ResourceRecord[]
   /** Sólo en edición. */
   original?: ResourceRecord | null
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
   /** The expiry TTL is reported because the row's "Disable" button uses it. */
   onExpiryTtl: (v: string) => void
 }
 
 export function AddEditRecord(p: AddEditRecordProps) {
-  const [f, setF] = useState<FormularioRegistro>(formularioVacio)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [f, setF] = useState<RecordForm>(emptyForm)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [apps, setApps] = useState<string[]>([])
   const [clases, setClases] = useState<string[]>([])
@@ -86,16 +86,16 @@ export function AddEditRecord(p: AddEditRecordProps) {
     if (!p.open) return
 
     if (editing && p.original) {
-      setF(formularioDesdeRegistro(p.original, p.zone))
+      setF(formFromRecord(p.original, p.zone))
     } else {
-      const inicial = formularioVacio()
+      const inicial = emptyForm()
       // The first visible type, not a blind "A": on a signed Primary the
       // dropdown starts the same, but on a Forwarder the hidden ones change.
       const first = RECORD_TYPES.find((t) => t !== 'SOA' && !ocultos.includes(t))
       inicial.type = first ?? 'A'
       setF(inicial)
     }
-    setAviso(null)
+    setNotice(null)
     nombreRef.current?.focus()
     // `ocultos` is recalculated on every render; depending on it would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,11 +107,11 @@ export function AddEditRecord(p: AddEditRecordProps) {
     void listApps(p.token, p.node ?? '').then((outcome) => {
       if (outcome.kind !== 'ok') return
       // Only the apps that bring an APP record handler (zone.js:4451).
-      const conManejador = (outcome.data.response.apps ?? []).filter((a) =>
+      const withHandler = (outcome.data.response.apps ?? []).filter((a) =>
         (a.dnsApps ?? []).some((d) => d.isAppRecordRequestHandler),
       )
-      setApps(conManejador.map((a) => a.name))
-      const elegido = conManejador.find((a) => a.name === f.appName)
+      setApps(withHandler.map((a) => a.name))
+      const elegido = withHandler.find((a) => a.name === f.appName)
       setClases(
         (elegido?.dnsApps ?? [])
           .filter((d) => d.isAppRecordRequestHandler)
@@ -120,12 +120,12 @@ export function AddEditRecord(p: AddEditRecordProps) {
     })
   }, [p.open, f.type, f.appName, p.token, p.node])
 
-  const set = <K extends keyof FormularioRegistro>(k: K, value: FormularioRegistro[K]) =>
+  const set = <K extends keyof RecordForm>(k: K, value: RecordForm[K]) =>
     setF((prev) => ({ ...prev, [k]: value }))
 
   async function save() {
-    const pistas = zonaTienePistaSvcbAuto(p.records, f.type === 'A', f.type === 'AAAA')
-    const r = construirCuerpoRegistro(f, {
+    const pistas = zoneHasSvcbAutoHint(p.records, f.type === 'A', f.type === 'AAAA')
+    const r = buildRecordBody(f, {
       zone: p.zone,
       mode: p.mode,
       original: p.original ?? undefined,
@@ -133,7 +133,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
     })
 
     if ('error' in r) {
-      setAviso({ type: 'warning', title: r.error.title, text: r.error.text })
+      setNotice({ type: 'warning', title: r.error.title, text: r.error.text })
       if (r.error.field === 'name') nombreRef.current?.focus()
       return
     }
@@ -145,12 +145,12 @@ export function AddEditRecord(p: AddEditRecordProps) {
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
     p.onExpiryTtl(f.expiryTtl)
-    p.onCerrar()
+    p.onClose()
     p.onHecho(
       editing
         ? { type: 'success', title: 'Record Updated!', text: 'Resource record was updated successfully.' }
@@ -161,7 +161,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
   return (
     <Dialog
       open={p.open}
-      onOpenChange={(o) => !o && p.onCerrar()}
+      onOpenChange={(o) => !o && p.onClose()}
       size="medium"
       title={editing ? 'Edit Record' : 'Add Record'}
       actions={
@@ -172,12 +172,12 @@ export function AddEditRecord(p: AddEditRecordProps) {
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.fields}>
         <Field label="Name">
           {(id) => (
-            <div className={styles.enLinea}>
+            <div className={styles.inline}>
               <Input
                 id={id}
                 mono
@@ -186,7 +186,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
                 value={f.name}
                 onChange={(e) => set('name', e.target.value)}
               />
-              <span className={styles.sufijo}>.{p.zone}</span>
+              <span className={styles.suffix}>.{p.zone}</span>
             </div>
           )}
         </Field>
@@ -214,7 +214,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
 
         <Field label="TTL">
           {(id) => (
-            <div className={styles.enLinea}>
+            <div className={styles.inline}>
               <Input
                 id={id}
                 mono
@@ -223,12 +223,12 @@ export function AddEditRecord(p: AddEditRecordProps) {
                 value={f.ttl}
                 onChange={(e) => set('ttl', e.target.value)}
               />
-              <span className={styles.sufijo}>seconds (default 3600)</span>
+              <span className={styles.suffix}>seconds (default 3600)</span>
             </div>
           )}
         </Field>
 
-        <CamposDelTipo f={f} set={set} apps={apps} clases={clases} editing={editing} />
+        <TypeFields f={f} set={set} apps={apps} clases={clases} editing={editing} />
 
         {/* "Overwrite" only exists when adding. */}
         {!editing && (
@@ -251,7 +251,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
 
         <Field label="Expiry TTL">
           {(id) => (
-            <div className={styles.enLinea}>
+            <div className={styles.inline}>
               <Input
                 id={id}
                 mono
@@ -260,7 +260,7 @@ export function AddEditRecord(p: AddEditRecordProps) {
                 value={f.expiryTtl}
                 onChange={(e) => set('expiryTtl', e.target.value)}
               />
-              <span className={styles.sufijo}>seconds (set 0 to disable)</span>
+              <span className={styles.suffix}>seconds (set 0 to disable)</span>
             </div>
           )}
         </Field>
@@ -273,21 +273,21 @@ export function AddEditRecord(p: AddEditRecordProps) {
   )
 }
 
-interface CamposProps {
-  f: FormularioRegistro
-  set: <K extends keyof FormularioRegistro>(k: K, value: FormularioRegistro[K]) => void
+interface FieldsProps {
+  f: RecordForm
+  set: <K extends keyof RecordForm>(k: K, value: RecordForm[K]) => void
   apps: string[]
   clases: string[]
   editing: boolean
 }
 
-function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
+function TypeFields({ f, set, apps, clases, editing }: FieldsProps) {
   const text = (
-    etiqueta: string,
-    key: keyof FormularioRegistro,
+    label: string,
+    key: keyof RecordForm,
     options: { mono?: boolean; short?: boolean; placeholder?: string } = {},
   ) => (
-    <Field label={etiqueta}>
+    <Field label={label}>
       {(id) => (
         <Input
           id={id}
@@ -301,8 +301,8 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
     </Field>
   )
 
-  const dropdown = (etiqueta: string, key: keyof FormularioRegistro, valores: string[]) => (
-    <Field label={etiqueta}>
+  const dropdown = (label: string, key: keyof RecordForm, valores: string[]) => (
+    <Field label={label}>
       {(id) => (
         <Select id={id} value={String(f[key] ?? '')} onChange={(e) => set(key, e.target.value as never)}>
           <option value="" />
@@ -457,7 +457,7 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
       return (
         <>
           {text('Key Tag', 'dsKeyTag', { mono: true, short: true, placeholder: 'key tag' })}
-          {dropdown('DNSSEC Algorithm', 'dsAlgorithm', ALGORITMOS_DS)}
+          {dropdown('DNSSEC Algorithm', 'dsAlgorithm', DS_ALGORITHMS)}
           {dropdown('Digest Type', 'dsDigestType', DIGESTS_DS)}
           {text('Digest', 'dsDigest', { mono: true, placeholder: 'hash string' })}
         </>
@@ -466,7 +466,7 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
     case 'SSHFP':
       return (
         <>
-          {dropdown('Algorithm', 'sshfpAlgorithm', ALGORITMOS_SSHFP)}
+          {dropdown('Algorithm', 'sshfpAlgorithm', SSHFP_ALGORITHMS)}
           {dropdown('Fingerprint Type', 'sshfpFingerprintType', HUELLAS_SSHFP)}
           {text('Fingerprint', 'sshfpFingerprint', { mono: true, placeholder: 'hash string' })}
         </>
@@ -505,9 +505,9 @@ MII...
           {text('Priority', 'svcbPriority', { mono: true, short: true })}
           {text('Target Name', 'svcbTargetName', { mono: true })}
           <div className={styles.group}>
-            <div className={styles.grupoTit}>Params</div>
+            <div className={styles.groupTitle}>Params</div>
             {f.svcbParams.map((par, i) => (
-              <div key={i} className={styles.enLinea}>
+              <div key={i} className={styles.inline}>
                 <Input
                   mono
                   aria-label={`Param key ${i + 1}`}
@@ -593,7 +593,7 @@ MII...
                   checked={f.forwarderProtocol === x.value}
                   onChange={() => set('forwarderProtocol', x.value)}
                 />
-                {x.etiqueta}
+                {x.label}
               </label>
             ))}
           </GroupRow>
@@ -624,7 +624,7 @@ MII...
                   checked={f.proxyType === x.value}
                   onChange={() => set('proxyType', x.value)}
                 />
-                {x.etiqueta}
+                {x.label}
               </label>
             ))}
             <Field label="Proxy Server Address">

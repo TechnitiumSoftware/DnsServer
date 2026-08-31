@@ -3,13 +3,13 @@ import {
   addDomain,
   deleteDomain,
   deleteCacheNode,
-  dominioPadre,
-  exportarDominios,
-  importarDominios,
-  limpiarLista,
-  listarNodo,
-  vaciarCache,
-  vaciarLista,
+  parentDomain,
+  exportDomains,
+  importDomains,
+  cleanList,
+  listNode,
+  flushCache,
+  flushList,
 } from './zonelists'
 import * as client from './client'
 import * as user from './user'
@@ -21,32 +21,32 @@ const RESPUESTA = {
   data: { status: 'ok', response: { domain: 'casa.test', zones: ['a.casa.test'], records: [] } },
 }
 
-describe('listarNodo', () => {
+describe('listNode', () => {
   it('it calls the endpoint of each list with domain and node, like upstream', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
 
-    await listarNodo('cache', 't', 'casa.test')
+    await listNode('cache', 't', 'casa.test')
     expect(spy.mock.calls[0][0]).toBe('cache/list')
     expect(spy.mock.calls[0][1]?.body).toEqual({ domain: 'casa.test', node: '' })
 
     spy.mockClear()
-    await listarNodo('allowed', 't', '')
+    await listNode('allowed', 't', '')
     expect(spy.mock.calls[0][0]).toBe('allowed/list')
     expect(spy.mock.calls[0][1]?.body).toEqual({ domain: '', node: '' })
 
     spy.mockClear()
-    await listarNodo('blocked', 't', '')
+    await listNode('blocked', 't', '')
     expect(spy.mock.calls[0][0]).toBe('blocked/list')
   })
 
   it('it only sends direction when navigating upwards', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
 
-    await listarNodo('cache', 't', 'casa.test')
+    await listNode('cache', 't', 'casa.test')
     expect(spy.mock.calls[0][1]?.body?.direction).toBeUndefined()
 
     spy.mockClear()
-    await listarNodo('cache', 't', 'casa.test', 'up')
+    await listNode('cache', 't', 'casa.test', 'up')
     expect(spy.mock.calls[0][1]?.body?.direction).toBe('up')
   })
 
@@ -54,13 +54,13 @@ describe('listarNodo', () => {
      JavaScript strings are immutable, so the domain travels EXACTLY as typed. */
   it('it does not lowercase the domain: upstream does not either', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
-    await listarNodo('cache', 't', 'CASA.Test')
+    await listNode('cache', 't', 'CASA.Test')
     expect(spy.mock.calls[0][1]?.body?.domain).toBe('CASA.Test')
   })
 
   it('it unwraps the node, which is what the screen needs', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
-    const r = await listarNodo('cache', 't', 'x')
+    const r = await listNode('cache', 't', 'x')
     expect(r.kind).toBe('ok')
     if (r.kind !== 'ok') return
     expect(r.data.domain).toBe('casa.test')
@@ -71,41 +71,41 @@ describe('listarNodo', () => {
      text would be lost. */
   it('it keeps the error message from the server', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
-    const r = await listarNodo('cache', 't', 'x')
+    const r = await listNode('cache', 't', 'x')
     expect(r).toEqual({ kind: 'error', message: 'boom' })
   })
 })
 
-describe('dominioPadre', () => {
+describe('parentDomain', () => {
   it('it replicates getParentDomain from other-zones.js', () => {
-    expect(dominioPadre('a.b.casa.test')).toBe('b.casa.test')
-    expect(dominioPadre('casa.test')).toBe('test')
+    expect(parentDomain('a.b.casa.test')).toBe('b.casa.test')
+    expect(parentDomain('casa.test')).toBe('test')
     // A single-label domain has the root as its parent, which is "".
-    expect(dominioPadre('test')).toBe('')
+    expect(parentDomain('test')).toBe('')
     // The root has no parent: null, which is what hides the [up] link.
-    expect(dominioPadre('')).toBeNull()
-    expect(dominioPadre(null)).toBeNull()
+    expect(parentDomain('')).toBeNull()
+    expect(parentDomain(null)).toBeNull()
   })
 })
 
-describe('limpiarLista', () => {
+describe('cleanList', () => {
   it('it replicates cleanTextList from common.js', () => {
-    expect(limpiarLista('a.test\nb.test')).toBe('a.test,b.test')
-    expect(limpiarLista('a.test\n\n\nb.test')).toBe('a.test,b.test')
-    expect(limpiarLista('\na.test\n')).toBe('a.test')
-    expect(limpiarLista('')).toBe('')
+    expect(cleanList('a.test\nb.test')).toBe('a.test,b.test')
+    expect(cleanList('a.test\n\n\nb.test')).toBe('a.test,b.test')
+    expect(cleanList('\na.test\n')).toBe('a.test')
+    expect(cleanList('')).toBe('')
     // A text of nothing but newlines collapses to an empty string: the comma at
     // the ends is stripped too. Upstream also checks `=== ","` when validating
     // the import; no input reaches that branch, but it is replicated all the same.
-    expect(limpiarLista('\n')).toBe('')
-    expect(limpiarLista('\n\n\n')).toBe('')
+    expect(cleanList('\n')).toBe('')
+    expect(cleanList('\n\n\n')).toBe('')
   })
 })
 
 describe('cache', () => {
   it('vaciarCache calls cache/flush with the cluster node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
-    await vaciarCache('t')
+    await flushCache('t')
     expect(spy.mock.calls[0][0]).toBe('cache/flush')
     expect(spy.mock.calls[0][1]?.body).toEqual({ node: '' })
   })
@@ -135,7 +135,7 @@ describe('allowed and blocked', () => {
   /* the allowed/blocked flush does NOT carry `node`: upstream sends it on cache only. */
   it('vaciarLista no manda node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
-    await vaciarLista('blocked', 't')
+    await flushList('blocked', 't')
     expect(spy.mock.calls[0][0]).toBe('blocked/flush')
     expect(spy.mock.calls[0][1]?.body).toBeUndefined()
   })
@@ -143,23 +143,23 @@ describe('allowed and blocked', () => {
   it('importarDominios goes by POST and with the field name of each list', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
 
-    await importarDominios('allowed', 't', 'a.test,b.test')
+    await importDomains('allowed', 't', 'a.test,b.test')
     expect(spy.mock.calls[0][0]).toBe('allowed/import')
     expect(spy.mock.calls[0][1]?.method).toBe('POST')
     expect(spy.mock.calls[0][1]?.body).toEqual({ allowedZones: 'a.test,b.test' })
 
     spy.mockClear()
-    await importarDominios('blocked', 't', 'c.test')
+    await importDomains('blocked', 't', 'c.test')
     expect(spy.mock.calls[0][1]?.body).toEqual({ blockedZones: 'c.test' })
   })
 
   /* The export does not go by XHR: it asks for a single-use token and opens a window. */
   it('exportarDominios goes through openDownload', async () => {
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
-    await exportarDominios('allowed', 't')
+    await exportDomains('allowed', 't')
     expect(spy.mock.calls[0][1]).toBe('allowed/export')
     spy.mockClear()
-    await exportarDominios('blocked', 't')
+    await exportDomains('blocked', 't')
     expect(spy.mock.calls[0][1]).toBe('blocked/export')
   })
 })

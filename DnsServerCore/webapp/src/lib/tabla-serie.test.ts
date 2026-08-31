@@ -27,7 +27,7 @@ describe('serializeTable', () => {
     if (r.ok) return
     expect(r.failure.title).toBe('Missing!')
     expect(r.failure.text).toBe('Please enter a valid value in the text field in focus.')
-    expect(r.failure).toMatchObject({ row: 1, columna: 0 })
+    expect(r.failure).toMatchObject({ row: 1, column: 0 })
   })
 
   it('a `|` inside a field aborts with its own alert', () => {
@@ -38,6 +38,6 @@ describe('serializeTable', () => {
     expect(r.failure.text).toBe(
       "Please edit the value in the text field in focus to remove '|' character.",
     )
-    expect(r.failure).toMatchObject({ row: 0, columna: 1 })
+    expect(r.failure).toMatchObject({ row: 0, column: 1 })
   })
 })

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Button } from '../../ui/Button'
 import { Input, Textarea } from '../../ui/Field'
 import {
-  construirCuerpo,
-  idCelda,
+  buildBody,
+  cellId,
   type ScopeError,
   type ScopeForm as Form,
 } from './model'
@@ -41,19 +41,19 @@ here are state, to the same effect:
 */
 
 export function ScopeForm({
-  titulo,
+  title,
   inicial,
   busy,
-  onGuardar,
+  onSave,
   onCancelar,
-  onAviso,
+  onNotice,
 }: {
-  titulo: 'Add Scope' | 'Edit Scope'
+  title: 'Add Scope' | 'Edit Scope'
   inicial: Form
   busy: boolean
-  onGuardar: (body: Record<string, string>) => void
+  onSave: (body: Record<string, string>) => void
   onCancelar: () => void
-  onAviso: (e: ScopeError) => void
+  onNotice: (e: ScopeError) => void
 }) {
   const [f, setF] = useState<Form>(inicial)
 
@@ -62,18 +62,18 @@ export function ScopeForm({
   }
 
   function save() {
-    const result = construirCuerpo(f)
+    const result = buildBody(f)
     if ('error' in result) {
-      onAviso(result.error)
+      onNotice(result.error)
       document.getElementById(result.error.focus)?.focus()
       return
     }
-    onGuardar(result.body)
+    onSave(result.body)
   }
 
   return (
     <div>
-      <SectionHeader section="DHCP" titulo={titulo} />
+      <SectionHeader section="DHCP" title={title} />
 
       <Block title="Scope">
         <TextRow
@@ -297,8 +297,8 @@ export function ScopeForm({
       <Block title="Static Routes">
         <EditableList
           label="Static Routes"
-          idCelda={(row, columna) => idCelda('staticRoutes', row, columna)}
-          columnas={[
+          cellId={(row, column) => cellId('staticRoutes', row, column)}
+          columns={[
             { key: 'destination', label: 'Destination' },
             { key: 'subnetMask', label: 'Subnet Mask' },
             { key: 'router', label: 'Router' },
@@ -340,8 +340,8 @@ export function ScopeForm({
       <Block title="Vendor Specific Information">
         <EditableList
           label="Vendor Specific Information"
-          idCelda={(row, columna) => idCelda('vendorInfo', row, columna)}
-          columnas={[
+          cellId={(row, column) => cellId('vendorInfo', row, column)}
+          columns={[
             { key: 'identifier', label: 'Vendor Class Identifier' },
             { key: 'information', label: 'Vendor Specific Information' },
           ]}
@@ -386,8 +386,8 @@ export function ScopeForm({
       <Block title="Generic DHCP Options">
         <EditableList
           label="Generic DHCP Options"
-          idCelda={(row, columna) => idCelda('genericOptions', row, columna)}
-          columnas={[
+          cellId={(row, column) => cellId('genericOptions', row, column)}
+          columns={[
             { key: 'code', label: 'Code', type: 'number', min: 0, max: 255 },
             { key: 'value', label: 'Hex Value' },
           ]}
@@ -408,8 +408,8 @@ export function ScopeForm({
       <Block title="Exclusions">
         <EditableList
           label="Exclusions"
-          idCelda={(row, columna) => idCelda('exclusions', row, columna)}
-          columnas={[
+          cellId={(row, column) => cellId('exclusions', row, column)}
+          columns={[
             { key: 'startingAddress', label: 'Starting Address' },
             { key: 'endingAddress', label: 'Ending Address' },
           ]}
@@ -471,8 +471,8 @@ export function ScopeForm({
       <Block title="Reserved Leases">
         <EditableList
           label="Reserved Leases"
-          idCelda={(row, columna) => idCelda('reservedLeases', row, columna)}
-          columnas={[
+          cellId={(row, column) => cellId('reservedLeases', row, column)}
+          columns={[
             { key: 'hostName', label: 'Host Name' },
             { key: 'hardwareAddress', label: 'MAC Address' },
             { key: 'address', label: 'IP Address' },

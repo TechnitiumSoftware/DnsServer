@@ -1,26 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { SETTINGS } from './ajustes.fixture'
-import { construirCuerpo, formularioDesdeAjustes, enabled, limpiarLista, listaATexto } from './model'
+import { buildBody, formularioDesdeAjustes, enabled, cleanList, listToText } from './model'
 
 const base = () => formularioDesdeAjustes(SETTINGS)
 
 function body(parcial: Partial<ReturnType<typeof base>> = {}) {
-  const r = construirCuerpo({ ...base(), ...parcial })
+  const r = buildBody({ ...base(), ...parcial })
   expect(r.error).toBeUndefined()
   return r.body!
 }
 
 describe('listaATexto / limpiarLista', () => {
   it('one entry per line, with CRLF, just like getArrayAsString', () => {
-    expect(listaATexto(['a', 'b'])).toBe('a\nb\n')
-    expect(listaATexto(null)).toBe('')
-    expect(listaATexto([])).toBe('')
+    expect(listToText(['a', 'b'])).toBe('a\nb\n')
+    expect(listToText(null)).toBe('')
+    expect(listToText([])).toBe('')
   })
 
   it('cleanTextList collapses commas and strips the ones at the ends', () => {
-    expect(limpiarLista('\na\n\n\nb\n')).toBe('a,b')
-    expect(limpiarLista('\n\n')).toBe('')
-    expect(limpiarLista('a')).toBe('a')
+    expect(cleanList('\na\n\n\nb\n')).toBe('a,b')
+    expect(cleanList('\n\n')).toBe('')
+    expect(cleanList('a')).toBe('a')
   })
 })
 
@@ -68,12 +68,12 @@ describe('enabled', () => {
     const en = enabled({ ...base(), enableBlocking: false })
     expect(en.blocking).toBe(false)
     expect(en.customBlockingAddresses).toBe(false)
-    expect(en.actualizarListasAhora).toBe(false)
+    expect(en.updateListsNow).toBe(false)
   })
 
   it('\"Update Now\" stays off with blocking on but no lists', () => {
-    expect(enabled({ ...base(), enableBlocking: true, blockListUrls: '' }).actualizarListasAhora).toBe(false)
-    expect(enabled({ ...base(), enableBlocking: true, blockListUrls: 'http://x\n' }).actualizarListasAhora).toBe(true)
+    expect(enabled({ ...base(), enableBlocking: true, blockListUrls: '' }).updateListsNow).toBe(false)
+    expect(enabled({ ...base(), enableBlocking: true, blockListUrls: 'http://x\n' }).updateListsNow).toBe(true)
   })
 
   it('the recursion ACL is only edited with the fourth option', () => {
@@ -139,14 +139,14 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
   ]
 
   it.each(casos)('%s vacío da el aviso literal de upstream', (_n, parcial, text) => {
-    const r = construirCuerpo({ ...base(), ...parcial } as ReturnType<typeof base>)
+    const r = buildBody({ ...base(), ...parcial } as ReturnType<typeof base>)
     expect(r.error?.title).toBe('Missing!')
     expect(r.error?.text).toBe(text)
     expect(r.body).toBeUndefined()
   })
 
   it('the domain is checked BEFORE the ECS prefix', () => {
-    const r = construirCuerpo({
+    const r = buildBody({
       ...base(),
       dnsServerDomain: '',
       eDnsClientSubnetIPv4PrefixLength: '',
@@ -155,7 +155,7 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
   })
 
   it('the ECS prefix is checked BEFORE the QPM table', () => {
-    const r = construirCuerpo({
+    const r = buildBody({
       ...base(),
       eDnsClientSubnetIPv4PrefixLength: '',
       qpmPrefixLimitsIPv4: [{ prefix: '', udpLimit: '', tcpLimit: '' }],
@@ -164,7 +164,7 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
   })
 
   it('an empty cell in the QPM table gives the serializeTableData alert', () => {
-    const r = construirCuerpo({
+    const r = buildBody({
       ...base(),
       qpmPrefixLimitsIPv4: [{ prefix: '32', udpLimit: '', tcpLimit: '600' }],
     })
@@ -177,7 +177,7 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
   })
 
   it('a \"|\" in a cell gives the invalid-character alert', () => {
-    const r = construirCuerpo({
+    const r = buildBody({
       ...base(),
       tsigKeys: [{ keyName: 'a|b', sharedSecret: '', algorithmName: 'hmac-sha256' }],
     })
@@ -195,19 +195,19 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
   })
 
   it('with a proxy other than None, address and port are missing in that order', () => {
-    expect(construirCuerpo({ ...base(), proxyType: 'Http' }).error?.text).toBe(
+    expect(buildBody({ ...base(), proxyType: 'Http' }).error?.text).toBe(
       'Please enter proxy server address.',
     )
-    expect(construirCuerpo({ ...base(), proxyType: 'Http', proxyAddress: 'p' }).error?.text).toBe(
+    expect(buildBody({ ...base(), proxyType: 'Http', proxyAddress: 'p' }).error?.text).toBe(
       'Please enter proxy server port.',
     )
   })
 
   it('the sub-tab of the error travels with the alert so it can be jumped to', () => {
-    expect(construirCuerpo({ ...base(), resolverRetries: '' }).error?.tab).toBe('Recursion')
-    expect(construirCuerpo({ ...base(), cacheMaximumEntries: '' }).error?.tab).toBe('Cache')
-    expect(construirCuerpo({ ...base(), dnsOverTlsPort: '' }).error?.tab).toBe('Optional Protocols')
-    expect(construirCuerpo({ ...base(), forwarderRetries: '' }).error?.tab).toBe('Proxy & Forwarders')
+    expect(buildBody({ ...base(), resolverRetries: '' }).error?.tab).toBe('Recursion')
+    expect(buildBody({ ...base(), cacheMaximumEntries: '' }).error?.tab).toBe('Cache')
+    expect(buildBody({ ...base(), dnsOverTlsPort: '' }).error?.tab).toBe('Optional Protocols')
+    expect(buildBody({ ...base(), forwarderRetries: '' }).error?.tab).toBe('Proxy & Forwarders')
   })
 })
 
@@ -280,7 +280,7 @@ describe('construirCuerpo — body of settings/set', () => {
   })
 
   it('it returns the sanitised text upstream rewrites into the textareas', () => {
-    const r = construirCuerpo({ ...base(), blockingBypassList: '10.0.0.1\n\n10.0.0.2\n' })
+    const r = buildBody({ ...base(), blockingBypassList: '10.0.0.1\n\n10.0.0.2\n' })
     // Blocking adds a trailing newline; the forwarders do not. Upstream's asymmetry.
     expect(r.sanitised?.blockingBypassList).toBe('10.0.0.1\n10.0.0.2\n')
     expect(r.sanitised?.forwarders).toBe('1.1.1.1\n8.8.8.8')

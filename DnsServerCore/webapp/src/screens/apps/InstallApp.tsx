@@ -76,7 +76,7 @@ export function InstallApp({
         </>
       }
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
       <LabeledInput label="App Name" value={name} onChange={(e) => setName(e.target.value)} />
       <LabeledInput label="App Zip File" type="file" ref={fileRef} />
     </Dialog>

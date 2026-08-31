@@ -199,14 +199,14 @@ intermediate DOM normalising anything, so `\n` is emitted directly. Copying the
 literal `\r\n` would send `forwarders=1.1.1.1%0D,8.8.8.8%0D` to the server, which
 is exactly what upstream does NOT send.
 */
-export function listaATexto(list: readonly string[] | number[] | null | undefined): string {
+export function listToText(list: readonly string[] | number[] | null | undefined): string {
   if (list == null) return ''
   return (list as readonly (string | number)[]).map((v) => `${v}\n`).join('')
 }
 
 /** `cleanTextList` (common.js:326): newlines to commas, repeated commas
  *  collapsed and the ones at the ends stripped. */
-export function limpiarLista(text: string): string {
+export function cleanList(text: string): string {
   let t = text.replace(/\n/g, ',')
   while (t.indexOf(',,') !== -1) t = t.replace(/,,/g, ',')
   if (t.startsWith(',')) t = t.substring(1)
@@ -217,9 +217,9 @@ export function limpiarLista(text: string): string {
 export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
   return {
     dnsServerDomain: s.dnsServerDomain ?? '',
-    dnsServerLocalEndPoints: listaATexto(s.dnsServerLocalEndPoints),
-    dnsServerIPv4SourceAddresses: listaATexto(s.dnsServerIPv4SourceAddresses),
-    dnsServerIPv6SourceAddresses: listaATexto(s.dnsServerIPv6SourceAddresses),
+    dnsServerLocalEndPoints: listToText(s.dnsServerLocalEndPoints),
+    dnsServerIPv4SourceAddresses: listToText(s.dnsServerIPv4SourceAddresses),
+    dnsServerIPv6SourceAddresses: listToText(s.dnsServerIPv6SourceAddresses),
 
     defaultRecordTtl: String(s.defaultRecordTtl ?? ''),
     defaultNsRecordTtl: String(s.defaultNsRecordTtl ?? ''),
@@ -228,15 +228,15 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     useSoaSerialDateScheme: s.useSoaSerialDateScheme,
     minSoaRefresh: String(s.minSoaRefresh ?? ''),
     minSoaRetry: String(s.minSoaRetry ?? ''),
-    zoneTransferAllowedNetworks: listaATexto(s.zoneTransferAllowedNetworks),
-    notifyAllowedNetworks: listaATexto(s.notifyAllowedNetworks),
+    zoneTransferAllowedNetworks: listToText(s.zoneTransferAllowedNetworks),
+    notifyAllowedNetworks: listToText(s.notifyAllowedNetworks),
 
     dnsServerEnableCheckForUpdate: s.dnsServerEnableCheckForUpdate,
     dnsAppsEnableAutomaticUpdate: s.dnsAppsEnableAutomaticUpdate,
 
     ipv6Mode: s.ipv6Mode ?? 'Disabled',
     enableUdpSocketPool: s.enableUdpSocketPool,
-    socketPoolExcludedPorts: listaATexto(s.socketPoolExcludedPorts),
+    socketPoolExcludedPorts: listToText(s.socketPoolExcludedPorts),
 
     udpPayloadSize: String(s.udpPayloadSize ?? ''),
     dnssecValidation: s.dnssecValidation,
@@ -246,11 +246,11 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     eDnsClientSubnetIpv4Override: s.eDnsClientSubnetIpv4Override ?? '',
     eDnsClientSubnetIpv6Override: s.eDnsClientSubnetIpv6Override ?? '',
 
-    qpmPrefixLimitsIPv4: (s.qpmPrefixLimitsIPv4 ?? []).map(filaQpm),
-    qpmPrefixLimitsIPv6: (s.qpmPrefixLimitsIPv6 ?? []).map(filaQpm),
+    qpmPrefixLimitsIPv4: (s.qpmPrefixLimitsIPv4 ?? []).map(qpmRow),
+    qpmPrefixLimitsIPv6: (s.qpmPrefixLimitsIPv6 ?? []).map(qpmRow),
     qpmLimitSampleMinutes: String(s.qpmLimitSampleMinutes ?? ''),
     qpmLimitUdpTruncationPercentage: String(s.qpmLimitUdpTruncationPercentage ?? ''),
-    qpmLimitBypassList: listaATexto(s.qpmLimitBypassList),
+    qpmLimitBypassList: listToText(s.qpmLimitBypassList),
 
     clientTimeout: String(s.clientTimeout ?? ''),
     tcpSendTimeout: String(s.tcpSendTimeout ?? ''),
@@ -262,7 +262,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     udpReceiveBufferSizeKB: String(s.udpReceiveBufferSizeKB ?? ''),
     maxConcurrentResolutionsPerCore: String(s.maxConcurrentResolutionsPerCore ?? ''),
 
-    webServiceLocalAddresses: listaATexto(s.webServiceLocalAddresses),
+    webServiceLocalAddresses: listToText(s.webServiceLocalAddresses),
     webServiceHttpPort: String(s.webServiceHttpPort ?? ''),
     webServiceEnableHttpUnixSocket: s.webServiceEnableHttpUnixSocket,
     webServiceHttpUnixSocket: s.webServiceHttpUnixSocket ?? '',
@@ -273,7 +273,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     webServiceHttpToTlsRedirect: s.webServiceHttpToTlsRedirect,
     webServiceUseSelfSignedTlsCertificate: s.webServiceUseSelfSignedTlsCertificate,
     webServiceTlsPort: String(s.webServiceTlsPort ?? ''),
-    webServiceReverseProxyAddresses: listaATexto(s.webServiceReverseProxyAddresses),
+    webServiceReverseProxyAddresses: listToText(s.webServiceReverseProxyAddresses),
     webServiceRealIpHeader: s.webServiceRealIpHeader ?? '',
     webServiceCspFrameAncestorsHeader: s.webServiceCspFrameAncestorsHeader ?? '',
     webServiceTlsCertificatePath: s.webServiceTlsCertificatePath ?? '',
@@ -298,7 +298,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     dnsOverTlsPort: String(s.dnsOverTlsPort ?? ''),
     dnsOverHttpsPort: String(s.dnsOverHttpsPort ?? ''),
     dnsOverQuicPort: String(s.dnsOverQuicPort ?? ''),
-    dnsReverseProxyNetworkACL: listaATexto(s.dnsReverseProxyNetworkACL),
+    dnsReverseProxyNetworkACL: listToText(s.dnsReverseProxyNetworkACL),
     dnsOverHttpRealIpHeader: s.dnsOverHttpRealIpHeader ?? '',
     dnsTlsCertificatePath: s.dnsTlsCertificatePath ?? '',
     dnsTlsCertificatePassword: s.dnsTlsCertificatePassword ?? '',
@@ -310,7 +310,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     })),
 
     recursion: s.recursion ?? 'Deny',
-    recursionNetworkACL: listaATexto(s.recursionNetworkACL),
+    recursionNetworkACL: listToText(s.recursionNetworkACL),
     randomizeName: s.randomizeName,
     qnameMinimization: s.qnameMinimization,
     locallyServedDnsZones: s.locallyServedDnsZones,
@@ -341,11 +341,11 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     allowTxtBlockingReport: s.allowTxtBlockingReport,
     // main.js:1455 — the minutes field empties on every load, it is not kept.
     temporaryDisableBlockingMinutes: '',
-    blockingBypassList: listaATexto(s.blockingBypassList),
+    blockingBypassList: listToText(s.blockingBypassList),
     blockingType: s.blockingType ?? 'AnyAddress',
-    customBlockingAddresses: listaATexto(s.customBlockingAddresses),
+    customBlockingAddresses: listToText(s.customBlockingAddresses),
     blockingAnswerTtl: String(s.blockingAnswerTtl ?? ''),
-    blockListUrls: listaATexto(s.blockListUrls),
+    blockListUrls: listToText(s.blockListUrls),
     blockListUpdateIntervalHours: String(s.blockListUpdateIntervalHours ?? ''),
 
     // main.js:1525 — the proxy type is compared lowercased and any
@@ -355,8 +355,8 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
     proxyPort: s.proxy == null ? '' : String(s.proxy.port ?? ''),
     proxyUsername: s.proxy?.username ?? '',
     proxyPassword: s.proxy?.password ?? '',
-    proxyBypassList: listaATexto(s.proxy?.bypass),
-    forwarders: listaATexto(s.forwarders),
+    proxyBypassList: listToText(s.proxy?.bypass),
+    forwarders: listToText(s.forwarders),
     forwarderProtocol: s.forwarderProtocol ?? 'Udp',
     concurrentForwarding: s.concurrentForwarding,
     forwarderRetries: String(s.forwarderRetries ?? ''),
@@ -375,7 +375,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
   }
 }
 
-function filaQpm(l: { prefix: number; udpLimit: number; tcpLimit: number }): QpmRow {
+function qpmRow(l: { prefix: number; udpLimit: number; tcpLimit: number }): QpmRow {
   return { prefix: String(l.prefix), udpLimit: String(l.udpLimit), tcpLimit: String(l.tcpLimit) }
 }
 
@@ -440,7 +440,7 @@ export function enabled(f: SettingsForm) {
     serveStale: f.serveStale,
     blocking: f.enableBlocking,
     customBlockingAddresses: f.enableBlocking && f.blockingType === 'CustomAddress',
-    actualizarListasAhora: f.enableBlocking && f.blockListUrls !== '',
+    updateListsNow: f.enableBlocking && f.blockListUrls !== '',
     proxy: f.proxyType !== 'None',
     forwarderConcurrency: f.concurrentForwarding,
     logging: f.loggingType.toLowerCase() !== 'none',
@@ -484,7 +484,7 @@ function serializeWithLocation(
   return { error: { title: r.failure.title, text: r.failure.text, tab, field } }
 }
 
-export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
+export function buildBody(f: SettingsForm, node = ''): ResultadoCuerpo {
   const body: Record<string, string> = { node }
   const sanitised: Partial<SettingsForm> = {}
 
@@ -497,15 +497,15 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     return missing('Please enter server domain name.', 'General', 'dnsServerDomain')
   }
 
-  let dnsServerLocalEndPoints = limpiarLista(f.dnsServerLocalEndPoints)
+  let dnsServerLocalEndPoints = cleanList(f.dnsServerLocalEndPoints)
   if (dnsServerLocalEndPoints.length === 0 || dnsServerLocalEndPoints === ',') {
     dnsServerLocalEndPoints = '0.0.0.0:53,[::]:53'
   } else {
     sanitised.dnsServerLocalEndPoints = dnsServerLocalEndPoints.replace(/,/g, '\n')
   }
 
-  const v4 = limpiarLista(f.dnsServerIPv4SourceAddresses)
-  const v6 = limpiarLista(f.dnsServerIPv6SourceAddresses)
+  const v4 = cleanList(f.dnsServerIPv4SourceAddresses)
+  const v6 = cleanList(f.dnsServerIPv6SourceAddresses)
 
   body.dnsServerDomain = f.dnsServerDomain
   body.dnsServerLocalEndPoints = dnsServerLocalEndPoints
@@ -513,8 +513,8 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.dnsServerIPv6SourceAddresses = v6.length === 0 || v6 === ',' ? 'false' : v6
 
   // ── General: valores por defecto
-  const zta = limpiarLista(f.zoneTransferAllowedNetworks)
-  const nan = limpiarLista(f.notifyAllowedNetworks)
+  const zta = cleanList(f.zoneTransferAllowedNetworks)
+  const nan = cleanList(f.notifyAllowedNetworks)
   if (!(zta.length === 0 || zta === ',')) sanitised.zoneTransferAllowedNetworks = zta.replace(/,/g, '\n') + '\n'
   if (!(nan.length === 0 || nan === ',')) sanitised.notifyAllowedNetworks = nan.replace(/,/g, '\n') + '\n'
 
@@ -531,7 +531,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.dnsAppsEnableAutomaticUpdate = String(f.dnsAppsEnableAutomaticUpdate)
 
   // ── General: IPv6 y socket pool
-  const spep = limpiarLista(f.socketPoolExcludedPorts)
+  const spep = cleanList(f.socketPoolExcludedPorts)
   if (!(spep.length === 0 || spep === ',')) sanitised.socketPoolExcludedPorts = spep.replace(/,/g, '\n') + '\n'
 
   body.ipv6Mode = f.ipv6Mode
@@ -592,7 +592,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     )
   }
 
-  const qbl = limpiarLista(f.qpmLimitBypassList)
+  const qbl = cleanList(f.qpmLimitBypassList)
   if (!(qbl.length === 0 || qbl === ',')) sanitised.qpmLimitBypassList = qbl.replace(/,/g, '\n') + '\n'
 
   // ── General: avanzado
@@ -634,11 +634,11 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.maxConcurrentResolutionsPerCore = f.maxConcurrentResolutionsPerCore
 
   // ── Web Service (no validation: the empty ones fall to their default value)
-  let wsla = limpiarLista(f.webServiceLocalAddresses)
+  let wsla = cleanList(f.webServiceLocalAddresses)
   if (wsla.length === 0 || wsla === ',') wsla = '0.0.0.0,[::]'
   else sanitised.webServiceLocalAddresses = wsla.replace(/,/g, '\n')
 
-  const wsrpa = limpiarLista(f.webServiceReverseProxyAddresses)
+  const wsrpa = cleanList(f.webServiceReverseProxyAddresses)
   if (!(wsrpa.length === 0 || wsrpa === ',')) {
     sanitised.webServiceReverseProxyAddresses = wsrpa.replace(/,/g, '\n')
   }
@@ -673,7 +673,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     if (f[key] === '') return missing(text, 'Optional Protocols', field)
   }
 
-  const drpa = limpiarLista(f.dnsReverseProxyNetworkACL)
+  const drpa = cleanList(f.dnsReverseProxyNetworkACL)
   if (!(drpa.length === 0 || drpa === ',')) {
     sanitised.dnsReverseProxyNetworkACL = drpa.replace(/,/g, '\n')
   }
@@ -706,7 +706,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   const tsig = serializeWithLocation(
     f.tsigKeys.map((k) => [
       { type: 'text' as const, value: k.keyName },
-      { type: 'text' as const, value: k.sharedSecret, opcional: true },
+      { type: 'text' as const, value: k.sharedSecret, optional: true },
       { type: 'text' as const, value: k.algorithmName },
     ]),
     'TSIG',
@@ -716,7 +716,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.tsigKeys = tsig.value.length === 0 ? 'false' : tsig.value
 
   // ── Recursion
-  const racl = limpiarLista(f.recursionNetworkACL)
+  const racl = cleanList(f.recursionNetworkACL)
   if (!(racl.length === 0 || racl === ',')) sanitised.recursionNetworkACL = racl.replace(/,/g, '\n')
 
   const resolutor: [keyof SettingsForm, string, string][] = [
@@ -772,13 +772,13 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.cachePrefetchSampleEligibilityHitsPerHour = f.cachePrefetchSampleEligibilityHitsPerHour
 
   // ── Blocking (no validation in upstream)
-  const bbl = limpiarLista(f.blockingBypassList)
+  const bbl = cleanList(f.blockingBypassList)
   if (!(bbl.length === 0 || bbl === ',')) sanitised.blockingBypassList = bbl.replace(/,/g, '\n') + '\n'
 
-  const cba = limpiarLista(f.customBlockingAddresses)
+  const cba = cleanList(f.customBlockingAddresses)
   if (!(cba.length === 0 || cba === ',')) sanitised.customBlockingAddresses = cba.replace(/,/g, '\n') + '\n'
 
-  const blu = limpiarLista(f.blockListUrls)
+  const blu = cleanList(f.blockListUrls)
   if (!(blu.length === 0 || blu === ',')) sanitised.blockListUrls = blu.replace(/,/g, '\n') + '\n'
 
   body.enableBlocking = String(f.enableBlocking)
@@ -800,7 +800,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     if (f.proxyPort === '') {
       return missing('Please enter proxy server port.', 'Proxy & Forwarders', 'proxyPort')
     }
-    const pb = limpiarLista(f.proxyBypassList)
+    const pb = cleanList(f.proxyBypassList)
     // main.js:2145 — here empty is NOT "false", it is an empty string.
     if (!(pb.length === 0 || pb === ',')) sanitised.proxyBypassList = pb.replace(/,/g, '\n')
 
@@ -811,7 +811,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     proxy.proxyBypass = pb.length === 0 || pb === ',' ? '' : pb
   }
 
-  const fwd = limpiarLista(f.forwarders)
+  const fwd = cleanList(f.forwarders)
   if (!(fwd.length === 0 || fwd === ',')) sanitised.forwarders = fwd.replace(/,/g, '\n')
 
   const reenvio: [keyof SettingsForm, string, string][] = [

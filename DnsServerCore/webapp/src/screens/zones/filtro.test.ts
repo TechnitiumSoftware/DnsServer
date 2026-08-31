@@ -46,7 +46,7 @@ describe('name filter', () => {
   })
 
   it('`@` at the root is the empty name', () => {
-    expect(compilarFiltroDeNombre('@', '.').dominio).toBe('')
+    expect(compilarFiltroDeNombre('@', '.').domain).toBe('')
   })
 
   it('`*` looks for the literal WILDCARD record, it does not list everything', () => {
@@ -74,7 +74,7 @@ describe('name filter', () => {
     // `filterName.toLowerCase()` yes, `zone` no (zone.js:3533). With the zone name
     // the server returns it makes no difference, but it is what the original does.
     expect(filterBy(RECORDS, { name: 'WWW', type: '' }, 'casa.test')).toHaveLength(2)
-    expect(compilarFiltroDeNombre('WWW', 'CASA.TEST').dominio).toBe('www.CASA.TEST')
+    expect(compilarFiltroDeNombre('WWW', 'CASA.TEST').domain).toBe('www.CASA.TEST')
   })
 })
 

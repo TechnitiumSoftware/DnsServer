@@ -55,9 +55,9 @@ export function Table({
   children,
   isEmpty = false,
   emptyText,
-  columnas,
+  columns,
   className,
-  claseTabla,
+  tableClass,
   footer,
 }: {
   /** The `thead` cells; normally `Th` from this same module. */
@@ -68,24 +68,24 @@ export function Table({
   /** What to say then. Without this, an empty table shows a blank body. */
   emptyText?: ReactNode
   /** How many columns that row spans. */
-  columnas?: number
+  columns?: number
   /** For the wrapper: the max width of a narrow table, for example. */
   className?: string
   /** For the table: the sticky header of the "More" dialog, for example. */
-  claseTabla?: string
+  tableClass?: string
   /** The footer row, when the table carries its count inside. */
   footer?: ReactNode
 }) {
   return (
     <div className={[styles.wrap, className].filter(Boolean).join(' ')}>
-      <table className={[styles.table, claseTabla].filter(Boolean).join(' ')}>
+      <table className={[styles.table, tableClass].filter(Boolean).join(' ')}>
         <thead>
           <tr>{header}</tr>
         </thead>
         <tbody>
           {isEmpty && emptyText != null ? (
             <tr>
-              <td colSpan={columnas} className={styles.sinFilas}>
+              <td colSpan={columns} className={styles.noRows}>
                 {emptyText}
               </td>
             </tr>
@@ -129,7 +129,7 @@ export function useOrden<T>(keys: Keys<T>, rows: T[]) {
     })
   })()
 
-  function alternar(field: string) {
+  function toggle(field: string) {
     const read = keys[field]
     if (read == null) return
     // The list is looked at AS IT IS DRAWN, which is what upstream looks at.
@@ -137,27 +137,27 @@ export function useOrden<T>(keys: Keys<T>, rows: T[]) {
     setOrden({ field, desc: yaAsc })
   }
 
-  return { rows: sorted, sort, alternar }
+  return { rows: sorted, sort, toggle }
 }
 
 /** A sortable column header. Without `campo` it is an ordinary header. */
 export function Th({
   field,
   sort,
-  onOrdenar,
+  onSort,
   children,
   name,
   ...rest
 }: {
   field?: string
   sort?: Sort | null
-  onOrdenar?: (field: string) => void
+  onSort?: (field: string) => void
   children?: ReactNode
   /** For a header upstream leaves BLANK and which is still sortable: the button
    *  needs a name even though the cell shows no label. */
   name?: string
 } & React.ThHTMLAttributes<HTMLTableCellElement>) {
-  if (field == null || onOrdenar == null) return <th {...rest}>{children}</th>
+  if (field == null || onSort == null) return <th {...rest}>{children}</th>
 
   const active = sort?.field === field
   return (
@@ -166,7 +166,7 @@ export function Th({
         type="button"
         className={styles.sort}
         aria-label={children == null ? name : undefined}
-        onClick={() => onOrdenar(field)}
+        onClick={() => onSort(field)}
       >
         {children}
         <span className={styles.flecha}>
@@ -183,7 +183,7 @@ reasoning in `Table.module.css`— but keeps its name in `aria-label` and in
 `title`, so the keyboard, the screen reader and the tooltip all say the same thing
 the text that used to fill the column said.
 */
-export function AccionFila({
+export function RowAction({
   icon,
   name,
   ...rest

@@ -8,52 +8,52 @@ import, types that convert but do not clone, and a signed Secondary that shows
 the DNSSEC menu but with only "hide records" inside.
 */
 
-export interface CabeceraDeZona {
+export interface ZoneHeader {
   addRecord: boolean
   resync: boolean
-  importar: boolean
-  exportar: boolean
+  runImport: boolean
+  runExport: boolean
   convert: boolean
-  clonar: boolean
+  clone: boolean
   options: boolean
   permissions: boolean
   /** The whole DNSSEC menu. */
   dnssec: boolean
-  firmar: boolean
-  desfirmar: boolean
+  sign: boolean
+  unsign: boolean
   verDs: boolean
   propiedades: boolean
   /** "Hide / Show DNSSEC Records": it only exists if the zone is signed. */
-  alternarRegistrosDnssec: boolean
+  toggleDnssecRecords: boolean
 }
 
 const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
-const CONOCIDOS = [...SECUNDARIAS, 'Primary', 'Stub', 'Forwarder', 'Catalog']
+const KNOWN = [...SECUNDARIAS, 'Primary', 'Stub', 'Forwarder', 'Catalog']
 
 /** A Catalog or a Forwarder does not bring the field: they cannot be signed. */
 export function isSigned(dnssecStatus: string | undefined): boolean {
   return dnssecStatus === 'SignedWithNSEC' || dnssecStatus === 'SignedWithNSEC3'
 }
 
-export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): CabeceraDeZona {
+export function zoneHeader(type: string, dnssecStatus: string | undefined): ZoneHeader {
   const signed = isSigned(dnssecStatus)
 
-  const base: CabeceraDeZona = {
+  const base: ZoneHeader = {
     // Only Primary and Forwarder allow adding records by hand.
     addRecord: type === 'Primary' || type === 'Forwarder',
     resync: [...SECUNDARIAS, 'Stub'].includes(type),
-    importar: type === 'Primary' || type === 'Forwarder',
-    exportar: ['Primary', 'Forwarder', ...SECUNDARIAS, 'Catalog'].includes(type),
+    runImport: type === 'Primary' || type === 'Forwarder',
+    runExport: ['Primary', 'Forwarder', ...SECUNDARIAS, 'Catalog'].includes(type),
     convert: ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog'].includes(type),
-    clonar: type === 'Primary' || type === 'Forwarder',
-    options: CONOCIDOS.includes(type),
-    permissions: CONOCIDOS.includes(type),
+    clone: type === 'Primary' || type === 'Forwarder',
+    options: KNOWN.includes(type),
+    permissions: KNOWN.includes(type),
     dnssec: false,
-    firmar: false,
-    desfirmar: false,
+    sign: false,
+    unsign: false,
     verDs: false,
     propiedades: false,
-    alternarRegistrosDnssec: false,
+    toggleDnssecRecords: false,
   }
 
   if (type === 'Primary') {
@@ -61,11 +61,11 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
       ...base,
       dnssec: true,
       // Sign only if it is NOT; the rest, only if it is.
-      firmar: !signed,
-      desfirmar: signed,
+      sign: !signed,
+      unsign: signed,
       verDs: signed,
       propiedades: signed,
-      alternarRegistrosDnssec: signed,
+      toggleDnssecRecords: signed,
     }
   }
 
@@ -73,7 +73,7 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
   // records: it does not sign, does not unsign and does not see the DS, because
   // the zone is not its own. Unsigned, the menu does not appear at all.
   if (type === 'Secondary' && signed) {
-    return { ...base, dnssec: true, alternarRegistrosDnssec: true }
+    return { ...base, dnssec: true, toggleDnssecRecords: true }
   }
 
   return base
@@ -98,11 +98,11 @@ export function typesHiddenWhenAdding(zoneType: string, dnssecStatus: string | u
 }
 
 /** The `localStorage` key where upstream stores whether it hides the DNSSEC. */
-export const CLAVE_OCULTAR_DNSSEC = 'zoneHideDnssecRecords'
+export const HIDE_DNSSEC_KEY = 'zoneHideDnssecRecords'
 
 export function readHideDnssec(): boolean {
   try {
-    return localStorage.getItem(CLAVE_OCULTAR_DNSSEC) === 'true'
+    return localStorage.getItem(HIDE_DNSSEC_KEY) === 'true'
   } catch {
     return false
   }
@@ -110,7 +110,7 @@ export function readHideDnssec(): boolean {
 
 export function writeHideDnssec(value: boolean): void {
   try {
-    localStorage.setItem(CLAVE_OCULTAR_DNSSEC, String(value))
+    localStorage.setItem(HIDE_DNSSEC_KEY, String(value))
   } catch {
     /* Without localStorage the preference does not persist; the screen lives on. */
   }

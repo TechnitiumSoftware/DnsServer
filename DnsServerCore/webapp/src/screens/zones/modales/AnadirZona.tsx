@@ -7,8 +7,8 @@ import { Field, Input, Select, Textarea } from '../../../ui/Field'
 import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import {
-  admiteFicheroDeZona,
-  construirParametrosAlta,
+  acceptsZoneFile,
+  buildAddParams,
   ejemploDeForwarder,
   formularioAltaInicial,
   proxyEditable,
@@ -42,7 +42,7 @@ export function AddZone({
   node = '',
   useSoaSerialDateScheme,
   dnssecValidation,
-  onCerrar,
+  onClose,
   onCreated,
 }: {
   open: boolean
@@ -51,7 +51,7 @@ export function AddZone({
   /** Both inherit from Settings' global setting, not from `false`. */
   useSoaSerialDateScheme: boolean
   dnssecValidation: boolean
-  onCerrar: () => void
+  onClose: () => void
   onCreated: (domain: string, notice: Notice) => void
 }) {
   const [f, setF] = useState<FormularioAlta>(() =>
@@ -60,18 +60,18 @@ export function AddZone({
   const [catalogos, setCatalogos] = useState<string[]>([])
   const [tsigKeys, setTsigKeys] = useState<string[]>([])
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
-  const zonaRef = useRef<HTMLInputElement>(null)
+  const zoneRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
     setF(formularioAltaInicial(useSoaSerialDateScheme, dnssecValidation))
     setArchivo(null)
-    setAviso(null)
+    setNotice(null)
     void listCatalogs(token, node).then((c) => setCatalogos(c ?? []))
     void getTsigKeyNames(token, node).then(setTsigKeys)
-    zonaRef.current?.focus()
+    zoneRef.current?.focus()
   }, [open, token, node, useSoaSerialDateScheme, dnssecValidation])
 
   const v = seccionesVisibles(f.type, f.initializeForwarder)
@@ -80,32 +80,32 @@ export function AddZone({
 
   function cambiarTipo(type: AddZoneKind) {
     const secciones = seccionesVisibles(type, f.initializeForwarder)
-    setF((prev) => ({ ...prev, type, zone: secciones.zonaFija ?? prev.zone }))
+    setF((prev) => ({ ...prev, type, zone: secciones.fixedZone ?? prev.zone }))
   }
 
   async function crear() {
-    const r = construirParametrosAlta(f)
+    const r = buildAddParams(f)
     if ('error' in r) {
-      setAviso({ type: 'warning', title: r.error.title, text: r.error.text })
-      if (r.error.field === 'zone') zonaRef.current?.focus()
+      setNotice({ type: 'warning', title: r.error.title, text: r.error.text })
+      if (r.error.field === 'zone') zoneRef.current?.focus()
       return
     }
 
     setBusy(true)
     const outcome = await createZone(
       token,
-      r.parametros,
-      admiteFicheroDeZona(f.type) ? archivo : null,
+      r.params,
+      acceptsZoneFile(f.type) ? archivo : null,
       node,
     )
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     // Upstream opens the newly created zone, it does not go back to the list.
     onCreated(outcome.data.response.domain, {
       type: 'success',
@@ -117,7 +117,7 @@ export function AddZone({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       size="medium"
       title="Add Zone"
       actions={
@@ -128,7 +128,7 @@ export function AddZone({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.fields}>
         <Field label="Zone">
@@ -137,8 +137,8 @@ export function AddZone({
               placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64"
               id={id}
               mono
-              ref={zonaRef}
-              disabled={v.zonaFija != null}
+              ref={zoneRef}
+              disabled={v.fixedZone != null}
               value={f.zone}
               onChange={(e) => set('zone', e.target.value)}
             />
@@ -162,7 +162,7 @@ export function AddZone({
               exception. Wrapped, it is text again.
               */}
               <span>
-                {t.etiqueta}
+                {t.label}
                 {t.referencia && (
                   <>
                     {' ('}
@@ -203,7 +203,7 @@ export function AddZone({
           </GroupRow>
         )}
 
-        {v.ficheroDeZona && (
+        {v.zoneFile && (
           <Row modal label="Import Zone File (Optional)">
             {(id) => (
               <Input
@@ -265,7 +265,7 @@ export function AddZone({
                   checked={f.zoneTransferProtocol === p.value}
                   onChange={() => set('zoneTransferProtocol', p.value)}
                 />
-                {p.etiqueta}
+                {p.label}
               </label>
             ))}
           </GroupRow>
@@ -286,7 +286,7 @@ export function AddZone({
           </Row>
         )}
 
-        {v.validarZona && (
+        {v.validateZone && (
           <GroupRow modal label="Zone Validation">
             <label className={styles.chk}>
               <input
@@ -304,7 +304,7 @@ export function AddZone({
           </GroupRow>
         )}
 
-        {v.camposDeForwarder && (
+        {v.forwarderFields && (
           <>
             <GroupRow modal label="Protocol">
               {PROTOCOLOS_FORWARDER.map((p) => (
@@ -316,7 +316,7 @@ export function AddZone({
                     checked={f.forwarderProtocol === p.value}
                     onChange={() => set('forwarderProtocol', p.value)}
                   />
-                  {p.etiqueta}
+                  {p.label}
                 </label>
               ))}
             </GroupRow>
@@ -384,7 +384,7 @@ export function AddZone({
                       checked={f.proxyType === p.value}
                       onChange={() => set('proxyType', p.value)}
                     />
-                    {p.etiqueta}
+                    {p.label}
                   </label>
                 ))}
                 <Field label="Proxy Server Address">

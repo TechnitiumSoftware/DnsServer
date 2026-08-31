@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getZoneOptions, setZoneOptions, type OpcionesZona as Respuesta } from '../../../api/zones'
+import { getZoneOptions, setZoneOptions, type ZoneOptions as Respuesta } from '../../../api/zones'
 import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
@@ -13,13 +13,13 @@ import {
   PROTOCOLOS_XFR,
   TRANSFERENCIAS,
   aclEditable,
-  construirCuerpoOpciones,
-  estadoOpciones,
-  formularioDesdeOpciones,
-  notificacionConLista,
-  type EstadoOpciones,
-  type FormularioOpciones,
-  type PestanaOpciones,
+  buildOptionsBody,
+  optionsState,
+  formFromOptions,
+  notifyWithList,
+  type OptionsState,
+  type OptionsForm,
+  type OptionsTab,
 } from '../opciones'
 import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
@@ -45,56 +45,56 @@ the same reason — with one panel mounted at a time, without the jump the alert
 would be impossible to resolve.
 */
 
-export function OpcionesZona({
+export function ZoneOptions({
   zone,
   open,
   token,
   node = '',
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
   const [respuesta, setRespuesta] = useState<Respuesta | null>(null)
-  const [f, setF] = useState<FormularioOpciones | null>(null)
-  const [pestana, setPestana] = useState<PestanaOpciones>('General')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [f, setF] = useState<OptionsForm | null>(null)
+  const [pestana, setPestana] = useState<OptionsTab>('General')
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setAviso(null)
+    setNotice(null)
     setLoading(true)
     void getZoneOptions(token, zone, node).then((r) => {
       setLoading(false)
       if (r == null) {
-        setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
+        setNotice({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
       }
       setRespuesta(r)
-      setF(formularioDesdeOpciones(r))
-      setPestana(estadoOpciones(r).pestanaInicial)
+      setF(formFromOptions(r))
+      setPestana(optionsState(r).pestanaInicial)
     })
   }, [open, token, zone, node])
 
-  const e: EstadoOpciones | null = respuesta ? estadoOpciones(respuesta) : null
+  const e: OptionsState | null = respuesta ? optionsState(respuesta) : null
 
-  const set = <K extends keyof FormularioOpciones>(k: K, value: FormularioOpciones[K]) =>
+  const set = <K extends keyof OptionsForm>(k: K, value: OptionsForm[K]) =>
     setF((prev) => (prev == null ? prev : { ...prev, [k]: value }))
 
   async function save() {
     if (f == null || respuesta == null) return
 
-    const r = construirCuerpoOpciones(f, respuesta.type)
+    const r = buildOptionsBody(f, respuesta.type)
     if ('error' in r) {
       setPestana(r.error.tab)
-      setAviso({ type: 'warning', title: r.error.title, text: r.error.text })
+      setNotice({ type: 'warning', title: r.error.title, text: r.error.text })
       return
     }
 
@@ -103,11 +103,11 @@ export function OpcionesZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     onHecho({ type: 'success', title: 'Options Saved!', text: 'Zone options were saved successfully.' })
   }
 
@@ -117,7 +117,7 @@ export function OpcionesZona({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       size="medium"
       title={`Zone Options - ${zone === '.' ? '<root>' : zone}`}
       actions={
@@ -128,7 +128,7 @@ export function OpcionesZona({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       {loading || f == null || e == null ? (
         <Loading>Loading zone options…</Loading>
@@ -138,13 +138,13 @@ export function OpcionesZona({
               and a page number are not the same thing. */}
           <Segmented
             comoPestanas
-            etiqueta="Zone options"
+            label="Zone options"
             options={PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => ({
               id: t.id,
-              etiqueta: t.etiqueta,
+              label: t.label,
             }))}
             active={pestana}
-            onElegir={setPestana}
+            onChoose={setPestana}
           />
 
           <div className={styles.fields}>
@@ -177,7 +177,7 @@ export function OpcionesZona({
                       <label className={styles.chk}>
                         <input
                           type="checkbox"
-                          disabled={e.sobrescribirBloqueado}
+                          disabled={e.overrideLocked}
                           checked={f.overrideCatalogQueryAccess}
                           onChange={(ev) => set('overrideCatalogQueryAccess', ev.target.checked)}
                         />
@@ -188,7 +188,7 @@ export function OpcionesZona({
                       <label className={styles.chk}>
                         <input
                           type="checkbox"
-                          disabled={e.sobrescribirBloqueado}
+                          disabled={e.overrideLocked}
                           checked={f.overrideCatalogZoneTransfer}
                           onChange={(ev) => set('overrideCatalogZoneTransfer', ev.target.checked)}
                         />
@@ -199,7 +199,7 @@ export function OpcionesZona({
                       <label className={styles.chk}>
                         <input
                           type="checkbox"
-                          disabled={e.sobrescribirBloqueado}
+                          disabled={e.overrideLocked}
                           checked={f.overrideCatalogNotify}
                           onChange={(ev) => set('overrideCatalogNotify', ev.target.checked)}
                         />
@@ -223,7 +223,7 @@ export function OpcionesZona({
                           id={id}
                           mono
                           className={styles.area}
-                          disabled={e.servidorPrimarioBloqueado}
+                          disabled={e.primaryServerLocked}
                           value={f.primaryNameServerAddresses}
                           onChange={(ev) => set('primaryNameServerAddresses', ev.target.value)}
                         />
@@ -242,11 +242,11 @@ export function OpcionesZona({
                             <input
                               type="radio"
                               name="zoneOptionsXfr"
-                              disabled={e.servidorPrimarioBloqueado}
+                              disabled={e.primaryServerLocked}
                               checked={f.primaryZoneTransferProtocol === x.value}
                               onChange={() => set('primaryZoneTransferProtocol', x.value)}
                             />
-                            {x.etiqueta}
+                            {x.label}
                           </label>
                         ))}
                       </GroupRow>
@@ -257,7 +257,7 @@ export function OpcionesZona({
                         {(id) => (
                           <Select
                             id={id}
-                            disabled={e.servidorPrimarioBloqueado}
+                            disabled={e.primaryServerLocked}
                             value={f.primaryZoneTransferTsigKeyName}
                             onChange={(ev) => set('primaryZoneTransferTsigKeyName', ev.target.value)}
                           >
@@ -272,11 +272,11 @@ export function OpcionesZona({
                       </Field>
                     )}
 
-                    {e.validarZona && (
+                    {e.validateZone && (
                       <label className={styles.chk}>
                         <input
                           type="checkbox"
-                          disabled={e.servidorPrimarioBloqueado}
+                          disabled={e.primaryServerLocked}
                           checked={f.validateZone}
                           onChange={(ev) => set('validateZone', ev.target.checked)}
                         />
@@ -295,12 +295,12 @@ export function OpcionesZona({
                   (o) => e.queryAccessConNameServers || !o.value.includes('ZoneNameServers'),
                 )}
                 value={f.queryAccess}
-                locked={e.queryAccessBloqueado}
+                locked={e.queryAccessLocked}
                 onCambio={(v) => set('queryAccess', v)}
                 list={f.queryAccessNetworkACL}
-                listaEtiqueta="Network Access Control List (ACL)"
-                listaEditable={aclEditable(f.queryAccess) && !e.queryAccessBloqueado}
-                onLista={(v) => set('queryAccessNetworkACL', v)}
+                listLabel="Network Access Control List (ACL)"
+                editableList={aclEditable(f.queryAccess) && !e.queryAccessLocked}
+                onList={(v) => set('queryAccessNetworkACL', v)}
               />
             )}
 
@@ -312,12 +312,12 @@ export function OpcionesZona({
                     (o) => e.zoneTransferConNameServers || !o.value.includes('ZoneNameServers'),
                   )}
                   value={f.zoneTransfer}
-                  locked={e.zoneTransferBloqueado}
+                  locked={e.zoneTransferLocked}
                   onCambio={(v) => set('zoneTransfer', v)}
                   list={f.zoneTransferNetworkACL}
-                  listaEtiqueta="Network Access Control List (ACL)"
-                  listaEditable={aclEditable(f.zoneTransfer) && !e.zoneTransferBloqueado}
-                  onLista={(v) => set('zoneTransferNetworkACL', v)}
+                  listLabel="Network Access Control List (ACL)"
+                  editableList={aclEditable(f.zoneTransfer) && !e.zoneTransferLocked}
+                  onList={(v) => set('zoneTransferNetworkACL', v)}
                 />
                 <Field label="Zone Transfer TSIG Key Names">
                   {(id) => (
@@ -325,7 +325,7 @@ export function OpcionesZona({
                       id={id}
                       mono
                       className={styles.area}
-                      disabled={e.zoneTransferBloqueado}
+                      disabled={e.zoneTransferLocked}
                       value={f.zoneTransferTsigKeyNames}
                       onChange={(ev) => set('zoneTransferTsigKeyNames', ev.target.value)}
                     />
@@ -336,7 +336,7 @@ export function OpcionesZona({
                   {(id) => (
                     <Select
                       id={id}
-                      disabled={e.zoneTransferBloqueado}
+                      disabled={e.zoneTransferLocked}
                       value=""
                       onChange={(ev) => {
                         const v = ev.target.value
@@ -373,9 +373,9 @@ export function OpcionesZona({
                   locked={false}
                   onCambio={(v) => set('notify', v)}
                   list={f.notifyNameServers}
-                  listaEtiqueta="Specified Name Servers"
-                  listaEditable={notificacionConLista(f.notify)}
-                  onLista={(v) => set('notifyNameServers', v)}
+                  listLabel="Specified Name Servers"
+                  editableList={notifyWithList(f.notify)}
+                  onList={(v) => set('notifyNameServers', v)}
                 />
                 {e.notifySeparados && (
                   <Field label="Secondary Catalog Name Servers">
@@ -410,16 +410,16 @@ export function OpcionesZona({
                   locked={false}
                   onCambio={(v) => set('update', v)}
                   list={f.updateNetworkACL}
-                  listaEtiqueta="Network Access Control List (ACL)"
-                  listaEditable={aclEditable(f.update)}
-                  onLista={(v) => set('updateNetworkACL', v)}
+                  listLabel="Network Access Control List (ACL)"
+                  editableList={aclEditable(f.update)}
+                  onList={(v) => set('updateNetworkACL', v)}
                 />
 
                 {e.securityPolicies && (
                   <div className={styles.group}>
-                    <div className={styles.grupoTit}>Security Policy</div>
+                    <div className={styles.groupTitle}>Security Policy</div>
                     {f.updateSecurityPolicies.map((row, i) => (
-                      <div key={i} className={styles.enLinea}>
+                      <div key={i} className={styles.inline}>
                         <Select
                           aria-label={`TSIG key name ${i + 1}`}
                           value={row.tsigKeyName}
@@ -512,19 +512,19 @@ function Criterio({
   locked,
   onCambio,
   list,
-  listaEtiqueta,
-  listaEditable,
-  onLista,
+  listLabel,
+  editableList,
+  onList,
 }: {
   name: string
-  options: { value: string; etiqueta: string }[]
+  options: { value: string; label: string }[]
   value: string
   locked: boolean
   onCambio: (v: string) => void
   list: string
-  listaEtiqueta: string
-  listaEditable: boolean
-  onLista: (v: string) => void
+  listLabel: string
+  editableList: boolean
+  onList: (v: string) => void
 }) {
   return (
     <>
@@ -538,19 +538,19 @@ function Criterio({
               checked={value === o.value}
               onChange={() => onCambio(o.value)}
             />
-            {o.etiqueta}
+            {o.label}
           </label>
         ))}
       </div>
-      <Field label={listaEtiqueta}>
+      <Field label={listLabel}>
         {(id) => (
           <Textarea
             id={id}
             mono
             className={styles.area}
-            disabled={!listaEditable}
+            disabled={!editableList}
             value={list}
-            onChange={(ev) => onLista(ev.target.value)}
+            onChange={(ev) => onList(ev.target.value)}
           />
         )}
       </Field>

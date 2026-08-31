@@ -12,8 +12,8 @@ import {
   setGroup,
   type AdminGroup,
 } from '../../api/admin'
-import { limpiarLista } from '../settings/model'
-import { addToList, OPCION_BLANK, OPCION_NONE } from './tabla'
+import { cleanList } from '../settings/model'
+import { addToList, BLANK_OPTION, NONE_OPTION } from './tabla'
 import {
   noticeFromFailure,
   Confirm,
@@ -22,7 +22,7 @@ import {
   type Notice,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
+import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { Notifier } from '../../ui/Avisador'
 
@@ -40,7 +40,7 @@ it would make the server try to rename the group to itself.
 
 interface Props {
   token: string | null
-  onAviso: (a: Notice) => void
+  onNotice: (a: Notice) => void
 }
 
 /* `sortTable('tbodyAdminGroups', 0..1)`. */
@@ -49,12 +49,12 @@ const KEYS: Keys<AdminGroup> = {
   description: (g) => g.description,
 }
 
-export function Groups({ token, onAviso }: Props) {
-  const [groups, setGrupos] = useState<AdminGroup[]>([])
+export function Groups({ token, onNotice }: Props) {
+  const [groups, setGroups] = useState<AdminGroup[]>([])
   const [loading, setLoading] = useState(true)
-  const [add, setAnadir] = useState(false)
-  const [detalle, setDetalle] = useState<string | null>(null)
-  const [porBorrar, setPorBorrar] = useState<AdminGroup | null>(null)
+  const [add, setAdd] = useState(false)
+  const [detail, setDetalle] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<AdminGroup | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,36 +62,36 @@ export function Groups({ token, onAviso }: Props) {
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      setGrupos([])
-      onAviso(noticeFromFailure(outcome))
+      setGroups([])
+      onNotice(noticeFromFailure(outcome))
       return
     }
-    setGrupos(outcome.data.response.groups)
-  }, [token, onAviso])
+    setGroups(outcome.data.response.groups)
+  }, [token, onNotice])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const { rows: gruposVisibles, sort, alternar } = useOrden(KEYS, groups)
+  const { rows: visibleGroups, sort, toggle } = useOrden(KEYS, groups)
 
   async function remove(g: AdminGroup) {
-    setPorBorrar(null)
+    setPendingDelete(null)
     const outcome = await deleteGroup(token, g.name)
     if (outcome.kind !== 'ok') {
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
-    setGrupos((list) => list.filter((x) => x.name !== g.name))
-    onAviso({ type: 'success', title: 'Group Deleted!', text: 'Group was deleted successfully.' })
+    setGroups((list) => list.filter((x) => x.name !== g.name))
+    onNotice({ type: 'success', title: 'Group Deleted!', text: 'Group was deleted successfully.' })
   }
 
   return (
     <>
       <SectionHeader
         section="Administration"
-        titulo="Groups"
-        actions={<><Button variant="primary" onClick={() => setAnadir(true)}>
+        title="Groups"
+        actions={<><Button variant="primary" onClick={() => setAdd(true)}>
             Add Group
           </Button></>}
       />
@@ -103,16 +103,16 @@ export function Groups({ token, onAviso }: Props) {
           <Table
             header={
               <>
-                <Th field="name" sort={sort} onOrdenar={alternar}>Name</Th>
-                <Th field="description" sort={sort} onOrdenar={alternar}>Description</Th>
-                <th className={tbl.celdaAcciones} />
+                <Th field="name" sort={sort} onSort={toggle}>Name</Th>
+                <Th field="description" sort={sort} onSort={toggle}>Description</Th>
+                <th className={tbl.actionsCell} />
               </>
             }
-            isEmpty={gruposVisibles.length === 0}
+            isEmpty={visibleGroups.length === 0}
             emptyText="No Group Found"
-            columnas={3}
+            columns={3}
           >
-            {gruposVisibles.map((g) => (
+            {visibleGroups.map((g) => (
               <tr key={g.name}>
                 <td>
                   <button
@@ -129,16 +129,16 @@ export function Groups({ token, onAviso }: Props) {
                     <div key={i}>{line}</div>
                   ))}
                 </td>
-                <td className={tbl.celdaAcciones}>
+                <td className={tbl.actionsCell}>
                   <div className={tbl.actions}>
-                    <AccionFila
+                    <RowAction
                       icon="card"
                       name="View Details"
                       onClick={() => setDetalle(g.name)}
                     />
-                    <Menu etiqueta={`Actions for ${g.name}`}>
+                    <Menu label={`Actions for ${g.name}`}>
                       {(close) => (
-                        <button type="button" data-variant="danger" onClick={() => { close(); setPorBorrar(g) }}>
+                        <button type="button" data-variant="danger" onClick={() => { close(); setPendingDelete(g) }}>
                           Delete Group
                         </button>
                       )}
@@ -155,32 +155,32 @@ export function Groups({ token, onAviso }: Props) {
       )}
 
       <Confirm
-        open={porBorrar !== null}
-        titulo="Delete Group"
-        text={`Are you sure you want to delete the group [${porBorrar?.name ?? ''}] ?`}
-        etiqueta="Delete"
-        onCerrar={() => setPorBorrar(null)}
-        onConfirmar={() => porBorrar && void remove(porBorrar)}
+        open={pendingDelete !== null}
+        title="Delete Group"
+        text={`Are you sure you want to delete the group [${pendingDelete?.name ?? ''}] ?`}
+        label="Delete"
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => pendingDelete && void remove(pendingDelete)}
       />
 
       <AddGroup
         open={add}
         token={token}
-        onCerrar={() => setAnadir(false)}
+        onClose={() => setAdd(false)}
         onAnadido={(g) => {
-          setGrupos((list) => [g, ...list])
-          onAviso({ type: 'success', title: 'Group Added!', text: 'Group was added successfully.' })
+          setGroups((list) => [g, ...list])
+          onNotice({ type: 'success', title: 'Group Added!', text: 'Group was added successfully.' })
         }}
       />
 
-      {detalle != null && (
-        <DetalleGrupo
-          name={detalle}
+      {detail != null && (
+        <GroupDetail
+          name={detail}
           token={token}
-          onCerrar={() => setDetalle(null)}
+          onClose={() => setDetalle(null)}
           onSaved={(g) => {
-            setGrupos((list) => list.map((x) => (x.name === detalle ? g : x)))
-            onAviso({
+            setGroups((list) => list.map((x) => (x.name === detail ? g : x)))
+            onNotice({
               type: 'success',
               title: 'Group Saved!',
               text: 'Group details were saved successfully.',
@@ -196,29 +196,29 @@ export function Groups({ token, onAviso }: Props) {
 function AddGroup({
   open,
   token,
-  onCerrar,
+  onClose,
   onAnadido,
 }: {
   open: boolean
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
   onAnadido: (g: AdminGroup) => void
 }) {
   const [name, setNombre] = useState('')
   const [description, setDescription] = useState('')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setAviso(null)
+    setNotice(null)
     setNombre('')
     setDescription('')
   }, [open])
 
   async function add() {
     if (name === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a name to add group.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter a name to add group.' })
       return
     }
 
@@ -227,17 +227,17 @@ function AddGroup({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onAnadido(outcome.data.response)
-    onCerrar()
+    onClose()
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Add Group"
       actions={
         <>
@@ -247,7 +247,7 @@ function AddGroup({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <MRow label="Name">
         {(id) => (
           <Input
@@ -277,24 +277,24 @@ function AddGroup({
 }
 
 /** `showGroupDetailsModal` / `saveGroupDetails` (auth.js:1798-1902). */
-function DetalleGrupo({
+function GroupDetail({
   name,
   token,
-  onCerrar,
+  onClose,
   onSaved,
 }: {
   name: string
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
   onSaved: (g: AdminGroup) => void
 }) {
   const [loading, setLoading] = useState(true)
   const [newName, setNuevoNombre] = useState('')
   const [description, setDescription] = useState('')
   const [miembros, setMiembros] = useState('')
-  const [users, setUsuarios] = useState<string[]>([])
-  const [addUser, setAddUser] = useState(OPCION_BLANK)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [users, setUsers] = useState<string[]>([])
+  const [addUser, setAddUser] = useState(BLANK_OPTION)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
@@ -303,15 +303,15 @@ function DetalleGrupo({
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     const d = outcome.data.response
     setNuevoNombre(d.name)
     setDescription(d.description)
     setMiembros(d.members.map((m) => `${m}\n`).join(''))
-    setUsuarios(d.users ?? [])
-    setAddUser(OPCION_BLANK)
+    setUsers(d.users ?? [])
+    setAddUser(BLANK_OPTION)
   }, [token, name])
 
   useEffect(() => {
@@ -324,23 +324,23 @@ function DetalleGrupo({
       token,
       name,
       description,
-      limpiarLista(miembros),
+      cleanList(miembros),
       newName !== name ? newName : undefined,
     )
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onSaved(outcome.data.response)
-    onCerrar()
+    onClose()
   }
 
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Group Details"
       actions={
         <>
@@ -350,7 +350,7 @@ function DetalleGrupo({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       {loading ? (
         <Loading />
       ) : (
@@ -402,8 +402,8 @@ function DetalleGrupo({
                   setMiembros((t) => addToList(t, e.target.value))
                 }}
               >
-                <option value={OPCION_BLANK} />
-                <option value={OPCION_NONE}>None</option>
+                <option value={BLANK_OPTION} />
+                <option value={NONE_OPTION}>None</option>
                 {users.map((u) => (
                   <option key={u} value={u}>
                     {u}

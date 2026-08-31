@@ -5,7 +5,7 @@ import type { PaneProps } from './tipos'
 /** The dropdown's eight algorithms, with their literal labels (`addTsigKeyRow`,
  *  main.js:2260). A new key's default value is `hmac-sha256`, same as upstream's
  *  "Add" button. */
-export const ALGORITMOS_TSIG: { value: string; label: string }[] = [
+export const TSIG_ALGORITHMS: { value: string; label: string }[] = [
   { value: 'hmac-md5.sig-alg.reg.int', label: 'HMAC-MD5 (obsolete)' },
   { value: 'hmac-sha1', label: 'HMAC-SHA1' },
   { value: 'hmac-sha256', label: 'HMAC-SHA256 (recommended)' },
@@ -25,7 +25,7 @@ export function Tsig({ f, set }: PaneProps) {
     <Block>
       <EditableList
         label="TSIG Keys"
-        columnas={[
+        columns={[
           { key: 'keyName', label: 'Key Name' },
           { key: 'sharedSecret', label: 'Shared Secret' },
           {
@@ -38,7 +38,7 @@ export function Tsig({ f, set }: PaneProps) {
                 value={row.algorithmName}
                 onChange={(e) => set({ algorithmName: e.target.value })}
               >
-                {ALGORITMOS_TSIG.map((a) => (
+                {TSIG_ALGORITHMS.map((a) => (
                   <option key={a.value} value={a.value}>
                     {a.label}
                   </option>

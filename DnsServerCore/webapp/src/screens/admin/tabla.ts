@@ -7,21 +7,21 @@ The serialisation itself is NOT here: it is upstream's `serializeTableData`
 in `lib/tabla-serie`. It is re-exported so Administration's four sub-tabs keep
 asking for it through this door.
 */
-export { serializeTable, type Cell, type TableFailure, type ResultadoTabla } from '../../lib/tabla-serie'
+export { serializeTable, type Cell, type TableFailure, type TableResult } from '../../lib/tabla-serie'
 
 /*
 Administration's four "Add User" / "Add Group" dropdowns. All four behave the
 same (auth.js:78-200): `blank` does nothing, `none` EMPTIES the list, and any
 other value is appended at the end ONLY if it was not there already.
 */
-export const OPCION_BLANK = 'blank'
-export const OPCION_NONE = 'none'
+export const BLANK_OPTION = 'blank'
+export const NONE_OPTION = 'none'
 
 /** Variant over a textarea: "Member Of" and "Members". Upstream compares line by
  *  line and guarantees the trailing newline. */
 export function addToList(text: string, selection: string): string {
-  if (selection === OPCION_BLANK) return text
-  if (selection === OPCION_NONE) return ''
+  if (selection === BLANK_OPTION) return text
+  if (selection === NONE_OPTION) return ''
 
   if (text.split('\n').includes(selection)) return text
 
@@ -37,8 +37,8 @@ export function addToTable<T extends { name: string }>(
   selection: string,
   blank: (name: string) => T,
 ): readonly T[] {
-  if (selection === OPCION_BLANK) return rows
-  if (selection === OPCION_NONE) return []
+  if (selection === BLANK_OPTION) return rows
+  if (selection === NONE_OPTION) return []
   if (rows.some((f) => f.name === selection)) return rows
   return [...rows, blank(selection)]
 }

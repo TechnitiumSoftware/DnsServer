@@ -1,8 +1,8 @@
 import { Chip, Tag } from '../../ui/Tag'
 import { Button } from '../../ui/Button'
 import { useState } from 'react'
-import type { RegistroDns } from '../../api/zonelists'
-import { entradasRData, extras, meta, ttlPartido, type Entry } from './registro'
+import type { DnsRecord } from '../../api/zonelists'
+import { rdataEntries, extras, meta, ttlPartido, type Entry } from './registro'
 import tbl from '../../ui/Table.module.css'
 import { Table } from '../../ui/Table'
 import styles from './Listas.module.css'
@@ -20,25 +20,25 @@ just as badly as the rest.
 const CORTE = 64
 
 function Value({ e }: { e: Entry }) {
-  const [open, setAbierto] = useState(false)
+  const [open, setOpen] = useState(false)
 
   if (!e.long || open) return <span className={styles.key}>{e.value}</span>
 
   return (
     <>
       <span className={styles.key}>{e.value.slice(0, CORTE)}…</span>{' '}
-      <button type="button" className={styles.verlo} onClick={() => setAbierto(true)}>
+      <button type="button" className={styles.verlo} onClick={() => setOpen(true)}>
         show full
       </button>
     </>
   )
 }
 
-function Kv({ entradas }: { entradas: Entry[] }) {
-  if (entradas.length === 0) return null
+function Kv({ entries }: { entries: Entry[] }) {
+  if (entries.length === 0) return null
   return (
     <dl className={styles.kv}>
-      {entradas.map((e) => (
+      {entries.map((e) => (
         <div key={e.key} style={{ display: 'contents' }}>
           <dt>{e.key}</dt>
           <dd>
@@ -50,7 +50,7 @@ function Kv({ entradas }: { entradas: Entry[] }) {
   )
 }
 
-function Row({ r, conDnssec, node }: { r: RegistroDns; conDnssec: boolean; node: string }) {
+function Row({ r, withDnssec, node }: { r: DnsRecord; withDnssec: boolean; node: string }) {
   const [firmas, setFirmas] = useState(false)
   const [glue, setGlue] = useState(false)
 
@@ -69,7 +69,7 @@ function Row({ r, conDnssec, node }: { r: RegistroDns; conDnssec: boolean; node:
         {ttl.value} {ttl.humano && <small>({ttl.humano})</small>}
       </td>
       <td>
-        <Kv entradas={[...entradasRData(r.rData), ...extras(r)]} />
+        <Kv entries={[...rdataEntries(r.rData), ...extras(r)]} />
         <div className={styles.meta} title={r.lastUsedOn}>
           {meta(r).join(' · ')}
         </div>
@@ -78,14 +78,14 @@ function Row({ r, conDnssec, node }: { r: RegistroDns; conDnssec: boolean; node:
         )}
         {glue && r.glueRecords && <pre className={styles.firmas}>{r.glueRecords.join('\n')}</pre>}
       </td>
-      {conDnssec && (
+      {withDnssec && (
         <td>
           <Tag tone={r.dnssecStatus === 'Secure' ? 'ok' : 'neutral'}>
             {r.dnssecStatus ?? '—'}
           </Tag>
         </td>
       )}
-      <td className={tbl.celdaAcciones}>
+      <td className={tbl.actionsCell}>
         <div className={tbl.actions}>
           {r.glueRecords && (
             <Button
@@ -113,12 +113,12 @@ function Row({ r, conDnssec, node }: { r: RegistroDns; conDnssec: boolean; node:
 
 export function ResourceRecords({
   records,
-  conDnssec,
+  withDnssec,
   node,
 }: {
-  records: RegistroDns[]
+  records: DnsRecord[]
   /** The DNSSEC column belongs to Cache only; elsewhere it drops to the grey line. */
-  conDnssec: boolean
+  withDnssec: boolean
   node: string
 }) {
   return (
@@ -128,7 +128,7 @@ export function ResourceRecords({
           <th style={{ width: 110 }}>Type</th>
           <th style={{ width: 120 }}>TTL</th>
           <th>Data</th>
-          {conDnssec && <th style={{ width: 100 }}>DNSSEC</th>}
+          {withDnssec && <th style={{ width: 100 }}>DNSSEC</th>}
           <th style={{ width: 120 }}>
             <span className="sr-only" />
           </th>
@@ -136,7 +136,7 @@ export function ResourceRecords({
       }
     >
       {records.map((r, i) => (
-        <Row key={`${r.name}|${r.type}|${i}`} r={r} conDnssec={conDnssec} node={node} />
+        <Row key={`${r.name}|${r.type}|${i}`} r={r} withDnssec={withDnssec} node={node} />
       ))}
     </Table>
   )

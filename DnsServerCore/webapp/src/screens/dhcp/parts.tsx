@@ -14,5 +14,5 @@ export {
   Row,
   TextRow,
   Warning,
-  type Columna,
+  type Column,
 } from '../../ui/Ajustes'

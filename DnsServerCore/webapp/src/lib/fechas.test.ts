@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { desdeAhora, fechaHora, fechaMinuto } from './fechas'
+import { fromNow, fechaHora, fechaMinuto } from './fechas'
 
 /* The format is moment's: `YYYY-MM-DD HH:mm:ss` in LOCAL time. The tests build
    the date with `new Date(y, m, d, …)`, which is already local, so as not to
@@ -27,7 +27,7 @@ describe('fechaHora / fechaMinuto', () => {
 
 describe('desdeAhora — the moment literals', () => {
   const ahora = Date.UTC(2026, 7, 25, 12, 0, 0)
-  const hace = (ms: number) => desdeAhora(new Date(ahora - ms).toISOString(), ahora)
+  const hace = (ms: number) => fromNow(new Date(ahora - ms).toISOString(), ahora)
 
   it('under 45 s it always says \"a few seconds ago\"', () => {
     expect(hace(0)).toBe('a few seconds ago')
@@ -58,10 +58,10 @@ describe('desdeAhora — the moment literals', () => {
   })
 
   it('a future date carries the \"in\" prefix, not the \"ago\" suffix', () => {
-    expect(desdeAhora(new Date(ahora + 3 * 3600_000).toISOString(), ahora)).toBe('in 3 hours')
+    expect(fromNow(new Date(ahora + 3 * 3600_000).toISOString(), ahora)).toBe('in 3 hours')
   })
 
   it('`0001-01-01T00:00:00` is the .NET \"never\" and comes out as years, it does not blow up', () => {
-    expect(desdeAhora('0001-01-01T00:00:00', ahora)).toMatch(/ years ago$/)
+    expect(fromNow('0001-01-01T00:00:00', ahora)).toMatch(/ years ago$/)
   })
 })

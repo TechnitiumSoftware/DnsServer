@@ -23,19 +23,19 @@ import {
   type ClusterNode,
   type ClusterState,
 } from '../../api/admin-cluster'
-import { limpiarLista } from '../settings/model'
-import { desdeAhora, fechaMinuto } from './fechas'
+import { cleanList } from '../settings/model'
+import { fromNow, fechaMinuto } from './fechas'
 import {
   noticeFromFailure,
   Check,
   Confirm,
   MRow,
-  SelectorNodo,
+  NodePicker,
   adminStyles as styles,
   type Notice,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
+import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { GroupRow } from '../../ui/Form'
 import { Notifier } from '../../ui/Avisador'
@@ -73,7 +73,7 @@ interface Props {
   token: string | null
   cluster: ClusterState | null
   onCluster: (s: ClusterState) => void
-  onAviso: (a: Notice) => void
+  onNotice: (a: Notice) => void
 }
 
 type Modal =
@@ -101,8 +101,8 @@ const KEYS: Keys<ClusterNode> = {
   synced: (n) => (n.state === 'Self' && n.type === 'Secondary' ? (n.configLastSynced ?? '') : ''),
 }
 
-export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
-  const [node, setNodo] = useState('')
+export function Cluster({ token, cluster, onCluster, onNotice }: Props) {
+  const [node, setNode] = useState('')
   const [state, setEstado] = useState<ClusterState | null>(cluster)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<Modal | null>(null)
@@ -113,25 +113,25 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
     setEstado(outcome.data.response)
     onCluster(outcome.data.response)
-  }, [token, node, onCluster, onAviso])
+  }, [token, node, onCluster, onNotice])
 
   useEffect(() => {
     void load()
   }, [load])
 
 
-  function recargarCon(s: ClusterState) {
+  function reloadWith(s: ClusterState) {
     setEstado(s)
     onCluster(s)
   }
 
   const nodes = state?.clusterNodes ?? []
-  const { rows: nodosVisibles, sort, alternar } = useOrden(KEYS, nodes)
+  const { rows: visibleNodes, sort, toggle } = useOrden(KEYS, nodes)
   const ownType = nodes.find((n) => n.state === 'Self')?.type
   const initialised = state?.clusterInitialized === true
   const esPrimario = ownType === 'Primary'
@@ -140,10 +140,10 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
     setModal(null)
     const outcome = await resyncCluster(token, node)
     if (outcome.kind !== 'ok') {
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
-    onAviso({
+    onNotice({
       type: 'success',
       title: 'Resync Triggered!',
       text: 'A full config resync was triggered successfully. Please check the Logs for confirmation.',
@@ -154,7 +154,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
     <>
       <SectionHeader
         section="Administration"
-        titulo="Cluster"
+        title="Cluster"
         actions={<>{initialised && !esPrimario && (
             <Button variant="primary" onClick={() => setModal({ type: 'resync' })}>
               Resync
@@ -173,14 +173,14 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
               Delete Cluster
             </Button>
           )}
-          <SelectorNodo cluster={state} value={node} onChange={setNodo} label="Cluster Node" /></>}
+          <NodePicker cluster={state} value={node} onChange={setNode} label="Cluster Node" /></>}
       />
 
       {loading ? (
         <Loading />
       ) : !initialised ? (
         <Empty
-          titulo="Cluster Not Initialized"
+          title="Cluster Not Initialized"
           actions={
             <>
               <Button variant="primary" onClick={() => setModal({ type: 'new' })}>
@@ -197,22 +197,22 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
           <Table
             header={
               <>
-                <Th field="name" sort={sort} onOrdenar={alternar}>Node Name</Th>
-                <Th field="ip" sort={sort} onOrdenar={alternar}>IP Address</Th>
-                <Th field="url" sort={sort} onOrdenar={alternar}>URL</Th>
-                <Th field="type" sort={sort} onOrdenar={alternar}>Type</Th>
-                <Th field="state" sort={sort} onOrdenar={alternar}>State</Th>
-                <Th field="upSince" sort={sort} onOrdenar={alternar}>Up Since</Th>
-                <Th field="lastSeen" sort={sort} onOrdenar={alternar}>Last Seen</Th>
-                <Th field="synced" sort={sort} onOrdenar={alternar}>Last Synced</Th>
-                <th className={tbl.celdaAcciones} />
+                <Th field="name" sort={sort} onSort={toggle}>Node Name</Th>
+                <Th field="ip" sort={sort} onSort={toggle}>IP Address</Th>
+                <Th field="url" sort={sort} onSort={toggle}>URL</Th>
+                <Th field="type" sort={sort} onSort={toggle}>Type</Th>
+                <Th field="state" sort={sort} onSort={toggle}>State</Th>
+                <Th field="upSince" sort={sort} onSort={toggle}>Up Since</Th>
+                <Th field="lastSeen" sort={sort} onSort={toggle}>Last Seen</Th>
+                <Th field="synced" sort={sort} onSort={toggle}>Last Synced</Th>
+                <th className={tbl.actionsCell} />
               </>
             }
-            isEmpty={nodosVisibles.length === 0}
+            isEmpty={visibleNodes.length === 0}
             emptyText="No Node Found"
-            columnas={9}
+            columns={9}
           >
-            {nodosVisibles.map((n) => (
+            {visibleNodes.map((n) => (
               <tr key={n.id}>
                 <td>{n.name}</td>
                 <td className={styles.mono}>
@@ -252,14 +252,14 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                     <FechaRelativa iso={n.configLastSynced} />
                   )}
                 </td>
-                <td className={tbl.celdaAcciones}>
+                <td className={tbl.actionsCell}>
                   <div className={tbl.actions}>
                     {/* What can be done with a node depends on whether this
                         console is talking to the primary or to a secondary
                         (cluster.js:248-264). Editing is the frequent one and goes
                         in the row; removing and promoting, inside the menu. */}
                     {(esPrimario ? n.state === 'Self' : n.state === 'Self' || n.type === 'Primary') && (
-                      <AccionFila
+                      <RowAction
                         icon="edit"
                         name="Edit Node"
                         onClick={() =>
@@ -272,7 +272,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                     )}
                     {((esPrimario && n.type === 'Secondary') ||
                       (ownType === 'Secondary' && n.state === 'Self')) && (
-                      <Menu etiqueta={`Actions for ${n.name}`}>
+                      <Menu label={`Actions for ${n.name}`}>
                         {(close) => (
                           <>
                             {ownType === 'Secondary' && n.state === 'Self' && (
@@ -305,7 +305,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
 
       <Confirm
         open={modal?.type === 'resync'}
-        titulo="Resync Cluster"
+        title="Resync Cluster"
         text={
           <>
             The resync Cluster action will initiate a full config transfer from the Primary node.
@@ -315,20 +315,20 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
             Are you sure you want to resync the Cluster config?
           </>
         }
-        etiqueta="Resync"
+        label="Resync"
         variante="primary"
-        onCerrar={() => setModal(null)}
-        onConfirmar={() => void lanzarResync()}
+        onClose={() => setModal(null)}
+        onConfirm={() => void lanzarResync()}
       />
 
       {modal?.type === 'new' && (
         <NewCluster
           token={token}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Cluster Initialized!',
               text: 'A new cluster was initialized successfully.',
@@ -338,13 +338,13 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       )}
 
       {modal?.type === 'join' && (
-        <UnirseCluster
+        <JoinCluster
           token={token}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Joined Cluster!',
               text: 'Joined the cluster successfully.',
@@ -354,13 +354,13 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       )}
 
       {modal?.type === 'options' && (
-        <OpcionesCluster
+        <ClusterOptions
           token={token}
           node={node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={() => {
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Options Saved!',
               text: 'The Cluster options were saved successfully.',
@@ -370,15 +370,15 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       )}
 
       {modal?.type === 'editSelf' && (
-        <EditarNodoPropio
+        <EditOwnNode
           token={token}
           node={node}
           objetivo={modal.node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Node Updated!',
               text: 'Cluster node was updated successfully.',
@@ -388,15 +388,15 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       )}
 
       {modal?.type === 'editPrimary' && (
-        <EditarNodoPrimario
+        <EditPrimaryNode
           token={token}
           node={node}
           objetivo={modal.node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Node Updated!',
               text: 'Cluster node was updated successfully.',
@@ -410,11 +410,11 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
           token={token}
           node={node}
           objetivo={modal.node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Node Removed!',
               text: 'Cluster node was removed successfully.',
@@ -424,15 +424,15 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       )}
 
       {modal?.type === 'promote' && (
-        <PromocionarNodo
+        <PromoteNode
           token={token}
           node={node}
           objetivo={modal.node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Promoted!',
               text: 'The selected node was successfully promoted to Primary node in the Cluster.',
@@ -442,14 +442,14 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       )}
 
       {modal?.type === 'leave' && (
-        <DejarCluster
+        <LeaveCluster
           token={token}
           node={node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Left Cluster!',
               text: 'Left the Cluster successfully.',
@@ -462,11 +462,11 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
         <DeleteCluster
           token={token}
           node={node}
-          onCerrar={() => setModal(null)}
+          onClose={() => setModal(null)}
           onHecho={(s) => {
-            recargarCon(s)
+            reloadWith(s)
             setModal(null)
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Cluster Deleted!',
               text: 'Cluster was deleted successfully.',
@@ -483,7 +483,7 @@ function FechaRelativa({ iso }: { iso?: string }) {
   return (
     <>
       <div className={styles.mono}>{fechaMinuto(iso)}</div>
-      <div className={styles.meta}>{`(${desdeAhora(iso)})`}</div>
+      <div className={styles.meta}>{`(${fromNow(iso)})`}</div>
     </>
   )
 }
@@ -495,11 +495,11 @@ that is what `indexOf` does and it is replicated as it stands.
 */
 function QuickAdd({
   ips,
-  onAnadir,
+  onAdd,
   label,
 }: {
   ips: string[]
-  onAnadir: (ip: string) => void
+  onAdd: (ip: string) => void
   label: string
 }) {
   const [value, setValor] = useState('')
@@ -515,7 +515,7 @@ function QuickAdd({
         value={value}
         onChange={(e) => {
           setValor(e.target.value)
-          if (e.target.value !== '') onAnadir(e.target.value)
+          if (e.target.value !== '') onAdd(e.target.value)
         }}
       >
         <option value="" />
@@ -536,19 +536,19 @@ function addIp(list: string, ip: string): string {
 /** `showInitializeClusterModal` / `initializeNewCluster` (cluster.js:548-645). */
 function NewCluster({
   token,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [loading, setLoading] = useState(true)
   const [ips, setIps] = useState<string[]>([])
   const [yaEsta, setYaEsta] = useState(false)
-  const [dominio, setDominio] = useState('')
-  const [list, setLista] = useState('')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [domain, setDomain] = useState('')
+  const [list, setList] = useState('')
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -557,12 +557,12 @@ function NewCluster({
       if (!vivo) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
-        setAviso(noticeFromFailure(outcome))
+        setNotice(noticeFromFailure(outcome))
         return
       }
       if (outcome.data.response.clusterInitialized) {
         setYaEsta(true)
-        setAviso({ type: 'danger', title: 'Error!', text: 'Cluster is already initialized.' })
+        setNotice({ type: 'danger', title: 'Error!', text: 'Cluster is already initialized.' })
         return
       }
       setIps(outcome.data.response.serverIpAddresses ?? [])
@@ -573,13 +573,13 @@ function NewCluster({
   }, [token])
 
   async function inicializar() {
-    if (dominio === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Cluster domain name.' })
+    if (domain === '') {
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter the Cluster domain name.' })
       return
     }
-    const limpia = limpiarLista(list)
+    const limpia = cleanList(list)
     if (limpia.length === 0 || limpia === ',') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter a Primary node IP address.',
@@ -588,11 +588,11 @@ function NewCluster({
     }
 
     setBusy(true)
-    const outcome = await initCluster(token, dominio, limpia)
+    const outcome = await initCluster(token, domain, limpia)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -601,7 +601,7 @@ function NewCluster({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Initialize New Cluster"
       size="medium"
       actions={
@@ -612,7 +612,7 @@ function NewCluster({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       {loading ? (
         <Loading />
       ) : yaEsta ? null : (
@@ -632,8 +632,8 @@ function NewCluster({
                 id={id}
                 placeholder="domain name"
                 maxLength={255}
-                value={dominio}
-                onChange={(e) => setDominio(e.target.value)}
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
               />
             )}
           </MRow>
@@ -651,12 +651,12 @@ function NewCluster({
                   rows={3}
                   spellCheck={false}
                   value={list}
-                  onChange={(e) => setLista(e.target.value)}
+                  onChange={(e) => setList(e.target.value)}
                 />
                 <QuickAdd
                   ips={ips}
                   label="Quick Add"
-                  onAnadir={(ip) => setLista((t) => addIp(t, ip))}
+                  onAdd={(ip) => setList((t) => addIp(t, ip))}
                 />
               </>
             )}
@@ -691,7 +691,7 @@ function NewCluster({
             domain name before proceeding. You can update the DNS Server Domain Name later if needed
             from Settings but it must always be a subdomain name of the Cluster Domain name.
           </Alert>
-          <div className={styles.enlace}>
+          <div className={styles.link}>
             <a
               href="https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html"
               target="_blank"
@@ -707,27 +707,27 @@ function NewCluster({
 }
 
 /** `showInitializeJoinClusterModal` / `initializeJoinCluster` (cluster.js:647-760). */
-function UnirseCluster({
+function JoinCluster({
   token,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [loading, setLoading] = useState(true)
   const [ips, setIps] = useState<string[]>([])
   const [yaEsta, setYaEsta] = useState(false)
-  const [list, setLista] = useState('')
+  const [list, setList] = useState('')
   const [url, setUrl] = useState('')
   const [ip, setIp] = useState('')
   const [ignorar, setIgnorar] = useState('false')
-  const [user, setUsuario] = useState('admin')
+  const [user, setUser] = useState('admin')
   const [pass, setPass] = useState('')
   const [totp, setTotp] = useState('')
   const [pideTotp, setPideTotp] = useState(false)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -736,12 +736,12 @@ function UnirseCluster({
       if (!vivo) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
-        setAviso(noticeFromFailure(outcome))
+        setNotice(noticeFromFailure(outcome))
         return
       }
       if (outcome.data.response.clusterInitialized) {
         setYaEsta(true)
-        setAviso({ type: 'danger', title: 'Error!', text: 'Cluster is already initialized.' })
+        setNotice({ type: 'danger', title: 'Error!', text: 'Cluster is already initialized.' })
         return
       }
       setIps(outcome.data.response.serverIpAddresses ?? [])
@@ -751,10 +751,10 @@ function UnirseCluster({
     }
   }, [token])
 
-  async function unirse() {
-    const limpia = limpiarLista(list)
+  async function join() {
+    const limpia = cleanList(list)
     if (limpia.length === 0 || limpia === ',') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please select a Secondary node IP address.',
@@ -762,11 +762,11 @@ function UnirseCluster({
       return
     }
     if (url === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Primary node URL.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter the Primary node URL.' })
       return
     }
     if (user === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter the Primary node admin username.',
@@ -774,7 +774,7 @@ function UnirseCluster({
       return
     }
     if (pass === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter the Primary node admin password.',
@@ -784,7 +784,7 @@ function UnirseCluster({
     // The OTP is only required when the field is in sight, and it is only put in
     // sight after the server answers `2fa-required`.
     if (pideTotp && totp === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: "Please enter the Primary node admin user's OTP.",
@@ -809,7 +809,7 @@ function UnirseCluster({
       return
     }
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -818,18 +818,18 @@ function UnirseCluster({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Join Cluster"
       size="medium"
       actions={
         <>
-          <Button variant="primary" disabled={busy || loading || yaEsta} onClick={() => void unirse()}>
+          <Button variant="primary" disabled={busy || loading || yaEsta} onClick={() => void join()}>
             Join
           </Button>
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       {loading ? (
         <Loading />
       ) : yaEsta ? null : (
@@ -854,12 +854,12 @@ function UnirseCluster({
                   rows={3}
                   spellCheck={false}
                   value={list}
-                  onChange={(e) => setLista(e.target.value)}
+                  onChange={(e) => setList(e.target.value)}
                 />
                 <QuickAdd
                   ips={ips}
                   label="Quick Add"
-                  onAnadir={(v) => setLista((t) => addIp(t, v))}
+                  onAdd={(v) => setList((t) => addIp(t, v))}
                 />
               </>
             )}
@@ -927,7 +927,7 @@ function UnirseCluster({
                 placeholder="username"
                 maxLength={255}
                 value={user}
-                onChange={(e) => setUsuario(e.target.value)}
+                onChange={(e) => setUser(e.target.value)}
               />
             )}
           </MRow>
@@ -986,7 +986,7 @@ function UnirseCluster({
             Joining a Cluster will cause configuration on this DNS Server to be overwritten
             permanently for Allowed, Blocked, Apps, Settings and Administration sections!
           </Alert>
-          <div className={styles.enlace}>
+          <div className={styles.link}>
             <a
               href="https://blog.technitium.com/2025/11/understanding-clustering-and-how-to.html"
               target="_blank"
@@ -1007,25 +1007,25 @@ intervals can only be TOUCHED from the primary node; from a secondary the modal
 comes out read-only and with no save button. The cluster's domain is always
 locked: it can never be changed.
 */
-function OpcionesCluster({
+function ClusterOptions({
   token,
   node,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: () => void
 }) {
   const [loading, setLoading] = useState(true)
   const [esPrimario, setEsPrimario] = useState(false)
-  const [dominio, setDominio] = useState('')
+  const [domain, setDomain] = useState('')
   const [hbRefresh, setHbRefresh] = useState('')
   const [hbRetry, setHbRetry] = useState('')
   const [cfgRefresh, setCfgRefresh] = useState('')
   const [cfgRetry, setCfgRetry] = useState('')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -1034,12 +1034,12 @@ function OpcionesCluster({
       if (!vivo) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
-        setAviso(noticeFromFailure(outcome))
+        setNotice(noticeFromFailure(outcome))
         return
       }
       const r = outcome.data.response
       setEsPrimario(r.clusterNodes?.find((n) => n.state === 'Self')?.type === 'Primary')
-      setDominio(r.clusterDomain ?? '')
+      setDomain(r.clusterDomain ?? '')
       setHbRefresh(String(r.heartbeatRefreshIntervalSeconds ?? ''))
       setHbRetry(String(r.heartbeatRetryIntervalSeconds ?? ''))
       setCfgRefresh(String(r.configRefreshIntervalSeconds ?? ''))
@@ -1052,7 +1052,7 @@ function OpcionesCluster({
 
   async function save() {
     if (hbRefresh === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter a value for Heartbeat Refresh Interval.',
@@ -1060,7 +1060,7 @@ function OpcionesCluster({
       return
     }
     if (hbRetry === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter a value for Heartbeat Retry Interval.',
@@ -1068,7 +1068,7 @@ function OpcionesCluster({
       return
     }
     if (cfgRefresh === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter a value for Config Refresh Interval.',
@@ -1076,7 +1076,7 @@ function OpcionesCluster({
       return
     }
     if (cfgRetry === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please enter a value for Config Retry Interval.',
@@ -1098,7 +1098,7 @@ function OpcionesCluster({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho()
@@ -1118,7 +1118,7 @@ function OpcionesCluster({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Cluster Options"
       size="medium"
       actions={
@@ -1131,15 +1131,15 @@ function OpcionesCluster({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       {loading ? (
         <Loading />
       ) : (
         <>
           <MRow label="Cluster Domain" help="The fully qualified domain name of the Cluster.">
-            {(id) => <Input id={id} placeholder="domain name" value={dominio} disabled readOnly />}
+            {(id) => <Input id={id} placeholder="domain name" value={domain} disabled readOnly />}
           </MRow>
-          {intervalos.map(([label, value, sufijo, set, help]) => (
+          {intervalos.map(([label, value, suffix, set, help]) => (
             <MRow key={label} label={label} help={help}>
               {(id) => (
                 <div className={styles.ctlLine}>
@@ -1152,7 +1152,7 @@ function OpcionesCluster({
                     value={value}
                     onChange={(e) => set(e.target.value)}
                   />
-                  <span className={styles.suffix}>{sufijo}</span>
+                  <span className={styles.suffix}>{suffix}</span>
                 </div>
               )}
             </MRow>
@@ -1164,23 +1164,23 @@ function OpcionesCluster({
 }
 
 /** `showEditSelfClusterNodeModal` / `updateSelfClusterNode` (cluster.js:274-361). */
-function EditarNodoPropio({
+function EditOwnNode({
   token,
   node,
   objetivo,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
   objetivo: ClusterNode
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [loading, setLoading] = useState(true)
   const [ips, setIps] = useState<string[]>([])
-  const [list, setLista] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [list, setList] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -1189,7 +1189,7 @@ function EditarNodoPropio({
       if (!vivo) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
-        setAviso(noticeFromFailure(outcome))
+        setNotice(noticeFromFailure(outcome))
         return
       }
       setIps(outcome.data.response.serverIpAddresses ?? [])
@@ -1200,9 +1200,9 @@ function EditarNodoPropio({
   }, [token, node])
 
   async function save() {
-    const limpia = limpiarLista(list)
+    const limpia = cleanList(list)
     if (limpia.length === 0 || limpia === ',') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a node IP address.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter a node IP address.' })
       return
     }
 
@@ -1211,7 +1211,7 @@ function EditarNodoPropio({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -1220,7 +1220,7 @@ function EditarNodoPropio({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Edit Node - ${objetivo.name}`}
       size="medium"
       actions={
@@ -1231,7 +1231,7 @@ function EditarNodoPropio({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       {loading ? (
         <Loading />
       ) : (
@@ -1248,9 +1248,9 @@ function EditarNodoPropio({
                 rows={3}
                 spellCheck={false}
                 value={list}
-                onChange={(e) => setLista(e.target.value)}
+                onChange={(e) => setList(e.target.value)}
               />
-              <QuickAdd ips={ips} label="Quick Add" onAnadir={(ip) => setLista((t) => addIp(t, ip))} />
+              <QuickAdd ips={ips} label="Quick Add" onAdd={(ip) => setList((t) => addIp(t, ip))} />
             </>
           )}
         </MRow>
@@ -1261,32 +1261,32 @@ function EditarNodoPropio({
 
 /** `showEditPrimaryClusterNodeModal` / `updatePrimaryClusterNode` (cluster.js:363-432).
  *  It loads nothing: it comes up with whatever was already in the row. */
-function EditarNodoPrimario({
+function EditPrimaryNode({
   token,
   node,
   objetivo,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
   objetivo: ClusterNode
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [url, setUrl] = useState(objetivo.url)
-  const [list, setLista] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [list, setList] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function save() {
     if (url === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Primary node URL.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter the Primary node URL.' })
       return
     }
     // Here the list CAN be left empty: it is optional. Upstream only normalises
     // the degenerate case of a stray comma (cluster.js:400).
-    let limpia = limpiarLista(list)
+    let limpia = cleanList(list)
     if (limpia === ',') limpia = ''
 
     setBusy(true)
@@ -1294,7 +1294,7 @@ function EditarNodoPrimario({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -1303,7 +1303,7 @@ function EditarNodoPrimario({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Edit Node - ${objetivo.name}`}
       size="medium"
       actions={
@@ -1314,7 +1314,7 @@ function EditarNodoPrimario({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <MRow label="Primary Node URL" help="The Web Service HTTPS URL of the Primary node in the Cluster.">
         {(id) => (
           <Input
@@ -1338,7 +1338,7 @@ function EditarNodoPrimario({
             rows={3}
             spellCheck={false}
             value={list}
-            onChange={(e) => setLista(e.target.value)}
+            onChange={(e) => setList(e.target.value)}
           />
         )}
       </MRow>
@@ -1352,29 +1352,29 @@ function RemoveNode({
   token,
   node,
   objetivo,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
   objetivo: ClusterNode
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [forzar, setForzar] = useState(false)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [force, setForce] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function discard() {
     setBusy(true)
     const id = String(objetivo.id)
-    const outcome = forzar
+    const outcome = force
       ? await deleteSecondaryNode(token, id, node)
       : await removeSecondaryNode(token, id, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -1383,7 +1383,7 @@ function RemoveNode({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Remove Node - ${objetivo.name}`}
       actions={
         <>
@@ -1393,7 +1393,7 @@ function RemoveNode({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <p className={styles.parrafo}>
         The Remove Node process will ask the selected Secondary node to leave the Cluster gracefully.
         The Secondary will then initiate Leave Cluster process as if the Leave Cluster action was
@@ -1402,8 +1402,8 @@ function RemoveNode({
       <Check
         toggle
         label="Force Remove Node"
-        checked={forzar}
-        onChange={setForzar}
+        checked={force}
+        onChange={setForce}
         help="Enabling this option will cause the Secondary node to be deleted from the Cluster without asking the node to leave gracefully."
       />
       <p className={styles.parrafo}>
@@ -1419,30 +1419,30 @@ function RemoveNode({
 
 /** `showPromoteToPrimaryClusterNodeModal` / `promoteToPrimaryClusterNode`
  *  (cluster.js:497-546). */
-function PromocionarNodo({
+function PromoteNode({
   token,
   node,
   objetivo,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
   objetivo: ClusterNode
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [forzar, setForzar] = useState(false)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [force, setForce] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function promocionar() {
     setBusy(true)
-    const outcome = await promoteToPrimary(token, forzar, node)
+    const outcome = await promoteToPrimary(token, force, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -1451,7 +1451,7 @@ function PromocionarNodo({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Promote To Primary Node - ${objetivo.name}`}
       actions={
         <>
@@ -1461,7 +1461,7 @@ function PromocionarNodo({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <p className={styles.parrafo}>
         The promote To Primary node process will resync complete configuration from the Primary node
         and then proceed to delete it from the Cluster followed by upgrading the selected Secondary
@@ -1472,8 +1472,8 @@ function PromocionarNodo({
       <Check
         toggle
         label="Force Delete Current Primary Node"
-        checked={forzar}
-        onChange={setForzar}
+        checked={force}
+        onChange={setForce}
         help="Enabling this option will cause the current Primary node to be deleted from the Cluster without resyncing complete configuration from it and without inform it."
       />
       <p className={styles.parrafo}>
@@ -1494,28 +1494,28 @@ function PromocionarNodo({
 }
 
 /** `showLeaveClusterModal` / `leaveCluster` (cluster.js:918-973). */
-function DejarCluster({
+function LeaveCluster({
   token,
   node,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [forzar, setForzar] = useState(false)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [force, setForce] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function salir() {
     setBusy(true)
-    const outcome = await leaveCluster(token, forzar, node)
+    const outcome = await leaveCluster(token, force, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -1524,7 +1524,7 @@ function DejarCluster({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Leave Cluster"
       actions={
         <>
@@ -1534,7 +1534,7 @@ function DejarCluster({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <p className={styles.parrafo}>
         The Leave Cluster process will remove all Cluster configuration from this Secondary node and
         leave the Cluster gracefully. There will be no data loss except for the Cluster
@@ -1544,8 +1544,8 @@ function DejarCluster({
       <Check
         toggle
         label="Force Leave Cluster"
-        checked={forzar}
-        onChange={setForzar}
+        checked={force}
+        onChange={setForce}
         help="Enabling this option will cause this Secondary node to leave the Cluster without informing the Primary node."
       />
       <p className={styles.parrafo}>Are you sure you want to leave the Cluster?</p>
@@ -1561,25 +1561,25 @@ function DejarCluster({
 function DeleteCluster({
   token,
   node,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   token: string | null
   node: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [forzar, setForzar] = useState(false)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [force, setForce] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function remove() {
     setBusy(true)
-    const outcome = await deleteCluster(token, forzar, node)
+    const outcome = await deleteCluster(token, force, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onHecho(outcome.data.response)
@@ -1588,7 +1588,7 @@ function DeleteCluster({
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Delete Cluster"
       actions={
         <>
@@ -1598,7 +1598,7 @@ function DeleteCluster({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <p className={styles.parrafo}>
         The Delete Cluster process will remove all Cluster configuration from this Primary node.
         There will be no data loss except for the Cluster configuration. You will need to
@@ -1607,8 +1607,8 @@ function DeleteCluster({
       <Check
         toggle
         label="Force Delete Cluster"
-        checked={forzar}
-        onChange={setForzar}
+        checked={force}
+        onChange={setForce}
         help="Enabling this option will cause this Primary node to delete the Cluster for itself even when other Secondary nodes still exist, orphaning them."
       />
       <p className={styles.parrafo}>Are you sure you want to delete the Cluster?</p>

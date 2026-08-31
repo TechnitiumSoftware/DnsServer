@@ -14,56 +14,56 @@ confirmation modal with three warnings copied whole, because they explain a
 sequence that, done wrong, leaves the zone unresolvable.
 */
 
-export function DesfirmarZona({
+export function UnsignZone({
   zone,
   open,
   token,
   node = '',
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (open) setAviso(null)
+    if (open) setNotice(null)
   }, [open])
 
-  async function desfirmar() {
+  async function unsign() {
     setBusy(true)
     const outcome = await unsignZone(token, zone, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     onHecho({ type: 'success', title: 'Zone Unsigned!', text: 'The primary zone was unsigned successfully.' })
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Unsign Zone - ${zone === '.' ? '<root>' : zone}`}
       actions={
         <>
-          <Button variant="danger" disabled={busy} onClick={() => void desfirmar()}>
+          <Button variant="danger" disabled={busy} onClick={() => void unsign()}>
             Unsign Zone
           </Button>
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <Alert type="warning" title="Warning!">
         Unsigning the zone without removing all DS records from its parent zone will cause

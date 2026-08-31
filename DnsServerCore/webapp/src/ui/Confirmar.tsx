@@ -30,45 +30,45 @@ not make it the same thing.
 */
 export function Confirm({
   open,
-  titulo,
+  title,
   text: body,
-  etiqueta,
+  label,
   variante = 'danger',
   busy,
-  onCerrar,
-  onConfirmar,
+  onClose,
+  onConfirm,
 }: {
   open: boolean
-  titulo: string
+  title: string
   text: ReactNode
   /** The action's verb: "Delete", "Convert", "Disable". */
-  etiqueta: string
+  label: string
   variante?: 'primary' | 'danger'
   busy?: boolean
-  onCerrar: () => void
+  onClose: () => void
   /** If it returns a promise, the dialog stays busy while it runs and closes when it settles. */
-  onConfirmar: () => unknown
+  onConfirm: () => unknown
 }) {
-  const [enCurso, setEnCurso] = useState(false)
+  const [inProgress, setEnCurso] = useState(false)
 
   function confirm() {
-    const r = onConfirmar()
+    const r = onConfirm()
     if (!(r instanceof Promise)) return
     setEnCurso(true)
     void r.finally(() => {
       setEnCurso(false)
-      onCerrar()
+      onClose()
     })
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
-      title={titulo}
+      onOpenChange={(o) => !o && onClose()}
+      title={title}
       actions={
-        <Button variant={variante} disabled={busy || enCurso} onClick={confirm}>
-          {etiqueta}
+        <Button variant={variante} disabled={busy || inProgress} onClick={confirm}>
+          {label}
         </Button>
       }
       close="Cancel"

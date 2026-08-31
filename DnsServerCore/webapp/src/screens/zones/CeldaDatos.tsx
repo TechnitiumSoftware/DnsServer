@@ -1,7 +1,7 @@
 import { Tag } from '../../ui/Tag'
 import { useState } from 'react'
 import type { ResourceRecord } from '../../api/registros'
-import { celdasDeRegistro, pieDeRegistro, type Cell } from './registro-vista'
+import { recordCells, recordFooter, type Cell } from './registro-vista'
 import { Table } from '../../ui/Table'
 import styles from './Zones.module.css'
 
@@ -27,11 +27,11 @@ const LARGOS = [
 
 const CORTE = 64
 
-function Value({ etiqueta, value }: { etiqueta: string; value: string }) {
-  const [entero, setEntero] = useState(false)
-  const truncable = LARGOS.includes(etiqueta) && value.length > CORTE
+function Value({ label, value }: { label: string; value: string }) {
+  const [whole, setEntero] = useState(false)
+  const truncable = LARGOS.includes(label) && value.length > CORTE
 
-  if (!truncable || entero) {
+  if (!truncable || whole) {
     return <span className={styles.key}>{value}</span>
   }
 
@@ -64,7 +64,7 @@ function Bloque({ cell }: { cell: Cell }) {
         <Table
           header={
             <>
-              {cell.cabeceras.map((c) => (
+              {cell.headers.map((c) => (
                 <th key={c}>{c}</th>
               ))}
             </>
@@ -85,11 +85,11 @@ function Bloque({ cell }: { cell: Cell }) {
     case 'pairs':
       return (
         <dl className={styles.kv}>
-          {cell.pares.map((p) => (
-            <div key={p.etiqueta} style={{ display: 'contents' }}>
-              <dt>{p.etiqueta}</dt>
+          {cell.pairs.map((p) => (
+            <div key={p.label} style={{ display: 'contents' }}>
+              <dt>{p.label}</dt>
               <dd>
-                <Value etiqueta={p.etiqueta} value={p.value} />
+                <Value label={p.label} value={p.value} />
               </dd>
             </div>
           ))}
@@ -98,7 +98,7 @@ function Bloque({ cell }: { cell: Cell }) {
   }
 }
 
-export function CeldaDatos({
+export function DataCell({
   record,
   notifyFailedFor,
 }: {
@@ -106,8 +106,8 @@ export function CeldaDatos({
   /** The name servers the notify failed for. */
   notifyFailedFor?: string[]
 }) {
-  const cells = celdasDeRegistro(record)
-  const footer = pieDeRegistro(record)
+  const cells = recordCells(record)
+  const footer = recordFooter(record)
 
   // Only on NS, and only if THAT server is in the zone's failure list.
   const notifyFallido =
@@ -128,8 +128,8 @@ export function CeldaDatos({
 
       <div className={styles.meta}>
         {footer.map((p) => (
-          <div key={p.etiqueta}>
-            <b>{p.etiqueta}</b> {p.value}
+          <div key={p.label}>
+            <b>{p.label}</b> {p.value}
           </div>
         ))}
         {record.comments != null && record.comments.length > 0 && (

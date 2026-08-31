@@ -193,7 +193,7 @@ export function Login({
           <span className={styles.name}>Technitium DNS Server</span>
         </div>
 
-        <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+        <Notifier notice={alert} onClose={() => setAlert(null)} />
 
         <form
           className={styles.form}
@@ -238,7 +238,7 @@ export function Login({
         {/* In upstream the link goes BEFORE the SSO block, and the "or login
             with" only appears if there is SSO (index.html:119-124). */}
         <div className={styles.sso}>
-          <button type="button" className={styles.enlace} onClick={() => setOlvido(true)}>
+          <button type="button" className={styles.link} onClick={() => setOlvido(true)}>
             Forgot Password?
           </button>
 

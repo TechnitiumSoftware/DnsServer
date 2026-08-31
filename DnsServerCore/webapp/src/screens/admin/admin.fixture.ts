@@ -16,7 +16,7 @@ a session that never existed, and a `clusterState` WITHOUT `clusterNodes` becaus
 the cluster is not initialised.
 */
 
-export const SESION_ADMIN: AdminSession = {
+export const ADMIN_SESSION: AdminSession = {
   username: 'admin',
   isCurrentSession: true,
   partialToken: '5fc1a6bc90cc1d9a',
@@ -27,7 +27,7 @@ export const SESION_ADMIN: AdminSession = {
   lastSeenUserAgent: 'curl/8.18.0',
 }
 
-export const SESION_TOKEN: AdminSession = {
+export const TOKEN_SESSION: AdminSession = {
   username: 'testuser',
   isCurrentSession: false,
   partialToken: '799a4919af7636e2',
@@ -38,7 +38,7 @@ export const SESION_TOKEN: AdminSession = {
   lastSeenUserAgent: 'curl/8.18.0',
 }
 
-export const USUARIO_ADMIN: AdminUser = {
+export const ADMIN_USER: AdminUser = {
   displayName: 'Administrator',
   username: 'admin',
   isSsoUser: false,
@@ -51,7 +51,7 @@ export const USUARIO_ADMIN: AdminUser = {
 }
 
 /** A freshly created user: they have never logged in. */
-export const USUARIO_NUEVO: AdminUser = {
+export const NEW_USER: AdminUser = {
   displayName: 'Test User',
   username: 'testuser',
   isSsoUser: false,
@@ -63,16 +63,16 @@ export const USUARIO_NUEVO: AdminUser = {
   recentSessionRemoteAddress: '0.0.0.0',
 }
 
-export const USUARIO_SSO: AdminUser = {
-  ...USUARIO_NUEVO,
+export const SSO_USER: AdminUser = {
+  ...NEW_USER,
   displayName: 'Adrián',
   username: 'adrian@example.com',
   isSsoUser: true,
   totpEnabled: false,
 }
 
-export const DETALLE_USUARIO: AdminUserDetails = {
-  ...USUARIO_NUEVO,
+export const USER_DETAIL: AdminUserDetails = {
+  ...NEW_USER,
   sessionTimeoutSeconds: 1800,
   ssoManagedGroups: false,
   memberOfGroups: [],

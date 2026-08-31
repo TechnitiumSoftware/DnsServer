@@ -9,36 +9,36 @@ import { noticeFromFailure } from '../../../lib/aviso'
 import { Notifier } from '../../../ui/Avisador'
 
 /** `modalCloneZone` (zone.js:1332 y 1346). */
-export function ClonarZona({
+export function CloneZone({
   zone,
   open,
   token,
   node = '',
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
   const [blank, setNueva] = useState('')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const field = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open) return
     setNueva('')
-    setAviso(null)
+    setNotice(null)
     field.current?.focus()
   }, [open])
 
-  async function clonar() {
+  async function clone() {
     if (blank === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a domain name for the new zone.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter a domain name for the new zone.' })
       field.current?.focus()
       return
     }
@@ -48,11 +48,11 @@ export function ClonarZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     // Upstream's text is like this, with that half-finished sentence. Copied literally.
     onHecho({ type: 'success', title: 'Zone Cloned!', text: 'Zone was cloned from successfully.' })
   }
@@ -60,17 +60,17 @@ export function ClonarZona({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Clone Zone - ${zone === '.' ? '<root>' : zone}`}
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void clonar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void clone()}>
             Clone Zone
           </Button>
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <div className={styles.fields}>
         {/* The source is read-only: upstream keeps it in a hidden input. */}
         <LabeledInput label="Source Zone" mono readOnly value={zone} />

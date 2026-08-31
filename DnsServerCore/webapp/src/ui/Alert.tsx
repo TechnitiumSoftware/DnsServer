@@ -33,12 +33,12 @@ export function Alert({
   // The dismiss callback is kept in a ref: the places that pass it write a new
   // function on every render, and as a dependency it would restart the timer
   // forever and never fire.
-  const descartar = useRef(onDismiss)
-  descartar.current = onDismiss
+  const dismiss = useRef(onDismiss)
+  dismiss.current = onDismiss
 
   useEffect(() => {
     if (type !== 'success' || onDismiss == null) return
-    const t = setTimeout(() => descartar.current?.(), AUTO_DESCARTE_MS)
+    const t = setTimeout(() => dismiss.current?.(), AUTO_DESCARTE_MS)
     return () => clearTimeout(t)
     // The timer restarts with each new alert, even if the previous one was also
     // a success: that is what upstream does, since it rebuilds the whole node.

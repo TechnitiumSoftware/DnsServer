@@ -48,7 +48,7 @@ export interface ResourceRecord {
   glueRecords?: string[]
 }
 
-export interface ZonaDeRegistros {
+export interface ZoneDetails {
   name: string
   type: string
   disabled: boolean
@@ -61,8 +61,8 @@ export interface ZonaDeRegistros {
   notifyFailedFor?: string[]
 }
 
-export interface RegistrosDeZona {
-  zone: ZonaDeRegistros
+export interface ZoneRecordsData {
+  zone: ZoneDetails
   records: ResourceRecord[]
 }
 
@@ -76,8 +76,8 @@ export async function getRecords(
   token: string | null,
   zone: string,
   node = '',
-): Promise<RegistrosDeZona | null> {
-  const outcome = await apiRequest<{ response: RegistrosDeZona }>('zones/records/get', {
+): Promise<ZoneRecordsData | null> {
+  const outcome = await apiRequest<{ response: ZoneRecordsData }>('zones/records/get', {
     token,
     body: { domain: zone, zone, listZone: 'true', node },
   })
@@ -87,10 +87,10 @@ export async function getRecords(
 }
 
 export interface RespuestaAlta {
-  response: { addedRecord: ResourceRecord; zone: ZonaDeRegistros }
+  response: { addedRecord: ResourceRecord; zone: ZoneDetails }
 }
-export interface RespuestaEdicion {
-  response: { updatedRecord: ResourceRecord; zone: ZonaDeRegistros }
+export interface EditResponse {
+  response: { updatedRecord: ResourceRecord; zone: ZoneDetails }
 }
 
 export function addRecord(
@@ -109,8 +109,8 @@ export function updateRecord(
   token: string | null,
   body: Record<string, string>,
   node = '',
-): Promise<ApiOutcome<RespuestaEdicion>> {
-  return apiRequest<RespuestaEdicion>(`zones/records/update?node=${encodeURIComponent(node)}`, {
+): Promise<ApiOutcome<EditResponse>> {
+  return apiRequest<EditResponse>(`zones/records/update?node=${encodeURIComponent(node)}`, {
     token,
     method: 'POST',
     body,
@@ -165,7 +165,7 @@ export function aplanarCharacterStrings(r: Record<string, unknown>): string {
  * deleting, NS goes without `glue`, and CNAME, DNAME, SOA and APP contribute
  * nothing.
  */
-export function identidadRegistro(
+export function recordIdentity(
   record: ResourceRecord,
   options: { forDeletion?: boolean; updateSvcbHints?: boolean } = {},
 ): Record<string, string> {
@@ -314,7 +314,7 @@ export function identidadRegistro(
  * the zone. **Without the record list it returns `true`**, not `false`: with the
  * zone unloaded upstream would rather ask for the update.
  */
-export function zonaTienePistaSvcbAuto(
+export function zoneHasSvcbAutoHint(
   records: ResourceRecord[] | null,
   ipv4: boolean,
   ipv6: boolean,
@@ -334,8 +334,8 @@ export function zonaTienePistaSvcbAuto(
  * (zone.js:4713-4725). Empty is `@`, `@` is the zone, and at the root the
  * sub-domain is closed with a dot.
  */
-export function dominioCompleto(zone: string, subDominio: string): string {
-  const sub = subDominio === '' ? '@' : subDominio
+export function fullDomain(zone: string, subDomain: string): string {
+  const sub = subDomain === '' ? '@' : subDomain
   if (sub === '@') return zone
   if (zone === '.') return `${sub}.`
   return `${sub}.${zone}`
@@ -350,7 +350,7 @@ export function cuerpoBorrado(zone: string, record: ResourceRecord): Record<stri
     zone,
     domain: record.name === '' ? '.' : record.name,
     type: record.type,
-    ...identidadRegistro(record, { forDeletion: true }),
+    ...recordIdentity(record, { forDeletion: true }),
   }
 }
 
@@ -362,7 +362,7 @@ export function cuerpoBorrado(zone: string, record: ResourceRecord): Record<stri
 export function cuerpoCambioDeEstado(
   zone: string,
   record: ResourceRecord,
-  deshabilitar: boolean,
+  disable: boolean,
   updateSvcbHints: boolean,
 ): Record<string, string> {
   const domain = record.name === '' ? '.' : record.name
@@ -371,9 +371,9 @@ export function cuerpoCambioDeEstado(
     domain,
     type: record.type,
     ttl: String(record.ttl),
-    disable: String(deshabilitar),
+    disable: String(disable),
     comments: record.comments ?? '',
     expiryTtl: String(record.expiryTtl),
-    ...identidadRegistro(record, { updateSvcbHints }),
+    ...recordIdentity(record, { updateSvcbHints }),
   }
 }

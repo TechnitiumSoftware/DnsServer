@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import type { ResourceRecord, ZonaDeRegistros } from '../../api/registros'
+import type { ResourceRecord, ZoneDetails } from '../../api/registros'
 import { Confirm } from '../../ui/Confirmar'
-import { ListaZonas } from './ListaZonas'
-import { RegistrosZona } from './RegistrosZona'
+import { ZoneList } from './ListaZonas'
+import { ZoneRecords } from './RegistrosZona'
 import { AddEditRecord } from './modales/AnadirEditarRegistro'
 import { AddZone } from './modales/AnadirZona'
-import { ClonarZona } from './modales/ClonarZona'
+import { CloneZone } from './modales/ClonarZona'
 import { ConvertZone } from './modales/ConvertirZona'
-import { DesfirmarZona } from './modales/DesfirmarZona'
-import { FirmarZona } from './modales/FirmarZona'
-import { ImportarZona } from './modales/ImportarZona'
-import { OpcionesZona } from './modales/OpcionesZona'
-import { PermisosZona } from './modales/PermisosZona'
+import { UnsignZone } from './modales/DesfirmarZona'
+import { SignZone } from './modales/FirmarZona'
+import { ImportZone } from './modales/ImportarZona'
+import { ZoneOptions } from './modales/OpcionesZona'
+import { ZonePermissions } from './modales/PermisosZona'
 import { PropiedadesDnssec } from './modales/PropiedadesDnssec'
 import { VerDs } from './modales/VerDs'
 import type { Notice, Confirmation } from './tipos'
@@ -62,18 +62,18 @@ export function Zones({
   dnssecValidation = false,
 }: ZonesProps) {
   const [open, setAbierta] = useState<string | null>(null)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [modal, setModal] = useState<ModalId | null>(null)
 
   /** The zone the open modal acts on; it may not be the one on screen. */
-  const [zonaModal, setZonaModal] = useState('')
+  const [modalZone, setModalZone] = useState('')
   const [modalKind, setTipoModal] = useState('')
 
-  const [recordMode, setModoRegistro] = useState<'add' | 'update'>('add')
-  const [zonaDeRegistros, setZonaDeRegistros] = useState<ZonaDeRegistros | null>(null)
-  const [records, setRegistros] = useState<ResourceRecord[]>([])
-  const [registroOriginal, setRegistroOriginal] = useState<ResourceRecord | null>(null)
+  const [recordMode, setRecordMode] = useState<'add' | 'update'>('add')
+  const [zoneDetails, setZoneDetails] = useState<ZoneDetails | null>(null)
+  const [records, setRecords] = useState<ResourceRecord[]>([])
+  const [originalRecord, setOriginalRecord] = useState<ResourceRecord | null>(null)
 
   /*
   The expiry TTL left over in the record modal. Upstream reads it from that
@@ -83,51 +83,51 @@ export function Zones({
   */
   const [expiryTtlDelModal, setExpiryTtlDelModal] = useState('')
 
-  const [refrescoLista, setRefrescoLista] = useState(0)
-  const [refrescoZona, setRefrescoZona] = useState(0)
+  const [listRefresh, setListRefresh] = useState(0)
+  const [zoneRefresh, setZoneRefresh] = useState(0)
 
-  const releerLista = () => setRefrescoLista((n) => n + 1)
-  const releerZona = () => setRefrescoZona((n) => n + 1)
+  const refreshList = () => setListRefresh((n) => n + 1)
+  const refreshZone = () => setZoneRefresh((n) => n + 1)
 
   function openModal(id: ModalId, zone: string, type = '') {
-    setZonaModal(zone)
+    setModalZone(zone)
     setTipoModal(type)
     setModal(id)
   }
 
   /** After a mutating modal: refreshes whatever is in front. */
   function hecho(a: Notice) {
-    setAviso(a)
-    if (open == null) releerLista()
-    else releerZona()
+    setNotice(a)
+    if (open == null) refreshList()
+    else refreshZone()
   }
 
   return (
     <>
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       {open == null ? (
-        <ListaZonas
+        <ZoneList
           token={token}
           node={node}
           canModify={canModify}
           canDelete={canDelete}
-          onAviso={setAviso}
-          onConfirmar={setConfirmation}
-          onAnadir={() => openModal('add', '')}
-          onAbrir={(z) => {
-            setAviso(null)
+          onNotice={setNotice}
+          onConfirm={setConfirmation}
+          onAdd={() => openModal('add', '')}
+          onOpen={(z) => {
+            setNotice(null)
             setAbierta(z)
           }}
-          onImportar={(z) => openModal('import', z)}
-          onConvertir={(z, t) => openModal('convert', z, t)}
-          onClonar={(z) => openModal('clone', z)}
-          onPermisos={(z) => openModal('permissions', z)}
-          onOpciones={(z) => openModal('options', z)}
-          refresco={refrescoLista}
+          onImport={(z) => openModal('import', z)}
+          onConvert={(z, t) => openModal('convert', z, t)}
+          onClone={(z) => openModal('clone', z)}
+          onPermissions={(z) => openModal('permissions', z)}
+          onOptions={(z) => openModal('options', z)}
+          refresco={listRefresh}
         />
       ) : (
-        <RegistrosZona
+        <ZoneRecords
           zone={open}
           token={token}
           node={node}
@@ -135,46 +135,46 @@ export function Zones({
           canDelete={canDelete}
           onVolver={() => {
             setAbierta(null)
-            releerLista()
+            refreshList()
           }}
-          onAviso={setAviso}
-          onConfirmar={setConfirmation}
-          onAnadirRegistro={(zone, regs) => {
-            setModoRegistro('add')
-            setZonaDeRegistros(zone)
-            setRegistros(regs)
-            setRegistroOriginal(null)
+          onNotice={setNotice}
+          onConfirm={setConfirmation}
+          onAddRecord={(zone, regs) => {
+            setRecordMode('add')
+            setZoneDetails(zone)
+            setRecords(regs)
+            setOriginalRecord(null)
             openModal('record', open)
           }}
-          onEditarRegistro={(zone, record, regs) => {
-            setModoRegistro('update')
-            setZonaDeRegistros(zone)
-            setRegistros(regs)
-            setRegistroOriginal(record)
+          onEditRecord={(zone, record, regs) => {
+            setRecordMode('update')
+            setZoneDetails(zone)
+            setRecords(regs)
+            setOriginalRecord(record)
             openModal('record', open)
           }}
-          onImportar={(z) => openModal('import', z)}
-          onConvertir={(z, t) => openModal('convert', z, t)}
-          onClonar={(z) => openModal('clone', z)}
-          onPermisos={(z) => openModal('permissions', z)}
-          onOpciones={(z) => openModal('options', z)}
-          onFirmar={(z) => openModal('sign', z)}
-          onDesfirmar={(z) => openModal('unsign', z)}
+          onImport={(z) => openModal('import', z)}
+          onConvert={(z, t) => openModal('convert', z, t)}
+          onClone={(z) => openModal('clone', z)}
+          onPermissions={(z) => openModal('permissions', z)}
+          onOptions={(z) => openModal('options', z)}
+          onSign={(z) => openModal('sign', z)}
+          onUnsign={(z) => openModal('unsign', z)}
           onVerDs={(z) => openModal('viewds', z)}
           onPropiedadesDnssec={(z) => openModal('dnssec', z)}
-          refresco={refrescoZona}
+          refresco={zoneRefresh}
           expiryTtlDelModal={expiryTtlDelModal}
         />
       )}
 
       <Confirm
         open={confirmation !== null}
-        titulo={confirmation?.titulo ?? ''}
+        title={confirmation?.title ?? ''}
         text={confirmation?.text}
-        etiqueta={confirmation?.etiqueta ?? ''}
-        variante={confirmation?.peligro ? 'danger' : 'primary'}
-        onCerrar={() => setConfirmation(null)}
-        onConfirmar={() => confirmation?.action()}
+        label={confirmation?.label ?? ''}
+        variante={confirmation?.danger ? 'danger' : 'primary'}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => confirmation?.action()}
       />
 
       <AddZone
@@ -183,107 +183,107 @@ export function Zones({
         node={node}
         useSoaSerialDateScheme={useSoaSerialDateScheme}
         dnssecValidation={dnssecValidation}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onCreated={(domain, a) => {
           // Upstream opens the newly created zone, it does not go back to the list.
           setAbierta(domain === '' ? '.' : domain)
-          setAviso(a)
+          setNotice(a)
         }}
       />
 
-      <ImportarZona
-        zone={zonaModal}
+      <ImportZone
+        zone={modalZone}
         open={modal === 'import'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
-      <ClonarZona
-        zone={zonaModal}
+      <CloneZone
+        zone={modalZone}
         open={modal === 'clone'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
       <ConvertZone
-        zone={zonaModal}
+        zone={modalZone}
         sourceType={modalKind}
         open={modal === 'convert'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
-      <OpcionesZona
-        zone={zonaModal}
+      <ZoneOptions
+        zone={modalZone}
         open={modal === 'options'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
-      <PermisosZona
-        zone={zonaModal}
+      <ZonePermissions
+        zone={modalZone}
         open={modal === 'permissions'}
         token={token}
         node={node}
         canModify={canModify}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
-      <FirmarZona
-        zone={zonaModal}
+      <SignZone
+        zone={modalZone}
         open={modal === 'sign'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
-      <DesfirmarZona
-        zone={zonaModal}
+      <UnsignZone
+        zone={modalZone}
         open={modal === 'unsign'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
       />
 
       <VerDs
-        zone={zonaModal}
+        zone={modalZone}
         open={modal === 'viewds'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
       />
 
       <PropiedadesDnssec
-        zone={zonaModal}
+        zone={modalZone}
         open={modal === 'dnssec'}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
-        onConfirmar={setConfirmation}
-        onCambio={releerZona}
+        onClose={() => setModal(null)}
+        onConfirm={setConfirmation}
+        onCambio={refreshZone}
       />
 
       <AddEditRecord
         open={modal === 'record'}
         mode={recordMode}
-        zone={zonaModal}
-        zoneInfo={zonaDeRegistros}
+        zone={modalZone}
+        zoneInfo={zoneDetails}
         records={records}
-        original={registroOriginal}
+        original={originalRecord}
         token={token}
         node={node}
-        onCerrar={() => setModal(null)}
+        onClose={() => setModal(null)}
         onHecho={hecho}
         onExpiryTtl={setExpiryTtlDelModal}
       />

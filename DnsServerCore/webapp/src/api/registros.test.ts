@@ -3,13 +3,13 @@ import {
   getRecords,
   addRecord,
   deleteRecord,
-  identidadRegistro,
+  recordIdentity,
   aplanarSvcParams,
   aplanarGlue,
   cuerpoBorrado,
   cuerpoCambioDeEstado,
-  dominioCompleto,
-  zonaTienePistaSvcbAuto,
+  fullDomain,
+  zoneHasSvcbAutoHint,
   type ResourceRecord,
 } from './registros'
 import * as client from './client'
@@ -70,7 +70,7 @@ describe('zones/records — transporte', () => {
 
 describe('identity of a record', () => {
   it('A sends the IP and the SVCB hints flag', () => {
-    expect(identidadRegistro(reg('A', { ipAddress: '10.0.0.1' }), { updateSvcbHints: true })).toEqual({
+    expect(recordIdentity(reg('A', { ipAddress: '10.0.0.1' }), { updateSvcbHints: true })).toEqual({
       ipAddress: '10.0.0.1',
       updateSvcbHints: 'true',
     })
@@ -78,18 +78,18 @@ describe('identity of a record', () => {
 
   it('NS carries the glue when disabling and NOT when deleting', () => {
     const r = reg('NS', { nameServer: 'ns1.casa.test' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
-    expect(identidadRegistro(r)).toEqual({
+    expect(recordIdentity(r)).toEqual({
       nameServer: 'ns1.casa.test',
       glue: '10.0.0.1, 10.0.0.2',
     })
-    expect(identidadRegistro(r, { forDeletion: true })).toEqual({ nameServer: 'ns1.casa.test' })
+    expect(recordIdentity(r, { forDeletion: true })).toEqual({ nameServer: 'ns1.casa.test' })
   })
 
   it('CNAME, DNAME and APP contribute nothing to the delete (zone.js:6420-6510)', () => {
-    expect(identidadRegistro(reg('CNAME', { cname: 'a.b' }), { forDeletion: true })).toEqual({})
-    expect(identidadRegistro(reg('DNAME', { dname: 'a.b' }), { forDeletion: true })).toEqual({})
+    expect(recordIdentity(reg('CNAME', { cname: 'a.b' }), { forDeletion: true })).toEqual({})
+    expect(recordIdentity(reg('DNAME', { dname: 'a.b' }), { forDeletion: true })).toEqual({})
     expect(
-      identidadRegistro(reg('APP', { appName: 'x', classPath: 'y', data: 'z' }), {
+      recordIdentity(reg('APP', { appName: 'x', classPath: 'y', data: 'z' }), {
         forDeletion: true,
       }),
     ).toEqual({})
@@ -97,7 +97,7 @@ describe('identity of a record', () => {
 
   it('TXT identifies by the base64 strings, comma-joined', () => {
     const r = reg('TXT', { text: 'a b', characterStringsBase64: ['YQ==', 'Yg=='] })
-    expect(identidadRegistro(r)).toEqual({ characterStringsBase64: 'YQ==,Yg==' })
+    expect(recordIdentity(r)).toEqual({ characterStringsBase64: 'YQ==,Yg==' })
   })
 
   it('SVCB flattens svcParams and turns an empty target into the root', () => {
@@ -108,7 +108,7 @@ describe('identity of a record', () => {
       autoIpv4Hint: true,
       autoIpv6Hint: false,
     })
-    expect(identidadRegistro(r)).toEqual({
+    expect(recordIdentity(r)).toEqual({
       svcPriority: '1',
       svcTargetName: '.',
       svcParams: 'alpn|h2|port|443',
@@ -127,11 +127,11 @@ describe('identity of a record', () => {
   })
 
   it('FWD only drags the proxy along when the type has one', () => {
-    const sinProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' })
-    expect(identidadRegistro(sinProxy)).not.toHaveProperty('proxyAddress')
+    const noProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' })
+    expect(recordIdentity(noProxy)).not.toHaveProperty('proxyAddress')
 
-    const conProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080, proxyUsername: 'u', proxyPassword: 'p' })
-    expect(identidadRegistro(conProxy)).toMatchObject({
+    const withProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080, proxyUsername: 'u', proxyPassword: 'p' })
+    expect(recordIdentity(withProxy)).toMatchObject({
       proxyAddress: '10.0.0.9',
       proxyPort: '1080',
       proxyUsername: 'u',
@@ -140,8 +140,8 @@ describe('identity of a record', () => {
   })
 
   it('an unknown type sends `rdata` only if the record brings it', () => {
-    expect(identidadRegistro(reg('TYPE65280', { value: 'ABCD' }))).toEqual({ rdata: 'ABCD' })
-    expect(identidadRegistro(reg('TYPE65280', {}))).toEqual({})
+    expect(recordIdentity(reg('TYPE65280', { value: 'ABCD' }))).toEqual({ rdata: 'ABCD' })
+    expect(recordIdentity(reg('TYPE65280', {}))).toEqual({})
   })
 })
 
@@ -175,21 +175,21 @@ describe('cuerpos completos', () => {
 
 describe('loose rules of upstream', () => {
   it('the full name: empty is @, @ is the zone, and the root closes with a dot', () => {
-    expect(dominioCompleto('casa.test', '')).toBe('casa.test')
-    expect(dominioCompleto('casa.test', '@')).toBe('casa.test')
-    expect(dominioCompleto('casa.test', 'www')).toBe('www.casa.test')
-    expect(dominioCompleto('.', 'www')).toBe('www.')
+    expect(fullDomain('casa.test', '')).toBe('casa.test')
+    expect(fullDomain('casa.test', '@')).toBe('casa.test')
+    expect(fullDomain('casa.test', 'www')).toBe('www.casa.test')
+    expect(fullDomain('.', 'www')).toBe('www.')
   })
 
   it('without the record list loaded, the SVCB hints are asked for anyway', () => {
     // zone.js:4690 — the default case is `true`, not `false`.
-    expect(zonaTienePistaSvcbAuto(null, true, false)).toBe(true)
+    expect(zoneHasSvcbAutoHint(null, true, false)).toBe(true)
   })
 
   it('it only asks for hints if some SVCB/HTTPS has the automatic one of that family', () => {
     const svcb = reg('SVCB', { autoIpv4Hint: true, autoIpv6Hint: false })
-    expect(zonaTienePistaSvcbAuto([svcb], true, false)).toBe(true)
-    expect(zonaTienePistaSvcbAuto([svcb], false, true)).toBe(false)
-    expect(zonaTienePistaSvcbAuto([reg('A', { ipAddress: '1.1.1.1' })], true, true)).toBe(false)
+    expect(zoneHasSvcbAutoHint([svcb], true, false)).toBe(true)
+    expect(zoneHasSvcbAutoHint([svcb], false, true)).toBe(false)
+    expect(zoneHasSvcbAutoHint([reg('A', { ipAddress: '1.1.1.1' })], true, true)).toBe(false)
   })
 })

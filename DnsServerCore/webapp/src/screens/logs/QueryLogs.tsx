@@ -20,7 +20,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import { Table } from '../../ui/Table'
 import styles from './Logs.module.css'
-import { ventanaDePaginas } from '../../lib/paginacion'
+import { pageWindow } from '../../lib/paginacion'
 import { Pagination } from '../../ui/Paginacion'
 import { noticeFromFailure, type Notice } from '../../lib/aviso'
 import { Notifier } from '../../ui/Avisador'
@@ -53,7 +53,7 @@ touching the Shell. It is noted as an integration gap, not half-solved.
 */
 
 
-export const CLAVE_ENTRIES_PER_PAGE = 'optQueryLogsEntriesPerPage'
+export const ENTRIES_PER_PAGE_KEY = 'optQueryLogsEntriesPerPage'
 
 interface Filtros {
   appName: string
@@ -77,7 +77,7 @@ interface Filtros {
 function filtrosPorDefecto(appName: string, classPath: string): Filtros {
   let entriesPerPage: string = ENTRIES_PER_PAGE[0]
   try {
-    const saved = localStorage.getItem(CLAVE_ENTRIES_PER_PAGE)
+    const saved = localStorage.getItem(ENTRIES_PER_PAGE_KEY)
     if (saved != null) entriesPerPage = saved
   } catch {
     /* Without localStorage the form's default value is used. */
@@ -114,7 +114,7 @@ export function appsConQueryLogs(apps: InstalledApp[]): { name: string; classPat
 
 /** A row's background (logs.js:452-508): the RCODE rules, and within it the
  *  response type. It is the table's only colour signal. */
-export function claseFila(entry: QueryLogEntry): string {
+export function rowClass(entry: QueryLogEntry): string {
   const locked = ['blocked', 'upstreamblocked', 'upstreamblockedcached']
   const type = entry.responseType.toLowerCase()
 
@@ -148,8 +148,8 @@ The ten pages centred on the current one. It was a letter-for-letter copy of
 `logs.js:571-586`, two places in upstream doing the same thing— with tests of its
 own. The name is kept because this screen's tests use it.
 */
-export function rangoPaginas(pageNumber: number, totalPages: number): number[] {
-  return ventanaDePaginas(pageNumber, totalPages).pages
+export function pageRange(pageNumber: number, totalPages: number): number[] {
+  return pageWindow(pageNumber, totalPages).pages
 }
 
 export interface QueryLogsProps {
@@ -160,8 +160,8 @@ export interface QueryLogsProps {
 export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   const [apps, setApps] = useState<{ name: string; classPaths: string[] }[] | null>(null)
   const [f, setF] = useState<Filtros>(() => filtrosPorDefecto('', ''))
-  const [page, setPagina] = useState<QueryLogPage | null>(null)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [page, setPage] = useState<QueryLogPage | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState(false)
 
@@ -191,7 +191,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         run, so the screen sat dead without saying why.
         */
         setApps([])
-        setAviso(noticeFromFailure(outcome))
+        setNotice(noticeFromFailure(outcome))
         return
       }
       const list = appsConQueryLogs(outcome.data.response.apps ?? [])
@@ -206,7 +206,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   const clasesDelApp = apps?.find((a) => a.name === f.appName)?.classPaths ?? []
 
-  const parametros = useCallback((filtros: Filtros, pageNumber: string): QueryLogsParams => {
+  const params = useCallback((filtros: Filtros, pageNumber: string): QueryLogsParams => {
     // logs.js:405 — fewer than 1 entry per page falls to 10.
     const n = Number(filtros.entriesPerPage)
     const entriesPerPage = String(n < 1 || Number.isNaN(n) ? 10 : n)
@@ -230,13 +230,13 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     }
   }, [node])
 
-  const consultar = useCallback(
-    async (pageNumber: string, enVivo: boolean) => {
+  const query = useCallback(
+    async (pageNumber: string, live: boolean) => {
       const filtros = filtrosRef.current
 
       // logs.js:389-401 — the app and the class, in that order.
       if (filtros.appName === '') {
-        setAviso({
+        setNotice({
           type: 'warning',
           title: 'Missing!',
           text: "Please install the 'Query Logs (Sqlite)' DNS App or any other DNS app that supports query logging feature from the Apps section.",
@@ -245,7 +245,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         return
       }
       if (filtros.classPath === '') {
-        setAviso({
+        setNotice({
           type: 'warning',
           title: 'Missing!',
           text: 'Please select a Class Path to query logs.',
@@ -257,7 +257,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       // logs.js:407-424 — "From" before "To", and only if the browser says
       // what was typed is not a date.
       if (desde.current?.validity.badInput === true) {
-        setAviso({
+        setNotice({
           type: 'warning',
           title: 'Missing!',
           text: "Please enter correct date and time for 'From' field.",
@@ -266,7 +266,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         return
       }
       if (hasta.current?.validity.badInput === true) {
-        setAviso({
+        setNotice({
           type: 'warning',
           title: 'Missing!',
           text: "Please enter correct date and time for 'To' field.",
@@ -275,26 +275,26 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         return
       }
 
-      if (!enVivo) setBusy(true)
-      const outcome = await queryLogs(token, parametros(filtros, pageNumber))
-      if (!enVivo) setBusy(false)
+      if (!live) setBusy(true)
+      const outcome = await queryLogs(token, params(filtros, pageNumber))
+      if (!live) setBusy(false)
 
       if (outcome.kind !== 'ok') {
-        if (!enVivo) {
-          setAviso(noticeFromFailure(outcome))
+        if (!live) {
+          setNotice(noticeFromFailure(outcome))
         }
         return
       }
 
-      setPagina(outcome.data.response)
+      setPage(outcome.data.response)
     },
-    [token, parametros],
+    [token, params],
   )
 
-  const consultarRef = useRef(consultar)
+  const queryRef = useRef(query)
   useEffect(() => {
-    consultarRef.current = consultar
-  }, [consultar])
+    queryRef.current = query
+  }, [query])
 
   /* logs.js:610 — while "Live Update" is checked, it repeats every 2 s. */
   useEffect(() => {
@@ -303,7 +303,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     let timer: ReturnType<typeof setTimeout> | undefined
 
     async function ciclo() {
-      await consultarRef.current('1', true)
+      await queryRef.current('1', true)
       if (cancelled) return
       timer = setTimeout(() => void ciclo(), 2000)
     }
@@ -330,7 +330,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     setF(filtrosPorDefecto(first?.name ?? '', first?.classPaths[0] ?? ''))
   }
 
-  function alternarLive(checked: boolean) {
+  function toggleLive(checked: boolean) {
     if (checked) {
       // logs.js:34-42 — pins page and order, and empties the date range.
       set({ pageNumber: '1', descendingOrder: 'true', start: '', end: '' })
@@ -341,11 +341,11 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     reiniciar()
   }
 
-  async function exportar() {
+  async function runExport() {
     // logs.js:612-625 — the app alert does NOT carry "from the Apps section." and
     // the dates are not checked here.
     if (f.appName === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: "Please install the 'Query Logs (Sqlite)' DNS App or any other DNS app that supports query logging feature.",
@@ -354,7 +354,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       return
     }
     if (f.classPath === '') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: 'Please select a Class Path to query logs.',
@@ -364,14 +364,14 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     }
 
     setBusy(true)
-    await exportLogsCsv(token, parametros(f, f.pageNumber))
+    await exportLogsCsv(token, params(f, f.pageNumber))
     setBusy(false)
   }
 
   function saveEntriesPerPage(value: string) {
     set({ entriesPerPage: value })
     try {
-      localStorage.setItem(CLAVE_ENTRIES_PER_PAGE, value)
+      localStorage.setItem(ENTRIES_PER_PAGE_KEY, value)
     } catch {
       /* Without localStorage it is not remembered; the filter still works. */
     }
@@ -384,32 +384,32 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     <div className={styles.wrap}>
       <SectionHeader
         section="Logs"
-        titulo="Query Logs"
-        etiquetas={f.appName !== '' ? <Tag>app: {f.appName}</Tag> : undefined}
+        title="Query Logs"
+        labels={f.appName !== '' ? <Tag>app: {f.appName}</Tag> : undefined}
         actions={<>
           <label className={styles.check}>
             <input
               type="checkbox"
               checked={live}
-              onChange={(e) => alternarLive(e.target.checked)}
+              onChange={(e) => toggleLive(e.target.checked)}
             />
             <span>Live Update</span>
           </label>
           <Button
             variant="primary"
             disabled={busy || live}
-            onClick={() => void consultar(f.pageNumber, false)}
+            onClick={() => void query(f.pageNumber, false)}
           >
             Query
           </Button>
-          <Button disabled={busy} onClick={() => void exportar()}>
+          <Button disabled={busy} onClick={() => void runExport()}>
             Export
           </Button>
           <Button onClick={reiniciar}>Reset</Button>
         </>}
       />
 
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.fs}>
         <h3 className={styles.fsTitle}>Filters</h3>
@@ -618,10 +618,10 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
             <span>{textoEstado(page)}</span>
             {/* logs.js:589 — "Last" is asked for with -1; the server resolves it. */}
             <Pagination
-              ventana={ventanaDePaginas(page.pageNumber, page.totalPages)}
+              ventana={pageWindow(page.pageNumber, page.totalPages)}
               current={page.pageNumber}
               last={-1}
-              onIr={(n) => void consultar(String(n), false)}
+              onIr={(n) => void query(String(n), false)}
             />
           </div>
 
@@ -642,7 +642,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
             }
           >
             {page.entries.map((e) => (
-              <tr key={e.rowNumber} className={claseFila(e)}>
+              <tr key={e.rowNumber} className={rowClass(e)}>
                 <td className={styles.mono}>{e.rowNumber}</td>
                 <td className={`${styles.mono} ${styles.nowrap}`}>{fechaHora(e.timestamp)}</td>
                 <td className={`${styles.mono} ${styles.romper}`}>{e.clientIpAddress}</td>

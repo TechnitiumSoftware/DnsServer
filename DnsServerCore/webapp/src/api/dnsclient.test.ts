@@ -27,7 +27,7 @@ describe('dnsClient', () => {
     await resolve('t', { server: 's', domain: 'd', type: 'A', protocol: 'UDP', dnssec: false })
     expect(spy.mock.calls[0][1]?.body?.import).toBeUndefined()
     spy.mockClear()
-    await resolve('t', { server: 's', domain: 'd', type: 'A', protocol: 'UDP', dnssec: false, importar: true })
+    await resolve('t', { server: 's', domain: 'd', type: 'A', protocol: 'UDP', dnssec: false, runImport: true })
     expect(spy.mock.calls[0][1]?.body?.import).toBe('true')
   })
 })

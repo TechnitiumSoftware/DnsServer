@@ -36,7 +36,7 @@ decoration.
 .toprow .n { color:var(--ink); font-family:var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .toprow .c { color:var(--mute); font-family:var(--font-mono); flex:none; }
 /* "Top Stats" modal: the long list behind the "More" buttons. */
-.topTablaWrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
+.topTableWrap { overflow-x: auto; max-height: 460px; overflow-y: auto; }
 /*
 The "More" dialog's table is the console's table, with one difference that does
 have a reason: the header stays stuck to the top because the list can have three
@@ -46,16 +46,16 @@ It used to be a table apart —header at `--t-2` and over `--pan` instead of
 `--pan2`— and that is why the same datum looked different in the Dashboard's
 panel and in the dialog that expands it.
 */
-.topTabla { composes: table from '../../ui/Table.module.css'; }
-.topTabla thead th { position: sticky; top: 0; }
-.topTabla td { vertical-align: top; }
+.topTable { composes: table from '../../ui/Table.module.css'; }
+.topTable thead th { position: sticky; top: 0; }
+.topTable td { vertical-align: top; }
 /*
 The footer's "Total Domains: N" is the same count any other table in the console
 carries (`ui/recuento.module.css`), even though here it travels in a `tfoot`
 instead of in a `div`: it was at 11.5 px and weight 550 when on the other nine
 screens it is at 12.5 and normal weight.
 */
-.topTabla tfoot th {
+.topTable tfoot th {
   padding: var(--s-6) var(--s-7);
   text-align: left;
   font-size: var(--t-4);
@@ -68,7 +68,7 @@ screens it is at 12.5 and normal weight.
 /* Upstream draws the whole row in orange when the client is rate limited. */
 .limited td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
-.topDominio { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
+.topDomain { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
 .topConteo { composes: mono from '../../ui/texto.module.css'; }
 
 /* The right rail was a fixed `310px`: at 1024 px it squeezed the chart down to

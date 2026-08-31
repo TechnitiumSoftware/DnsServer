@@ -23,7 +23,7 @@ own up to 24 px without touching the text's rhythm —the padding goes inside th
 line they already occupied.
 */
 .prose h4 a,
-.prose .destino { display:inline-block; padding: var(--s-4) 0; }
+.prose .target { display:inline-block; padding: var(--s-4) 0; }
 .kv { composes: kv from '../../ui/kv.module.css'; }
 
 @media (max-width: 900px) {

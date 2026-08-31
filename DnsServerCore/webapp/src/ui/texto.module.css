@@ -37,7 +37,7 @@ either of those; they came out of typing the same thing six times.
 The inline `<code>`. It goes as a `composes` on the block of text containing it,
 not on the `<code>`, because what writes it is the prose: `{'…'} <code>x</code>`.
 */
-.conCodigo code,
+.withCode code,
 .parrafo code,
 .ayudaPanel code {
   font-family: var(--font-mono);

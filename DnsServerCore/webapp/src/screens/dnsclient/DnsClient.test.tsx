@@ -27,10 +27,10 @@ describe('DNS Client', () => {
     render(<DnsClient token="t" />)
     await userEvent.type(screen.getByLabelText('Domain'), 'casa.test')
     await userEvent.click(screen.getByRole('button', { name: 'Resolve' }))
-    expect(spy.mock.calls[0][1].importar).toBeFalsy()
+    expect(spy.mock.calls[0][1].runImport).toBeFalsy()
     spy.mockClear()
     await userEvent.click(screen.getByRole('button', { name: 'Import' }))
-    expect(spy.mock.calls[0][1].importar).toBe(true)
+    expect(spy.mock.calls[0][1].runImport).toBe(true)
   })
 
   it('on importing it confirms with the literal text', async () => {

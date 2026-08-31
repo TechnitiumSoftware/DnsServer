@@ -14,7 +14,7 @@ and navigating is handing the server the string you can see.
 */
 
 /** Every ancestor of the domain, from the root down and not including it. */
-export function antepasados(domain: string): string[] {
+export function ancestors(domain: string): string[] {
   const salida: string[] = []
   let d = domain
   for (;;) {
@@ -38,8 +38,8 @@ export function Tree({
   /** `arriba` marks the navigation as upstream's [up] link. */
   onNavegar: (domain: string, up?: boolean) => void
 }) {
-  const string = antepasados(domain)
-  const enRaiz = domain === ''
+  const string = ancestors(domain)
+  const atRoot = domain === ''
 
   // Each ancestor nests one level more; the children hang off the current node.
   let tree = (
@@ -47,18 +47,18 @@ export function Tree({
       {zones.map((z) => (
         <button key={z} type="button" className={styles.node} onClick={() => onNavegar(z)}>
           <span className={styles.car}><Icon name="chevronRight" tam={12} /></span>
-          <span className={styles.etiqueta}>{z}</span>
+          <span className={styles.label}>{z}</span>
         </button>
       ))}
     </div>
   )
 
-  if (!enRaiz) {
+  if (!atRoot) {
     tree = (
       <div className={styles.lvl}>
         <button type="button" className={styles.node} aria-current="true" disabled>
           <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
-          <span className={styles.etiqueta}>{domainIdn ?? domain}</span>
+          <span className={styles.label}>{domainIdn ?? domain}</span>
         </button>
         {tree}
       </div>
@@ -74,7 +74,7 @@ export function Tree({
             onClick={() => onNavegar(padre, true)}
           >
             <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
-            <span className={styles.etiqueta}>{padre}</span>
+            <span className={styles.label}>{padre}</span>
           </button>
           {inside}
         </div>
@@ -87,12 +87,12 @@ export function Tree({
       <button
         type="button"
         className={styles.node}
-        aria-current={enRaiz ? 'true' : undefined}
-        onClick={enRaiz ? undefined : () => onNavegar('', true)}
-        disabled={enRaiz}
+        aria-current={atRoot ? 'true' : undefined}
+        onClick={atRoot ? undefined : () => onNavegar('', true)}
+        disabled={atRoot}
       >
         <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
-        <span className={styles.etiqueta}>&lt;ROOT&gt;</span>
+        <span className={styles.label}>&lt;ROOT&gt;</span>
       </button>
       {tree}
     </div>

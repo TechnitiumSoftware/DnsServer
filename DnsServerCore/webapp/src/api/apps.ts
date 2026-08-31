@@ -67,7 +67,7 @@ export interface StoreApp {
 The capability labels of each of the app's classes, in the exact order of
 `getAppRowHtml` (apps.js:80-104). If there is none, upstream puts "Generic".
 */
-export function etiquetasDnsApp(d: DnsAppDetail): string[] {
+export function dnsAppLabels(d: DnsAppDetail): string[] {
   const labels: string[] = []
   if (d.isAppRecordRequestHandler) labels.push('APP Record')
   if (d.isRequestController) labels.push('Access Control')

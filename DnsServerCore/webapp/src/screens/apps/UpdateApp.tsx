@@ -72,7 +72,7 @@ export function UpdateApp({
         </>
       }
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
       <LabeledInput label="App Name" value={name} disabled readOnly />
       <LabeledInput label="App Zip File" type="file" ref={fileRef} />
     </Dialog>

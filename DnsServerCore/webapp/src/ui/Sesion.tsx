@@ -22,8 +22,8 @@ A type that is not recognised comes out as "Unknown" in amber, which is what
 upstream does with its `default`: staying silent would be worse than saying it is
 not known.
 */
-export function CeldaSesion({ session }: { session: Pick<Session, 'partialToken' | 'tokenName' | 'isCurrentSession' | 'type'> }) {
-  const etiqueta =
+export function SessionCell({ session }: { session: Pick<Session, 'partialToken' | 'tokenName' | 'isCurrentSession' | 'type'> }) {
+  const label =
     session.type === 'Standard' ? (
       <Tag>Standard</Tag>
     ) : session.type === 'ApiToken' ? (
@@ -39,13 +39,13 @@ export function CeldaSesion({ session }: { session: Pick<Session, 'partialToken'
       {session.tokenName != null && <div>{session.tokenName}</div>}
       <div className={text.mono}>{`[${session.partialToken}]`}</div>
       {session.isCurrentSession && <div>(current)</div>}
-      <div className={styles.etiqueta}>{etiqueta}</div>
+      <div className={styles.label}>{label}</div>
     </>
   )
 }
 
 /** The "Last Seen" cell: the date, and beneath it how long ago. */
-export function CeldaUltimaVez({ date, hace }: { date: string; hace: string }) {
+export function LastSeenCell({ date, hace }: { date: string; hace: string }) {
   return (
     <>
       <div className={text.mono}>{date}</div>
@@ -55,6 +55,6 @@ export function CeldaUltimaVez({ date, hace }: { date: string; hace: string }) {
 }
 
 /** La celda «User Agent». */
-export function CeldaAgente({ children }: { children: string }) {
+export function AgentCell({ children }: { children: string }) {
   return <span className={styles.agente}>{children}</span>
 }

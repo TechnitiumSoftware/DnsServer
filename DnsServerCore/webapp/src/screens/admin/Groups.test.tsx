@@ -10,12 +10,12 @@ afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-function servidor(groups = GROUPS, detalle?: Record<string, unknown>) {
+function servidor(groups = GROUPS, detail?: Record<string, unknown>) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'admin/groups/list') return ok({ response: { groups: groups }, server: 'x' })
     if (path === 'admin/groups/get') {
       return ok({
-        response: detalle ?? {
+        response: detail ?? {
           name: 'Administrators',
           description: 'Super administrators',
           members: ['admin'],
@@ -34,7 +34,7 @@ function servidor(groups = GROUPS, detalle?: Record<string, unknown>) {
   })
 }
 
-const props = { token: 'tok', onAviso: vi.fn() }
+const props = { token: 'tok', onNotice: vi.fn() }
 
 describe('Groups — the table', () => {
   it('it draws name, description and the total', async () => {
@@ -58,11 +58,11 @@ describe('Groups — the table', () => {
   })
 
   it('if the server fails it alerts with its message', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
-    render(<Groups {...props} onAviso={onAviso} />)
+    render(<Groups {...props} onNotice={onNotice} />)
     expect(await screen.findByText('Total Groups: 0')).toBeInTheDocument()
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'danger',
       title: 'Error!',
       text: 'Access was denied.',
@@ -84,9 +84,9 @@ describe('Groups — "Add Group"', () => {
 
   it('it creates the group with its description and puts it first in the list', async () => {
     const spy = servidor()
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Groups {...props} onAviso={onAviso} />)
+    render(<Groups {...props} onNotice={onNotice} />)
 
     await user.click(await screen.findByRole('button', { name: 'Add Group' }))
     await user.type(screen.getByLabelText('Name'), 'Ops')
@@ -98,7 +98,7 @@ describe('Groups — "Add Group"', () => {
       body: { group: 'Ops', description: 'los de guardia' },
     })
     expect(screen.getByText('Total Groups: 4')).toBeInTheDocument()
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Group Added!',
       text: 'Group was added successfully.',
@@ -109,9 +109,9 @@ describe('Groups — "Add Group"', () => {
 describe('Groups — the details modal', () => {
   it('it saves cleaned members and WITHOUT `newGroup` if the name did not change', async () => {
     const spy = servidor()
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Groups {...props} onAviso={onAviso} />)
+    render(<Groups {...props} onNotice={onNotice} />)
 
     await user.click((await screen.findAllByRole('button', { name: 'View Details' }))[0])
     await screen.findByLabelText('Members')
@@ -121,7 +121,7 @@ describe('Groups — the details modal', () => {
       token: 'tok',
       body: { group: 'Administrators', description: 'Super administrators', members: 'admin' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Group Saved!',
       text: 'Group details were saved successfully.',
@@ -161,9 +161,9 @@ describe('Groups — the details modal', () => {
 
   it('deleting asks for confirmation with the name and takes the row out', async () => {
     const spy = servidor()
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Groups {...props} onAviso={onAviso} />)
+    render(<Groups {...props} onNotice={onNotice} />)
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     await user.click(await screen.findByRole('button', { name: 'Delete Group' }))
@@ -177,7 +177,7 @@ describe('Groups — the details modal', () => {
       body: { group: 'Administrators' },
     })
     expect(screen.getByText('Total Groups: 2')).toBeInTheDocument()
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Group Deleted!',
       text: 'Group was deleted successfully.',

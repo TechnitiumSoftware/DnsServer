@@ -12,7 +12,7 @@
 
 /* Count and pagination */
 /* The count is `ui/recuento.module.css`'s: see there for why. */
-.count { composes: barra encima from '../../ui/recuento.module.css'; }
+.count { composes: barra above from '../../ui/recuento.module.css'; }
 .countPie { margin-top: var(--gap-group); margin-bottom: 0; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 
@@ -21,8 +21,8 @@
 
 /* A zone's name is a domain: that part does belong here, and it goes on the cell
    so the button inherits it. */
-.celdaZona { font-family: var(--font-mono); }
-.enlaceZona { composes: entidadEnlace from '../../ui/Table.module.css'; }
+.zoneCell { font-family: var(--font-mono); }
+.zoneLink { composes: entityLink from '../../ui/Table.module.css'; }
 
 .ttl { composes: ttl from '../../ui/registro.module.css'; }
 
@@ -39,8 +39,8 @@
 
 /* Formularios de modal */
 .fields { display:flex; flex-direction:column; gap: var(--s-8); }
-.enLinea { composes: enLinea from '../../ui/Ajustes.module.css'; }
-.sufijo { composes: coletilla from '../../ui/texto.module.css'; }
+.inline { composes: inline from '../../ui/Ajustes.module.css'; }
+.suffix { composes: coletilla from '../../ui/texto.module.css'; }
 /* The same row as `ui/Check.module.css`, which is where the minimum height
    lives: without it, the radios of "Add Zone", "Import" and "Convert" were 19 px. */
 .chk { composes: check from '../../ui/Check.module.css'; }
@@ -48,7 +48,7 @@
    and same line height. With `--faint` it read at 4.64:1 and the others at 5.90:1. */
 .help { font-size: var(--t-3); color:var(--mute); line-height:1.55; }
 .group { border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-8); display:flex; flex-direction:column; gap: var(--s-7); }
-.grupoTit { font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight: 600; }
+.groupTitle { font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight: 600; }
 .short { width:110px; }
 .medio { width:190px; }
 .area { min-height:110px; resize:vertical; }

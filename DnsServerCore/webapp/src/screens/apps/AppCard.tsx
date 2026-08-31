@@ -1,4 +1,4 @@
-import { etiquetasDnsApp, type InstalledApp } from '../../api/apps'
+import { dnsAppLabels, type InstalledApp } from '../../api/apps'
 import { Button } from '../../ui/Button'
 import { Details } from '../../ui/Detalles'
 import { Chip } from '../../ui/Tag'
@@ -54,7 +54,7 @@ export function AppCard({
             <div key={d.classPath} className={styles.clase}>
               <div className={styles.clasePath}>{d.classPath}</div>
               <div className={styles.caps}>
-                {etiquetasDnsApp(d).map((l) => (
+                {dnsAppLabels(d).map((l) => (
                   <Chip key={l}>{l}</Chip>
                 ))}
               </div>

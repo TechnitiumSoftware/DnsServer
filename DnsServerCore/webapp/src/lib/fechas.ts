@@ -74,7 +74,7 @@ function comoMeses(dias: number): number {
 
 /** `moment(x).fromNow()` with the `en` locale. `ahora` is injected so it can be
  *  tested without depending on the clock. */
-export function desdeAhora(iso: string | null | undefined, ahora: number = Date.now()): string {
+export function fromNow(iso: string | null | undefined, ahora: number = Date.now()): string {
   if (iso == null) return ''
   const d = parts(iso)
   if (d == null) return ''
@@ -109,5 +109,5 @@ export function desdeAhora(iso: string | null | undefined, ahora: number = Date.
 
 /** `date (time ago)`, which is how upstream composes the ones carrying both. */
 export function fechaConAntiguedad(iso: string, ahora?: number): string {
-  return `${fechaHora(iso)} (${desdeAhora(iso, ahora)})`
+  return `${fechaHora(iso)} (${fromNow(iso, ahora)})`
 }

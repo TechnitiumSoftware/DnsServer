@@ -11,7 +11,7 @@ import {
   type SectionPermission,
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
-import { addToTable, OPCION_BLANK, OPCION_NONE, serializeTable, type Cell } from './tabla'
+import { addToTable, BLANK_OPTION, NONE_OPTION, serializeTable, type Cell } from './tabla'
 import { noticeFromFailure, MRow, adminStyles as styles, type Notice } from './partes'
 import { Th, useOrden, type Keys } from '../../ui/Table'
 import { Select } from '../../ui/Select'
@@ -39,10 +39,10 @@ Three things that govern this screen:
 interface Props {
   token: string | null
   cluster: ClusterState | null
-  onAviso: (a: Notice) => void
+  onNotice: (a: Notice) => void
 }
 
-export function Permissions({ token, cluster, onAviso }: Props) {
+export function Permissions({ token, cluster, onNotice }: Props) {
   const [secciones, setSecciones] = useState<SectionPermission[]>([])
   const [loading, setLoading] = useState(true)
   const [editar, setEditar] = useState<string | null>(null)
@@ -54,11 +54,11 @@ export function Permissions({ token, cluster, onAviso }: Props) {
 
     if (outcome.kind !== 'ok') {
       setSecciones([])
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
     setSecciones(outcome.data.response.permissions)
-  }, [token, onAviso])
+  }, [token, onNotice])
 
   useEffect(() => {
     void load()
@@ -68,7 +68,7 @@ export function Permissions({ token, cluster, onAviso }: Props) {
     <>
       <SectionHeader
         section="Administration"
-        titulo="Permissions"
+        title="Permissions"
       />
 
       {loading ? (
@@ -82,7 +82,7 @@ export function Permissions({ token, cluster, onAviso }: Props) {
             <Panel
               key={s.section}
               className={styles.perm}
-              titulo={s.section}
+              title={s.section}
               actions={
                 <Button size="sm" onClick={() => setEditar(s.section)}>
                   Edit Permissions
@@ -108,9 +108,9 @@ export function Permissions({ token, cluster, onAviso }: Props) {
                     s.userPermissions.map((p) => (
                       <div className={styles.prow} key={p.username}>
                         <span className={styles.who}>{p.username}</span>
-                        <Brand active={p.canView} etiqueta={`${s.section} ${p.username} View`} />
-                        <Brand active={p.canModify} etiqueta={`${s.section} ${p.username} Modify`} />
-                        <Brand active={p.canDelete} etiqueta={`${s.section} ${p.username} Delete`} />
+                        <Brand active={p.canView} label={`${s.section} ${p.username} View`} />
+                        <Brand active={p.canModify} label={`${s.section} ${p.username} Modify`} />
+                        <Brand active={p.canDelete} label={`${s.section} ${p.username} Delete`} />
                       </div>
                     ))
                   )}
@@ -134,9 +134,9 @@ export function Permissions({ token, cluster, onAviso }: Props) {
                     s.groupPermissions.map((p) => (
                       <div className={styles.prow} key={p.name}>
                         <span className={styles.who}>{p.name}</span>
-                        <Brand active={p.canView} etiqueta={`${s.section} ${p.name} View`} />
-                        <Brand active={p.canModify} etiqueta={`${s.section} ${p.name} Modify`} />
-                        <Brand active={p.canDelete} etiqueta={`${s.section} ${p.name} Delete`} />
+                        <Brand active={p.canView} label={`${s.section} ${p.name} View`} />
+                        <Brand active={p.canModify} label={`${s.section} ${p.name} Modify`} />
+                        <Brand active={p.canDelete} label={`${s.section} ${p.name} Delete`} />
                       </div>
                     ))
                   )}
@@ -151,14 +151,14 @@ export function Permissions({ token, cluster, onAviso }: Props) {
       )}
 
       {editar != null && (
-        <EditarPermisos
+        <EditPermissions
           section={editar}
           token={token}
-          nodoPrimario={primaryNodeName(cluster)}
-          onCerrar={() => setEditar(null)}
+          primaryNode={primaryNodeName(cluster)}
+          onClose={() => setEditar(null)}
           onSaved={(p) => {
             setSecciones((list) => list.map((x) => (x.section === p.section ? p : x)))
-            onAviso({
+            onNotice({
               type: 'success',
               title: 'Permissions Saved!',
               text: 'Section permissions were saved successfully.',
@@ -170,12 +170,12 @@ export function Permissions({ token, cluster, onAviso }: Props) {
   )
 }
 
-function Brand({ active, etiqueta }: { active: boolean; etiqueta: string }) {
+function Brand({ active, label }: { active: boolean; label: string }) {
   return (
     <input
       type="checkbox"
       className={styles.pchk}
-      aria-label={etiqueta}
+      aria-label={label}
       checked={active}
       disabled
       readOnly
@@ -191,27 +191,27 @@ interface Row {
 }
 
 /** `showEditSectionPermissionsModal` / `saveSectionPermissions`. */
-function EditarPermisos({
+function EditPermissions({
   section,
   token,
-  nodoPrimario,
-  onCerrar,
+  primaryNode,
+  onClose,
   onSaved,
 }: {
   section: string
   token: string | null
-  nodoPrimario: string
-  onCerrar: () => void
+  primaryNode: string
+  onClose: () => void
   onSaved: (p: SectionPermission) => void
 }) {
   const [loading, setLoading] = useState(true)
-  const [users, setUsuarios] = useState<readonly Row[]>([])
-  const [groups, setGrupos] = useState<readonly Row[]>([])
-  const [listaUsuarios, setListaUsuarios] = useState<string[]>([])
-  const [listaGrupos, setListaGrupos] = useState<string[]>([])
-  const [addUser, setAddUser] = useState(OPCION_BLANK)
-  const [addGroup, setAddGroup] = useState(OPCION_BLANK)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [users, setUsers] = useState<readonly Row[]>([])
+  const [groups, setGroups] = useState<readonly Row[]>([])
+  const [userList, setUserList] = useState<string[]>([])
+  const [groupList, setGroupList] = useState<string[]>([])
+  const [addUser, setAddUser] = useState(BLANK_OPTION)
+  const [addGroup, setAddGroup] = useState(BLANK_OPTION)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
@@ -220,11 +220,11 @@ function EditarPermisos({
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     const d = outcome.data.response
-    setUsuarios(
+    setUsers(
       d.userPermissions.map((p) => ({
         name: p.username,
         canView: p.canView,
@@ -232,7 +232,7 @@ function EditarPermisos({
         canDelete: p.canDelete,
       })),
     )
-    setGrupos(
+    setGroups(
       d.groupPermissions.map((p) => ({
         name: p.name,
         canView: p.canView,
@@ -240,10 +240,10 @@ function EditarPermisos({
         canDelete: p.canDelete,
       })),
     )
-    setListaUsuarios(d.users ?? [])
-    setListaGrupos(d.groups ?? [])
-    setAddUser(OPCION_BLANK)
-    setAddGroup(OPCION_BLANK)
+    setUserList(d.users ?? [])
+    setGroupList(d.groups ?? [])
+    setAddUser(BLANK_OPTION)
+    setAddGroup(BLANK_OPTION)
   }, [token, section])
 
   useEffect(() => {
@@ -261,31 +261,31 @@ function EditarPermisos({
 
     const u = serializeTable(serie(users))
     if (!u.ok) {
-      setAviso({ type: 'warning', title: u.failure.title, text: u.failure.text })
+      setNotice({ type: 'warning', title: u.failure.title, text: u.failure.text })
       return
     }
     const g = serializeTable(serie(groups))
     if (!g.ok) {
-      setAviso({ type: 'warning', title: g.failure.title, text: g.failure.text })
+      setNotice({ type: 'warning', title: g.failure.title, text: g.failure.text })
       return
     }
 
     setBusy(true)
-    const outcome = await setPermissions(token, section, u.value, g.value, nodoPrimario)
+    const outcome = await setPermissions(token, section, u.value, g.value, primaryNode)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
     onSaved(outcome.data.response)
-    onCerrar()
+    onClose()
   }
 
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title={`Edit Permissions - ${section}`}
       /* The SAME dialog opened from a zone already went wide, and from here
          it went to 560: two widths for the same thing. It is not that it was
@@ -301,16 +301,16 @@ function EditarPermisos({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       {loading ? (
         <Loading />
       ) : (
         <>
-          <TablaPermisos
-            titulo="User Permissions"
+          <PermissionsTable
+            title="User Permissions"
             header="Username"
             rows={users}
-            onChange={setUsuarios}
+            onChange={setUsers}
           />
           <MRow label="Add User">
             {(id) => (
@@ -320,12 +320,12 @@ function EditarPermisos({
                 value={addUser}
                 onChange={(e) => {
                   setAddUser(e.target.value)
-                  setUsuarios((f) => addToTable(f, e.target.value, blankRow))
+                  setUsers((f) => addToTable(f, e.target.value, blankRow))
                 }}
               >
-                <option value={OPCION_BLANK} />
-                <option value={OPCION_NONE}>None</option>
-                {listaUsuarios.map((n) => (
+                <option value={BLANK_OPTION} />
+                <option value={NONE_OPTION}>None</option>
+                {userList.map((n) => (
                   <option key={n} value={n}>
                     {n}
                   </option>
@@ -334,11 +334,11 @@ function EditarPermisos({
             )}
           </MRow>
 
-          <TablaPermisos
-            titulo="Group Permissions"
+          <PermissionsTable
+            title="Group Permissions"
             header="Group"
             rows={groups}
-            onChange={setGrupos}
+            onChange={setGroups}
           />
           <MRow label="Add Group">
             {(id) => (
@@ -348,12 +348,12 @@ function EditarPermisos({
                 value={addGroup}
                 onChange={(e) => {
                   setAddGroup(e.target.value)
-                  setGrupos((f) => addToTable(f, e.target.value, blankRow))
+                  setGroups((f) => addToTable(f, e.target.value, blankRow))
                 }}
               >
-                <option value={OPCION_BLANK} />
-                <option value={OPCION_NONE}>None</option>
-                {listaGrupos.map((n) => (
+                <option value={BLANK_OPTION} />
+                <option value={NONE_OPTION}>None</option>
+                {groupList.map((n) => (
                   <option key={n} value={n}>
                     {n}
                   </option>
@@ -375,20 +375,20 @@ const blankRow = (name: string): Row => ({
 })
 
 /* `sortTable('tbodyEditPermissionsUser'|'Group', 0)`. */
-const CLAVES_PERMISO: Keys<Row> = { name: (f) => f.name }
+const PERMISSION_KEYS: Keys<Row> = { name: (f) => f.name }
 
-function TablaPermisos({
-  titulo,
+function PermissionsTable({
+  title,
   header,
   rows,
   onChange,
 }: {
-  titulo: string
+  title: string
   header: string
   rows: readonly Row[]
   onChange: (f: readonly Row[]) => void
 }) {
-  const { rows: visibles, sort, alternar } = useOrden(CLAVES_PERMISO, rows as Row[])
+  const { rows: visibles, sort, toggle } = useOrden(PERMISSION_KEYS, rows as Row[])
 
   // The checkbox writes over the ORIGINAL list: the sorting only changes the
   // order things are drawn in, not the data's.
@@ -398,7 +398,7 @@ function TablaPermisos({
 
   return (
     <>
-      <p className={styles.sub}>{titulo}</p>
+      <p className={styles.sub}>{title}</p>
       {/* The editable one does not carry the data table's panel wrapper: it is
           another piece (`ui/TablaEditable.module.css`) and lives INSIDE a panel. */}
       <div>
@@ -406,7 +406,7 @@ function TablaPermisos({
       className={styles.edit}
           header={
             <>
-              <Th field="nombre" sort={sort} onOrdenar={alternar}>{header}</Th>
+              <Th field="nombre" sort={sort} onSort={toggle}>{header}</Th>
               <th>View</th>
               <th>Modify</th>
               <th>Delete</th>

@@ -3,13 +3,13 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Allowed, Blocked, Cache } from './Listas'
 import * as api from '../../api/zonelists'
-import type { NodoLista, RegistroDns } from '../../api/zonelists'
+import type { ListNode, DnsRecord } from '../../api/zonelists'
 
 afterEach(() => vi.restoreAllMocks())
 
 const OK = { kind: 'ok' as const, data: { status: 'ok' } }
 
-const REG_CACHE: RegistroDns = {
+const REG_CACHE: DnsRecord = {
   name: 'example.com',
   type: 'A',
   ttl: '218 (3m38s)',
@@ -24,7 +24,7 @@ const REG_CACHE: RegistroDns = {
   lastUsedOn: '2026-08-25T19:58:26.0233416Z',
 }
 
-const REG_AUTH: RegistroDns = {
+const REG_AUTH: DnsRecord = {
   name: 'example.org',
   type: 'NS',
   ttl: 14400,
@@ -38,26 +38,26 @@ const REG_AUTH: RegistroDns = {
   expiryTtlString: '0s',
 }
 
-function node(p: Partial<NodoLista> = {}): NodoLista {
+function node(p: Partial<ListNode> = {}): ListNode {
   return { domain: '', zones: [], records: [], ...p }
 }
 
 /** Leaves `listarNodo` returning whatever node it is given, whichever list it is. */
-function conNodo(...nodes: NodoLista[]) {
-  const spy = vi.spyOn(api, 'listarNodo')
+function withNode(...nodes: ListNode[]) {
+  const spy = vi.spyOn(api, 'listNode')
   for (const n of nodes) spy.mockResolvedValueOnce({ kind: 'ok', data: n })
   spy.mockResolvedValue({ kind: 'ok', data: nodes[nodes.length - 1] ?? node() })
   return spy
 }
 
-async function confirm(etiqueta: string) {
+async function confirm(label: string) {
   const dialogo = await screen.findByRole('dialog')
-  await userEvent.click(within(dialogo).getByRole('button', { name: etiqueta }))
+  await userEvent.click(within(dialogo).getByRole('button', { name: label }))
 }
 
 describe('tree navigation', () => {
   it('it starts by asking for the root of its list', async () => {
-    const spy = conNodo(node({ zones: ['com'] }))
+    const spy = withNode(node({ zones: ['com'] }))
     render(<Cache token="t" />)
     await screen.findByText('com')
     const call = spy.mock.calls.find((c) => c[0] === 'cache')
@@ -65,7 +65,7 @@ describe('tree navigation', () => {
   })
 
   it('each section asks for its own endpoint', async () => {
-    const spy = conNodo(node())
+    const spy = withNode(node())
     render(<Blocked token="t" />)
     await screen.findByRole('heading', { name: 'Blocked' })
     expect(spy.mock.calls[0][0]).toBe('blocked')
@@ -74,7 +74,7 @@ describe('tree navigation', () => {
   /* The server walks down the chain on its own when the node has a single child
      and no records: the domain to draw is the one it RETURNS, not the one asked for. */
   it('it obeys the domain the server returns, not the one asked for', async () => {
-    conNodo(node(), node({ domain: 'example.org', zones: ['foo.example.org'], records: [REG_AUTH] }))
+    withNode(node(), node({ domain: 'example.org', zones: ['foo.example.org'], records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.type(await screen.findByLabelText('Domain'), 'org')
     await userEvent.click(screen.getByRole('button', { name: 'Browse' }))
@@ -83,7 +83,7 @@ describe('tree navigation', () => {
   })
 
   it('the Browse field navigates to the typed domain', async () => {
-    const spy = conNodo(node(), node({ domain: 'casa.test' }))
+    const spy = withNode(node(), node({ domain: 'casa.test' }))
     render(<Cache token="t" />)
     await userEvent.type(await screen.findByLabelText('Domain'), 'casa.test')
     await userEvent.click(screen.getByRole('button', { name: 'Browse' }))
@@ -91,7 +91,7 @@ describe('tree navigation', () => {
   })
 
   it('going up to the parent from the tree sends direction=up, like the [up] link', async () => {
-    const spy = conNodo(node({ domain: 'a.casa.test', records: [REG_AUTH] }))
+    const spy = withNode(node({ domain: 'a.casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'casa.test' }))
     const subida = spy.mock.calls.find((c) => c[2] === 'casa.test')
@@ -99,7 +99,7 @@ describe('tree navigation', () => {
   })
 
   it('it shows the error message from the server if the listing fails', async () => {
-    vi.spyOn(api, 'listarNodo').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
+    vi.spyOn(api, 'listNode').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
     render(<Cache token="t" />)
     expect(await screen.findByText('Access was denied.')).toBeInTheDocument()
   })
@@ -107,21 +107,21 @@ describe('tree navigation', () => {
 
 describe('records table', () => {
   it('it draws each rData field instead of a JSON dump', async () => {
-    conNodo(node({ domain: 'example.com', records: [REG_CACHE] }))
+    withNode(node({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     expect(await screen.findByText('IP Address')).toBeInTheDocument()
     expect(screen.getByText('172.66.147.243')).toBeInTheDocument()
   })
 
   it('it splits the TTL into a number and a human form', async () => {
-    conNodo(node({ domain: 'example.com', records: [REG_CACHE] }))
+    withNode(node({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     expect(await screen.findByText('218')).toBeInTheDocument()
     expect(screen.getByText('(3m38s)')).toBeInTheDocument()
   })
 
   it('it keeps the response metadata on the grey line', async () => {
-    conNodo(node({ domain: 'example.com', records: [REG_CACHE] }))
+    withNode(node({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     const meta = await screen.findByText(/via 8\.8\.8\.8/)
     expect(meta).toHaveTextContent('179 bytes')
@@ -130,12 +130,12 @@ describe('records table', () => {
   })
 
   it('the DNSSEC column belongs to Cache only', async () => {
-    conNodo(node({ domain: 'example.com', records: [REG_CACHE] }))
+    withNode(node({ domain: 'example.com', records: [REG_CACHE] }))
     const { unmount } = render(<Cache token="t" />)
     expect(await screen.findByRole('columnheader', { name: 'DNSSEC' })).toBeInTheDocument()
     unmount()
 
-    conNodo(node({ domain: 'example.org', records: [REG_AUTH] }))
+    withNode(node({ domain: 'example.org', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await screen.findByText('Name Server')
     expect(screen.queryByRole('columnheader', { name: 'DNSSEC' })).not.toBeInTheDocument()
@@ -144,7 +144,7 @@ describe('records table', () => {
   })
 
   it('it explains the empty node instead of leaving a bare []', async () => {
-    conNodo(node({ zones: ['com', 'net'] }))
+    withNode(node({ zones: ['com', 'net'] }))
     render(<Blocked token="t" />)
     expect(await screen.findByText('No records at this node')).toBeInTheDocument()
   })
@@ -152,7 +152,7 @@ describe('records table', () => {
 
 describe('Cache', () => {
   it('Flush Cache confirms with the literal text of upstream', async () => {
-    conNodo(node())
+    withNode(node())
     render(<Cache token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Flush Cache' }))
     expect(
@@ -161,8 +161,8 @@ describe('Cache', () => {
   })
 
   it('flushing the cache alerts with the literal text and returns to the root', async () => {
-    const spy = vi.spyOn(api, 'vaciarCache').mockResolvedValue(OK)
-    const list = conNodo(node({ domain: 'casa.test', records: [REG_CACHE] }))
+    const spy = vi.spyOn(api, 'flushCache').mockResolvedValue(OK)
+    const list = withNode(node({ domain: 'casa.test', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Flush Cache' }))
     await confirm('Flush Cache')
@@ -176,20 +176,20 @@ describe('Cache', () => {
   /* In cache the Delete button depends on the NODE, not on it having records
      (other-zones.js:143-152). In allowed and blocked it is the other way round. */
   it('Delete is absent at <ROOT> and present on a node, even one with no records', async () => {
-    conNodo(node({ zones: ['com'] }))
+    withNode(node({ zones: ['com'] }))
     const { unmount } = render(<Cache token="t" />)
     await screen.findByText('com')
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
     unmount()
 
-    conNodo(node({ domain: 'casa.test', zones: ['a.casa.test'], records: [] }))
+    withNode(node({ domain: 'casa.test', zones: ['a.casa.test'], records: [] }))
     render(<Cache token="t" />)
     expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
   it('deleting a node confirms and alerts with the literal texts', async () => {
     const spy = vi.spyOn(api, 'deleteCacheNode').mockResolvedValue(OK)
-    conNodo(node({ domain: 'casa.test', records: [REG_CACHE] }))
+    withNode(node({ domain: 'casa.test', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     expect(
@@ -207,7 +207,7 @@ describe('Cache', () => {
 
 describe('Allowed', () => {
   it('it requires the domain with the literal text of upstream', async () => {
-    conNodo(node())
+    withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Allow' }))
     expect(await screen.findByText('Please enter a domain name to allow.')).toBeInTheDocument()
@@ -215,7 +215,7 @@ describe('Allowed', () => {
 
   it('it adds the domain, alerts with the literal text and empties the field', async () => {
     const spy = vi.spyOn(api, 'addDomain').mockResolvedValue(OK)
-    conNodo(node())
+    withNode(node())
     render(<Allowed token="t" />)
     const field = await screen.findByLabelText('Domain')
     await userEvent.type(field, 'casa.test')
@@ -230,20 +230,20 @@ describe('Allowed', () => {
 
   /* Delete here depends on the node HAVING records (other-zones.js:319-327). */
   it('Delete only appears when the node has records', async () => {
-    conNodo(node({ domain: 'casa.test', zones: ['a.casa.test'], records: [] }))
+    withNode(node({ domain: 'casa.test', zones: ['a.casa.test'], records: [] }))
     const { unmount } = render(<Allowed token="t" />)
     await screen.findByText('a.casa.test')
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
     unmount()
 
-    conNodo(node({ domain: 'casa.test', records: [REG_AUTH] }))
+    withNode(node({ domain: 'casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
   it('deleting alerts with \"deleted from Allowed Zone\", which is not the Blocked text', async () => {
     vi.spyOn(api, 'deleteDomain').mockResolvedValue(OK)
-    conNodo(node({ domain: 'casa.test', records: [REG_AUTH] }))
+    withNode(node({ domain: 'casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     expect(
@@ -256,8 +256,8 @@ describe('Allowed', () => {
   })
 
   it('Flush confirms and alerts with the literal texts', async () => {
-    const spy = vi.spyOn(api, 'vaciarLista').mockResolvedValue(OK)
-    conNodo(node())
+    const spy = vi.spyOn(api, 'flushList').mockResolvedValue(OK)
+    withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Flush' }))
     expect(
@@ -269,8 +269,8 @@ describe('Allowed', () => {
   })
 
   it('Export goes through the single-use token and alerts', async () => {
-    const spy = vi.spyOn(api, 'exportarDominios').mockResolvedValue({ ok: true })
-    conNodo(node())
+    const spy = vi.spyOn(api, 'exportDomains').mockResolvedValue({ ok: true })
+    withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Export' }))
     expect(spy.mock.calls[0][0]).toBe('allowed')
@@ -278,7 +278,7 @@ describe('Allowed', () => {
   })
 
   it('Import requires content with the literal text, inside the modal itself', async () => {
-    conNodo(node())
+    withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
     const dialogo = await screen.findByRole('dialog')
@@ -289,8 +289,8 @@ describe('Allowed', () => {
   })
 
   it('Import sends the cleaned list and alerts with the literal text', async () => {
-    const spy = vi.spyOn(api, 'importarDominios').mockResolvedValue(OK)
-    conNodo(node())
+    const spy = vi.spyOn(api, 'importDomains').mockResolvedValue(OK)
+    withNode(node())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
     const dialogo = await screen.findByRole('dialog')
@@ -305,7 +305,7 @@ describe('Allowed', () => {
 
 describe('Blocked', () => {
   it('it requires the domain with its own literal text', async () => {
-    conNodo(node())
+    withNode(node())
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Block' }))
     expect(await screen.findByText('Please enter a domain name to block.')).toBeInTheDocument()
@@ -313,7 +313,7 @@ describe('Blocked', () => {
 
   it('it alerts with \"added to Blocked Zone\"', async () => {
     vi.spyOn(api, 'addDomain').mockResolvedValue(OK)
-    conNodo(node())
+    withNode(node())
     render(<Blocked token="t" />)
     await userEvent.type(await screen.findByLabelText('Domain'), 'ads.test')
     await userEvent.click(screen.getByRole('button', { name: 'Block' }))
@@ -327,7 +327,7 @@ describe('Blocked', () => {
      successfully.". They are two different sentences and both are contract. */
   it('deleting alerts with \"Blocked zone ... was deleted successfully\"', async () => {
     vi.spyOn(api, 'deleteDomain').mockResolvedValue(OK)
-    conNodo(node({ domain: 'ads.test', records: [REG_AUTH] }))
+    withNode(node({ domain: 'ads.test', records: [REG_AUTH] }))
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     expect(
@@ -340,8 +340,8 @@ describe('Blocked', () => {
   })
 
   it('Flush and Import use the Blocked texts, not the Allowed ones', async () => {
-    vi.spyOn(api, 'vaciarLista').mockResolvedValue(OK)
-    conNodo(node())
+    vi.spyOn(api, 'flushList').mockResolvedValue(OK)
+    withNode(node())
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Flush' }))
     expect(
@@ -352,8 +352,8 @@ describe('Blocked', () => {
   })
 
   it('the Import modal is the Blocked one', async () => {
-    vi.spyOn(api, 'importarDominios').mockResolvedValue(OK)
-    conNodo(node())
+    vi.spyOn(api, 'importDomains').mockResolvedValue(OK)
+    withNode(node())
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
     const dialogo = await screen.findByRole('dialog')

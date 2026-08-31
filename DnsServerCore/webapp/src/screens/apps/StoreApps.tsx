@@ -37,7 +37,7 @@ export function StoreApps({
   const [storeApps, setStoreApps] = useState<StoreApp[] | null>(null)
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const [porDesinstalar, setPorDesinstalar] = useState<StoreApp | null>(null)
+  const [pendingUninstall, setPorDesinstalar] = useState<StoreApp | null>(null)
 
   const load = useCallback(async () => {
     const outcome = await listStoreApps(token)
@@ -101,7 +101,7 @@ export function StoreApps({
   another. Before it was the browser's native `confirm()`, the only step of this
   console that still opened the operating system's dialog.
   */
-  function desinstalar(app: StoreApp) {
+  function uninstall(app: StoreApp) {
     return tras(
       app,
       {
@@ -120,15 +120,15 @@ export function StoreApps({
       size="medium"
       title="DNS App Store"
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
 
       <Confirm
-        open={porDesinstalar !== null}
-        titulo="Uninstall App"
-        text={`Are you sure you want to uninstall the DNS application '${porDesinstalar?.name ?? ''}'?`}
-        etiqueta="Uninstall"
-        onCerrar={() => setPorDesinstalar(null)}
-        onConfirmar={() => porDesinstalar && desinstalar(porDesinstalar)}
+        open={pendingUninstall !== null}
+        title="Uninstall App"
+        text={`Are you sure you want to uninstall the DNS application '${pendingUninstall?.name ?? ''}'?`}
+        label="Uninstall"
+        onClose={() => setPorDesinstalar(null)}
+        onConfirm={() => pendingUninstall && uninstall(pendingUninstall)}
       />
 
       {storeApps === null ? (

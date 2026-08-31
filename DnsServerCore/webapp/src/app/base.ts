@@ -19,8 +19,8 @@ function calcular(): string {
 
   const sobra = route.split('/').length
   const parts = camino.split('/').filter(Boolean)
-  const prefijo = parts.slice(0, Math.max(0, parts.length - sobra))
-  return prefijo.length === 0 ? '/' : `/${prefijo.join('/')}/`
+  const prefix = parts.slice(0, Math.max(0, parts.length - sobra))
+  return prefix.length === 0 ? '/' : `/${prefix.join('/')}/`
 }
 
 /*

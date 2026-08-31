@@ -28,31 +28,31 @@ export interface Filter {
 export function compilarFiltroDeNombre(
   filterName: string,
   zone: string,
-): { dominio: string | null; regex: RegExp | null } {
-  if (filterName === '') return { dominio: null, regex: null }
+): { domain: string | null; regex: RegExp | null } {
+  if (filterName === '') return { domain: null, regex: null }
 
-  let dominio = filterName.toLowerCase()
+  let domain = filterName.toLowerCase()
 
   if (zone === '.') {
-    if (dominio === '@') dominio = ''
-  } else if (dominio === '@') {
-    dominio = zone
+    if (domain === '@') domain = ''
+  } else if (domain === '@') {
+    domain = zone
   } else {
-    dominio += `.${zone}`
+    domain += `.${zone}`
   }
 
   if (filterName.indexOf('*') === -1 && filterName.indexOf('?') === -1) {
-    return { dominio, regex: null }
+    return { domain, regex: null }
   }
 
-  let patron = dominio.replace(/\./g, '\\.')
+  let patron = domain.replace(/\./g, '\\.')
   patron = patron.replace(/\*/g, '.*')
   patron = patron.replace(/\?/g, '.')
 
   // See rule 3 of the header: `.*\.` at the start is a literal asterisk.
   if (patron.startsWith('.*\\.')) patron = `\\*${patron.substring(2)}`
 
-  return { dominio, regex: new RegExp(`^${patron}$`) }
+  return { domain, regex: new RegExp(`^${patron}$`) }
 }
 
 /**
@@ -64,14 +64,14 @@ export function filterBy(records: ResourceRecord[], filter: Filter, zone: string
   const { name, type } = filter
   if (name === '' && type === '') return records
 
-  const { dominio, regex } = compilarFiltroDeNombre(name, zone)
+  const { domain, regex } = compilarFiltroDeNombre(name, zone)
   const wantedType = type === '' ? null : type.toUpperCase()
 
   return records.filter((r) => {
     const nombreReg = r.name.toLowerCase()
 
     if (regex == null) {
-      if (dominio != null && nombreReg !== dominio) return false
+      if (domain != null && nombreReg !== domain) return false
     } else if (!regex.test(nombreReg)) {
       return false
     }

@@ -25,24 +25,24 @@ over already-clean text: typing `&amp;` into a cell sends it to the server as
 typed. Replicating the double decoding would be introducing the bug by hand.
 */
 
-export interface FilaRutaEstatica {
+export interface StaticRouteRow {
   destination: string
   subnetMask: string
   router: string
 }
-export interface FilaVendorInfo {
+export interface VendorInfoRow {
   identifier: string
   information: string
 }
-export interface FilaOpcionGenerica {
+export interface GenericOptionRow {
   code: string
   value: string
 }
-export interface FilaExclusion {
+export interface ExclusionRow {
   startingAddress: string
   endingAddress: string
 }
-export interface FilaReserva {
+export interface ReservationRow {
   hostName: string
   hardwareAddress: string
   address: string
@@ -78,13 +78,13 @@ export interface ScopeForm {
   winsServers: string
   ntpServers: string
   ntpServerDomainNames: string
-  staticRoutes: FilaRutaEstatica[]
-  vendorInfo: FilaVendorInfo[]
+  staticRoutes: StaticRouteRow[]
+  vendorInfo: VendorInfoRow[]
   capwapAcIpAddresses: string
   tftpServerAddresses: string
-  genericOptions: FilaOpcionGenerica[]
-  exclusions: FilaExclusion[]
-  reservedLeases: FilaReserva[]
+  genericOptions: GenericOptionRow[]
+  exclusions: ExclusionRow[]
+  reservedLeases: ReservationRow[]
   allowOnlyReservedLeases: boolean
   blockLocallyAdministeredMacAddresses: boolean
   ignoreClientIdentifierOption: boolean
@@ -93,7 +93,7 @@ export interface ScopeForm {
 /** `clearDhcpScopeForm` (dhcp.js:310). The default values are upstream's, not
  *  choices of ours: a 1-day lease, ping check at 1000 ms with 2 retries, DNS TTL
  *  of 900 s, DNS updates checked and client identifier ignored. */
-export function formularioVacio(): ScopeForm {
+export function emptyForm(): ScopeForm {
   return {
     oldName: '',
     name: '',
@@ -137,18 +137,18 @@ export function formularioVacio(): ScopeForm {
 /** `showAddDhcpScope` (dhcp.js:352) starts from the empty form but checks
  *  "Use This DNS Server", which in turn disables the DNS servers area. */
 export function formularioNuevo(): ScopeForm {
-  return { ...formularioVacio(), useThisDnsServer: true }
+  return { ...emptyForm(), useThisDnsServer: true }
 }
 
 /** An array of strings into a textarea, with a newline between items
  *  (`.join("\n")`, dhcp.js:399 and following). */
-export function listaATexto(list: string[] | undefined): string {
+export function listToText(list: string[] | undefined): string {
   return list == null ? '' : list.join('\n')
 }
 
 /** `cleanTextList` (common.js:326): newlines to commas, repeated commas
  *  collapsed and no commas at the ends. */
-export function limpiarLista(text: string): string {
+export function cleanList(text: string): string {
   let t = text.replace(/\n/g, ',')
   while (t.includes(',,')) t = t.replace(/,,/g, ',')
   if (t.startsWith(',')) t = t.substring(1)
@@ -159,7 +159,7 @@ export function limpiarLista(text: string): string {
 /** `showEditDhcpScope` (dhcp.js:363). The fields the server OMITS when they are
  *  null stay as they were in the empty form. */
 export function formularioDesdeScope(s: DhcpScope): ScopeForm {
-  const f = formularioVacio()
+  const f = emptyForm()
   return {
     ...f,
     oldName: s.name,
@@ -175,7 +175,7 @@ export function formularioDesdeScope(s: DhcpScope): ScopeForm {
     pingCheckTimeout: String(s.pingCheckTimeout),
     pingCheckRetries: String(s.pingCheckRetries),
     domainName: s.domainName ?? '',
-    domainSearchList: listaATexto(s.domainSearchList),
+    domainSearchList: listToText(s.domainSearchList),
     dnsUpdates: s.dnsUpdates,
     dnsOverwriteForDynamicLease: s.dnsOverwriteForDynamicLease,
     dnsTtl: String(s.dnsTtl),
@@ -184,10 +184,10 @@ export function formularioDesdeScope(s: DhcpScope): ScopeForm {
     bootFileName: s.bootFileName ?? '',
     routerAddress: s.routerAddress ?? '',
     useThisDnsServer: s.useThisDnsServer,
-    dnsServers: listaATexto(s.dnsServers),
-    winsServers: listaATexto(s.winsServers),
-    ntpServers: listaATexto(s.ntpServers),
-    ntpServerDomainNames: listaATexto(s.ntpServerDomainNames),
+    dnsServers: listToText(s.dnsServers),
+    winsServers: listToText(s.winsServers),
+    ntpServers: listToText(s.ntpServers),
+    ntpServerDomainNames: listToText(s.ntpServerDomainNames),
     staticRoutes: (s.staticRoutes ?? []).map((r) => ({
       destination: r.destination,
       subnetMask: r.subnetMask,
@@ -197,8 +197,8 @@ export function formularioDesdeScope(s: DhcpScope): ScopeForm {
       identifier: v.identifier,
       information: v.information,
     })),
-    capwapAcIpAddresses: listaATexto(s.capwapAcIpAddresses),
-    tftpServerAddresses: listaATexto(s.tftpServerAddresses),
+    capwapAcIpAddresses: listToText(s.capwapAcIpAddresses),
+    tftpServerAddresses: listToText(s.tftpServerAddresses),
     genericOptions: (s.genericOptions ?? []).map((o) => ({
       code: String(o.code),
       value: o.value,
@@ -228,8 +228,8 @@ export interface ScopeError {
 }
 
 /** The `id` of a table cell. Deterministic so it can be focused. */
-export function idCelda(table: string, row: number, columna: string): string {
-  return `dhcp-${table}-${row}-${columna}`
+export function cellId(table: string, row: number, column: string): string {
+  return `dhcp-${table}-${row}-${column}`
 }
 
 /*
@@ -239,7 +239,7 @@ export function idCelda(table: string, row: number, columna: string): string {
 function serialize(
   table: string,
   rows: Record<string, string>[],
-  columnas: { key: string; optional?: boolean }[],
+  columns: { key: string; optional?: boolean }[],
 ): { value: string } | { error: ScopeError } {
   /*
   The algorithm is upstream's `serializeTableData` and it lives in
@@ -250,10 +250,10 @@ function serialize(
   */
   const r = serializeTable(
     rows.map((row) =>
-      columnas.map((col) => ({
+      columns.map((col) => ({
         type: 'text' as const,
         value: row[col.key] ?? '',
-        opcional: col.optional,
+        optional: col.optional,
       })),
     ),
   )
@@ -262,7 +262,7 @@ function serialize(
     error: {
       title: r.failure.title,
       text: r.failure.text,
-      focus: idCelda(table, r.failure.row, columnas[r.failure.columna].key),
+      focus: cellId(table, r.failure.row, columns[r.failure.column].key),
     },
   }
 }
@@ -277,7 +277,7 @@ the same rules:
   · the five tables are validated in the order they are serialised, and the first
     failure aborts the save.
 */
-export function construirCuerpo(
+export function buildBody(
   f: ScopeForm,
 ): { body: Record<string, string> } | { error: ScopeError } {
   let name = f.name
@@ -340,7 +340,7 @@ export function construirCuerpo(
   body.pingCheckTimeout = f.pingCheckTimeout
   body.pingCheckRetries = f.pingCheckRetries
   body.domainName = f.domainName
-  body.domainSearchList = limpiarLista(f.domainSearchList)
+  body.domainSearchList = cleanList(f.domainSearchList)
   body.dnsUpdates = String(f.dnsUpdates)
   body.dnsOverwriteForDynamicLease = String(f.dnsOverwriteForDynamicLease)
   body.dnsTtl = f.dnsTtl
@@ -349,14 +349,14 @@ export function construirCuerpo(
   body.bootFileName = f.bootFileName
   body.routerAddress = f.routerAddress
   body.useThisDnsServer = String(f.useThisDnsServer)
-  if (!f.useThisDnsServer) body.dnsServers = limpiarLista(f.dnsServers)
-  body.winsServers = limpiarLista(f.winsServers)
-  body.ntpServers = limpiarLista(f.ntpServers)
-  body.ntpServerDomainNames = limpiarLista(f.ntpServerDomainNames)
+  if (!f.useThisDnsServer) body.dnsServers = cleanList(f.dnsServers)
+  body.winsServers = cleanList(f.winsServers)
+  body.ntpServers = cleanList(f.ntpServers)
+  body.ntpServerDomainNames = cleanList(f.ntpServerDomainNames)
   body.staticRoutes = staticRoutes.value
   body.vendorInfo = vendorInfo.value
-  body.capwapAcIpAddresses = limpiarLista(f.capwapAcIpAddresses)
-  body.tftpServerAddresses = limpiarLista(f.tftpServerAddresses)
+  body.capwapAcIpAddresses = cleanList(f.capwapAcIpAddresses)
+  body.tftpServerAddresses = cleanList(f.tftpServerAddresses)
   body.genericOptions = genericOptions.value
   body.exclusions = exclusions.value
   body.reservedLeases = reservedLeases.value

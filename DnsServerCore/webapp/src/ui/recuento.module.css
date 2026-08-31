@@ -33,7 +33,7 @@ the foot of a table".
 }
 
 /* Above the table: tight against it, which is what it refers to. */
-.encima { margin-bottom: var(--gap-pegado); }
+.above { margin-bottom: var(--gap-pegado); }
 
 /* Below: the table's foot, read together with the last row. */
-.debajo { margin-top: var(--gap-group); }
+.below { margin-top: var(--gap-group); }

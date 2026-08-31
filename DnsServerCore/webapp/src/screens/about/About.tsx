@@ -4,7 +4,7 @@ import { Alert } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
-import { desdeAhora, fechaHora } from '../../lib/fechas'
+import { fromNow, fechaHora } from '../../lib/fechas'
 import styles from './About.module.css'
 import { Body, Panel } from '../../ui/Panel'
 import { urlPublica } from '../../app/base'
@@ -16,7 +16,7 @@ const API_DOCS = 'https://github.com/TechnitiumSoftware/DnsServer/blob/master/AP
 const DONAR = 'https://go.technitium.com/?id=35'
 
 /** External link: always in a new tab and without handing over the `opener`. */
-function Enlace({
+function Link({
   href,
   clase,
   children,
@@ -68,7 +68,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
 
   return (
     <>
-      <SectionHeader titulo="About" />
+      <SectionHeader title="About" />
     <div className={styles.grid}>
       <Panel className={styles.panel}>
         <Body>
@@ -105,71 +105,71 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             </p>
             <p>
               Source code available under{' '}
-              <Enlace href="https://go.technitium.com/?id=24">GNU General Public License v3.0</Enlace>{' '}
-              on <Enlace href="https://github.com/TechnitiumSoftware/DnsServer">GitHub</Enlace>
+              <Link href="https://go.technitium.com/?id=24">GNU General Public License v3.0</Link>{' '}
+              on <Link href="https://github.com/TechnitiumSoftware/DnsServer">GitHub</Link>
             </p>
 
-            <h4><Enlace href="https://go.technitium.com/?id=23">What&apos;s New?</Enlace></h4>
+            <h4><Link href="https://go.technitium.com/?id=23">What&apos;s New?</Link></h4>
             <p>
-              Read the <Enlace href="https://go.technitium.com/?id=23">change log</Enlace> to know
+              Read the <Link href="https://go.technitium.com/?id=23">change log</Link> to know
               what&apos;s new in this release.
             </p>
 
-            <h4><Enlace href={API_DOCS}>API Documentation</Enlace></h4>
+            <h4><Link href={API_DOCS}>API Documentation</Link></h4>
             <p>
               The DNS Server HTTP API allows any 3rd party app or script to configure the DNS Server.
               The HTTP API is used by this web console and thus all the actions that this web console
               does can be performed via the API. Read the{' '}
-              <Enlace href={API_DOCS}>HTTP API documentation</Enlace> for complete details.
+              <Link href={API_DOCS}>HTTP API documentation</Link> for complete details.
             </p>
 
-            <h4><Enlace href="https://go.technitium.com/?id=25">Help Topics</Enlace></h4>
+            <h4><Link href="https://go.technitium.com/?id=25">Help Topics</Link></h4>
             <p>
               Read the latest{' '}
-              <Enlace href="https://go.technitium.com/?id=25">online help topics</Enlace> which
+              <Link href="https://go.technitium.com/?id=25">online help topics</Link> which
               contains the DNS Server user manual and covers frequently asked questions.
             </p>
 
             <h4>Support</h4>
             <p>
               For support, send an email to{' '}
-              <Enlace href="mailto:support@technitium.com">support@technitium.com</Enlace>.
+              <Link href="mailto:support@technitium.com">support@technitium.com</Link>.
             </p>
             <p>
               Follow{' '}
-              <Enlace href="https://mastodon.social/@technitium">@technitium@mastodon.social</Enlace>{' '}
+              <Link href="https://mastodon.social/@technitium">@technitium@mastodon.social</Link>{' '}
               on Mastodon.
               <br />
-              Checkout <Enlace href="https://blog.technitium.com/">Technitium Blog</Enlace>.
+              Checkout <Link href="https://blog.technitium.com/">Technitium Blog</Link>.
             </p>
             <p>
-              Join <Enlace href="https://www.reddit.com/r/technitium/">/r/technitium</Enlace> on Reddit.
+              Join <Link href="https://www.reddit.com/r/technitium/">/r/technitium</Link> on Reddit.
             </p>
 
-            <h4><Enlace href={DONAR}>Donate</Enlace></h4>
+            <h4><Link href={DONAR}>Donate</Link></h4>
             <p>
               Make a contribution to Technitium and help making new software, updates, and features
               possible.
             </p>
             <p>
-              <Enlace href={DONAR} clase={styles.destino}>Donate Now!</Enlace>
+              <Link href={DONAR} clase={styles.target}>Donate Now!</Link>
             </p>
           </div>
         </Body>
       </Panel>
 
       <div className={styles.col}>
-        <Panel titulo="Server" className={styles.panel}>
+        <Panel title="Server" className={styles.panel}>
           <Body>
             <dl className={styles.kv}>
               <dt>Version</dt><dd>{info?.version ?? '—'}</dd>
               <dt>Domain</dt><dd>{info?.dnsServerDomain ?? '—'}</dd>
               <dt>Up since</dt><dd>{info ? fechaHora(info.uptimestamp) : '—'}</dd>
-              <dt>Uptime</dt><dd>{info ? desdeAhora(info.uptimestamp) : '—'}</dd>
+              <dt>Uptime</dt><dd>{info ? fromNow(info.uptimestamp) : '—'}</dd>
             </dl>
           </Body>
         </Panel>
-        <Panel titulo="Update" className={styles.panel}>
+        <Panel title="Update" className={styles.panel}>
           <Body>
             {update === 'up-to-date' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {/*

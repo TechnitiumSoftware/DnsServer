@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceRecords } from './Registros'
-import type { NodoLista, RegistroDns } from '../../api/zonelists'
+import type { ListNode, DnsRecord } from '../../api/zonelists'
 import muestra from './muestra-real.json'
 
 /*
@@ -21,7 +21,7 @@ and `expiryTtl` appear. To capture it again: see the curl block in
 CONVENCIONES.md.
 */
 
-const NODES = muestra as unknown as Record<string, NodoLista>
+const NODES = muestra as unknown as Record<string, ListNode>
 
 /** Every scalar value of an object, in depth. */
 function hojas(o: unknown): string[] {
@@ -32,9 +32,9 @@ function hojas(o: unknown): string[] {
   return [String(o)]
 }
 
-async function drawAll(node: NodoLista, conDnssec: boolean) {
+async function drawAll(node: ListNode, withDnssec: boolean) {
   const { container } = render(
-    <ResourceRecords records={node.records} conDnssec={conDnssec} node={node.domain} />,
+    <ResourceRecords records={node.records} withDnssec={withDnssec} node={node.domain} />,
   )
   // The long values come out truncated: they are all expanded before looking.
   for (const b of screen.queryAllByRole('button', { name: 'show full' })) {
@@ -51,10 +51,10 @@ async function drawAll(node: NodoLista, conDnssec: boolean) {
 
 describe('the table loses nothing from the real JSON', () => {
   for (const [name, node] of Object.entries(NODES)) {
-    const conDnssec = name.startsWith('cache')
+    const withDnssec = name.startsWith('cache')
 
     it(`${name}: cada valor de rData sale en la tabla`, async () => {
-      const c = await drawAll(node, conDnssec)
+      const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
       for (const r of node.records) {
         for (const v of hojas(r.rData)) {
@@ -64,9 +64,9 @@ describe('the table loses nothing from the real JSON', () => {
     })
 
     it(`${name}: los metadatos y las firmas también`, async () => {
-      const c = await drawAll(node, conDnssec)
+      const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
-      for (const r of node.records as RegistroDns[]) {
+      for (const r of node.records as DnsRecord[]) {
         for (const v of [
           ...hojas(r.responseMetadata),
           ...hojas(r.nameServerMetadata),
@@ -81,9 +81,9 @@ describe('the table loses nothing from the real JSON', () => {
     })
 
     it(`${name}: el TTL sale con su número y su forma humana`, async () => {
-      const c = await drawAll(node, conDnssec)
+      const c = await drawAll(node, withDnssec)
       const text = c.textContent ?? ''
-      for (const r of node.records as RegistroDns[]) {
+      for (const r of node.records as DnsRecord[]) {
         if (typeof r.ttl === 'string') {
           const [num, humano] = r.ttl.replace(')', '').split(' (')
           expect(text).toContain(num)
@@ -106,21 +106,21 @@ describe('the three fields that are stated differently', () => {
   it('the full timestamp is trimmed to minutes, but kept whole in the title', async () => {
     const node = NODES.cacheTechnitium
     const c = await drawAll(node, true)
-    const completa = (node.records[0] as RegistroDns).lastUsedOn!
+    const completa = (node.records[0] as DnsRecord).lastUsedOn!
     expect(c.textContent).toContain(completa.slice(0, 16).replace('T', ' '))
     expect(c.querySelector(`[title="${completa}"]`)).not.toBeNull()
   })
 
   it('`expiryTtl: 0` is stated as "no expiry", which is what it means', async () => {
     const node = NODES.allowed
-    expect((node.records[0] as RegistroDns).expiryTtl).toBe(0)
+    expect((node.records[0] as DnsRecord).expiryTtl).toBe(0)
     const c = await drawAll(node, false)
     expect(c.textContent).toContain('no expiry')
   })
 
   it('`disabled: false` is not stated: it is only marked when true', async () => {
     const node = NODES.allowed
-    expect((node.records[0] as RegistroDns).disabled).toBe(false)
+    expect((node.records[0] as DnsRecord).disabled).toBe(false)
     const c = await drawAll(node, false)
     expect(c.textContent).not.toContain('disabled')
   })
@@ -133,14 +133,14 @@ and this test proves it over a real record.
 */
 describe('a field the server adds tomorrow', () => {
   it('it appears without touching anything', async () => {
-    const base = NODES.cacheExample.records[0] as RegistroDns
-    const node: NodoLista = {
+    const base = NODES.cacheExample.records[0] as DnsRecord
+    const node: ListNode = {
       domain: 'example.com',
       zones: [],
-      records: [{ ...base, campoDelFuturo: 'valor-inesperado' }],
+      records: [{ ...base, fieldFromTheFuture: 'unexpected-value' }],
     }
     const c = await drawAll(node, true)
-    expect(c.textContent).toContain('Campo del futuro')
-    expect(c.textContent).toContain('valor-inesperado')
+    expect(c.textContent).toContain('Field from the future')
+    expect(c.textContent).toContain('unexpected-value')
   })
 })

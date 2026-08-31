@@ -47,7 +47,7 @@ export interface AdminProps {
 }
 
 export function Admin({ token, sub }: AdminProps) {
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [cluster, setCluster] = useState<ClusterState | null>(null)
 
   useEffect(() => {
@@ -63,25 +63,25 @@ export function Admin({ token, sub }: AdminProps) {
   // Stable across renders: the sub-tabs put it in the dependencies of their
   // loading `useCallback`, and a new function per render would reload them in
   // bucle.
-  const notify = useCallback((a: Notice) => setAviso(a), [])
-  const alCluster = useCallback((s: ClusterState) => setCluster(s), [])
+  const notify = useCallback((a: Notice) => setNotice(a), [])
+  const toCluster = useCallback((s: ClusterState) => setCluster(s), [])
 
   const pedida = (sub ?? 'Sessions') as Subpestana
   const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Sessions'
 
   return (
     <div>
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
-      {active === 'Sessions' && <Sessions token={token} cluster={cluster} onAviso={notify} />}
-      {active === 'Users' && <Users token={token} cluster={cluster} onAviso={notify} />}
-      {active === 'Groups' && <Groups token={token} onAviso={notify} />}
+      {active === 'Sessions' && <Sessions token={token} cluster={cluster} onNotice={notify} />}
+      {active === 'Users' && <Users token={token} cluster={cluster} onNotice={notify} />}
+      {active === 'Groups' && <Groups token={token} onNotice={notify} />}
       {active === 'Permissions' && (
-        <Permissions token={token} cluster={cluster} onAviso={notify} />
+        <Permissions token={token} cluster={cluster} onNotice={notify} />
       )}
-      {active === 'SSO' && <Sso token={token} onAviso={notify} />}
+      {active === 'SSO' && <Sso token={token} onNotice={notify} />}
       {active === 'Cluster' && (
-        <Cluster token={token} cluster={cluster} onCluster={alCluster} onAviso={notify} />
+        <Cluster token={token} cluster={cluster} onCluster={toCluster} onNotice={notify} />
       )}
     </div>
   )

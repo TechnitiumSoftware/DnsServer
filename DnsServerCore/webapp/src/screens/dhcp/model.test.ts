@@ -1,53 +1,53 @@
 import { describe, expect, it } from 'vitest'
 import {
-  construirCuerpo,
+  buildBody,
   formularioDesdeScope,
   formularioNuevo,
-  formularioVacio,
-  idCelda,
-  limpiarLista,
-  listaATexto,
+  emptyForm,
+  cellId,
+  cleanList,
+  listToText,
   type ScopeForm,
 } from './model'
 import type { DhcpScope } from '../../api/dhcp'
 
 function form(parcial: Partial<ScopeForm> = {}): ScopeForm {
-  return { ...formularioVacio(), name: 'Default', ...parcial }
+  return { ...emptyForm(), name: 'Default', ...parcial }
 }
 
 function body(f: ScopeForm): Record<string, string> {
-  const r = construirCuerpo(f)
+  const r = buildBody(f)
   if ('error' in r) throw new Error(`esperaba cuerpo y salió ${r.error.title}`)
   return r.body
 }
 
 function error(f: ScopeForm) {
-  const r = construirCuerpo(f)
+  const r = buildBody(f)
   if (!('error' in r)) throw new Error('esperaba error y salió cuerpo')
   return r.error
 }
 
 describe('limpiarLista / listaATexto', () => {
   it('it replicates cleanTextList from common.js', () => {
-    expect(limpiarLista('1.1.1.1\n8.8.8.8')).toBe('1.1.1.1,8.8.8.8')
-    expect(limpiarLista('\n1.1.1.1\n\n\n8.8.8.8\n')).toBe('1.1.1.1,8.8.8.8')
-    expect(limpiarLista('')).toBe('')
-    expect(limpiarLista('\n\n\n')).toBe('')
+    expect(cleanList('1.1.1.1\n8.8.8.8')).toBe('1.1.1.1,8.8.8.8')
+    expect(cleanList('\n1.1.1.1\n\n\n8.8.8.8\n')).toBe('1.1.1.1,8.8.8.8')
+    expect(cleanList('')).toBe('')
+    expect(cleanList('\n\n\n')).toBe('')
   })
 
   it('it leaves no stray `\\r`: the React textarea already normalises to `\\n`', () => {
-    expect(limpiarLista('1.1.1.1\n8.8.8.8')).not.toContain('\r')
+    expect(cleanList('1.1.1.1\n8.8.8.8')).not.toContain('\r')
   })
 
   it('listaATexto returns an empty string when the server omits the key', () => {
-    expect(listaATexto(undefined)).toBe('')
-    expect(listaATexto(['a', 'b'])).toBe('a\nb')
+    expect(listToText(undefined)).toBe('')
+    expect(listToText(['a', 'b'])).toBe('a\nb')
   })
 })
 
 describe('default values', () => {
   it('they are the ones from clearDhcpScopeForm', () => {
-    const f = formularioVacio()
+    const f = emptyForm()
     expect(f.leaseTimeDays).toBe('1')
     expect(f.leaseTimeHours).toBe('0')
     expect(f.leaseTimeMinutes).toBe('0')
@@ -199,7 +199,7 @@ describe('construirCuerpo — validation alerts, with their literal texts', () =
     )
     expect(e.title).toBe('Missing!')
     expect(e.text).toBe('Please enter a valid value in the text field in focus.')
-    expect(e.focus).toBe(idCelda('exclusions', 0, 'endingAddress'))
+    expect(e.focus).toBe(cellId('exclusions', 0, 'endingAddress'))
   })
 
   it('a cell with `|` gives \"Invalid Character!\"', () => {
@@ -210,7 +210,7 @@ describe('construirCuerpo — validation alerts, with their literal texts', () =
     expect(e.text).toBe(
       "Please edit the value in the text field in focus to remove '|' character.",
     )
-    expect(e.focus).toBe(idCelda('exclusions', 0, 'startingAddress'))
+    expect(e.focus).toBe(cellId('exclusions', 0, 'startingAddress'))
   })
 
   it('inside a cell, empty is checked first and `|` second', () => {
@@ -229,26 +229,26 @@ describe('construirCuerpo — validation alerts, with their literal texts', () =
         vendorInfo: [{ identifier: 'x', information: '' }],
       }),
     )
-    expect(e.focus).toBe(idCelda('staticRoutes', 0, 'destination'))
+    expect(e.focus).toBe(cellId('staticRoutes', 0, 'destination'))
   })
 
   it('…vendor before generic options, and those before exclusions', () => {
-    const conFabricante = error(
+    const withVendor = error(
       form({
         vendorInfo: [{ identifier: 'x', information: '' }],
         genericOptions: [{ code: '', value: '' }],
         exclusions: [{ startingAddress: '', endingAddress: '' }],
       }),
     )
-    expect(conFabricante.focus).toBe(idCelda('vendorInfo', 0, 'information'))
+    expect(withVendor.focus).toBe(cellId('vendorInfo', 0, 'information'))
 
-    const conGenericas = error(
+    const withGeneric = error(
       form({
         genericOptions: [{ code: '', value: '' }],
         exclusions: [{ startingAddress: '', endingAddress: '' }],
       }),
     )
-    expect(conGenericas.focus).toBe(idCelda('genericOptions', 0, 'code'))
+    expect(withGeneric.focus).toBe(cellId('genericOptions', 0, 'code'))
   })
 
   it('…and exclusions before reservations', () => {
@@ -260,7 +260,7 @@ describe('construirCuerpo — validation alerts, with their literal texts', () =
         ],
       }),
     )
-    expect(e.focus).toBe(idCelda('exclusions', 0, 'startingAddress'))
+    expect(e.focus).toBe(cellId('exclusions', 0, 'startingAddress'))
   })
 
   it('the rows are walked in order: the second bad row is pointed at as such', () => {
@@ -272,7 +272,7 @@ describe('construirCuerpo — validation alerts, with their literal texts', () =
         ],
       }),
     )
-    expect(e.focus).toBe(idCelda('exclusions', 1, 'endingAddress'))
+    expect(e.focus).toBe(cellId('exclusions', 1, 'endingAddress'))
   })
 })
 

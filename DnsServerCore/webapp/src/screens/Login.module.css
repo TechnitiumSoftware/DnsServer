@@ -29,12 +29,12 @@
 }
 /* "Forgot Password?" is a bare link, not a button with a box: in upstream it
    sits loose above the SSO block (index.html:119). */
-.enlace {
+.link {
   display: block; width: 100%; text-align: center;
   background: none; border: 0; padding: 0;
   font: inherit; font-size: var(--t-4); color: var(--mute); cursor: pointer;
 }
-.enlace:hover { color: var(--acc); }
+.link:hover { color: var(--acc); }
 .oLogin { margin: var(--s-8) 0 var(--s-7); text-align: center; font-size: var(--t-3); color: var(--faint); }
 
 /* The footer, under the card and centred: it belongs to the page, not the form. */

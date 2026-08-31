@@ -22,7 +22,7 @@ export interface Pagination {
   last: boolean
 }
 
-export function ventanaDePaginas(pageNumber: number, totalPages: number): Pagination {
+export function pageWindow(pageNumber: number, totalPages: number): Pagination {
   let inicio = pageNumber - 5
   if (inicio < 1) inicio = 1
 
@@ -50,14 +50,14 @@ export function ventanaDePaginas(pageNumber: number, totalPages: number): Pagina
  * "0 zones", it does not say "0-0 of 0".
  */
 export function textoDeEstado(
-  primeraFila: number,
-  enPagina: number,
+  firstRow: number,
+  onPage: number,
   total: number,
   pageNumber: number,
   totalPages: number,
   sustantivo: string,
 ): string {
-  if (enPagina === 0) return `0 ${sustantivo}`
-  const last = primeraFila + enPagina - 1
-  return `${primeraFila}-${last} (${enPagina}) of ${total} ${sustantivo} (page ${pageNumber} of ${totalPages})`
+  if (onPage === 0) return `0 ${sustantivo}`
+  const last = firstRow + onPage - 1
+  return `${firstRow}-${last} (${onPage}) of ${total} ${sustantivo} (page ${pageNumber} of ${totalPages})`
 }

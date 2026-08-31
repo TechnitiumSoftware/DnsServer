@@ -3,32 +3,32 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Users } from './Users'
 import * as client from '../../api/client'
-import { DETALLE_USUARIO, USUARIO_ADMIN, USUARIO_NUEVO, USUARIO_SSO } from './admin.fixture'
+import { USER_DETAIL, ADMIN_USER, NEW_USER, SSO_USER } from './admin.fixture'
 import { choose } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-function servidor(users = [USUARIO_ADMIN, USUARIO_NUEVO], detalle = DETALLE_USUARIO) {
+function servidor(users = [ADMIN_USER, NEW_USER], detail = USER_DETAIL) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string, opts) => {
     if (path === 'admin/users/list') return ok({ response: { users: users }, server: 'x' })
-    if (path === 'admin/users/get') return ok({ response: detalle, server: 'x' })
+    if (path === 'admin/users/get') return ok({ response: detail, server: 'x' })
     if (path === 'admin/users/set') {
       const body = (opts?.body ?? {}) as Record<string, string>
       return ok({
-        response: { ...detalle, disabled: body.disabled === 'true', totpEnabled: false },
+        response: { ...detail, disabled: body.disabled === 'true', totpEnabled: false },
         server: 'x',
       })
     }
     if (path === 'admin/users/create') {
-      return ok({ response: { ...USUARIO_NUEVO, username: 'nuevo' }, server: 'x' })
+      return ok({ response: { ...NEW_USER, username: 'nuevo' }, server: 'x' })
     }
     return ok({ response: {}, server: 'x' })
   })
 }
 
-const props = { token: 'tok', cluster: null, onAviso: vi.fn() }
+const props = { token: 'tok', cluster: null, onNotice: vi.fn() }
 
 describe('Users — the table', () => {
   it('it draws type, 2FA, state and the two logins, with the total', async () => {
@@ -46,14 +46,14 @@ describe('Users — the table', () => {
   })
 
   it('an SSO user comes out as Remote/SSO and with the 2FA managed elsewhere', async () => {
-    servidor([USUARIO_SSO])
+    servidor([SSO_USER])
     render(<Users {...props} />)
     expect(await screen.findByText('Remote/SSO')).toBeInTheDocument()
     expect(screen.getByText('SSO Managed')).toBeInTheDocument()
   })
 
   it('an SSO user is offered neither a password reset nor clearing the 2FA', async () => {
-    servidor([USUARIO_SSO])
+    servidor([SSO_USER])
     render(<Users {...props} />)
     await screen.findByText('Remote/SSO')
     expect(screen.queryByRole('button', { name: 'Reset Password' })).not.toBeInTheDocument()
@@ -62,7 +62,7 @@ describe('Users — the table', () => {
   })
 
   it('\"Disable 2FA\" only appears if the user has it on', async () => {
-    servidor([{ ...USUARIO_NUEVO, totpEnabled: true }])
+    servidor([{ ...NEW_USER, totpEnabled: true }])
     render(<Users {...props} />)
     await userEvent.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     expect(await screen.findByRole('button', { name: 'Disable 2FA' })).toBeInTheDocument()
@@ -77,10 +77,10 @@ describe('Users — the table', () => {
 
 describe('Users — enable and disable', () => {
   it('ENABLING asks for no confirmation: it goes straight out', async () => {
-    const spy = servidor([{ ...USUARIO_NUEVO, disabled: true }])
-    const onAviso = vi.fn()
+    const spy = servidor([{ ...NEW_USER, disabled: true }])
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Users {...props} onAviso={onAviso} />)
+    render(<Users {...props} onNotice={onNotice} />)
 
     await user.click(await screen.findByRole('button', { name: 'Enable User' }))
 
@@ -88,7 +88,7 @@ describe('Users — enable and disable', () => {
       token: 'tok',
       body: { user: 'testuser', disabled: 'false' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'User Enabled!',
       text: 'User [testuser] account was enabled successfully.',
@@ -96,7 +96,7 @@ describe('Users — enable and disable', () => {
   })
 
   it('DISABLING does ask for confirmation, with the name in the text', async () => {
-    const spy = servidor([USUARIO_NUEVO])
+    const spy = servidor([NEW_USER])
     const user = userEvent.setup()
     render(<Users {...props} />)
 
@@ -108,10 +108,10 @@ describe('Users — enable and disable', () => {
   })
 
   it('clearing the 2FA sends `totpEnabled=false` and alerts with the upstream literal', async () => {
-    const spy = servidor([{ ...USUARIO_NUEVO, totpEnabled: true }])
-    const onAviso = vi.fn()
+    const spy = servidor([{ ...NEW_USER, totpEnabled: true }])
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Users {...props} onAviso={onAviso} />)
+    render(<Users {...props} onNotice={onNotice} />)
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     await user.click(await screen.findByRole('button', { name: 'Disable 2FA' }))
@@ -126,7 +126,7 @@ describe('Users — enable and disable', () => {
       token: 'tok',
       body: { user: 'testuser', totpEnabled: 'false' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: '2FA Disabled!',
       text: 'Two-factor authentication was disabled successfully for user [testuser].',
@@ -134,10 +134,10 @@ describe('Users — enable and disable', () => {
   })
 
   it('deleting asks for confirmation and takes the row out of the table', async () => {
-    const spy = servidor([USUARIO_ADMIN, USUARIO_NUEVO])
-    const onAviso = vi.fn()
+    const spy = servidor([ADMIN_USER, NEW_USER])
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Users {...props} onAviso={onAviso} />)
+    render(<Users {...props} onNotice={onNotice} />)
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[1])
     await user.click(await screen.findByRole('button', { name: 'Delete User' }))
@@ -151,7 +151,7 @@ describe('Users — enable and disable', () => {
       body: { user: 'testuser' },
     })
     expect(screen.getByText('Total Users: 1')).toBeInTheDocument()
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'User Deleted!',
       text: 'User account was deleted successfully.',
@@ -207,10 +207,10 @@ describe('Users — "Add User"', () => {
 
 describe('Users — "Reset Password"', () => {
   it('it validates in order and saves by POST with `newPass`', async () => {
-    const spy = servidor([USUARIO_NUEVO])
-    const onAviso = vi.fn()
+    const spy = servidor([NEW_USER])
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Users {...props} onAviso={onAviso} />)
+    render(<Users {...props} onNotice={onNotice} />)
 
     await user.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     await user.click(await screen.findByRole('button', { name: 'Reset Password' }))
@@ -236,7 +236,7 @@ describe('Users — "Reset Password"', () => {
       method: 'POST',
       body: { user: 'testuser', newPass: 'uno' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Password Reset!',
       text: 'Password was reset successfully.',
@@ -246,10 +246,10 @@ describe('Users — "Reset Password"', () => {
 
 describe('Users — the details modal', () => {
   it('it sends user, state and session timeout, and the display name if not SSO', async () => {
-    const spy = servidor([USUARIO_NUEVO])
-    const onAviso = vi.fn()
+    const spy = servidor([NEW_USER])
+    const onNotice = vi.fn()
     const user = userEvent.setup()
-    render(<Users {...props} onAviso={onAviso} />)
+    render(<Users {...props} onNotice={onNotice} />)
 
     await user.click(await screen.findByRole('button', { name: 'View Details' }))
     await screen.findByLabelText('Session Timeout')
@@ -265,7 +265,7 @@ describe('Users — the details modal', () => {
         memberOfGroups: '',
       },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'User Saved!',
       text: 'User details were saved successfully.',
@@ -273,7 +273,7 @@ describe('Users — the details modal', () => {
   })
 
   it('an empty session timeout falls to the 1800 default, it does not travel empty', async () => {
-    const spy = servidor([USUARIO_NUEVO])
+    const spy = servidor([NEW_USER])
     const user = userEvent.setup()
     render(<Users {...props} />)
 
@@ -286,7 +286,7 @@ describe('Users — the details modal', () => {
   })
 
   it('\"Add Group\" adds the group to the list and \"None\" empties it', async () => {
-    const spy = servidor([USUARIO_NUEVO])
+    const spy = servidor([NEW_USER])
     const user = userEvent.setup()
     render(<Users {...props} />)
 
@@ -306,9 +306,9 @@ describe('Users — the details modal', () => {
   })
 
   it('an SSO user has name and display name locked, and does not send them', async () => {
-    const spy = servidor([USUARIO_SSO], {
-      ...DETALLE_USUARIO,
-      ...USUARIO_SSO,
+    const spy = servidor([SSO_USER], {
+      ...USER_DETAIL,
+      ...SSO_USER,
       ssoManagedGroups: false,
     })
     const user = userEvent.setup()
@@ -329,9 +329,9 @@ describe('Users — the details modal', () => {
   })
 
   it('with `ssoManagedGroups` the groups are locked too and left out of the send', async () => {
-    const spy = servidor([USUARIO_SSO], {
-      ...DETALLE_USUARIO,
-      ...USUARIO_SSO,
+    const spy = servidor([SSO_USER], {
+      ...USER_DETAIL,
+      ...SSO_USER,
       ssoManagedGroups: true,
     })
     const user = userEvent.setup()
@@ -346,7 +346,7 @@ describe('Users — the details modal', () => {
   })
 
   it('`newUser` only travels when the name changes', async () => {
-    const spy = servidor([USUARIO_NUEVO])
+    const spy = servidor([NEW_USER])
     const user = userEvent.setup()
     render(<Users {...props} />)
 
@@ -361,8 +361,8 @@ describe('Users — the details modal', () => {
   })
 
   it('the sessions of the user come out inside the modal with their own total', async () => {
-    servidor([USUARIO_NUEVO], {
-      ...DETALLE_USUARIO,
+    servidor([NEW_USER], {
+      ...USER_DETAIL,
       sessions: [
         {
           username: 'testuser',

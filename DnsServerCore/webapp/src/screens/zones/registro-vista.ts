@@ -25,14 +25,14 @@ Rules that are replicated and not "fixed":
 
 export type Cell =
   | { clase: 'value'; text: string }
-  | { clase: 'pairs'; pares: { etiqueta: string; value: string }[] }
+  | { clase: 'pairs'; pairs: { label: string; value: string }[] }
   | { clase: 'lines'; lines: string[] }
-  | { clase: 'table'; cabeceras: string[]; rows: string[][] }
+  | { clase: 'table'; headers: string[]; rows: string[][] }
 
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
 /** `algorithm (algorithmNumber)`, which upstream composes in four places. */
-function conNumero(name: unknown, number: unknown): string {
+function withNumber(name: unknown, number: unknown): string {
   return `${s(name)} (${s(number)})`
 }
 
@@ -48,7 +48,7 @@ export function escaparTxt(text: string): string {
     .replace(/"/g, '\\"')
 }
 
-export function celdasDeRegistro(r: ResourceRecord): Cell[] {
+export function recordCells(r: ResourceRecord): Cell[] {
   const d = r.rData
   const salida: Cell[] = []
 
@@ -59,11 +59,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
       break
 
     case 'NS': {
-      const pares = [{ etiqueta: 'Name Server:', value: s(d.nameServer) }]
+      const pairs = [{ label: 'Name Server:', value: s(d.nameServer) }]
       if (r.glueRecords != null) {
-        pares.push({ etiqueta: 'Glue Addresses:', value: r.glueRecords.join(', ') })
+        pairs.push({ label: 'Glue Addresses:', value: r.glueRecords.join(', ') })
       }
-      salida.push({ clase: 'pairs', pares })
+      salida.push({ clase: 'pairs', pairs })
       break
     }
 
@@ -74,15 +74,15 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'SOA':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Primary Name Server:', value: s(d.primaryNameServer) },
-          { etiqueta: 'Responsible Person:', value: s(d.responsiblePerson) },
-          { etiqueta: 'Serial:', value: s(d.serial) },
-          { etiqueta: 'Refresh:', value: `${s(d.refresh)} (${s(d.refreshString)})` },
-          { etiqueta: 'Retry:', value: `${s(d.retry)} (${s(d.retryString)})` },
-          { etiqueta: 'Expire:', value: `${s(d.expire)} (${s(d.expireString)})` },
-          { etiqueta: 'Minimum:', value: `${s(d.minimum)} (${s(d.minimumString)})` },
-          { etiqueta: 'Use Serial Date Scheme:', value: String(d.useSerialDateScheme === true) },
+        pairs: [
+          { label: 'Primary Name Server:', value: s(d.primaryNameServer) },
+          { label: 'Responsible Person:', value: s(d.responsiblePerson) },
+          { label: 'Serial:', value: s(d.serial) },
+          { label: 'Refresh:', value: `${s(d.refresh)} (${s(d.refreshString)})` },
+          { label: 'Retry:', value: `${s(d.retry)} (${s(d.retryString)})` },
+          { label: 'Expire:', value: `${s(d.expire)} (${s(d.expireString)})` },
+          { label: 'Minimum:', value: `${s(d.minimum)} (${s(d.minimumString)})` },
+          { label: 'Use Serial Date Scheme:', value: String(d.useSerialDateScheme === true) },
         ],
       })
       break
@@ -94,9 +94,9 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'MX':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Preference:', value: s(d.preference) },
-          { etiqueta: 'Exchange:', value: s(d.exchange) },
+        pairs: [
+          { label: 'Preference:', value: s(d.preference) },
+          { label: 'Exchange:', value: s(d.exchange) },
         ],
       })
       break
@@ -115,9 +115,9 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'RP':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Mailbox:', value: s(d.mailbox) },
-          { etiqueta: 'TXT Domain:', value: s(d.txtDomain) },
+        pairs: [
+          { label: 'Mailbox:', value: s(d.mailbox) },
+          { label: 'TXT Domain:', value: s(d.txtDomain) },
         ],
       })
       break
@@ -125,11 +125,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'SRV':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Priority:', value: s(d.priority) },
-          { etiqueta: 'Weight:', value: s(d.weight) },
-          { etiqueta: 'Port:', value: s(d.port) },
-          { etiqueta: 'Target:', value: s(d.target) },
+        pairs: [
+          { label: 'Priority:', value: s(d.priority) },
+          { label: 'Weight:', value: s(d.weight) },
+          { label: 'Port:', value: s(d.port) },
+          { label: 'Target:', value: s(d.target) },
         ],
       })
       break
@@ -137,13 +137,13 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'NAPTR':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Order:', value: s(d.order) },
-          { etiqueta: 'Preference:', value: s(d.preference) },
-          { etiqueta: 'Flags:', value: s(d.flags) },
-          { etiqueta: 'Services:', value: s(d.services) },
-          { etiqueta: 'Regular Expression:', value: s(d.regexp) },
-          { etiqueta: 'Replacement:', value: s(d.replacement) },
+        pairs: [
+          { label: 'Order:', value: s(d.order) },
+          { label: 'Preference:', value: s(d.preference) },
+          { label: 'Flags:', value: s(d.flags) },
+          { label: 'Services:', value: s(d.services) },
+          { label: 'Regular Expression:', value: s(d.regexp) },
+          { label: 'Replacement:', value: s(d.replacement) },
         ],
       })
       break
@@ -153,11 +153,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
       break
 
     case 'APL': {
-      const prefijos = (d.addressPrefixes ?? []) as Record<string, unknown>[]
+      const prefixes = (d.addressPrefixes ?? []) as Record<string, unknown>[]
       salida.push({
         clase: 'table',
-        cabeceras: ['Family', 'Negation', 'AFD Part', 'Prefix'],
-        rows: prefijos.map((p) => [s(p.addressFamily), s(p.negation), s(p.afdPart), s(p.prefix)]),
+        headers: ['Family', 'Negation', 'AFD Part', 'Prefix'],
+        rows: prefixes.map((p) => [s(p.addressFamily), s(p.negation), s(p.afdPart), s(p.prefix)]),
       })
       break
     }
@@ -165,11 +165,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'DS':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Key Tag:', value: s(d.keyTag) },
-          { etiqueta: 'Algorithm:', value: conNumero(d.algorithm, d.algorithmNumber) },
-          { etiqueta: 'Digest Type:', value: conNumero(d.digestType, d.digestTypeNumber) },
-          { etiqueta: 'Digest:', value: s(d.digest) },
+        pairs: [
+          { label: 'Key Tag:', value: s(d.keyTag) },
+          { label: 'Algorithm:', value: withNumber(d.algorithm, d.algorithmNumber) },
+          { label: 'Digest Type:', value: withNumber(d.digestType, d.digestTypeNumber) },
+          { label: 'Digest:', value: s(d.digest) },
         ],
       })
       break
@@ -177,10 +177,10 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'SSHFP':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Algorithm:', value: s(d.algorithm) },
-          { etiqueta: 'Fingerprint Type:', value: s(d.fingerprintType) },
-          { etiqueta: 'Fingerprint:', value: s(d.fingerprint) },
+        pairs: [
+          { label: 'Algorithm:', value: s(d.algorithm) },
+          { label: 'Fingerprint Type:', value: s(d.fingerprintType) },
+          { label: 'Fingerprint:', value: s(d.fingerprint) },
         ],
       })
       break
@@ -188,16 +188,16 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'RRSIG':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Type Covered:', value: s(d.typeCovered) },
-          { etiqueta: 'Algorithm:', value: conNumero(d.algorithm, d.algorithmNumber) },
-          { etiqueta: 'Labels:', value: s(d.labels) },
-          { etiqueta: 'Original TTL:', value: s(d.originalTtl) },
-          { etiqueta: 'Signature Expiration:', value: s(d.signatureExpiration) },
-          { etiqueta: 'Signature Inception:', value: s(d.signatureInception) },
-          { etiqueta: 'Key Tag:', value: s(d.keyTag) },
-          { etiqueta: "Signer's Name:", value: s(d.signersName) },
-          { etiqueta: 'Signature:', value: s(d.signature) },
+        pairs: [
+          { label: 'Type Covered:', value: s(d.typeCovered) },
+          { label: 'Algorithm:', value: withNumber(d.algorithm, d.algorithmNumber) },
+          { label: 'Labels:', value: s(d.labels) },
+          { label: 'Original TTL:', value: s(d.originalTtl) },
+          { label: 'Signature Expiration:', value: s(d.signatureExpiration) },
+          { label: 'Signature Inception:', value: s(d.signatureInception) },
+          { label: 'Key Tag:', value: s(d.keyTag) },
+          { label: "Signer's Name:", value: s(d.signersName) },
+          { label: 'Signature:', value: s(d.signature) },
         ],
       })
       break
@@ -205,52 +205,52 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'NSEC':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Next Domain Name:', value: s(d.nextDomainName) },
-          { etiqueta: 'Types:', value: ((d.types ?? []) as string[]).join(', ') },
+        pairs: [
+          { label: 'Next Domain Name:', value: s(d.nextDomainName) },
+          { label: 'Types:', value: ((d.types ?? []) as string[]).join(', ') },
         ],
       })
       break
 
     case 'DNSKEY': {
-      const pares = [
-        { etiqueta: 'Flags:', value: s(d.flags) },
-        { etiqueta: 'Protocol:', value: s(d.protocol) },
-        { etiqueta: 'Algorithm:', value: conNumero(d.algorithm, d.algorithmNumber) },
-        { etiqueta: 'Public Key:', value: s(d.publicKey) },
+      const pairs = [
+        { label: 'Flags:', value: s(d.flags) },
+        { label: 'Protocol:', value: s(d.protocol) },
+        { label: 'Algorithm:', value: withNumber(d.algorithm, d.algorithmNumber) },
+        { label: 'Public Key:', value: s(d.publicKey) },
       ]
 
       if (d.dnsKeyState != null) {
         let state = s(d.dnsKeyState)
         if (d.dnsKeyStateReadyBy != null) state += ` (ready by: ${fechaMinuto(s(d.dnsKeyStateReadyBy))})`
         else if (d.dnsKeyStateActiveBy != null) state += ` (active by: ${fechaMinuto(s(d.dnsKeyStateActiveBy))})`
-        pares.push({ etiqueta: 'Key State:', value: state })
+        pairs.push({ label: 'Key State:', value: state })
       }
 
-      pares.push({ etiqueta: 'Computed Key Tag:', value: s(d.computedKeyTag) })
+      pairs.push({ label: 'Computed Key Tag:', value: s(d.computedKeyTag) })
 
       if (d.computedDigests != null) {
         const digests = d.computedDigests as Record<string, unknown>[]
-        pares.push({
-          etiqueta: 'Computed Digests:',
+        pairs.push({
+          label: 'Computed Digests:',
           value: digests.map((x) => `${s(x.digestType)}: ${s(x.digest)}`).join('\n'),
         })
       }
 
-      salida.push({ clase: 'pairs', pares })
+      salida.push({ clase: 'pairs', pairs })
       break
     }
 
     case 'NSEC3':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
-          { etiqueta: 'Flags:', value: s(d.flags) },
-          { etiqueta: 'Iterations:', value: s(d.iterations) },
-          { etiqueta: 'Salt:', value: s(d.salt) },
-          { etiqueta: 'Next Hashed Owner Name:', value: s(d.nextHashedOwnerName) },
-          { etiqueta: 'Types:', value: ((d.types ?? []) as string[]).join(', ') },
+        pairs: [
+          { label: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
+          { label: 'Flags:', value: s(d.flags) },
+          { label: 'Iterations:', value: s(d.iterations) },
+          { label: 'Salt:', value: s(d.salt) },
+          { label: 'Next Hashed Owner Name:', value: s(d.nextHashedOwnerName) },
+          { label: 'Types:', value: ((d.types ?? []) as string[]).join(', ') },
         ],
       })
       break
@@ -258,11 +258,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'NSEC3PARAM':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
-          { etiqueta: 'Flags:', value: s(d.flags) },
-          { etiqueta: 'Iterations:', value: s(d.iterations) },
-          { etiqueta: 'Salt:', value: s(d.salt) },
+        pairs: [
+          { label: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
+          { label: 'Flags:', value: s(d.flags) },
+          { label: 'Iterations:', value: s(d.iterations) },
+          { label: 'Salt:', value: s(d.salt) },
         ],
       })
       break
@@ -270,11 +270,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'TLSA':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Certificate Usage:', value: s(d.certificateUsage) },
-          { etiqueta: 'Selector:', value: s(d.selector) },
-          { etiqueta: 'Matching Type:', value: s(d.matchingType) },
-          { etiqueta: 'Certificate Association Data:', value: s(d.certificateAssociationData) },
+        pairs: [
+          { label: 'Certificate Usage:', value: s(d.certificateUsage) },
+          { label: 'Selector:', value: s(d.selector) },
+          { label: 'Matching Type:', value: s(d.matchingType) },
+          { label: 'Certificate Association Data:', value: s(d.certificateAssociationData) },
         ],
       })
       break
@@ -282,11 +282,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'ZONEMD':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Serial:', value: s(d.serial) },
-          { etiqueta: 'Scheme:', value: s(d.scheme) },
-          { etiqueta: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
-          { etiqueta: 'Digest:', value: s(d.digest) },
+        pairs: [
+          { label: 'Serial:', value: s(d.serial) },
+          { label: 'Scheme:', value: s(d.scheme) },
+          { label: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
+          { label: 'Digest:', value: s(d.digest) },
         ],
       })
       break
@@ -297,9 +297,9 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
       const mode = String(d.svcPriority) === '0' ? ' (alias mode)' : ' (service mode)'
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Priority:', value: priority + mode },
-          { etiqueta: 'Target Name:', value: s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName) },
+        pairs: [
+          { label: 'Priority:', value: priority + mode },
+          { label: 'Target Name:', value: s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName) },
         ],
       })
 
@@ -311,14 +311,14 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
         rows.push([key, s(value)])
       }
       if (Object.keys(params).length > 0) {
-        salida.push({ clase: 'table', cabeceras: ['Key', 'Value'], rows })
+        salida.push({ clase: 'table', headers: ['Key', 'Value'], rows })
       }
 
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Use Automatic IPv4 Hint:', value: String(d.autoIpv4Hint === true) },
-          { etiqueta: 'Use Automatic IPv6 Hint:', value: String(d.autoIpv6Hint === true) },
+        pairs: [
+          { label: 'Use Automatic IPv4 Hint:', value: String(d.autoIpv4Hint === true) },
+          { label: 'Use Automatic IPv6 Hint:', value: String(d.autoIpv6Hint === true) },
         ],
       })
       break
@@ -327,10 +327,10 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'URI':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Priority:', value: s(d.priority) },
-          { etiqueta: 'Weight:', value: s(d.weight) },
-          { etiqueta: 'URI:', value: s(d.uri) },
+        pairs: [
+          { label: 'Priority:', value: s(d.priority) },
+          { label: 'Weight:', value: s(d.weight) },
+          { label: 'URI:', value: s(d.uri) },
         ],
       })
       break
@@ -338,10 +338,10 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'CAA':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Flags:', value: s(d.flags) },
-          { etiqueta: 'Tag:', value: s(d.tag) },
-          { etiqueta: 'Authority:', value: s(d.value) },
+        pairs: [
+          { label: 'Flags:', value: s(d.flags) },
+          { label: 'Tag:', value: s(d.tag) },
+          { label: 'Authority:', value: s(d.value) },
         ],
       })
       break
@@ -351,32 +351,32 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
       break
 
     case 'FWD': {
-      const pares = [
-        { etiqueta: 'Protocol:', value: s(d.protocol) },
-        { etiqueta: 'Forwarder:', value: s(d.forwarder) },
-        { etiqueta: 'Priority:', value: s(d.priority) },
-        { etiqueta: 'Enable DNSSEC Validation:', value: String(d.dnssecValidation === true) },
-        { etiqueta: 'Proxy Type:', value: s(d.proxyType) },
+      const pairs = [
+        { label: 'Protocol:', value: s(d.protocol) },
+        { label: 'Forwarder:', value: s(d.forwarder) },
+        { label: 'Priority:', value: s(d.priority) },
+        { label: 'Enable DNSSEC Validation:', value: String(d.dnssecValidation === true) },
+        { label: 'Proxy Type:', value: s(d.proxyType) },
       ]
       if (d.proxyType === 'Http' || d.proxyType === 'Socks5') {
-        pares.push(
-          { etiqueta: 'Proxy Address:', value: s(d.proxyAddress) },
-          { etiqueta: 'Proxy Port:', value: s(d.proxyPort) },
-          { etiqueta: 'Proxy Username:', value: s(d.proxyUsername) },
-          { etiqueta: 'Proxy Password:', value: s(d.proxyPassword) },
+        pairs.push(
+          { label: 'Proxy Address:', value: s(d.proxyAddress) },
+          { label: 'Proxy Port:', value: s(d.proxyPort) },
+          { label: 'Proxy Username:', value: s(d.proxyUsername) },
+          { label: 'Proxy Password:', value: s(d.proxyPassword) },
         )
       }
-      salida.push({ clase: 'pairs', pares })
+      salida.push({ clase: 'pairs', pairs })
       break
     }
 
     case 'APP':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'App Name:', value: s(d.appName) },
-          { etiqueta: 'Class Path:', value: s(d.classPath) },
-          { etiqueta: 'Record Data:', value: s(d.data) },
+        pairs: [
+          { label: 'App Name:', value: s(d.appName) },
+          { label: 'Class Path:', value: s(d.classPath) },
+          { label: 'Record Data:', value: s(d.data) },
         ],
       })
       break
@@ -384,15 +384,15 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'ALIAS':
       salida.push({
         clase: 'pairs',
-        pares: [
-          { etiqueta: 'Type:', value: s(d.type) },
-          { etiqueta: 'Alias:', value: s(d.alias) },
+        pairs: [
+          { label: 'Type:', value: s(d.type) },
+          { label: 'Alias:', value: s(d.alias) },
         ],
       })
       break
 
     default:
-      salida.push({ clase: 'pairs', pares: [{ etiqueta: 'RDATA:', value: s(d.value) }] })
+      salida.push({ clase: 'pairs', pairs: [{ label: 'RDATA:', value: s(d.value) }] })
       break
   }
 
@@ -404,27 +404,27 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
  * `0001-01-01T00:00:00` is "never" and a last modification with that date is
  * **not shown at all**.
  */
-export function pieDeRegistro(r: ResourceRecord, ahora?: number): { etiqueta: string; value: string }[] {
-  const pares: { etiqueta: string; value: string }[] = []
+export function recordFooter(r: ResourceRecord, ahora?: number): { label: string; value: string }[] {
+  const pairs: { label: string; value: string }[] = []
 
   if (r.expiryTtl > 0) {
     const caduca = new Date(new Date(r.lastModified).getTime() + r.expiryTtl * 1000)
-    pares.push({ etiqueta: 'Expiry TTL:', value: `${r.expiryTtl} (${r.expiryTtlString})` })
-    pares.push({ etiqueta: 'Expires On:', value: fechaConAntiguedad(caduca.toISOString(), ahora) })
+    pairs.push({ label: 'Expiry TTL:', value: `${r.expiryTtl} (${r.expiryTtlString})` })
+    pairs.push({ label: 'Expires On:', value: fechaConAntiguedad(caduca.toISOString(), ahora) })
   }
 
   // `0001-01-01T00:00:00` is "never", and there upstream does NOT put the age.
   const nunca = r.lastUsedOn === '0001-01-01T00:00:00'
-  pares.push({
-    etiqueta: 'Last Used:',
+  pairs.push({
+    label: 'Last Used:',
     value: nunca ? `${fechaHora(r.lastUsedOn)} (never)` : fechaConAntiguedad(r.lastUsedOn, ahora),
   })
 
   if (r.lastModified !== '0001-01-01T00:00:00' && r.lastModified !== '0001-01-01T00:00:00Z') {
-    pares.push({ etiqueta: 'Last Modified:', value: fechaConAntiguedad(r.lastModified, ahora) })
+    pairs.push({ label: 'Last Modified:', value: fechaConAntiguedad(r.lastModified, ahora) })
   }
 
-  return pares
+  return pairs
 }
 
 /** The name that is shown: relative to the zone, and `@` at the apex. */
@@ -438,7 +438,7 @@ export function nombreRelativo(nombreCompleto: string, zone: string): string {
 
 /* ── Acciones por fila ─────────────────────────────────────────────────── */
 
-export interface AccionesDeFila {
+export interface RowActions {
   /** La columna entera desaparece. */
   ocultas: boolean
   /** They show but Enable/Disable/Delete are off; Edit is not. */
@@ -451,7 +451,7 @@ export interface AccionesDeFila {
  * catalog zone the SOA can be edited but the rest of the records offer not a
  * single button (zone.js:4195-4232).
  */
-export function accionesDeFila(zoneType: string, recordType: string): AccionesDeFila {
+export function rowActions(zoneType: string, recordType: string): RowActions {
   switch (zoneType) {
     case 'Secondary':
     case 'SecondaryForwarder':
@@ -491,6 +491,6 @@ calls.
 export {
   fechaMinuto as fechaCorta,
   fechaHora as fechaLarga,
-  desdeAhora as haceCuanto,
+  fromNow as haceCuanto,
   fechaConAntiguedad,
 } from '../../lib/fechas'

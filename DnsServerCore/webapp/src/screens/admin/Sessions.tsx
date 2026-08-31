@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { Input, Select } from '../../ui/Field'
-import { CeldaAgente, CeldaUltimaVez } from '../../ui/Sesion'
+import { AgentCell, LastSeenCell } from '../../ui/Sesion'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import {
@@ -15,18 +15,18 @@ import {
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { UserDetails } from './UserDetails'
-import { desdeAhora, fechaHora } from './fechas'
+import { fromNow, fechaHora } from './fechas'
 import {
   noticeFromFailure,
-  CeldaSesion,
+  SessionCell,
   Confirm,
   MRow,
-  SelectorNodo,
+  NodePicker,
   adminStyles as styles,
   type Notice,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
+import { RowAction, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { Notifier } from '../../ui/Avisador'
 
@@ -50,7 +50,7 @@ Three things you do not see by looking at the table:
 interface Props {
   token: string | null
   cluster: ClusterState | null
-  onAviso: (a: Notice) => void
+  onNotice: (a: Notice) => void
 }
 
 /* `sortTable('tbodyAdminSessions', 0..4)`. The "Session" cell is read as it is
@@ -66,14 +66,14 @@ const KEYS: Keys<AdminSession> = {
   agent: (s) => s.lastSeenUserAgent,
 }
 
-export function Sessions({ token, cluster, onAviso }: Props) {
-  const [node, setNodo] = useState('')
-  const [sessions, setSesiones] = useState<AdminSession[]>([])
+export function Sessions({ token, cluster, onNotice }: Props) {
+  const [node, setNode] = useState('')
+  const [sessions, setSessions] = useState<AdminSession[]>([])
   const [servidor, setServidor] = useState('')
   const [loading, setLoading] = useState(true)
-  const [porBorrar, setPorBorrar] = useState<AdminSession | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<AdminSession | null>(null)
   const [crear, setCrear] = useState(false)
-  const [verUsuario, setVerUsuario] = useState<string | null>(null)
+  const [viewUser, setViewUser] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -81,34 +81,34 @@ export function Sessions({ token, cluster, onAviso }: Props) {
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      setSesiones([])
-      onAviso(noticeFromFailure(outcome))
+      setSessions([])
+      onNotice(noticeFromFailure(outcome))
       return
     }
-    setSesiones(outcome.data.response.sessions)
+    setSessions(outcome.data.response.sessions)
     setServidor(outcome.data.server)
-  }, [token, node, onAviso])
+  }, [token, node, onNotice])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const { rows: sesionesVisibles, sort, alternar } = useOrden(KEYS, sessions)
+  const { rows: visibleSessions, sort, toggle } = useOrden(KEYS, sessions)
 
   const primario = primaryNodeName(cluster)
   const puedeCrearToken = primario === '' || primario === servidor
 
   async function remove(s: AdminSession) {
-    setPorBorrar(null)
+    setPendingDelete(null)
     const target = s.type === 'ApiToken' ? primario : node
     const outcome = await deleteAdminSession(token, s.partialToken, target)
 
     if (outcome.kind !== 'ok') {
-      onAviso(noticeFromFailure(outcome))
+      onNotice(noticeFromFailure(outcome))
       return
     }
-    setSesiones((list) => list.filter((x) => x.partialToken !== s.partialToken))
-    onAviso({
+    setSessions((list) => list.filter((x) => x.partialToken !== s.partialToken))
+    onNotice({
       type: 'success',
       title: 'Session Deleted!',
       text: 'The user session was deleted successfully.',
@@ -119,13 +119,13 @@ export function Sessions({ token, cluster, onAviso }: Props) {
     <>
       <SectionHeader
         section="Administration"
-        titulo="Sessions"
+        title="Sessions"
         actions={<>{puedeCrearToken && (
             <Button variant="primary" onClick={() => setCrear(true)}>
               Create Token
             </Button>
           )}
-          <SelectorNodo cluster={cluster} value={node} onChange={setNodo} label="Cluster Node" /></>}
+          <NodePicker cluster={cluster} value={node} onChange={setNode} label="Cluster Node" /></>}
       />
 
       {loading ? (
@@ -135,49 +135,49 @@ export function Sessions({ token, cluster, onAviso }: Props) {
           <Table
             header={
               <>
-                <Th field="username" sort={sort} onOrdenar={alternar}>Username</Th>
-                <Th field="session" sort={sort} onOrdenar={alternar}>Session</Th>
-                <Th field="lastSeen" sort={sort} onOrdenar={alternar}>Last Seen</Th>
-                <Th field="address" sort={sort} onOrdenar={alternar}>Remote Address</Th>
-                <Th field="agent" sort={sort} onOrdenar={alternar}>User Agent</Th>
-                <th className={tbl.celdaAcciones} />
+                <Th field="username" sort={sort} onSort={toggle}>Username</Th>
+                <Th field="session" sort={sort} onSort={toggle}>Session</Th>
+                <Th field="lastSeen" sort={sort} onSort={toggle}>Last Seen</Th>
+                <Th field="address" sort={sort} onSort={toggle}>Remote Address</Th>
+                <Th field="agent" sort={sort} onSort={toggle}>User Agent</Th>
+                <th className={tbl.actionsCell} />
               </>
             }
-            isEmpty={sesionesVisibles.length === 0}
+            isEmpty={visibleSessions.length === 0}
             emptyText="No Session Found"
-            columnas={6}
+            columns={6}
           >
-            {sesionesVisibles.map((s) => (
+            {visibleSessions.map((s) => (
               <tr key={s.partialToken}>
                 <td>
                   <button
                     type="button"
                     className={styles.link}
-                    onClick={() => setVerUsuario(s.username)}
+                    onClick={() => setViewUser(s.username)}
                   >
                     {s.username}
                   </button>
                 </td>
                 <td>
-                  <CeldaSesion session={s} />
+                  <SessionCell session={s} />
                 </td>
                 <td className={styles.nowrap}>
-                  <CeldaUltimaVez date={fechaHora(s.lastSeen)} hace={desdeAhora(s.lastSeen)} />
+                  <LastSeenCell date={fechaHora(s.lastSeen)} hace={fromNow(s.lastSeen)} />
                 </td>
                 <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
                 <td>
-                  <CeldaAgente>{s.lastSeenUserAgent}</CeldaAgente>
+                  <AgentCell>{s.lastSeenUserAgent}</AgentCell>
                 </td>
-                <td className={tbl.celdaAcciones}>
+                <td className={tbl.actionsCell}>
                   <div className={tbl.actions}>
-                    <AccionFila
+                    <RowAction
                       icon="card"
                       name="View Details"
-                      onClick={() => setVerUsuario(s.username)}
+                      onClick={() => setViewUser(s.username)}
                     />
-                    <Menu etiqueta={`Actions for ${s.partialToken}`}>
+                    <Menu label={`Actions for ${s.partialToken}`}>
                       {(close) => (
-                        <button type="button" data-variant="danger" onClick={() => { close(); setPorBorrar(s) }}>
+                        <button type="button" data-variant="danger" onClick={() => { close(); setPendingDelete(s) }}>
                           Delete Session
                         </button>
                       )}
@@ -194,33 +194,33 @@ export function Sessions({ token, cluster, onAviso }: Props) {
       )}
 
       <Confirm
-        open={porBorrar !== null}
-        titulo="Delete Session"
-        text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
-        etiqueta="Delete"
-        onCerrar={() => setPorBorrar(null)}
-        onConfirmar={() => porBorrar && void remove(porBorrar)}
+        open={pendingDelete !== null}
+        title="Delete Session"
+        text={`Are you sure you want to delete the session [${pendingDelete?.partialToken ?? ''}] ?`}
+        label="Delete"
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => pendingDelete && void remove(pendingDelete)}
       />
 
       <CrearApiToken
         open={crear}
         token={token}
-        onCerrar={() => setCrear(false)}
+        onClose={() => setCrear(false)}
         onCreated={() => void load()}
       />
 
       {/* It is mounted only when needed so its load starts from scratch every
           time it opens, just as in upstream. On saving from here upstream does NOT
           redraw any row: it reloads the sessions list (auth.js:1467). */}
-      {verUsuario != null && (
+      {viewUser != null && (
         <UserDetails
           open
-          username={verUsuario}
+          username={viewUser}
           token={token}
           cluster={cluster}
-          onCerrar={() => setVerUsuario(null)}
-          alGuardar={() => void load()}
-          onAviso={onAviso}
+          onClose={() => setViewUser(null)}
+          onSaved={() => void load()}
+          onNotice={onNotice}
         />
       )}
     </>
@@ -236,39 +236,39 @@ loaded with `admin/users/list`, and the endpoint is
 function CrearApiToken({
   open,
   token,
-  onCerrar,
+  onClose,
   onCreated,
 }: {
   open: boolean
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
   onCreated: () => void
 }) {
-  const [users, setUsuarios] = useState<string[]>([])
+  const [users, setUsers] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [user, setUsuario] = useState('')
+  const [user, setUser] = useState('')
   const [name, setNombre] = useState('')
   const [created, setCreated] = useState<CreatedApiToken | null>(null)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
     let vivo = true
     setLoading(true)
-    setAviso(null)
+    setNotice(null)
     setCreated(null)
     setNombre('')
     void listUsers(token).then((outcome) => {
       if (!vivo) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
-        setAviso(noticeFromFailure(outcome))
+        setNotice(noticeFromFailure(outcome))
         return
       }
       const nombres = outcome.data.response.users.map((u) => u.username)
-      setUsuarios(nombres)
-      setUsuario(nombres[0] ?? '')
+      setUsers(nombres)
+      setUser(nombres[0] ?? '')
     })
     return () => {
       vivo = false
@@ -277,11 +277,11 @@ function CrearApiToken({
 
   async function crear() {
     if (user === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please select a username.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please select a username.' })
       return
     }
     if (name === '') {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a token name.' })
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please enter a token name.' })
       return
     }
 
@@ -290,12 +290,12 @@ function CrearApiToken({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
     setCreated(outcome.data.response)
-    setAviso({
+    setNotice({
       type: 'success',
       title: 'Token Created!',
       text: 'API token was created successfully.',
@@ -306,7 +306,7 @@ function CrearApiToken({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       title="Create API Token"
       actions={
         <>
@@ -318,7 +318,7 @@ function CrearApiToken({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       {created != null ? (
         <div className={styles.salida}>
@@ -338,7 +338,7 @@ function CrearApiToken({
                 id={id}
                 className={styles.select}
                 value={user}
-                onChange={(e) => setUsuario(e.target.value)}
+                onChange={(e) => setUser(e.target.value)}
               >
                 {users.map((u) => (
                   <option key={u} value={u}>

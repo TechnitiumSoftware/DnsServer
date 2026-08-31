@@ -69,10 +69,10 @@ It is solved in a single place —here— and not in the thirty screens, because
 rule is one: `SessionProvider` registers it, since it is the one that holds the
 session.
 */
-let alCaducar: (() => void) | null = null
+let onExpired: (() => void) | null = null
 
 export function onSessionExpired(fn: (() => void) | null): void {
-  alCaducar = fn
+  onExpired = fn
 }
 
 export async function apiRequest<T = unknown>(
@@ -123,7 +123,7 @@ export async function apiRequest<T = unknown>(
     case 'ok':
       return { kind: 'ok', data: payload as T }
     case 'invalid-token':
-      alCaducar?.()
+      onExpired?.()
       return { kind: 'invalid-token' }
     case '2fa-required':
       return { kind: 'two-factor-required' }

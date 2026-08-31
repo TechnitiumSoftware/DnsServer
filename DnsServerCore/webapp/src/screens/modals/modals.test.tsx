@@ -180,7 +180,7 @@ describe('My Profile', () => {
 })
 
 describe('My Profile — sesiones activas', () => {
-  const conSesiones = ok({
+  const withSessions = ok({
     status: 'ok',
     response: {
       displayName: 'Administrator',
@@ -197,7 +197,7 @@ describe('My Profile — sesiones activas', () => {
   })
 
   it('it lists the sessions and their total', async () => {
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(withSessions)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     expect(await screen.findByText('Total Sessions: 2')).toBeInTheDocument()
     expect(screen.getByText('10.0.1.42')).toBeInTheDocument()
@@ -220,7 +220,7 @@ describe('My Profile — sesiones activas', () => {
   }
 
   it('it asks for confirmation with the literal text before deleting', async () => {
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(withSessions)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
     await openSessionDelete()
@@ -230,7 +230,7 @@ describe('My Profile — sesiones activas', () => {
   })
 
   it('on confirming it deletes and alerts with the literal text', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(withSessions)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
     await openSessionDelete()

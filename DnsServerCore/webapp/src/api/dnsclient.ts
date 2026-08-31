@@ -25,7 +25,7 @@ export function prepararServidor(
   server: string,
   protocol: string,
 ): { server: string; protocol: string } {
-  const forzarUdp = server.includes('recursive-resolver') || server.includes('system-dns')
+  const forceUdp = server.includes('recursive-resolver') || server.includes('system-dns')
 
   let s = server
   const i = s.indexOf('{')
@@ -34,7 +34,7 @@ export function prepararServidor(
     s = s.substring(i + 1, j)
   }
 
-  return { server: s.trim(), protocol: forzarUdp ? 'UDP' : protocol }
+  return { server: s.trim(), protocol: forceUdp ? 'UDP' : protocol }
 }
 
 export interface ResolveParams {
@@ -44,7 +44,7 @@ export interface ResolveParams {
   protocol: string
   dnssec: boolean
   eDnsClientSubnet?: string
-  importar?: boolean
+  runImport?: boolean
 }
 
 export interface ResolveResult {
@@ -65,6 +65,6 @@ export function resolve(
     dnssec: String(p.dnssec),
     eDnsClientSubnet: p.eDnsClientSubnet ?? '',
   }
-  if (p.importar) body.import = 'true'
+  if (p.runImport) body.import = 'true'
   return apiRequest<{ response: ResolveResult }>('dnsClient/resolve', { token, body })
 }

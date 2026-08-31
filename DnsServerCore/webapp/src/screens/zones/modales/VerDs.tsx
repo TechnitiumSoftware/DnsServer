@@ -23,8 +23,8 @@ unreadable.
 const CORTE = 64
 
 function Long({ value }: { value: string }) {
-  const [entero, setEntero] = useState(false)
-  if (value.length <= CORTE || entero) return <span className={styles.key}>{value}</span>
+  const [whole, setEntero] = useState(false)
+  if (value.length <= CORTE || whole) return <span className={styles.key}>{value}</span>
   return (
     <>
       <span className={styles.key}>{value.slice(0, CORTE)}… </span>
@@ -40,26 +40,26 @@ export function VerDs({
   open,
   token,
   node = '',
-  onCerrar,
+  onClose,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
 }) {
   const [info, setInfo] = useState<InfoDs | null>(null)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setAviso(null)
+    setNotice(null)
     setLoading(true)
     void verDs(token, zone, node).then((r) => {
       setLoading(false)
       if (r == null) {
-        setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
+        setNotice({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
       }
       setInfo(r)
@@ -69,11 +69,11 @@ export function VerDs({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       size="wide"
       title={`View DS Info - ${zone === '.' ? '<root>' : zone}`}
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <p className={styles.parrafo}>
         Use the DNS Key data given below to add DS records for your zone. Before adding the DS records, you
@@ -100,7 +100,7 @@ export function VerDs({
       {loading ? (
         <Loading>Loading DS records…</Loading>
       ) : (info?.dsRecords ?? []).length === 0 ? (
-        <Empty titulo="No DS records">This zone has no published keys yet.</Empty>
+        <Empty title="No DS records">This zone has no published keys yet.</Empty>
       ) : (
         (info?.dsRecords ?? []).map((ds) => (
           <div key={ds.keyTag} className={styles.group}>

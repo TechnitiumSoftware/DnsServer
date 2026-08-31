@@ -57,9 +57,9 @@ export function Apps({ token }: { token: string | null }) {
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [modal, setModal] = useState<Modal | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
-  const [porDesinstalar, setPorDesinstalar] = useState<string | null>(null)
+  const [pendingUninstall, setPorDesinstalar] = useState<string | null>(null)
 
-  const recargar = useCallback(async () => {
+  const reload = useCallback(async () => {
     const outcome = await listApps(token)
     if (outcome.kind === 'ok') {
       setApps(outcome.data.response.apps)
@@ -70,8 +70,8 @@ export function Apps({ token }: { token: string | null }) {
   }, [token])
 
   useEffect(() => {
-    void recargar()
-  }, [recargar])
+    void reload()
+  }, [reload])
 
   /*
   apps.js:425-449 — the confirmation and the alert are upstream literals.
@@ -81,7 +81,7 @@ export function Apps({ token }: { token: string | null }) {
   behind: the same operating-system dialog the redesign replaced everywhere, on
   an action that uninstalls an application from the server.
   */
-  async function desinstalar(name: string) {
+  async function uninstall(name: string) {
     setBusy(name)
     const outcome = await uninstallApp(token, name)
     setBusy(null)
@@ -95,7 +95,7 @@ export function Apps({ token }: { token: string | null }) {
       title: 'App Uninstalled!',
       text: `DNS application '${name}' was uninstalled successfully.`,
     })
-    await recargar()
+    await reload()
   }
 
   // apps.js:253-290, with `isModal` false: the alert comes out on the page.
@@ -115,7 +115,7 @@ export function Apps({ token }: { token: string | null }) {
       title: 'Store App Updated!',
       text: `DNS application '${app.name}' was updated successfully from DNS App Store.`,
     })
-    await recargar()
+    await reload()
   }
 
   // apps.js:459-491 — the config is read BEFORE opening the modal, and from the
@@ -135,18 +135,18 @@ export function Apps({ token }: { token: string | null }) {
   // The installed-apps count no longer goes in the header: the header pill
   // is for STATE, and a count that looked exactly like it was one of the
   // inconsistencies. What is left here is what really is state: there are updates.
-  const conUpdate = (apps ?? []).filter((a) => a.updateAvailable).length
+  const withUpdate = (apps ?? []).filter((a) => a.updateAvailable).length
 
   return (
     <>
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
 
       <SectionHeader
-        titulo="Apps"
-        etiquetas={
-          conUpdate > 0 ? (
+        title="Apps"
+        labels={
+          withUpdate > 0 ? (
             <Tag tone="warn">
-              {conUpdate === 1 ? '1 update available' : `${conUpdate} updates available`}
+              {withUpdate === 1 ? '1 update available' : `${withUpdate} updates available`}
             </Tag>
           ) : undefined
         }
@@ -164,7 +164,7 @@ export function Apps({ token }: { token: string | null }) {
         <Loading />
       ) : apps.length === 0 ? (
         <Empty
-          titulo="No apps installed"
+          title="No apps installed"
           actions={
             <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
               Open App Store
@@ -191,19 +191,19 @@ export function Apps({ token }: { token: string | null }) {
       )}
 
       <Confirm
-        open={porDesinstalar !== null}
-        titulo="Uninstall App"
-        text={`Are you sure you want to uninstall the DNS application '${porDesinstalar ?? ''}'?`}
-        etiqueta="Uninstall"
-        onCerrar={() => setPorDesinstalar(null)}
-        onConfirmar={() => porDesinstalar && desinstalar(porDesinstalar)}
+        open={pendingUninstall !== null}
+        title="Uninstall App"
+        text={`Are you sure you want to uninstall the DNS application '${pendingUninstall ?? ''}'?`}
+        label="Uninstall"
+        onClose={() => setPorDesinstalar(null)}
+        onConfirm={() => pendingUninstall && uninstall(pendingUninstall)}
       />
 
       <StoreApps
         open={modal?.kind === 'store'}
         onOpenChange={(o) => setModal(o ? { kind: 'store' } : null)}
         token={token}
-        onChanged={() => void recargar()}
+        onChanged={() => void reload()}
       />
       <InstallApp
         open={modal?.kind === 'install'}
@@ -216,7 +216,7 @@ export function Apps({ token }: { token: string | null }) {
             title: 'App Installed!',
             text: `DNS application '${name}' was installed successfully.`,
           })
-          void recargar()
+          void reload()
         }}
       />
       <UpdateApp
@@ -231,7 +231,7 @@ export function Apps({ token }: { token: string | null }) {
             title: 'App Updated!',
             text: `DNS application '${name}' was updated successfully.`,
           })
-          void recargar()
+          void reload()
         }}
       />
       <AppConfig

@@ -75,7 +75,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
                 ? 'Not Set'
                 : fechaHora(extra.temporaryDisableBlockingTill)}
             </div>
-            <div className={settings.enLinea}>
+            <div className={settings.inline}>
               <Input
                 id={id}
                 type="number"
@@ -201,7 +201,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
             {textoProximaActualizacion(extra.blockListNextUpdatedOn)}
           </span>
           <Button
-            disabled={!en.actualizarListasAhora || extra.busy}
+            disabled={!en.updateListsNow || extra.busy}
             onClick={extra.onUpdateNow}
           >
             Update Now

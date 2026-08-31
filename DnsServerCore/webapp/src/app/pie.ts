@@ -14,7 +14,7 @@ half-updated as soon as somebody touches one.
 "About" is not there: in upstream it is the footer's sixth link and here it is a
 sidebar section, so it is already reachable.
 */
-export interface EnlaceDePie {
+export interface FooterLink {
   text: string
   href: string
   /*
@@ -28,7 +28,7 @@ export interface EnlaceDePie {
   name?: string
 }
 
-export const FOOTER: EnlaceDePie[] = [
+export const FOOTER: FooterLink[] = [
   { text: 'Technitium', href: 'https://technitium.com/' },
   { text: 'Blog', href: 'https://blog.technitium.com/' },
   { text: 'Donate', href: 'https://go.technitium.com/?id=35' },

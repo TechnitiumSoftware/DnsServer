@@ -21,11 +21,11 @@ forcing a server failure:
 It settles at 24, which is `--hueco-bloque` —the token that names the distance
 between independent blocks— and the one three quarters of them already had.
 */
-export function Notifier({ notice, onCerrar }: { notice: Notice | null; onCerrar: () => void }) {
+export function Notifier({ notice, onClose }: { notice: Notice | null; onClose: () => void }) {
   if (notice == null) return null
   return (
     <div className={styles.gap}>
-      <Alert type={notice.type} title={notice.title} onDismiss={onCerrar}>
+      <Alert type={notice.type} title={notice.title} onDismiss={onClose}>
         {notice.text}
       </Alert>
     </div>

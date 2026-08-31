@@ -80,7 +80,7 @@ export function ChangePassword({
         </>
       }
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
       <LabeledInput
         label="Current Password"
         placeholder="current password"

@@ -3,7 +3,7 @@ The trigger is the same hole as a text field: in a form, choosing and typing hav
 to weigh the same. What changes is that this one opens.
 */
 
-.disparador {
+.trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -23,22 +23,22 @@ to weigh the same. What changes is that this one opens.
   transition: border-color var(--t-rapido), box-shadow var(--t-rapido);
 }
 
-.disparador:hover:not(:disabled) { border-color: #3a465b; }
+.trigger:hover:not(:disabled) { border-color: #3a465b; }
 
-.disparador:focus-visible,
-.disparador[aria-expanded='true'] {
+.trigger:focus-visible,
+.trigger[aria-expanded='true'] {
   outline: none;
   border-color: var(--acc);
   box-shadow: var(--hundido), var(--halo-foco);
 }
 
-.disparador:disabled { opacity: 0.45; cursor: default; }
+.trigger:disabled { opacity: 0.45; cursor: default; }
 
 .value { composes: truncado from './texto.module.css'; }
 .emptyText { color: var(--faint); }
 
 .chevron { color: var(--mute); flex: none; transition: transform var(--t-rapido); }
-.disparador[aria-expanded='true'] .chevron { transform: rotate(180deg); }
+.trigger[aria-expanded='true'] .chevron { transform: rotate(180deg); }
 
 /*
 The list. It is genuinely raised —two steps above the field— because it floats
@@ -85,6 +85,6 @@ over the form and has to read as something in front.
 .isEmpty { color: var(--faint); }
 
 @media (prefers-reduced-motion: reduce) {
-  .disparador,
+  .trigger,
   .chevron { transition: none; }
 }

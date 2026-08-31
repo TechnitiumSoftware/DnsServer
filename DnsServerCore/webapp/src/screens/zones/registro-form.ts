@@ -1,5 +1,5 @@
-import { dominioCompleto, identidadRegistro, type ResourceRecord } from '../../api/registros'
-import { limpiarLista } from '../../api/zonelists'
+import { fullDomain, recordIdentity, type ResourceRecord } from '../../api/registros'
+import { cleanList } from '../../api/zonelists'
 import { serializeTable } from '../../lib/tabla-serie'
 
 /*
@@ -31,12 +31,12 @@ export const RECORD_TYPES = [
   'FWD', 'APP', 'Unknown',
 ] as const
 
-export interface ParametroSvcb {
+export interface SvcbParam {
   key: string
   value: string
 }
 
-export interface FormularioRegistro {
+export interface RecordForm {
   name: string
   type: string
   ttl: string
@@ -98,7 +98,7 @@ export interface FormularioRegistro {
 
   svcbPriority: string
   svcbTargetName: string
-  svcbParams: ParametroSvcb[]
+  svcbParams: SvcbParam[]
   svcbAutoIpv4Hint: boolean
   svcbAutoIpv6Hint: boolean
 
@@ -127,7 +127,7 @@ export interface FormularioRegistro {
   unknownType: string
 }
 
-export function formularioVacio(): FormularioRegistro {
+export function emptyForm(): RecordForm {
   return {
     name: '', type: 'A', ttl: '3600', overwrite: false, comments: '', expiryTtl: '',
     value: '', ptr: false, createPtrZone: false,
@@ -159,8 +159,8 @@ export function formularioVacio(): FormularioRegistro {
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
 /** Fills the form with an existing record, for editing. */
-export function formularioDesdeRegistro(r: ResourceRecord, zone: string): FormularioRegistro {
-  const f = formularioVacio()
+export function formFromRecord(r: ResourceRecord, zone: string): RecordForm {
+  const f = emptyForm()
   const d = r.rData
 
   f.name = nombreRelativo(r.name, zone)
@@ -301,14 +301,14 @@ export interface RecordError {
   title: string
   text: string
   /** Which field receives the focus, just as upstream does. */
-  field: keyof FormularioRegistro
+  field: keyof RecordForm
 }
 
-export type ResultadoRegistro =
+export type RecordResult =
   | { error: RecordError }
   | { body: Record<string, string> }
 
-export interface ContextoRegistro {
+export interface RecordContext {
   zone: string
   mode: RecordMode
   /** Only on edit: the record being touched. */
@@ -326,7 +326,7 @@ part does belong here: the shared function returns the empty one and the caller
 decides.
 */
 export function serializeSvcParams(
-  rows: ParametroSvcb[],
+  rows: SvcbParam[],
 ): { value: string } | { error: RecordError } {
   const r = serializeTable(
     rows.map((row) =>
@@ -339,19 +339,19 @@ export function serializeSvcParams(
   return { value: r.value.length === 0 ? 'false' : r.value }
 }
 
-export function construirCuerpoRegistro(
-  f: FormularioRegistro,
-  ctx: ContextoRegistro,
-): ResultadoRegistro {
+export function buildRecordBody(
+  f: RecordForm,
+  ctx: RecordContext,
+): RecordResult {
   const alta = ctx.mode === 'add'
   const verbo = alta ? 'add' : 'update'
-  const missing = (text: string, field: keyof FormularioRegistro): ResultadoRegistro => ({
+  const missing = (text: string, field: keyof RecordForm): RecordResult => ({
     error: { title: 'Missing!', text, field },
   })
 
   // The identity of the record being edited: the "old" half of the body.
   const old = ctx.original
-    ? identidadRegistro(ctx.original, { updateSvcbHints: ctx.updateSvcbHints })
+    ? recordIdentity(ctx.original, { updateSvcbHints: ctx.updateSvcbHints })
     : {}
 
   const p: Record<string, string> = {}
@@ -381,7 +381,7 @@ export function construirCuerpoRegistro(
         p.nameServer = old.nameServer ?? ''
         p.newNameServer = f.nsNameServer
       }
-      p.glue = limpiarLista(f.nsGlue)
+      p.glue = cleanList(f.nsGlue)
       break
     }
 
@@ -468,15 +468,15 @@ export function construirCuerpoRegistro(
     case 'RP': {
       // Both empties fall to the root; there is no alert at all.
       const buzon = f.rpMailbox === '' ? '.' : f.rpMailbox
-      const dominioTxt = f.rpTxtDomain === '' ? '.' : f.rpTxtDomain
+      const domainTxt = f.rpTxtDomain === '' ? '.' : f.rpTxtDomain
       if (alta) {
         p.mailbox = buzon
-        p.txtDomain = dominioTxt
+        p.txtDomain = domainTxt
       } else {
         p.mailbox = old.mailbox ?? ''
         p.newMailbox = buzon
         p.txtDomain = old.txtDomain ?? ''
-        p.newTxtDomain = dominioTxt
+        p.newTxtDomain = domainTxt
       }
       break
     }
@@ -840,7 +840,7 @@ export function construirCuerpoRegistro(
     }
   }
 
-  const domain = dominioCompleto(ctx.zone, f.name)
+  const domain = fullDomain(ctx.zone, f.name)
 
   if (alta) {
     return {

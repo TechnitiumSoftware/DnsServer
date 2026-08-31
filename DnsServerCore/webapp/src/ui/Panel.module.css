@@ -40,7 +40,7 @@ It is `flex` because many of them carry an action on the right —"More",
   background: var(--pan2);
 }
 
-.titulo {
+.title {
   composes: versalita from './rotulo.module.css';
   margin: 0;
 }
@@ -63,4 +63,4 @@ onto. The values are the same tokens, which is what stops them drifting apart.
 .body { padding: var(--s-9); }
 
 /* A panel with no header needs to recover the air the header used to give it. */
-.sinCabecera { padding-top: var(--s-9); }
+.noHeader { padding-top: var(--s-9); }

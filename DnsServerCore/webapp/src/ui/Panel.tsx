@@ -19,7 +19,7 @@ what the ARIA specification gives as the equivalent of `fieldset`/`legend`, and 
 is also what upstream does, using `div.panel` with its title and no `fieldset`.
 */
 export function Panel({
-  titulo,
+  title,
   actions,
   agrupa = false,
   children,
@@ -33,7 +33,7 @@ export function Panel({
   plain text forces the screen to skip it and replicate the markup, which is
   exactly what this exists to avoid.
   */
-  titulo?: ReactNode
+  title?: ReactNode
   /** What goes on the right of the header. */
   actions?: ReactNode
   /*
@@ -51,17 +51,17 @@ export function Panel({
   className?: string
 }) {
   const id = useId()
-  const clases = [styles.panel, titulo == null ? styles.sinCabecera : null, className]
+  const clases = [styles.panel, title == null ? styles.noHeader : null, className]
     .filter(Boolean)
     .join(' ')
 
-  if (titulo == null) return <div className={clases}>{children}</div>
+  if (title == null) return <div className={clases}>{children}</div>
 
   return (
     <div className={clases} role={agrupa ? 'group' : undefined} aria-labelledby={agrupa ? id : undefined}>
       <div className={styles.header}>
-        <h2 className={styles.titulo} id={id}>
-          {titulo}
+        <h2 className={styles.title} id={id}>
+          {title}
         </h2>
         {actions}
       </div>

@@ -34,14 +34,14 @@ describe('Login', () => {
   */
   it('it shows the upstream footer, which appears on its login too', async () => {
     render(<Login onSuccess={() => {}} />)
-    for (const [name, destino] of [
+    for (const [name, target] of [
       ['Technitium', 'https://technitium.com/'],
       ['Blog', 'https://blog.technitium.com/'],
       ['Donate', 'https://go.technitium.com/?id=35'],
       ['DNS Client at dnsclient.net', 'https://dnsclient.net/'],
       ['GitHub', 'https://github.com/TechnitiumSoftware/DnsServer'],
     ]) {
-      expect(screen.getByRole('link', { name: name })).toHaveAttribute('href', destino)
+      expect(screen.getByRole('link', { name: name })).toHaveAttribute('href', target)
     }
   })
 

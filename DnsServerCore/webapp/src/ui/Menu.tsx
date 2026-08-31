@@ -28,15 +28,15 @@ two parameters below.
 */
 
 export function Menu({
-  etiqueta,
+  label,
   rotulo,
-  onAbrir,
+  onOpen,
   ancla = 'derecha',
-  comoFila = false,
+  asRow = false,
   children,
 }: {
   /** Accessible name; it is all there is when it carries no visible label. */
-  etiqueta: string
+  label: string
   /** Visible text. Without it, the button is the compact `⋮` of a row. */
   rotulo?: string
   /**
@@ -45,18 +45,18 @@ export function Menu({
    * menu (`main.js:2429`): it asks on open, not on render, because between the
    * two the setting may have changed in another tab.
    */
-  onAbrir?: () => void
+  onOpen?: () => void
   /** Which edge the list aligns to against the trigger. */
   ancla?: 'derecha' | 'izquierda'
   /** The trigger fills the width of its column, with the label on the left. */
-  comoFila?: boolean
+  asRow?: boolean
   children: (close: () => void) => ReactNode
 }) {
-  const [open, setAbierto] = useState(false)
-  const [caja, setCaja] = useState<
+  const [open, setOpen] = useState(false)
+  const [box, setBox] = useState<
     { right?: number; left?: number; top?: number; bottom?: number; maxHeight: number } | null
   >(null)
-  const disparador = useRef<HTMLButtonElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLDivElement>(null)
 
   /*
@@ -79,19 +79,19 @@ export function Menu({
   —a very short window— every option is still reachable.
   */
   useLayoutEffect(() => {
-    if (!open) { setCaja(null); return }
-    const r = disparador.current?.getBoundingClientRect()
+    if (!open) { setBox(null); return }
+    const r = trigger.current?.getBoundingClientRect()
     if (r == null) return
 
     const MARGEN = 8
-    const debajo = window.innerHeight - r.bottom - MARGEN
-    const encima = r.top - MARGEN
+    const below = window.innerHeight - r.bottom - MARGEN
+    const above = r.top - MARGEN
     const borde = ancla === 'izquierda' ? { left: r.left } : { right: window.innerWidth - r.right }
 
-    setCaja(
-      debajo < encima && debajo < 240
-        ? { ...borde, bottom: window.innerHeight - r.top + 4, maxHeight: encima }
-        : { ...borde, top: r.bottom + 4, maxHeight: debajo },
+    setBox(
+      below < above && below < 240
+        ? { ...borde, bottom: window.innerHeight - r.top + 4, maxHeight: above }
+        : { ...borde, top: r.bottom + 4, maxHeight: below },
     )
   }, [open, ancla])
 
@@ -100,12 +100,12 @@ export function Menu({
 
     function outside(e: MouseEvent) {
       const t = e.target as Node
-      if (!disparador.current?.contains(t) && !list.current?.contains(t)) setAbierto(false)
+      if (!trigger.current?.contains(t) && !list.current?.contains(t)) setOpen(false)
     }
     function escape(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        setAbierto(false)
-        disparador.current?.focus()
+        setOpen(false)
+        trigger.current?.focus()
       }
     }
     /* Scrolling the page closes it, but scrolling the list itself does not: ever
@@ -114,33 +114,33 @@ export function Menu({
        The `instanceof` is not redundant: this same handler serves `resize`, and
        there the `target` is `window`, which is not a node. Without the guard,
        `contains()` threw on every resize with a menu open. */
-    const alRodar = (e: Event) => {
+    const onScroll = (e: Event) => {
       if (e.target instanceof Node && list.current?.contains(e.target)) return
-      setAbierto(false)
+      setOpen(false)
     }
 
     document.addEventListener('mousedown', outside)
     document.addEventListener('keydown', escape)
-    window.addEventListener('scroll', alRodar, true)
-    window.addEventListener('resize', alRodar)
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onScroll)
     return () => {
       document.removeEventListener('mousedown', outside)
       document.removeEventListener('keydown', escape)
-      window.removeEventListener('scroll', alRodar, true)
-      window.removeEventListener('resize', alRodar)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onScroll)
     }
   }, [open])
 
   const toggleOpen = () => {
-    if (!open) onAbrir?.()
-    setAbierto((v) => !v)
+    if (!open) onOpen?.()
+    setOpen((v) => !v)
   }
 
   return (
-    <div className={comoFila ? styles.menuWidth : styles.menu}>
-      {comoFila ? (
+    <div className={asRow ? styles.menuWidth : styles.menu}>
+      {asRow ? (
         <button
-          ref={disparador}
+          ref={trigger}
           type="button"
           className={styles.row}
           aria-haspopup="menu"
@@ -152,12 +152,12 @@ export function Menu({
         </button>
       ) : (
         <Button
-          ref={disparador}
+          ref={trigger}
           size="sm"
           icon={rotulo == null}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={etiqueta}
+          aria-label={label}
           onClick={toggleOpen}
         >
           {rotulo == null ? (
@@ -170,9 +170,9 @@ export function Menu({
           )}
         </Button>
       )}
-      {open && caja && (
-        <div className={styles.menuList} role="menu" ref={list} style={caja}>
-          {children(() => setAbierto(false))}
+      {open && box && (
+        <div className={styles.menuList} role="menu" ref={list} style={box}>
+          {children(() => setOpen(false))}
         </div>
       )}
     </div>

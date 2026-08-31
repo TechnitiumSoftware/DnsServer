@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { getDashboardStats, getTop, deleteAllStats, RANGOS, ETIQUETA_RANGO } from './dashboard'
+import { getDashboardStats, getTop, deleteAllStats, RANGOS, RANGE_LABEL } from './dashboard'
 import * as client from './client'
 
 afterEach(() => vi.restoreAllMocks())
@@ -9,8 +9,8 @@ const respuesta = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', 
 describe('dashboard', () => {
   it('the six ranges are the upstream ones, with their literal labels', () => {
     expect(RANGOS).toEqual(['LastHour','LastDay','LastWeek','LastMonth','LastYear','Custom'])
-    expect(ETIQUETA_RANGO.LastHour).toBe('Last Hour')
-    expect(ETIQUETA_RANGO.LastMonth).toBe('Last Month')
+    expect(RANGE_LABEL.LastHour).toBe('Last Hour')
+    expect(RANGE_LABEL.LastMonth).toBe('Last Month')
   })
 
   it('it asks for the range and unwraps response', async () => {

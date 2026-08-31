@@ -23,19 +23,19 @@ Three things that are contract and not our preference:
      NSEC they do not travel.
 */
 
-export type Algoritmo = 'RSA' | 'ECDSA' | 'EDDSA'
+export type Algorithm = 'RSA' | 'ECDSA' | 'EDDSA'
 export type NxProof = 'NSEC' | 'NSEC3'
 export type KeyKind = 'KeySigningKey' | 'ZoneSigningKey'
 
 /** States of a private key, in the order of upstream's life cycle. */
-export type EstadoClave = 'Generated' | 'Published' | 'Ready' | 'Active' | 'Retired' | 'Revoked'
+export type KeyState = 'Generated' | 'Published' | 'Ready' | 'Active' | 'Retired' | 'Revoked'
 
-export interface ClavePrivada {
+export interface PrivateKey {
   keyTag: number
   keyType: KeyKind
   algorithm: string
   algorithmNumber: number
-  state: EstadoClave
+  state: KeyState
   stateChangedOn: string
   /** Only arrives while the key is `Published`. */
   stateReadyBy?: string
@@ -51,7 +51,7 @@ export interface PropiedadesDnssec {
   disabled: boolean
   dnssecStatus: string
   dnsKeyTtl: number
-  dnssecPrivateKeys: ClavePrivada[]
+  dnssecPrivateKeys: PrivateKey[]
   /** Only with NSEC3. With NSEC the server omits them, it does not send them as zero. */
   nsec3Iterations?: number
   nsec3SaltLength?: number
@@ -64,9 +64,9 @@ export interface Digest {
   digest: string
 }
 
-export interface RegistroDs {
+export interface DsRecord {
   keyTag: number
-  dnsKeyState: EstadoClave
+  dnsKeyState: KeyState
   /** It may not come: it only exists while the key is waiting to be ready. */
   dnsKeyStateReadyBy?: string
   isRetiring: boolean
@@ -81,12 +81,12 @@ export interface InfoDs {
   type: string
   disabled: boolean
   dnssecStatus: string
-  dsRecords: RegistroDs[]
+  dsRecords: DsRecord[]
 }
 
 /** Key-generation parameters when signing. See `signPrimaryZone`. */
-export interface OpcionesFirma {
-  algorithm: Algoritmo
+export interface SignOptions {
+  algorithm: Algorithm
   /** RSA */
   hashAlgorithm?: string
   kskKeySize?: string
@@ -111,7 +111,7 @@ export interface OpcionesFirma {
 export function signZone(
   token: string | null,
   zone: string,
-  o: OpcionesFirma,
+  o: SignOptions,
   node = '',
 ): Promise<ApiOutcome> {
   const body: Record<string, string> = {
@@ -181,9 +181,9 @@ export async function getPropiedades(
 }
 
 /** Parameters of `addPrivateKey`. See `addDnssecPrivateKey` (zone.js:7191). */
-export interface OpcionesClaveNueva {
+export interface NewKeyOptions {
   keyType: KeyKind
-  algorithm: Algoritmo
+  algorithm: Algorithm
   pemPrivateKey?: string
   rolloverDays: string
   hashAlgorithm?: string
@@ -194,7 +194,7 @@ export interface OpcionesClaveNueva {
 export function addPrivateKey(
   token: string | null,
   zone: string,
-  o: OpcionesClaveNueva,
+  o: NewKeyOptions,
   node = '',
 ): Promise<ApiOutcome> {
   const body: Record<string, string> = {

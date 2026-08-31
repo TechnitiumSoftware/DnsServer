@@ -25,7 +25,7 @@ the name carries "(rate limited)" after it. Both fields only come in
 
 const LIMITE = 1000
 
-const TITULOS: Record<TopKind, string> = {
+const TITLES: Record<TopKind, string> = {
   TopClients: 'Clients',
   TopDomains: 'Domains',
   TopBlockedDomains: 'Blocked Domains',
@@ -37,7 +37,7 @@ const HEADER: Record<TopKind, string> = {
   TopBlockedDomains: 'Domain',
 }
 
-const CONTEO: Record<TopKind, string> = {
+const COUNT: Record<TopKind, string> = {
   TopClients: 'Queries',
   TopDomains: 'Hits',
   TopBlockedDomains: 'Hits',
@@ -47,23 +47,23 @@ export function TopStats({
   type,
   range,
   token,
-  onCerrar,
+  onClose,
 }: {
   /** `null` with the modal closed. */
   type: TopKind | null
   range: Range
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
 }) {
-  const [rows, setFilas] = useState<TopEntry[]>([])
+  const [rows, setRows] = useState<TopEntry[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (type == null) return
     setLoading(true)
-    setFilas([])
+    setRows([])
     void getTop(token, range, type, LIMITE).then((r) => {
-      setFilas(r)
+      setRows(r)
       setLoading(false)
     })
   }, [type, range, token])
@@ -73,31 +73,31 @@ export function TopStats({
   return (
     <Dialog
       open={type !== null}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       /* Upstream gives it 600 px (`modalTopStats`), not the 940 of the wide
          tables, and the measurement proves it right: the domain column took 736 px
          for a text of 148. It is a two-column list, not a wide table. */
       size="form"
-      title={type == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[type]}`}
+      title={type == null ? 'Top Stats' : `Top ${LIMITE} ${TITLES[type]}`}
     >
       {loading ? (
         <Loading compacto />
       ) : (
         <Table
-          className={styles.topTablaWrap}
-          claseTabla={styles.topTabla}
+          className={styles.topTableWrap}
+          tableClass={styles.topTable}
           header={
             <>
               <th>{type == null ? '' : HEADER[type]}</th>
-              <th style={{ width: 110 }}>{type == null ? '' : CONTEO[type]}</th>
+              <th style={{ width: 110 }}>{type == null ? '' : COUNT[type]}</th>
             </>
           }
           isEmpty={rows.length === 0}
           emptyText="No Data"
-          columnas={2}
+          columns={2}
           footer={
             <th colSpan={2}>
-              {type == null ? '' : `Total ${TITULOS[type]}: ${rows.length.toLocaleString()}`}
+              {type == null ? '' : `Total ${TITLES[type]}: ${rows.length.toLocaleString()}`}
             </th>
           }
         >
@@ -109,7 +109,7 @@ export function TopStats({
                   {f.rateLimited ? ' (rate limited)' : ''}
                 </span>
                 {esCliente && (
-                  <span className={styles.topDominio}>
+                  <span className={styles.topDomain}>
                     {f.domain === '' || f.domain == null ? '.' : f.domain}
                   </span>
                 )}

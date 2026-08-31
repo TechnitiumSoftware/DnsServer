@@ -3,16 +3,16 @@ import {
   addDomain,
   deleteDomain,
   deleteCacheNode,
-  dominioPadre,
-  exportarDominios,
-  importarDominios,
-  limpiarLista,
-  listarNodo,
-  vaciarCache,
-  vaciarLista,
+  parentDomain,
+  exportDomains,
+  importDomains,
+  cleanList,
+  listNode,
+  flushCache,
+  flushList,
   type List,
-  type ListaDominios,
-  type NodoLista,
+  type DomainList,
+  type ListNode,
 } from '../../api/zonelists'
 import { Button } from '../../ui/Button'
 import { Confirm } from '../../ui/Confirmar'
@@ -45,40 +45,40 @@ Blocked on the node having records (lines 319-327). It is replicated as it is.
 
 
 interface Confirmation {
-  titulo: string
+  title: string
   text: string
-  etiqueta: string
+  label: string
   action: () => Promise<void>
 }
 
-const TITULO: Record<List, string> = { cache: 'Cache', allowed: 'Allowed', blocked: 'Blocked' }
+const TITLE: Record<List, string> = { cache: 'Cache', allowed: 'Allowed', blocked: 'Blocked' }
 
 /*
 `importAllowedZones` / `importBlockedZones` (other-zones.js:589-661). The
 empty-list alert goes INSIDE the modal, not on the page: upstream passes
 `showAlert` the modal's own `divImportAllowedZonesAlert`.
 */
-function Importar({
+function Import({
   list,
   open,
   token,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
-  list: ListaDominios
+  list: DomainList
   open: boolean
   token: string | null
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
   const [text, setTexto] = useState('')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const area = useRef<HTMLTextAreaElement>(null)
 
   const esAllowed = list === 'allowed'
-  const titulo = esAllowed ? 'Import Allowed Zones' : 'Import Blocked Zones'
-  const etiqueta = esAllowed ? 'Allowed Zones' : 'Blocked Zones'
+  const title = esAllowed ? 'Import Allowed Zones' : 'Import Blocked Zones'
+  const label = esAllowed ? 'Allowed Zones' : 'Blocked Zones'
   const intro = esAllowed
     ? 'Enter domain names one below other to import into Allowed Zone:'
     : 'Enter domain names one below other to import into blocked zone:'
@@ -87,16 +87,16 @@ function Importar({
   useEffect(() => {
     if (open) {
       setTexto('')
-      setAviso(null)
+      setNotice(null)
       area.current?.focus()
     }
   }, [open])
 
-  async function importar() {
-    const zones = limpiarLista(text)
+  async function runImport() {
+    const zones = cleanList(text)
 
     if (zones.length === 0 || zones === ',') {
-      setAviso({
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text: esAllowed
@@ -108,15 +108,15 @@ function Importar({
     }
 
     setBusy(true)
-    const outcome = await importarDominios(list, token, zones)
+    const outcome = await importDomains(list, token, zones)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     onHecho({
       type: 'success',
       title: 'Imported!',
@@ -129,20 +129,20 @@ function Importar({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
-      title={titulo}
+      onOpenChange={(o) => !o && onClose()}
+      title={title}
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void importar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void runImport()}>
             Import
           </Button>
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
       <p className={styles.parrafo}>{intro}</p>
       <LabeledTextarea
-        label={etiqueta}
+        label={label}
         ref={area}
         mono
         className={styles.area}
@@ -155,27 +155,27 @@ function Importar({
 }
 
 export function Lists({ list, token }: { list: List; token: string | null }) {
-  const [node, setNodo] = useState<NodoLista | null>(null)
-  const [field, setCampo] = useState('')
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [node, setNode] = useState<ListNode | null>(null)
+  const [field, setField] = useState('')
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [importAbierto, setImportAbierto] = useState(false)
   const [busy, setBusy] = useState(false)
   const entry = useRef<HTMLInputElement>(null)
 
   const esCache = list === 'cache'
-  const listaDominios = list as ListaDominios
+  const domainList = list as DomainList
 
   const load = useCallback(
     async (domain: string, up?: boolean) => {
-      const outcome = await listarNodo(list, token, domain, up ? 'up' : undefined)
+      const outcome = await listNode(list, token, domain, up ? 'up' : undefined)
       if (outcome.kind === 'ok') {
-        setNodo(outcome.data)
+        setNode(outcome.data)
         return
       }
       // Upstream's error handler leaves the list where it was and draws the
       // server's errorMessage; the same here.
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
     },
     [list, token],
   )
@@ -185,30 +185,30 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
   }, [load])
 
   /** Wraps a mutation: runs it, and on failure draws the server's error. */
-  async function mutar(
+  async function mutate(
     fn: () => Promise<{ kind: string; message?: string }>,
     exito: Notice,
-    despues: () => Promise<void>,
+    after: () => Promise<void>,
   ) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
-    await despues()
-    setAviso(exito)
+    await after()
+    setNotice(exito)
   }
 
   const domain = node?.domain ?? ''
-  const tituloNodo = domain === '' ? '<ROOT>' : (node?.domainIdn ?? domain)
+  const nodeTitle = domain === '' ? '<ROOT>' : (node?.domainIdn ?? domain)
   const zones = node?.zones ?? []
   const records = node?.records ?? []
 
   // Cache: Delete hangs off the NODE. Allowed/Blocked: off there being records.
-  const puedeBorrar = esCache ? domain !== '' : records.length > 0
+  const mayDelete = esCache ? domain !== '' : records.length > 0
 
   function navegar(d: string, up?: boolean) {
     void load(d, up)
@@ -218,12 +218,12 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
 
   function pedirFlushCache() {
     setConfirmation({
-      titulo: 'Flush Cache',
+      title: 'Flush Cache',
       text: 'Are you sure to flush the DNS Server cache?',
-      etiqueta: 'Flush Cache',
+      label: 'Flush Cache',
       action: () =>
-        mutar(
-          () => vaciarCache(token),
+        mutate(
+          () => flushCache(token),
           {
             type: 'success',
             title: 'Flushed!',
@@ -235,20 +235,20 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
     })
   }
 
-  function pedirBorrarNodoCache() {
+  function askDeleteCacheNode() {
     setConfirmation({
-      titulo: 'Delete Cached Zone',
-      text: `Are you sure you want to delete the cached zone '${tituloNodo}' and all its records?`,
-      etiqueta: 'Delete',
+      title: 'Delete Cached Zone',
+      text: `Are you sure you want to delete the cached zone '${nodeTitle}' and all its records?`,
+      label: 'Delete',
       action: () =>
-        mutar(
-          () => deleteCacheNode(token, tituloNodo),
+        mutate(
+          () => deleteCacheNode(token, nodeTitle),
           {
             type: 'success',
             title: 'Deleted!',
-            text: `Cached zone '${tituloNodo}' was deleted successfully.`,
+            text: `Cached zone '${nodeTitle}' was deleted successfully.`,
           },
-          () => load(dominioPadre(tituloNodo) ?? '', true),
+          () => load(parentDomain(nodeTitle) ?? '', true),
         ),
     })
   }
@@ -256,16 +256,16 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
   // ---- acciones de Allowed y Blocked -------------------------------------
 
   async function add() {
-    const dominio = field
+    const domain = field
 
     // The alert goes BEFORE any call, and leaves the focus in the field:
     // other-zones.js:171-176 y 348-353.
-    if (dominio === '') {
-      setAviso({
+    if (domain === '') {
+      setNotice({
         type: 'warning',
         title: 'Missing!',
         text:
-          listaDominios === 'allowed'
+          domainList === 'allowed'
             ? 'Please enter a domain name to allow.'
             : 'Please enter a domain name to block.',
       })
@@ -273,64 +273,64 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
       return
     }
 
-    await mutar(
-      () => addDomain(listaDominios, token, dominio),
-      listaDominios === 'allowed'
+    await mutate(
+      () => addDomain(domainList, token, domain),
+      domainList === 'allowed'
         ? {
             type: 'success',
             title: 'Allowed!',
-            text: `Domain '${dominio}' was added to Allowed Zone successfully.`,
+            text: `Domain '${domain}' was added to Allowed Zone successfully.`,
           }
         : {
             type: 'success',
             title: 'Blocked!',
-            text: `Domain '${dominio}' was added to Blocked Zone successfully.`,
+            text: `Domain '${domain}' was added to Blocked Zone successfully.`,
           },
       async () => {
-        setCampo('')
-        await load(dominio)
+        setField('')
+        await load(domain)
       },
     )
   }
 
-  function pedirBorrarDominio() {
-    const esAllowed = listaDominios === 'allowed'
+  function askDeleteDomain() {
+    const esAllowed = domainList === 'allowed'
     setConfirmation({
-      titulo: esAllowed ? 'Delete Allowed Zone' : 'Delete Blocked Zone',
+      title: esAllowed ? 'Delete Allowed Zone' : 'Delete Blocked Zone',
       text: esAllowed
-        ? `Are you sure you want to delete the allowed zone '${tituloNodo}'?`
-        : `Are you sure you want to delete the blocked zone '${tituloNodo}'?`,
-      etiqueta: 'Delete',
+        ? `Are you sure you want to delete the allowed zone '${nodeTitle}'?`
+        : `Are you sure you want to delete the blocked zone '${nodeTitle}'?`,
+      label: 'Delete',
       action: () =>
-        mutar(
-          () => deleteDomain(listaDominios, token, tituloNodo),
+        mutate(
+          () => deleteDomain(domainList, token, nodeTitle),
           esAllowed
             ? {
                 type: 'success',
                 title: 'Deleted!',
-                text: `Domain '${tituloNodo}' was deleted from Allowed Zone successfully.`,
+                text: `Domain '${nodeTitle}' was deleted from Allowed Zone successfully.`,
               }
             : {
                 type: 'success',
                 title: 'Deleted!',
-                text: `Blocked zone '${tituloNodo}' was deleted successfully.`,
+                text: `Blocked zone '${nodeTitle}' was deleted successfully.`,
               },
-          () => load(dominioPadre(tituloNodo) ?? '', true),
+          () => load(parentDomain(nodeTitle) ?? '', true),
         ),
     })
   }
 
-  function pedirFlushLista() {
-    const esAllowed = listaDominios === 'allowed'
+  function askFlushList() {
+    const esAllowed = domainList === 'allowed'
     setConfirmation({
-      titulo: esAllowed ? 'Flush Allowed Zone' : 'Flush Blocked Zone',
+      title: esAllowed ? 'Flush Allowed Zone' : 'Flush Blocked Zone',
       text: esAllowed
         ? 'Are you sure you want to flush the entire Allowed zone?'
         : 'Are you sure you want to flush the entire Blocked zone?',
-      etiqueta: 'Flush',
+      label: 'Flush',
       action: () =>
-        mutar(
-          () => vaciarLista(listaDominios, token),
+        mutate(
+          () => flushList(domainList, token),
           esAllowed
             ? { type: 'success', title: 'Flushed!', text: 'Allowed zone was flushed successfully.' }
             : { type: 'success', title: 'Flushed!', text: 'Blocked zone was flushed successfully.' },
@@ -339,16 +339,16 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
     })
   }
 
-  async function exportar() {
+  async function runExport() {
     setBusy(true)
-    const r = await exportarDominios(listaDominios, token)
+    const r = await exportDomains(domainList, token)
     setBusy(false)
     if (!r.ok) return
-    setAviso({
+    setNotice({
       type: 'success',
       title: 'Exported!',
       text:
-        listaDominios === 'allowed'
+        domainList === 'allowed'
           ? 'Allowed zones were exported successfully.'
           : 'Blocked zones were exported successfully.',
     })
@@ -357,7 +357,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
   return (
     <>
       <SectionHeader
-        titulo={TITULO[list]}
+        title={TITLE[list]}
         actions={<>{esCache ? (
             <Button variant="danger" disabled={busy} onClick={pedirFlushCache}>
               Flush Cache
@@ -365,22 +365,22 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
           ) : (
             <>
               <Button variant="primary" disabled={busy} onClick={() => void add()}>
-                {listaDominios === 'allowed' ? 'Allow' : 'Block'}
+                {domainList === 'allowed' ? 'Allow' : 'Block'}
               </Button>
               <Button disabled={busy} onClick={() => setImportAbierto(true)}>
                 Import
               </Button>
-              <Button disabled={busy} onClick={() => void exportar()}>
+              <Button disabled={busy} onClick={() => void runExport()}>
                 Export
               </Button>
-              <Button variant="danger" disabled={busy} onClick={pedirFlushLista}>
+              <Button variant="danger" disabled={busy} onClick={askFlushList}>
                 Flush
               </Button>
             </>
           )}</>}
       />
 
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.brow}>
         <div className={styles.tree}>
@@ -399,7 +399,7 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
                     mono
                     placeholder="example.com"
                     value={field}
-                    onChange={(e) => setCampo(e.target.value)}
+                    onChange={(e) => setField(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') navegar(field)
                     }}
@@ -431,17 +431,17 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
         <div>
           <div className={styles.count}>
             <span>
-              {records.length} records at <span className={styles.mono}>{tituloNodo}</span>
+              {records.length} records at <span className={styles.mono}>{nodeTitle}</span>
             </span>
             <div className={styles.countActs}>
               <Button size="sm" onClick={() => navegar(domain)}>
                 Refresh
               </Button>
-              {puedeBorrar && (
+              {mayDelete && (
                 <Button
                   size="sm"
                   disabled={busy}
-                  onClick={esCache ? pedirBorrarNodoCache : pedirBorrarDominio}
+                  onClick={esCache ? askDeleteCacheNode : askDeleteDomain}
                 >
                   Delete
                 </Button>
@@ -450,9 +450,9 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
           </div>
 
           {records.length > 0 ? (
-            <ResourceRecords records={records} conDnssec={esCache} node={domain} />
+            <ResourceRecords records={records} withDnssec={esCache} node={domain} />
           ) : (
-            <Empty titulo="No records at this node">
+            <Empty title="No records at this node">
               {zones.length > 0
                 ? 'This node only contains sub-domains. Open one in the tree to see its records.'
                 : 'This node has no records and no sub-domains.'}
@@ -463,20 +463,20 @@ export function Lists({ list, token }: { list: List; token: string | null }) {
 
       <Confirm
         open={confirmation !== null}
-        titulo={confirmation?.titulo ?? ''}
+        title={confirmation?.title ?? ''}
         text={confirmation?.text}
-        etiqueta={confirmation?.etiqueta ?? ''}
-        onCerrar={() => setConfirmation(null)}
-        onConfirmar={() => confirmation?.action()}
+        label={confirmation?.label ?? ''}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => confirmation?.action()}
       />
 
       {!esCache && (
-        <Importar
-          list={listaDominios}
+        <Import
+          list={domainList}
           open={importAbierto}
           token={token}
-          onCerrar={() => setImportAbierto(false)}
-          onHecho={setAviso}
+          onClose={() => setImportAbierto(false)}
+          onHecho={setNotice}
         />
       )}
     </>

@@ -59,9 +59,9 @@ export interface Zone {
  * upstream's chain of `else if` and the order matters — a zone that is expired
  * and has a failed notify says "Expired", not "Notify Failed".
  */
-export type EstadoZona = 'Disabled' | 'Expired' | 'Validation Failed' | 'Sync Failed' | 'Notify Failed' | 'Enabled'
+export type ZoneState = 'Disabled' | 'Expired' | 'Validation Failed' | 'Sync Failed' | 'Notify Failed' | 'Enabled'
 
-export function estadoDeZona(z: Zone): EstadoZona {
+export function zoneState(z: Zone): ZoneState {
   if (z.disabled) return 'Disabled'
   if (z.isExpired) return 'Expired'
   if (z.validationFailed) return 'Validation Failed'
@@ -71,20 +71,20 @@ export function estadoDeZona(z: Zone): EstadoZona {
 }
 
 /** The type's text: only the two "Secondary…" split into two words. */
-export function etiquetaTipo(type: string): string {
+export function typeLabel(type: string): string {
   if (type === 'SecondaryForwarder') return 'Secondary Forwarder'
   if (type === 'SecondaryCatalog') return 'Secondary Catalog'
   return type
 }
 
 /** The name that is drawn: the root is `<root>` and an IDN carries both. */
-export function nombreDeZona(z: Pick<Zone, 'name' | 'nameIdn'>): string {
+export function zoneNameOf(z: Pick<Zone, 'name' | 'nameIdn'>): string {
   const name = z.name === '' ? '.' : z.name
   if (z.nameIdn == null) return name === '.' ? '<root>' : name
   return `${z.nameIdn} (${name})`
 }
 
-export interface ListaZonas {
+export interface ZoneList {
   zones: Zone[]
   pageNumber: number
   totalPages: number
@@ -94,7 +94,7 @@ export interface ListaZonas {
 export const ZONE_TYPES = ['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'] as const
 
 /** Page sizes of upstream's dropdown (index.html, `optZonesPerPage`). */
-export const ZONAS_POR_PAGINA = [10, 25, 50, 100, 250, 500] as const
+export const ZONES_PER_PAGE = [10, 25, 50, 100, 250, 500] as const
 
 export async function listZones(
   token: string | null,
@@ -105,7 +105,7 @@ export async function listZones(
     zonesPerPage?: number
     node?: string
   } = {},
-): Promise<ApiOutcome<ListaZonas>> {
+): Promise<ApiOutcome<ZoneList>> {
   const {
     filterName = '',
     filterType = '',
@@ -113,7 +113,7 @@ export async function listZones(
     zonesPerPage = 10,
     node = '',
   } = options
-  const outcome = await apiRequest<{ response: ListaZonas }>('zones/list', {
+  const outcome = await apiRequest<{ response: ZoneList }>('zones/list', {
     token,
     body: {
       filterName,
@@ -158,11 +158,11 @@ export function neverUsed(iso: string): boolean {
  */
 export function createZone(
   token: string | null,
-  parametros: Record<string, string>,
+  params: Record<string, string>,
   archivo?: File | null,
   node = '',
 ): Promise<ApiOutcome<{ response: { domain: string } }>> {
-  const query = new URLSearchParams({ ...parametros, node })
+  const query = new URLSearchParams({ ...params, node })
   return apiRequest<{ response: { domain: string } }>(`zones/create?${query.toString()}`, {
     token,
     method: 'POST',
@@ -235,7 +235,7 @@ export interface PoliticaActualizacion {
   allowedTypes: string[]
 }
 
-export interface OpcionesZona {
+export interface ZoneOptions {
   name: string
   type: string
   dnssecStatus: string
@@ -280,8 +280,8 @@ export async function getZoneOptions(
   token: string | null,
   zone: string,
   node = '',
-): Promise<OpcionesZona | null> {
-  const outcome = await apiRequest<{ response: OpcionesZona }>('zones/options/get', {
+): Promise<ZoneOptions | null> {
+  const outcome = await apiRequest<{ response: ZoneOptions }>('zones/options/get', {
     token,
     body: {
       zone,
@@ -309,25 +309,25 @@ The subject's name is NOT called the same in the two tables: a user permission
 brings `username` and a group one brings `name`. Verified against v15.4. Treating
 them as the same shape leaves half the table blank.
 */
-export interface PermisoDeUsuario {
+export interface UserPermission {
   username: string
   canView: boolean
   canModify: boolean
   canDelete: boolean
 }
 
-export interface PermisoDeGrupo {
+export interface GroupPermission {
   name: string
   canView: boolean
   canModify: boolean
   canDelete: boolean
 }
 
-export interface PermisosZona {
+export interface ZonePermissions {
   section: string
   subItem: string
-  userPermissions: PermisoDeUsuario[]
-  groupPermissions: PermisoDeGrupo[]
+  userPermissions: UserPermission[]
+  groupPermissions: GroupPermission[]
   /** Only if asked for with `includeUsersAndGroups`. */
   users?: string[]
   groups?: string[]
@@ -337,8 +337,8 @@ export async function getZonePermissions(
   token: string | null,
   zone: string,
   node = '',
-): Promise<PermisosZona | null> {
-  const outcome = await apiRequest<{ response: PermisosZona }>('zones/permissions/get', {
+): Promise<ZonePermissions | null> {
+  const outcome = await apiRequest<{ response: ZonePermissions }>('zones/permissions/get', {
     token,
     body: { zone, includeUsersAndGroups: 'true', node },
   })
@@ -380,7 +380,7 @@ export function setZonePermissions(
 
 /* ── Importar y exportar ───────────────────────────────────────────────── */
 
-export interface OpcionesImportacion {
+export interface ImportOptions {
   overwrite: boolean
   overwriteZone: boolean
   overwriteSoaSerial: boolean
@@ -399,7 +399,7 @@ export function importZone(
   token: string | null,
   zone: string,
   fuente: { archivo: File } | { text: string },
-  options: OpcionesImportacion,
+  options: ImportOptions,
   node = '',
 ): Promise<ApiOutcome> {
   const query = new URLSearchParams({

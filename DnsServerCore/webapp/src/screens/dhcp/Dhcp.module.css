@@ -19,7 +19,7 @@ title out again.
 .name { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .date { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
 /* The count is `ui/recuento.module.css`'s: see there for why. */
-.total { composes: recuento debajo from '../../ui/recuento.module.css'; }
+.total { composes: recuento below from '../../ui/recuento.module.css'; }
 .kv { composes: kv from '../../ui/kv.module.css'; }
 
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }

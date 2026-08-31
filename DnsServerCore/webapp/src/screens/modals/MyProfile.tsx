@@ -4,12 +4,12 @@ import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
-import { CeldaAgente, CeldaSesion, CeldaUltimaVez } from '../../ui/Sesion'
+import { AgentCell, SessionCell, LastSeenCell } from '../../ui/Sesion'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
 import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Keys, Table } from '../../ui/Table'
-import { desdeAhora, fechaHora } from '../../lib/fechas'
+import { fromNow, fechaHora } from '../../lib/fechas'
 import { noticeFromFailure } from '../../lib/aviso'
 import { Notifier } from '../../ui/Avisador'
 import { Confirm } from '../../ui/Confirmar'
@@ -34,7 +34,7 @@ interface Profile {
 }
 
 /* `sortTable('tbodyMyProfileMemberOf', 0)`. */
-const CLAVES_GRUPO: Keys<string> = { group: (g) => g }
+const GROUP_KEYS: Keys<string> = { group: (g) => g }
 
 /* `sortTable('tbodyMyProfileActiveSessions', 0..3)`. */
 const KEYS: Keys<Profile['sessions'][number]> = {
@@ -56,14 +56,14 @@ export function MyProfile({
   onSaved?: (displayName: string) => void
 }) {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const { rows: sesionesVisibles, sort, alternar } = useOrden(KEYS, profile?.sessions ?? [])
-  const groups = useOrden(CLAVES_GRUPO, profile?.memberOfGroups ?? [])
+  const { rows: visibleSessions, sort, toggle } = useOrden(KEYS, profile?.sessions ?? [])
+  const groups = useOrden(GROUP_KEYS, profile?.memberOfGroups ?? [])
   const [displayName, setDisplayName] = useState('')
   const [timeout, setTimeoutSeconds] = useState('')
   const [alert, setAlert] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  const [porBorrar, setPorBorrar] = useState<SessionRow | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<SessionRow | null>(null)
 
   // Clear the alert ONLY on opening. Were it cleared on reload too, the
   // "session deleted" message would be lost, since deleting triggers a reload.
@@ -140,7 +140,7 @@ export function MyProfile({
         </>
       }
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
       <LabeledInput label="Username" value={profile?.username ?? ''} readOnly />
       <LabeledInput label="User Type" value={profile?.isSsoUser ? 'Remote/SSO' : 'Local'} readOnly />
       {/* auth.js:667-674 — on an SSO user the 2FA is not this console's business. */}
@@ -181,11 +181,11 @@ export function MyProfile({
         <Table
           className={styles.estrecha}
           header={
-            <Th field="group" sort={groups.sort} onOrdenar={groups.alternar}>Group</Th>
+            <Th field="group" sort={groups.sort} onSort={groups.toggle}>Group</Th>
           }
           isEmpty={groups.rows.length === 0}
           emptyText="No Group Found"
-          columnas={1}
+          columns={1}
         >
           {groups.rows.map((g) => (
             <tr key={g}>
@@ -201,41 +201,41 @@ export function MyProfile({
         <Table
           header={
             <>
-              <Th field="type" sort={sort} onOrdenar={alternar}>Session</Th>
-              <Th field="lastSeen" sort={sort} onOrdenar={alternar}>Last Seen</Th>
-              <Th field="address" sort={sort} onOrdenar={alternar}>Remote Address</Th>
+              <Th field="type" sort={sort} onSort={toggle}>Session</Th>
+              <Th field="lastSeen" sort={sort} onSort={toggle}>Last Seen</Th>
+              <Th field="address" sort={sort} onSort={toggle}>Remote Address</Th>
               {/* Upstream has it (`index.html`, the `tbodyMyProfileActiveSessions`
                   table: Session · Last Seen · Remote Address · User Agent) and here
                   it had been lost: it was the only one of the console's three
                   sessions tables without it, and it is the one that says WHERE each
                   session is open from. */}
-              <Th field="agent" sort={sort} onOrdenar={alternar}>User Agent</Th>
-              <th className={tbl.celdaAcciones} />
+              <Th field="agent" sort={sort} onSort={toggle}>User Agent</Th>
+              <th className={tbl.actionsCell} />
             </>
           }
         >
-          {sesionesVisibles.map((row) => (
+          {visibleSessions.map((row) => (
             <tr key={row.partialToken}>
               <td>
-                <CeldaSesion session={row} />
+                <SessionCell session={row} />
               </td>
               <td>
-                <CeldaUltimaVez date={fechaHora(row.lastSeen)} hace={desdeAhora(row.lastSeen)} />
+                <LastSeenCell date={fechaHora(row.lastSeen)} hace={fromNow(row.lastSeen)} />
               </td>
               <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
               <td>
-                <CeldaAgente>{row.lastSeenUserAgent}</CeldaAgente>
+                <AgentCell>{row.lastSeenUserAgent}</AgentCell>
               </td>
-              <td className={tbl.celdaAcciones}>
+              <td className={tbl.actionsCell}>
                 <div className={tbl.actions}>
                   {/* In a dropdown, as in the other two sessions tables and as in
                       upstream (`auth.js`, `deleteMySession`). */}
-                  <Menu etiqueta={`Actions for ${row.partialToken}`}>
+                  <Menu label={`Actions for ${row.partialToken}`}>
                     {(close) => (
                       <button
                         type="button"
                         data-variant="danger"
-                        onClick={() => { close(); setPorBorrar(row) }}
+                        onClick={() => { close(); setPendingDelete(row) }}
                       >
                         Delete Session
                       </button>
@@ -250,12 +250,12 @@ export function MyProfile({
       </div>
 
       <Confirm
-        open={porBorrar !== null}
-        titulo="Delete Session"
-        text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
-        etiqueta="Delete Session"
-        onCerrar={() => setPorBorrar(null)}
-        onConfirmar={() => porBorrar && removeSession(porBorrar)}
+        open={pendingDelete !== null}
+        title="Delete Session"
+        text={`Are you sure you want to delete the session [${pendingDelete?.partialToken ?? ''}] ?`}
+        label="Delete Session"
+        onClose={() => setPendingDelete(null)}
+        onConfirm={() => pendingDelete && removeSession(pendingDelete)}
       />
     </Dialog>
   )

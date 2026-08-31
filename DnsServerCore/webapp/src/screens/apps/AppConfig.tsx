@@ -71,7 +71,7 @@ export function AppConfig({
         </>
       }
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
       <p className={styles.nota}>
         Edit the <code>dnsApp.config</code> config file below as required by the DNS application.
       </p>

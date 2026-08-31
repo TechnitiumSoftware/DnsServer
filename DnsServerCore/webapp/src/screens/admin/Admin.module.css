@@ -9,10 +9,10 @@
 
 
 /* The count is `ui/recuento.module.css`'s: see there for why. */
-.count { composes: barra debajo from '../../ui/recuento.module.css'; }
+.count { composes: barra below from '../../ui/recuento.module.css'; }
 
 /* The first column's user / group / section name opens its record. */
-.link { composes: entidadEnlace from '../../ui/Table.module.css'; word-break: break-all; }
+.link { composes: entityLink from '../../ui/Table.module.css'; word-break: break-all; }
 
 .node { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }
 
@@ -41,7 +41,7 @@
 /* SSO and the Cluster modals: label + control rows, as in Settings. */
 .block { composes: block from '../../ui/Ajustes.module.css'; }
 
-.ctlLine { composes: enLinea from '../../ui/Ajustes.module.css'; }
+.ctlLine { composes: inline from '../../ui/Ajustes.module.css'; }
 .suffix { composes: coletilla from '../../ui/texto.module.css'; }
 .help { composes: help from '../../ui/Form.module.css'; }
 .notas { composes: notices from '../../ui/Ajustes.module.css'; }
@@ -68,8 +68,8 @@ two other modules with the same values copied by hand.
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .sub { margin: var(--s-10) 0 var(--s-5); font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .salida { display:flex; flex-direction:column; gap: var(--s-5); }
-.enlace { font-size: var(--t-3); }
-.enlace a { color:var(--acc); }
+.link { font-size: var(--t-3); }
+.link a { color:var(--acc); }
 
 @media (max-width: 720px) {
   .prow { grid-template-columns: minmax(0, 1fr) 40px 40px 40px; }

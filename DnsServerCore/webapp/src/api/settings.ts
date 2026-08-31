@@ -289,11 +289,11 @@ export type ElementoBackup = (typeof ELEMENTOS_BACKUP)[number]['key']
 
 /** Initial state of the two modals: everything checked except the logs
  *  (`resetBackupSettingsModal`, main.js:3049; `resetRestoreSettingsModal`, 3116). */
-export function seleccionInicialBackup(): Record<string, boolean> {
+export function initialBackupSelection(): Record<string, boolean> {
   return Object.fromEntries(ELEMENTOS_BACKUP.map((e) => [e.key, e.key !== 'logs']))
 }
 
-export function parametrosBackup(
+export function backupParams(
   selection: Record<string, boolean>,
   node = '',
 ): Record<string, string> {
@@ -311,18 +311,18 @@ the zip.
 */
 export async function restoreSettings(
   token: string | null,
-  fichero: File,
+  file: File,
   selection: Record<string, boolean>,
   deleteExistingFiles: boolean,
   node = '',
 ): Promise<ApiOutcome<{ response: DnsSettings }>> {
-  const query = new URLSearchParams(parametrosBackup(selection, node))
+  const query = new URLSearchParams(backupParams(selection, node))
   query.set('deleteExistingFiles', String(deleteExistingFiles))
 
   return apiRequest<{ response: DnsSettings }>(`settings/restore?${query.toString()}`, {
     token,
     method: 'POST',
-    file: { field: 'fileBackupZip', archivo: fichero },
+    file: { field: 'fileBackupZip', archivo: file },
   })
 }
 

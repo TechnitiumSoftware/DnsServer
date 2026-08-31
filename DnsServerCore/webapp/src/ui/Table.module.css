@@ -61,7 +61,7 @@ against the one on the row below, which is exactly what it is in a column for.
 
 /* The row's ENTITY: the name of the zone, the scope, the user. It is what you
    look for when scanning, so it weighs more than the rest of the line. */
-.entidad {
+.entity {
   font-size: var(--t-5);
   font-weight: 550;
   color: var(--ink);
@@ -82,7 +82,7 @@ not the `font` shorthand: `font: inherit` also resets the family, and since this
 class is composed from another module, its rule is emitted later and was wiping
 out Zones' monospacing. It is the same trap already noted in `Menu.module.css`.
 */
-.entidadEnlace {
+.entityLink {
   composes: golpe from './interaccion.module.css';
   border: 0;
   background: transparent;
@@ -97,7 +97,7 @@ out Zones' monospacing. It is the same trap already noted in `Menu.module.css`.
   word-break: break-word;
 }
 
-.entidadEnlace:hover { color: var(--acc); }
+.entityLink:hover { color: var(--acc); }
 
 /* Numbers: right-aligned and with fixed-width digits, so the units line up one
    above the other. */
@@ -124,7 +124,7 @@ ever applied: the row came out with the data colour and the height of a normal
 cell. Only the centring showed, which is the one of the three rules that clashes
 with nothing.
 */
-.table td.sinFilas {
+.table td.noRows {
   text-align: center;
   color: var(--faint);
   padding: var(--s-11) var(--s-7);
@@ -198,7 +198,7 @@ Five tables and five different places for the same thing.
 `width: 1%` with `table-layout: auto` is how you say "this column, the minimum":
 the browser hands what is left over to the others.
 */
-.celdaAcciones {
+.actionsCell {
   width: 1%;
   white-space: nowrap;
   text-align: right;
@@ -278,11 +278,11 @@ lives only inside a drawing.
 .actions > * > [data-icon='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
 
 /* The row-selection checkbox is 18 px: it is clicked from anywhere in its cell. */
-.celdaCheck {
+.checkCell {
   padding: 0;
 }
 
-.celdaCheck label {
+.checkCell label {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -300,5 +300,5 @@ the other six tables in the console measured 33: the same header, nearly twice a
 tall, and without any label taking two lines. Here the target is still the whole
 cell, only the cell is as tall as the header is.
 */
-thead th.celdaCheck { padding: 0; }
-thead .celdaCheck label { min-height: 0; }
+thead th.checkCell { padding: 0; }
+thead .checkCell label { min-height: 0; }

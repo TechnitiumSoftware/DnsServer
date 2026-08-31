@@ -5,7 +5,7 @@ import { Cluster } from './Cluster'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, CLUSTER_SECUNDARIO, CLUSTER_SIN_INICIAR } from './admin.fixture'
 import type { ClusterState } from '../../api/admin-cluster'
-import { choose, opcionesDe } from '../../test/desplegable'
+import { choose, optionsOf } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -30,7 +30,7 @@ function servidor(state: ClusterState = CLUSTER_SIN_INICIAR) {
   })
 }
 
-const props = { token: 'tok', cluster: null, onCluster: vi.fn(), onAviso: vi.fn() }
+const props = { token: 'tok', cluster: null, onCluster: vi.fn(), onNotice: vi.fn() }
 
 describe('Cluster — not initialised', () => {
   it('it only offers initialising: no Resync, no Options, no Leave, no Delete', async () => {
@@ -223,7 +223,7 @@ describe('Cluster — seen from the PRIMARY node', () => {
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
     const user = userEvent.setup()
-    expect(await opcionesDe(user, screen.getByLabelText('Cluster Node'))).toEqual([
+    expect(await optionsOf(user, screen.getByLabelText('Cluster Node'))).toEqual([
       'ns1.micluster.test (primary)',
       'ns2.micluster.test (secondary)',
     ])
@@ -263,10 +263,10 @@ describe('Cluster — seen from the PRIMARY node', () => {
   })
 
   it('deleting the cluster sends the flag and alerts with the upstream literal', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const spy = servidor(CLUSTER_PRIMARIO)
     const user = userEvent.setup()
-    render(<Cluster {...props} onAviso={onAviso} />)
+    render(<Cluster {...props} onNotice={onNotice} />)
 
     await screen.findByText('Total Nodes: 2')
     await user.click(screen.getByRole('button', { name: 'Delete Cluster' }))
@@ -277,7 +277,7 @@ describe('Cluster — seen from the PRIMARY node', () => {
       token: 'tok',
       body: { forceDelete: 'true', node: '' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Cluster Deleted!',
       text: 'Cluster was deleted successfully.',
@@ -331,10 +331,10 @@ describe('Cluster — seen from a SECONDARY node', () => {
   })
 
   it('the resync asks for confirmation and warns that the Logs must be checked', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const spy = servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
-    render(<Cluster {...props} onAviso={onAviso} />)
+    render(<Cluster {...props} onNotice={onNotice} />)
 
     await screen.findByText('Total Nodes: 2')
     await user.click(screen.getByRole('button', { name: 'Resync' }))
@@ -348,7 +348,7 @@ describe('Cluster — seen from a SECONDARY node', () => {
       token: 'tok',
       body: { node: '' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Resync Triggered!',
       text: 'A full config resync was triggered successfully. Please check the Logs for confirmation.',
@@ -371,10 +371,10 @@ describe('Cluster — seen from a SECONDARY node', () => {
   })
 
   it('promoting sends `forceDeletePrimary` and alerts with the upstream literal', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const spy = servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
-    render(<Cluster {...props} onAviso={onAviso} />)
+    render(<Cluster {...props} onNotice={onNotice} />)
 
     await screen.findByText('Total Nodes: 2')
     await user.click(screen.getByRole('button', { name: /^Actions for / }))
@@ -386,7 +386,7 @@ describe('Cluster — seen from a SECONDARY node', () => {
       token: 'tok',
       body: { forceDeletePrimary: 'true', node: '' },
     })
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Promoted!',
       text: 'The selected node was successfully promoted to Primary node in the Cluster.',

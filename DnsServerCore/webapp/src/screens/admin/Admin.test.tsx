@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Admin, SUBPESTANAS } from './Admin'
 import * as client from '../../api/client'
-import { CLUSTER_SIN_INICIAR, GROUPS, PERMISSIONS, SESION_ADMIN, SSO, USUARIO_ADMIN } from './admin.fixture'
+import { CLUSTER_SIN_INICIAR, GROUPS, PERMISSIONS, ADMIN_SESSION, SSO, ADMIN_USER } from './admin.fixture'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -12,9 +12,9 @@ function servidor() {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     switch (path) {
       case 'admin/sessions/list':
-        return ok({ response: { sessions: [SESION_ADMIN] }, server: 'x' })
+        return ok({ response: { sessions: [ADMIN_SESSION] }, server: 'x' })
       case 'admin/users/list':
-        return ok({ response: { users: [USUARIO_ADMIN] }, server: 'x' })
+        return ok({ response: { users: [ADMIN_USER] }, server: 'x' })
       case 'admin/groups/list':
         return ok({ response: { groups: GROUPS }, server: 'x' })
       case 'admin/permissions/list':

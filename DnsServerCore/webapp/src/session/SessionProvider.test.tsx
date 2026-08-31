@@ -135,8 +135,8 @@ describe('SessionProvider', () => {
     expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute('href', '/zones/')
 
     // Nobody outside the tab order: in a menu, `Tab` walks through them all.
-    for (const enlace of screen.getAllByRole('link')) {
-      expect(enlace).not.toHaveAttribute('tabindex', '-1')
+    for (const link of screen.getAllByRole('link')) {
+      expect(link).not.toHaveAttribute('tabindex', '-1')
     }
   })
 

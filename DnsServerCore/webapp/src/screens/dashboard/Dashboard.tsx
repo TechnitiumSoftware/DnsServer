@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import {
-  ETIQUETA_RANGO, RANGOS, getDashboardStats,
+  RANGE_LABEL, RANGOS, getDashboardStats,
   type DashboardStats, type Range, type Stats, type TopKind, type TopEntry,
 } from '../../api/dashboard'
 import { Chart } from './Chart'
@@ -45,7 +45,7 @@ const METRICAS: { k: keyof Stats; label: string; color: string; pct?: boolean }[
   { k: 'totalClients', label: 'Clients', color: '#e6e9ef' },
 ]
 
-const CONTADORES: { k: keyof Stats; label: string }[] = [
+const COUNTERS: { k: keyof Stats; label: string }[] = [
   { k: 'zones', label: 'Zones' },
   { k: 'cachedEntries', label: 'Cache' },
   { k: 'allowedZones', label: 'Allowed' },
@@ -79,12 +79,12 @@ export function tieneDatos(d?: { datasets?: { data: number[] }[] }): boolean {
   return d.datasets.some((s) => (s.data ?? []).some((n) => Number(n) > 0))
 }
 
-function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
+function Reparto({ title, data }: { title: string; data: ChartData }) {
   return (
-    <Panel titulo={titulo} className={styles.panel}>
+    <Panel title={title} className={styles.panel}>
       <Body>
         {tieneDatos(data) ? (
-          <Chart type="doughnut" data={data} height={190} aria={titulo} />
+          <Chart type="doughnut" data={data} height={190} aria={title} />
         ) : (
           <Empty compacto>No data for this period.</Empty>
         )}
@@ -94,13 +94,13 @@ function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
 }
 
 function Top({
-  titulo,
+  title,
   rows,
   esCliente = false,
   onMore,
   antesDeMore,
 }: {
-  titulo: string
+  title: string
   rows: TopEntry[]
   /** A client also shows the domain it resolved and whether it was rate limited. */
   esCliente?: boolean
@@ -111,7 +111,7 @@ function Top({
 }) {
   return (
     <Panel
-      titulo={titulo}
+      title={title}
       className={styles.panel}
       actions={
         <div className={styles.accionesPanel}>
@@ -136,7 +136,7 @@ function Top({
               {f.name}
               {f.rateLimited ? ' (rate limited)' : ''}
               {esCliente && (
-                <span className={styles.topDominio}>
+                <span className={styles.topDomain}>
                   {f.domain === '' || f.domain == null ? '.' : f.domain}
                 </span>
               )}
@@ -154,7 +154,7 @@ export function Dashboard({ token }: { token: string | null }) {
   const [data, setDatos] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [top, setTop] = useState<TopKind | null>(null)
-  const [notice, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
+  const [notice, setNotice] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   /*
   The custom range. `inicio`/`fin` are what is typed into the two fields;
   `pedido` is the last thing "Show" was pressed with, which is what triggers the
@@ -188,7 +188,7 @@ export function Dashboard({ token }: { token: string | null }) {
       falsely about the one thing people come here to look at.
       */
       setDatos(null)
-      setAviso(noticeFromFailure(r))
+      setNotice(noticeFromFailure(r))
     })()
     return () => {
       cancelled = true
@@ -198,10 +198,10 @@ export function Dashboard({ token }: { token: string | null }) {
   function mostrarRango() {
     const missing = loQueFalta(inicio, fin)
     if (missing != null) {
-      setAviso({ type: 'warning', title: 'Missing!', text: missing })
+      setNotice({ type: 'warning', title: 'Missing!', text: missing })
       return
     }
-    setAviso(null)
+    setNotice(null)
     setPedido(instantesDelRango(inicio, fin))
   }
 
@@ -211,13 +211,13 @@ export function Dashboard({ token }: { token: string | null }) {
   return (
     <>
       <SectionHeader
-        titulo="Dashboard"
+        title="Dashboard"
         actions={
           <Segmented
-            etiqueta="Period"
-            options={RANGOS.map((r) => ({ id: r, etiqueta: ETIQUETA_RANGO[r] }))}
+            label="Period"
+            options={RANGOS.map((r) => ({ id: r, label: RANGE_LABEL[r] }))}
             active={range}
-            onElegir={(r) => {
+            onChoose={(r) => {
               setRango(r)
               if (r !== 'Custom') setPedido(null)
             }}
@@ -241,7 +241,7 @@ export function Dashboard({ token }: { token: string | null }) {
         </div>
       )}
 
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (
@@ -255,7 +255,7 @@ export function Dashboard({ token }: { token: string | null }) {
 
       <div className={styles.grid}>
         <div className={styles.col}>
-          <Panel titulo="Queries" className={styles.panel}>
+          <Panel title="Queries" className={styles.panel}>
             <Body>
               {loading && <Loading compacto />}
               {!loading && data && tieneDatos(data.mainChartData) && (
@@ -268,24 +268,24 @@ export function Dashboard({ token }: { token: string | null }) {
           </Panel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Top
-              titulo="Top Domains"
+              title="Top Domains"
               rows={data?.topDomains ?? []}
               onMore={() => setTop('TopDomains')}
             />
             <Top
-              titulo="Top Blocked Domains"
+              title="Top Blocked Domains"
               rows={data?.topBlockedDomains ?? []}
               onMore={() => setTop('TopBlockedDomains')}
-              antesDeMore={<BlockingMenu token={token} onAviso={setAviso} />}
+              antesDeMore={<BlockingMenu token={token} onNotice={setNotice} />}
             />
           </div>
         </div>
 
         <div className={styles.col}>
-          <Panel titulo="Server" className={styles.panel}>
+          <Panel title="Server" className={styles.panel}>
             <Body>
               <div className={styles.counters} data-testid="contadores">
-                {CONTADORES.map((c) => (
+                {COUNTERS.map((c) => (
                   <div className={styles.cnt} key={c.k}>
                     <div className={styles.v}>{s ? num(s[c.k]) : '—'}</div>
                     <div className={styles.k}>{c.label}</div>
@@ -296,13 +296,13 @@ export function Dashboard({ token }: { token: string | null }) {
           </Panel>
           {data && (
             <>
-              <Reparto titulo="Query Response Types" data={data.queryResponseChartData} />
-              <Reparto titulo="Query Types" data={data.queryTypeChartData} />
-              <Reparto titulo="Protocol Types" data={data.protocolTypeChartData} />
+              <Reparto title="Query Response Types" data={data.queryResponseChartData} />
+              <Reparto title="Query Types" data={data.queryTypeChartData} />
+              <Reparto title="Protocol Types" data={data.protocolTypeChartData} />
             </>
           )}
           <Top
-            titulo="Top Clients"
+            title="Top Clients"
             rows={data?.topClients ?? []}
             esCliente
             onMore={() => setTop('TopClients')}
@@ -310,7 +310,7 @@ export function Dashboard({ token }: { token: string | null }) {
         </div>
       </div>
 
-      <TopStats type={top} range={range} token={token} onCerrar={() => setTop(null)} />
+      <TopStats type={top} range={range} token={token} onClose={() => setTop(null)} />
     </>
   )
 }

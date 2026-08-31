@@ -14,20 +14,20 @@ screens use. It is re-exported under the name it is asked for by here.
 */
 export { Confirm } from '../../ui/Confirmar'
 
-function ListaElementos({
+function ItemList({
   selection,
   onChange,
-  prefijo,
+  prefix,
 }: {
   selection: Record<string, boolean>
   onChange: (s: Record<string, boolean>) => void
-  prefijo: string
+  prefix: string
 }) {
   return (
     <div className={styles.group}>
       {ELEMENTOS_BACKUP.map((e) => (
         <Check
-          key={`${prefijo}-${e.key}`}
+          key={`${prefix}-${e.key}`}
           label={e.label}
           checked={selection[e.key] === true}
           onChange={(v) => onChange({ ...selection, [e.key]: v })}
@@ -75,7 +75,7 @@ export function BackupDialog({
         </Alert>
       )}
       <p>The backup process will create a zip file for the items selected below:</p>
-      <ListaElementos selection={selection} onChange={onSelection} prefijo="backup" />
+      <ItemList selection={selection} onChange={onSelection} prefix="backup" />
       <div className={styles.notas}>
         <Alert type="info" title="Note!">
           The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be
@@ -99,9 +99,9 @@ export function RestoreDialog({
   notice,
   busy,
   onRestore,
-}: DialogoProps & { onRestore: (fichero: File | null, remove: boolean) => void }) {
-  const [fichero, setFichero] = useState<File | null>(null)
-  const [remove, setBorrar] = useState(true)
+}: DialogoProps & { onRestore: (file: File | null, remove: boolean) => void }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [remove, setDelete] = useState(true)
 
   return (
     <Dialog
@@ -110,7 +110,7 @@ export function RestoreDialog({
       title="Restore Settings"
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => onRestore(fichero, remove)}>
+          <Button variant="primary" disabled={busy} onClick={() => onRestore(file, remove)}>
             Restore
           </Button>
         </>
@@ -123,16 +123,16 @@ export function RestoreDialog({
       )}
       <Field label="Backup Zip File">
         {(id) => (
-          <Input id={id} type="file" onChange={(e) => setFichero(e.target.files?.[0] ?? null)} />
+          <Input id={id} type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         )}
       </Field>
       <p>The restore process will restore all the selected items from the backup zip file:</p>
-      <ListaElementos selection={selection} onChange={onSelection} prefijo="restore" />
+      <ItemList selection={selection} onChange={onSelection} prefix="restore" />
       <p>Restore options:</p>
       <Check
         label="Delete Existing Files For Selected Items"
         checked={remove}
-        onChange={setBorrar}
+        onChange={setDelete}
       />
       <div>
         <Alert type="warning" title="Warning!">

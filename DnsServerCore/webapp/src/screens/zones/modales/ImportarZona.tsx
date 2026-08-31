@@ -21,19 +21,19 @@ lets the server fail. It is replicated.
 
 type Mode = 'File' | 'Text'
 
-export function ImportarZona({
+export function ImportZone({
   zone,
   open,
   token,
   node = '',
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   zone: string
   open: boolean
   token: string | null
   node?: string
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
   const [mode, setModo] = useState<Mode>('File')
@@ -42,9 +42,9 @@ export function ImportarZona({
   const [overwrite, setOverwrite] = useState(true)
   const [overwriteZone, setOverwriteZone] = useState(false)
   const [overwriteSoaSerial, setOverwriteSoaSerial] = useState(false)
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
-  const fichero = useRef<HTMLInputElement>(null)
+  const file = useRef<HTMLInputElement>(null)
 
   // `showImportZoneModal`: on opening it returns to the defaults, which are NOT
   // son todos falsos — «Overwrite Existing Records» empieza marcado.
@@ -56,13 +56,13 @@ export function ImportarZona({
     setOverwrite(true)
     setOverwriteZone(false)
     setOverwriteSoaSerial(false)
-    setAviso(null)
+    setNotice(null)
   }, [open])
 
-  async function importar() {
+  async function runImport() {
     if (mode === 'File' && archivo == null) {
-      setAviso({ type: 'warning', title: 'Missing!', text: 'Please select a zone file to import.' })
-      fichero.current?.focus()
+      setNotice({ type: 'warning', title: 'Missing!', text: 'Please select a zone file to import.' })
+      file.current?.focus()
       return
     }
 
@@ -77,29 +77,29 @@ export function ImportarZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     onHecho({ type: 'success', title: 'Zone Imported!', text: 'The zone file was imported successfully.' })
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       size="medium"
       title={`Import - ${zone}`}
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void importar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void runImport()}>
             Import
           </Button>
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.fields}>
         <GroupRow modal label="Import Options">
@@ -156,7 +156,7 @@ export function ImportarZona({
             {(id) => (
               <Input
                 id={id}
-                ref={fichero}
+                ref={file}
                 type="file"
                 onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
               />

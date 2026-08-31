@@ -12,7 +12,7 @@ export const RANGOS = ['LastHour', 'LastDay', 'LastWeek', 'LastMonth', 'LastYear
 export type Range = (typeof RANGOS)[number]
 
 /** Upstream's literal labels for each range. */
-export const ETIQUETA_RANGO: Record<Range, string> = {
+export const RANGE_LABEL: Record<Range, string> = {
   LastHour: 'Last Hour',
   LastDay: 'Last Day',
   LastWeek: 'Last Week',

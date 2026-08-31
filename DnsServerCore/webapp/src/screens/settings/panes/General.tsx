@@ -354,7 +354,7 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="Rate Limiting">
         <EditableList
           label="Queries Per Minute (QPM) Limits (IPv4)"
-          columnas={[
+          columns={[
             { key: 'prefix', label: 'IPv4 Prefix', type: 'number' },
             { key: 'udpLimit', label: 'UDP Limit', type: 'number' },
             { key: 'tcpLimit', label: 'TCP Limit', type: 'number' },
@@ -373,7 +373,7 @@ export function General({ f, set, en }: PaneProps) {
         />
         <EditableList
           label="Queries Per Minute (QPM) Limits (IPv6)"
-          columnas={[
+          columns={[
             { key: 'prefix', label: 'IPv6 Prefix', type: 'number' },
             { key: 'udpLimit', label: 'UDP Limit', type: 'number' },
             { key: 'tcpLimit', label: 'TCP Limit', type: 'number' },

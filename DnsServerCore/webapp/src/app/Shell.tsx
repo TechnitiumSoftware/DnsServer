@@ -124,7 +124,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   }, [current, sub, subActual])
 
   useEffect(() => {
-    function alCambiar() {
+    function onChanged() {
       const r = readRoute(sections)
       if (r == null) {
         // A route that does not resolve left the bar and the screen saying different
@@ -148,8 +148,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       setActive((v) => (v === r.section ? v : r.section))
       setSub((v) => (v === suya ? v : suya))
     }
-    window.addEventListener('popstate', alCambiar)
-    return () => window.removeEventListener('popstate', alCambiar)
+    window.addEventListener('popstate', onChanged)
+    return () => window.removeEventListener('popstate', onChanged)
   }, [sections])
 
   return (
@@ -257,7 +257,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           */}
           <PieDeEnlaces className={styles.pieEnlaces} />
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
-          <Menu etiqueta={displayName} rotulo={displayName} ancla="izquierda" comoFila>
+          <Menu label={displayName} rotulo={displayName} ancla="izquierda" asRow>
             {(close) => (
               <>
                 <button type="button" onClick={() => { close(); open('profile') }}>

@@ -1,4 +1,4 @@
-import type { RegistroDns } from '../../api/zonelists'
+import type { DnsRecord } from '../../api/zonelists'
 
 /*
 From raw JSON to table rows.
@@ -29,7 +29,7 @@ export interface Entry {
 const LONG = 64
 
 /** Names upstream and the design use that do not come from humanising the key. */
-const ETIQUETAS: Record<string, string> = {
+const LABELS: Record<string, string> = {
   ipAddress: 'IP Address',
   nameServer: 'Name Server',
   cname: 'CNAME',
@@ -49,7 +49,7 @@ const ETIQUETAS: Record<string, string> = {
 
 /** `algorithmNumber` -> «Algorithm number»; `flags` -> «Flags». */
 function humanizar(key: string): string {
-  if (ETIQUETAS[key]) return ETIQUETAS[key]
+  if (LABELS[key]) return LABELS[key]
   const palabras = key
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
@@ -102,7 +102,7 @@ function rows(obj: Record<string, unknown>): Entry[] {
   return salida
 }
 
-export function entradasRData(rData: Record<string, unknown>): Entry[] {
+export function rdataEntries(rData: Record<string, unknown>): Entry[] {
   return rows(rData ?? {})
 }
 
@@ -111,7 +111,7 @@ The TTL arrives in two different shapes depending on the list (see
 `zonelists.ts`). It is normalised to the pair the design asks for: the number,
 and its human form beside it.
 */
-export function ttlPartido(r: RegistroDns): { value: string; humano: string } {
+export function ttlPartido(r: DnsRecord): { value: string; humano: string } {
   if (typeof r.ttl === 'string') {
     const m = /^(\S+)\s+\((.*)\)$/.exec(r.ttl)
     return m ? { value: m[1], humano: m[2] } : { value: r.ttl, humano: '' }
@@ -134,7 +134,7 @@ export function fechaCorta(iso: string | undefined | null): string | null {
 The grey line of each row. In cache it carries where the record came from; in
 allowed and blocked, the record's state in the zone.
 */
-export function meta(r: RegistroDns): string[] {
+export function meta(r: DnsRecord): string[] {
   const parts: string[] = []
 
   if (r.disabled) parts.push('disabled')
@@ -189,7 +189,7 @@ const YA_PINTADOS = new Set([
   'disabled',
 ])
 
-export function extras(r: RegistroDns): Entry[] {
+export function extras(r: DnsRecord): Entry[] {
   const resto: Record<string, unknown> = {}
   for (const key of Object.keys(r)) {
     if (!YA_PINTADOS.has(key)) resto[key] = r[key]

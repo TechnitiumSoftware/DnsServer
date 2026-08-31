@@ -19,7 +19,7 @@ const ZONE = {
   notifyFailedFor: [],
 }
 
-const REGISTRO_A = {
+const A_RECORD = {
   name: 'www.casa.test',
   type: 'A',
   ttl: 3600,
@@ -49,7 +49,7 @@ function servidor(respuestas: Record<string, unknown> = {}) {
     if (base === 'zones/records/get') {
       return {
         kind: 'ok',
-        data: { status: 'ok', response: { zone: ZONE, records: [REGISTRO_A] } },
+        data: { status: 'ok', response: { zone: ZONE, records: [A_RECORD] } },
       } as never
     }
     return { kind: 'ok', data: { status: 'ok' } } as never

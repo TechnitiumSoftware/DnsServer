@@ -1,5 +1,5 @@
-import type { OpcionesZona, PoliticaActualizacion } from '../../api/zones'
-import { limpiarLista } from '../../api/zonelists'
+import type { ZoneOptions, PoliticaActualizacion } from '../../api/zones'
+import { cleanList } from '../../api/zonelists'
 import { serializeTable } from '../../lib/tabla-serie'
 
 /*
@@ -17,91 +17,91 @@ that it is administered by a secondary catalog, it appears but read-only, becaus
 not even this server rules over it.
 */
 
-export type PestanaOpciones = 'General' | 'Query Access' | 'Zone Transfer' | 'Notify' | 'Dynamic Updates'
+export type OptionsTab = 'General' | 'Query Access' | 'Zone Transfer' | 'Notify' | 'Dynamic Updates'
 
-export const PESTANAS: { id: PestanaOpciones; etiqueta: string }[] = [
-  { id: 'General', etiqueta: 'General' },
-  { id: 'Query Access', etiqueta: 'Query Access' },
-  { id: 'Zone Transfer', etiqueta: 'Zone Transfer' },
-  { id: 'Notify', etiqueta: 'Notify' },
-  { id: 'Dynamic Updates', etiqueta: 'Dynamic Updates (RFC 2136)' },
+export const PESTANAS: { id: OptionsTab; label: string }[] = [
+  { id: 'General', label: 'General' },
+  { id: 'Query Access', label: 'Query Access' },
+  { id: 'Zone Transfer', label: 'Zone Transfer' },
+  { id: 'Notify', label: 'Notify' },
+  { id: 'Dynamic Updates', label: 'Dynamic Updates (RFC 2136)' },
 ]
 
 export const ACCESOS_CONSULTA = [
-  { value: 'Deny', etiqueta: 'Deny' },
-  { value: 'Allow', etiqueta: 'Allow (default)' },
-  { value: 'AllowOnlyPrivateNetworks', etiqueta: 'Allow Only Private Networks' },
-  { value: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
-  { value: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
+  { value: 'Deny', label: 'Deny' },
+  { value: 'Allow', label: 'Allow (default)' },
+  { value: 'AllowOnlyPrivateNetworks', label: 'Allow Only Private Networks' },
+  { value: 'AllowOnlyZoneNameServers', label: 'Allow Only Name Servers In Zone' },
+  { value: 'UseSpecifiedNetworkACL', label: 'Use Specified Network Access Control List (ACL)' },
   {
     value: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
-    etiqueta: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
+    label: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
   },
 ]
 
 export const TRANSFERENCIAS = [
-  { value: 'Deny', etiqueta: 'Deny' },
-  { value: 'Allow', etiqueta: 'Allow' },
-  { value: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
-  { value: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
+  { value: 'Deny', label: 'Deny' },
+  { value: 'Allow', label: 'Allow' },
+  { value: 'AllowOnlyZoneNameServers', label: 'Allow Only Name Servers In Zone' },
+  { value: 'UseSpecifiedNetworkACL', label: 'Use Specified Network Access Control List (ACL)' },
   {
     value: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
-    etiqueta: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
+    label: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
   },
 ]
 
 export const NOTIFICACIONES = [
-  { value: 'None', etiqueta: 'None' },
-  { value: 'ZoneNameServers', etiqueta: 'Name Servers In Zone' },
-  { value: 'SpecifiedNameServers', etiqueta: 'Specified Name Servers' },
-  { value: 'BothZoneAndSpecifiedNameServers', etiqueta: 'Both Zone Name Servers And Specified Name Servers' },
+  { value: 'None', label: 'None' },
+  { value: 'ZoneNameServers', label: 'Name Servers In Zone' },
+  { value: 'SpecifiedNameServers', label: 'Specified Name Servers' },
+  { value: 'BothZoneAndSpecifiedNameServers', label: 'Both Zone Name Servers And Specified Name Servers' },
   {
     value: 'SeparateNameServersForCatalogAndMemberZones',
-    etiqueta: 'Separate Name Servers For Catalog And Member Zones',
+    label: 'Separate Name Servers For Catalog And Member Zones',
   },
 ]
 
 export const ACTUALIZACIONES = [
-  { value: 'Deny', etiqueta: 'Deny (default)' },
-  { value: 'Allow', etiqueta: 'Allow' },
-  { value: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
-  { value: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
+  { value: 'Deny', label: 'Deny (default)' },
+  { value: 'Allow', label: 'Allow' },
+  { value: 'AllowOnlyZoneNameServers', label: 'Allow Only Name Servers In Zone' },
+  { value: 'UseSpecifiedNetworkACL', label: 'Use Specified Network Access Control List (ACL)' },
   {
     value: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
-    etiqueta: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
+    label: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
   },
 ]
 
 export const PROTOCOLOS_XFR = [
-  { value: 'Tcp', etiqueta: 'XFR-over-TCP (default)' },
-  { value: 'Tls', etiqueta: 'XFR-over-TLS' },
-  { value: 'Quic', etiqueta: 'XFR-over-QUIC' },
+  { value: 'Tcp', label: 'XFR-over-TCP (default)' },
+  { value: 'Tls', label: 'XFR-over-TLS' },
+  { value: 'Quic', label: 'XFR-over-QUIC' },
 ]
 
 /* ── Interface state ───────────────────────────────────────────────────── */
 
-export interface EstadoOpciones {
-  pestanas: PestanaOpciones[]
-  pestanaInicial: PestanaOpciones
+export interface OptionsState {
+  pestanas: OptionsTab[]
+  pestanaInicial: OptionsTab
   /** General */
   catalogo: boolean
   catalogoFijo: boolean
   sobrescribirQueryAccess: boolean
   sobrescribirZoneTransfer: boolean
   sobrescribirNotify: boolean
-  sobrescribirBloqueado: boolean
+  overrideLocked: boolean
   servidorPrimario: boolean
   servidorPrimarioObligatorio: boolean
   protocoloXfr: boolean
   tsigDelPrimario: boolean
-  validarZona: boolean
-  servidorPrimarioBloqueado: boolean
+  validateZone: boolean
+  primaryServerLocked: boolean
   /** Query Access */
-  queryAccessBloqueado: boolean
+  queryAccessLocked: boolean
   /** The two "…Name Servers In Zone" criteria do not exist on some types. */
   queryAccessConNameServers: boolean
   /** Zone Transfer */
-  zoneTransferBloqueado: boolean
+  zoneTransferLocked: boolean
   zoneTransferConNameServers: boolean
   /** Notify */
   notifyConNameServers: boolean
@@ -113,13 +113,13 @@ export interface EstadoOpciones {
 
 const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
 
-export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
+export function optionsState(r: ZoneOptions): OptionsState {
   const type = r.type
-  const enCatalogo = r.catalog != null
-  const miembroSecundario = enCatalogo && r.isSecondaryCatalogMember === true
+  const inCatalog = r.catalog != null
+  const miembroSecundario = inCatalog && r.isSecondaryCatalogMember === true
   const catalogosDisponibles = (r.availableCatalogZoneNames ?? []).length > 0
 
-  const pestanas: PestanaOpciones[] = []
+  const pestanas: OptionsTab[] = []
 
   /* ── General ──────────────────────────────────────────────────────── */
   let catalogo = false
@@ -164,7 +164,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
       break
 
     case 'SecondaryForwarder':
-      if (enCatalogo) {
+      if (inCatalog) {
         catalogo = true
         catalogoFijo = true
         sobrescribirQueryAccess = true
@@ -176,18 +176,18 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   let servidorPrimario = false
   let protocoloXfr = false
   let tsigDelPrimario = false
-  let validarZona = false
+  let validateZone = false
   let servidorPrimarioObligatorio = false
 
   if (SECUNDARIAS.includes(type)) {
     protocoloXfr = true
     tsigDelPrimario = true
-    validarZona = type === 'Secondary'
+    validateZone = type === 'Secondary'
     servidorPrimarioObligatorio = type === 'SecondaryForwarder' || type === 'SecondaryCatalog'
 
     servidorPrimario =
       type === 'Secondary' || type === 'SecondaryForwarder'
-        ? !enCatalogo || r.overrideCatalogPrimaryNameServers === true
+        ? !inCatalog || r.overrideCatalogPrimaryNameServers === true
         : true
   } else if (type === 'Stub') {
     servidorPrimario = true
@@ -197,33 +197,33 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
 
   /* ── Query Access ─────────────────────────────────────────────────── */
   let queryAccess = false
-  let queryAccessBloqueado = false
+  let queryAccessLocked = false
 
   switch (type) {
     case 'Primary':
     case 'Forwarder':
     case 'Catalog':
-      queryAccess = !enCatalogo || r.overrideCatalogQueryAccess === true
+      queryAccess = !inCatalog || r.overrideCatalogQueryAccess === true
       break
 
     case 'Stub':
       if (miembroSecundario) {
         queryAccess = r.overrideCatalogQueryAccess === true
-        queryAccessBloqueado = true
+        queryAccessLocked = true
       } else {
-        queryAccess = !enCatalogo || r.overrideCatalogQueryAccess === true
+        queryAccess = !inCatalog || r.overrideCatalogQueryAccess === true
       }
       break
 
     case 'Secondary':
     case 'SecondaryForwarder':
-      queryAccess = !enCatalogo || r.overrideCatalogQueryAccess === true
-      queryAccessBloqueado = enCatalogo
+      queryAccess = !inCatalog || r.overrideCatalogQueryAccess === true
+      queryAccessLocked = inCatalog
       break
 
     case 'SecondaryCatalog':
       queryAccess = true
-      queryAccessBloqueado = true
+      queryAccessLocked = true
       break
   }
 
@@ -231,17 +231,17 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
 
   /* ── Zone Transfer ────────────────────────────────────────────────── */
   let zoneTransfer = false
-  let zoneTransferBloqueado = false
+  let zoneTransferLocked = false
 
   switch (type) {
     case 'Primary':
     case 'Forwarder':
-      zoneTransfer = !enCatalogo || r.overrideCatalogZoneTransfer === true
+      zoneTransfer = !inCatalog || r.overrideCatalogZoneTransfer === true
       break
 
     case 'Secondary':
-      zoneTransfer = !enCatalogo || r.overrideCatalogZoneTransfer === true
-      zoneTransferBloqueado = enCatalogo
+      zoneTransfer = !inCatalog || r.overrideCatalogZoneTransfer === true
+      zoneTransferLocked = inCatalog
       break
 
     case 'Catalog':
@@ -250,7 +250,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
 
     case 'SecondaryCatalog':
       zoneTransfer = true
-      zoneTransferBloqueado = true
+      zoneTransferLocked = true
       break
   }
 
@@ -261,7 +261,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   switch (type) {
     case 'Primary':
     case 'Forwarder':
-      notify = !enCatalogo || r.overrideCatalogNotify === true
+      notify = !inCatalog || r.overrideCatalogNotify === true
       break
     case 'Secondary':
     case 'Catalog':
@@ -279,7 +279,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   Access", and on a Primary or Forwarder it depends on whether there are catalogs
   available (zone.js:2303-2360).
   */
-  let inicial: PestanaOpciones = pestanas[0] ?? 'Query Access'
+  let inicial: OptionsTab = pestanas[0] ?? 'Query Access'
   if ([...SECUNDARIAS, 'Stub'].includes(type)) inicial = 'General'
   else if (type === 'Catalog') inicial = 'Query Access'
   else if (type === 'Primary' || type === 'Forwarder') {
@@ -296,16 +296,16 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
     sobrescribirNotify,
     // The override checkboxes go off if the zone is not in a catalog,
     // and also when it is administered by a secondary catalog.
-    sobrescribirBloqueado: !enCatalogo || miembroSecundario,
+    overrideLocked: !inCatalog || miembroSecundario,
     servidorPrimario,
     servidorPrimarioObligatorio,
     protocoloXfr,
     tsigDelPrimario,
-    validarZona,
-    servidorPrimarioBloqueado: miembroSecundario,
-    queryAccessBloqueado,
+    validateZone,
+    primaryServerLocked: miembroSecundario,
+    queryAccessLocked,
     queryAccessConNameServers: !['Stub', 'Forwarder', 'SecondaryForwarder', 'Catalog', 'SecondaryCatalog'].includes(type),
-    zoneTransferBloqueado,
+    zoneTransferLocked,
     zoneTransferConNameServers: !['Forwarder', 'Catalog', 'SecondaryCatalog'].includes(type),
     notifyConNameServers: type !== 'Forwarder' && type !== 'Catalog',
     notifySeparados: type === 'Catalog',
@@ -316,13 +316,13 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
 
 /* ── El formulario ─────────────────────────────────────────────────────── */
 
-export interface FilaPolitica {
+export interface PolicyRow {
   tsigKeyName: string
   domain: string
   allowedTypes: string
 }
 
-export interface FormularioOpciones {
+export interface OptionsForm {
   catalog: string
   overrideCatalogQueryAccess: boolean
   overrideCatalogZoneTransfer: boolean
@@ -341,7 +341,7 @@ export interface FormularioOpciones {
   notifySecondaryCatalogsNameServers: string
   update: string
   updateNetworkACL: string
-  updateSecurityPolicies: FilaPolitica[]
+  updateSecurityPolicies: PolicyRow[]
 }
 
 /*
@@ -355,7 +355,7 @@ function text(list: readonly string[] | null | undefined): string {
   return (list ?? []).join('\n')
 }
 
-export function formularioDesdeOpciones(r: OpcionesZona): FormularioOpciones {
+export function formFromOptions(r: ZoneOptions): OptionsForm {
   return {
     catalog: r.catalog ?? '',
     overrideCatalogQueryAccess: r.catalog != null && r.overrideCatalogQueryAccess === true,
@@ -379,11 +379,11 @@ export function formularioDesdeOpciones(r: OpcionesZona): FormularioOpciones {
     notifySecondaryCatalogsNameServers: text(r.notifySecondaryCatalogsNameServers),
     update: r.update ?? 'Deny',
     updateNetworkACL: text(r.updateNetworkACL),
-    updateSecurityPolicies: (r.updateSecurityPolicies ?? []).map(filaDesdePolitica),
+    updateSecurityPolicies: (r.updateSecurityPolicies ?? []).map(rowFromPolicy),
   }
 }
 
-function filaDesdePolitica(p: PoliticaActualizacion): FilaPolitica {
+function rowFromPolicy(p: PoliticaActualizacion): PolicyRow {
   return {
     tsigKeyName: p.tsigKeyName,
     domain: p.domain,
@@ -394,11 +394,11 @@ function filaDesdePolitica(p: PoliticaActualizacion): FilaPolitica {
 export interface OptionsError {
   title: string
   text: string
-  tab: PestanaOpciones
-  field: keyof FormularioOpciones
+  tab: OptionsTab
+  field: keyof OptionsForm
 }
 
-export type ResultadoOpciones = { error: OptionsError } | { body: Record<string, string> }
+export type OptionsResult = { error: OptionsError } | { body: Record<string, string> }
 
 /*
 `serializeTableData` with 3 columns for the update policies. The algorithm lives
@@ -406,7 +406,7 @@ in `lib/tabla-serie`, shared by the five screens with an editable table; all tha
 is said here is where the failing cell is.
 */
 function serializePolicies(
-  rows: FilaPolitica[],
+  rows: PolicyRow[],
 ): { value: string } | { error: OptionsError } {
   const r = serializeTable(
     rows.map((row) =>
@@ -435,12 +435,12 @@ function serializePolicies(
  * `primaryNameServerAddresses` and `queryAccessNetworkACL` travel empty as they
  * are. It is not symmetry: it is what upstream does.
  */
-export function construirCuerpoOpciones(
-  f: FormularioOpciones,
+export function buildOptionsBody(
+  f: OptionsForm,
   zoneType: string,
-): ResultadoOpciones {
+): OptionsResult {
   if (zoneType === 'SecondaryForwarder' || zoneType === 'SecondaryCatalog') {
-    const direcciones = limpiarLista(f.primaryNameServerAddresses)
+    const direcciones = cleanList(f.primaryNameServerAddresses)
     if (direcciones.length === 0 || direcciones === ',') {
       return {
         error: {
@@ -453,8 +453,8 @@ export function construirCuerpoOpciones(
     }
   }
 
-  const vacioEsFalso = (v: string): string => {
-    const limpio = limpiarLista(v)
+  const emptyIsFalse = (v: string): string => {
+    const limpio = cleanList(v)
     return limpio.length === 0 || limpio === ',' ? 'false' : limpio
   }
 
@@ -467,20 +467,20 @@ export function construirCuerpoOpciones(
       overrideCatalogQueryAccess: String(f.overrideCatalogQueryAccess),
       overrideCatalogZoneTransfer: String(f.overrideCatalogZoneTransfer),
       overrideCatalogNotify: String(f.overrideCatalogNotify),
-      primaryNameServerAddresses: limpiarLista(f.primaryNameServerAddresses),
+      primaryNameServerAddresses: cleanList(f.primaryNameServerAddresses),
       primaryZoneTransferProtocol: f.primaryZoneTransferProtocol,
       primaryZoneTransferTsigKeyName: f.primaryZoneTransferTsigKeyName,
       validateZone: String(f.validateZone),
       queryAccess: f.queryAccess,
-      queryAccessNetworkACL: limpiarLista(f.queryAccessNetworkACL),
+      queryAccessNetworkACL: cleanList(f.queryAccessNetworkACL),
       zoneTransfer: f.zoneTransfer,
-      zoneTransferNetworkACL: vacioEsFalso(f.zoneTransferNetworkACL),
-      zoneTransferTsigKeyNames: vacioEsFalso(f.zoneTransferTsigKeyNames),
+      zoneTransferNetworkACL: emptyIsFalse(f.zoneTransferNetworkACL),
+      zoneTransferTsigKeyNames: emptyIsFalse(f.zoneTransferTsigKeyNames),
       notify: f.notify,
-      notifyNameServers: vacioEsFalso(f.notifyNameServers),
-      notifySecondaryCatalogsNameServers: vacioEsFalso(f.notifySecondaryCatalogsNameServers),
+      notifyNameServers: emptyIsFalse(f.notifyNameServers),
+      notifySecondaryCatalogsNameServers: emptyIsFalse(f.notifySecondaryCatalogsNameServers),
       update: f.update,
-      updateNetworkACL: vacioEsFalso(f.updateNetworkACL),
+      updateNetworkACL: emptyIsFalse(f.updateNetworkACL),
       updateSecurityPolicies: politicas.value.length === 0 ? 'false' : politicas.value,
     },
   }
@@ -495,7 +495,7 @@ export function aclEditable(value: string): boolean {
 }
 
 /** In Notify, the server list is enabled by three of the five criteria. */
-export function notificacionConLista(value: string): boolean {
+export function notifyWithList(value: string): boolean {
   return (
     value === 'SpecifiedNameServers' ||
     value === 'BothZoneAndSpecifiedNameServers' ||

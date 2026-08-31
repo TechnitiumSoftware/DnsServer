@@ -27,7 +27,7 @@ describe('About', () => {
   it('it keeps the nine destinations of the upstream panel', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
     render(<About token="t" info={info} />)
-    const destinos = new Set(
+    const targets = new Set(
       screen.getAllByRole('link').map((a) => a.getAttribute('href')),
     )
     for (const expected of [
@@ -42,7 +42,7 @@ describe('About', () => {
       'https://www.reddit.com/r/technitium/',
       'https://go.technitium.com/?id=35', // Donate
     ]) {
-      expect(destinos, `falta ${expected}`).toContain(expected)
+      expect(targets, `falta ${expected}`).toContain(expected)
     }
   })
 

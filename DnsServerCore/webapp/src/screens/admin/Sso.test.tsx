@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Sso } from './Sso'
 import * as client from '../../api/client'
 import { SSO } from './admin.fixture'
-import { opcionesDe } from '../../test/desplegable'
+import { optionsOf } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -16,14 +16,14 @@ function servidor(overrides: Record<string, unknown> = {}, respuestaSet?: Record
     if (path === 'admin/sso/set') {
       // El `set` NO devuelve `localGroups`: es la respuesta literal de la
       // instancia de referencia.
-      const { localGroups: _sinGrupos, ...resto } = { ...SSO, ...overrides }
+      const { localGroups: _noGroups, ...resto } = { ...SSO, ...overrides }
       return ok({ response: respuestaSet ?? resto, server: 'x' })
     }
     return ok({ response: {}, server: 'x' })
   })
 }
 
-const props = { token: 'tok', onAviso: vi.fn() }
+const props = { token: 'tok', onNotice: vi.fn() }
 
 const body = (spy: ReturnType<typeof servidor>) =>
   spy.mock.calls.find((c) => c[0] === 'admin/sso/set')?.[1]?.body as Record<string, string>
@@ -67,16 +67,16 @@ describe('SSO — validaciones', () => {
   })
 
   it('with SSO on the order is authority, client and secret', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const spy = servidor()
     const user = userEvent.setup()
-    render(<Sso {...props} onAviso={onAviso} />)
+    render(<Sso {...props} onNotice={onNotice} />)
 
     await user.click(await screen.findByLabelText('Enable Single Sign-On (SSO)'))
     const save = screen.getByRole('button', { name: 'Save Config' })
 
     await user.click(save)
-    expect(onAviso).toHaveBeenLastCalledWith({
+    expect(onNotice).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',
       text: 'Please enter the Authority URL.',
@@ -84,7 +84,7 @@ describe('SSO — validaciones', () => {
 
     await user.type(screen.getByLabelText('Authority (Issuer)'), 'https://id.test')
     await user.click(save)
-    expect(onAviso).toHaveBeenLastCalledWith({
+    expect(onNotice).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',
       text: 'Please enter the Client ID.',
@@ -92,7 +92,7 @@ describe('SSO — validaciones', () => {
 
     await user.type(screen.getByLabelText('Client ID'), 'technitium')
     await user.click(save)
-    expect(onAviso).toHaveBeenLastCalledWith({
+    expect(onNotice).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',
       text: 'Please enter the Client Secret.',
@@ -102,10 +102,10 @@ describe('SSO — validaciones', () => {
   })
 
   it('an empty scope aborts the save with the table alert', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     const spy = servidor()
     const user = userEvent.setup()
-    render(<Sso {...props} onAviso={onAviso} />)
+    render(<Sso {...props} onNotice={onNotice} />)
 
     // There are two "Add": the scopes one and the group map one. Upstream labels
     // both the same; the first is used here, which is the scopes one.
@@ -113,7 +113,7 @@ describe('SSO — validaciones', () => {
     await user.click(screen.getAllByRole('button', { name: 'Add' })[0])
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
 
-    expect(onAviso).toHaveBeenLastCalledWith({
+    expect(onNotice).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',
       text: 'Please enter a valid value in the text field in focus.',
@@ -122,15 +122,15 @@ describe('SSO — validaciones', () => {
   })
 
   it('a `|` in a scope aborts with its own alert', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     servidor()
     const user = userEvent.setup()
-    render(<Sso {...props} onAviso={onAviso} />)
+    render(<Sso {...props} onNotice={onNotice} />)
 
     await user.type(await screen.findByLabelText('Scope Name 1'), '|x')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
 
-    expect(onAviso).toHaveBeenLastCalledWith({
+    expect(onNotice).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Invalid Character!',
       text: "Please edit the value in the text field in focus to remove '|' character.",
@@ -171,15 +171,15 @@ describe('SSO — the send', () => {
   })
 
   it('it alerts with the upstream literal on saving', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     servidor()
     const user = userEvent.setup()
-    render(<Sso {...props} onAviso={onAviso} />)
+    render(<Sso {...props} onNotice={onNotice} />)
 
     await screen.findByLabelText('Authority (Issuer)')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
 
-    expect(onAviso).toHaveBeenLastCalledWith({
+    expect(onNotice).toHaveBeenLastCalledWith({
       type: 'success',
       title: 'SSO Config Saved!',
       text: 'Single Sign-On (SSO) config was saved successfully.',
@@ -194,7 +194,7 @@ describe('SSO — the send', () => {
     await screen.findByLabelText('Remote Group 1')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
 
-    expect(await opcionesDe(user, await screen.findByLabelText('Local Group 1'))).toHaveLength(3)
+    expect(await optionsOf(user, await screen.findByLabelText('Local Group 1'))).toHaveLength(3)
   })
 })
 

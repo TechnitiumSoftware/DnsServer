@@ -21,7 +21,7 @@ it again from meaning one screen rules over the other.
 }
 
 /* Control and suffix on the same line: "3600  seconds". */
-.enLinea {
+.inline {
   display: flex;
   align-items: center;
   gap: var(--s-6);

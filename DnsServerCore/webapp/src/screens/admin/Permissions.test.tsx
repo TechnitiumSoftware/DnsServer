@@ -10,7 +10,7 @@ afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-const DETALLE = {
+const DETAIL = {
   section: 'Dashboard',
   userPermissions: [],
   groupPermissions: [
@@ -23,12 +23,12 @@ const DETALLE = {
   groups: ['Administrators', 'DHCP Administrators', 'Everyone'],
 }
 
-function servidor(secciones = PERMISSIONS, detalle: Record<string, unknown> = DETALLE) {
+function servidor(secciones = PERMISSIONS, detail: Record<string, unknown> = DETAIL) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'admin/permissions/list') {
       return ok({ response: { permissions: secciones }, server: 'x' })
     }
-    if (path === 'admin/permissions/get') return ok({ response: detalle, server: 'x' })
+    if (path === 'admin/permissions/get') return ok({ response: detail, server: 'x' })
     if (path === 'admin/permissions/set') {
       return ok({
         response: { section: 'Dashboard', userPermissions: [], groupPermissions: [] },
@@ -39,7 +39,7 @@ function servidor(secciones = PERMISSIONS, detalle: Record<string, unknown> = DE
   })
 }
 
-const props = { token: 'tok', cluster: null, onAviso: vi.fn() }
+const props = { token: 'tok', cluster: null, onNotice: vi.fn() }
 
 describe('Permissions — the list', () => {
   it('it draws one card per section with its two tables and the total', async () => {
@@ -89,8 +89,8 @@ describe('Permissions — the editing modal', () => {
     const user = userEvent.setup()
     render(<Permissions {...props} cluster={cluster} />)
     // It opens through its panel's button, which is the only control left.
-    const titulo = await screen.findByText('Dashboard')
-    const panel = titulo.closest<HTMLElement>('[class*="_perm_"]')!
+    const title = await screen.findByText('Dashboard')
+    const panel = title.closest<HTMLElement>('[class*="_perm_"]')!
     await user.click(within(panel).getByRole('button', { name: 'Edit Permissions' }))
     await screen.findByRole('dialog')
     return { user, spy }
@@ -158,17 +158,17 @@ describe('Permissions — the editing modal', () => {
   })
 
   it('on saving it alerts with the upstream literal and redraws the section', async () => {
-    const onAviso = vi.fn()
+    const onNotice = vi.fn()
     servidor()
     const user = userEvent.setup()
-    render(<Permissions {...props} onAviso={onAviso} />)
+    render(<Permissions {...props} onNotice={onNotice} />)
 
     const panel = (await screen.findByText('Dashboard')).closest<HTMLElement>('[class*="_perm_"]')!
     await user.click(within(panel).getByRole('button', { name: 'Edit Permissions' }))
     await screen.findByRole('dialog')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onAviso).toHaveBeenCalledWith({
+    expect(onNotice).toHaveBeenCalledWith({
       type: 'success',
       title: 'Permissions Saved!',
       text: 'Section permissions were saved successfully.',

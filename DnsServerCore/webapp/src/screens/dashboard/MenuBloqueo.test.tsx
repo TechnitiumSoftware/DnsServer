@@ -18,7 +18,7 @@ const open = async () =>
 describe('BlockingMenu', () => {
   it('it asks for the state ON OPENING, not when drawing', async () => {
     const spy = vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
-    render(<BlockingMenu token="t" onAviso={() => {}} />)
+    render(<BlockingMenu token="t" onNotice={() => {}} />)
     // Between drawing and opening, the setting may have changed in another tab.
     expect(spy).not.toHaveBeenCalled()
     await open()
@@ -27,7 +27,7 @@ describe('BlockingMenu', () => {
 
   it('with blocking on it offers to switch it off, and never both', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
-    render(<BlockingMenu token="t" onAviso={() => {}} />)
+    render(<BlockingMenu token="t" onNotice={() => {}} />)
     await open()
     expect(await screen.findByRole('menuitem', { name: 'Disable Blocking' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Enable Blocking' })).not.toBeInTheDocument()
@@ -35,7 +35,7 @@ describe('BlockingMenu', () => {
 
   it('with blocking off it offers to switch it on', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: false } as never)
-    render(<BlockingMenu token="t" onAviso={() => {}} />)
+    render(<BlockingMenu token="t" onNotice={() => {}} />)
     await open()
     expect(await screen.findByRole('menuitem', { name: 'Enable Blocking' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Disable Blocking' })).not.toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('BlockingMenu', () => {
 
   it('it offers the eight upstream durations, with their labels', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
-    render(<BlockingMenu token="t" onAviso={() => {}} />)
+    render(<BlockingMenu token="t" onNotice={() => {}} />)
     await open()
     for (const r of [
       'Disable Blocking For 1 Minute',
@@ -63,7 +63,7 @@ describe('BlockingMenu', () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     const spy = vi.spyOn(api, 'temporaryDisableBlocking').mockResolvedValue('2026-08-31T08:00:00Z')
     const notices: { title: string; text: string }[] = []
-    render(<BlockingMenu token="t" onAviso={(a) => notices.push(a)} />)
+    render(<BlockingMenu token="t" onNotice={(a) => notices.push(a)} />)
     await open()
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Disable Blocking For 15 Minutes' }))
 
@@ -87,7 +87,7 @@ describe('BlockingMenu', () => {
   it('cancelling touches nothing', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     const spy = vi.spyOn(api, 'temporaryDisableBlocking').mockResolvedValue('x')
-    render(<BlockingMenu token="t" onAviso={() => {}} />)
+    render(<BlockingMenu token="t" onNotice={() => {}} />)
     await open()
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Disable Blocking For 1 Hour' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
@@ -100,7 +100,7 @@ describe('BlockingMenu', () => {
       .spyOn(api, 'setSettings')
       .mockResolvedValue({ kind: 'ok', data: { status: 'ok', response: {} } } as never)
     const notices: { title: string; text: string }[] = []
-    render(<BlockingMenu token="t" onAviso={(a) => notices.push(a)} />)
+    render(<BlockingMenu token="t" onNotice={(a) => notices.push(a)} />)
     await open()
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Enable Blocking' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Enable' }))

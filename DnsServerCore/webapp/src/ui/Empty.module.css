@@ -5,7 +5,7 @@ paddings, a `<b>` that was sometimes there) and three of loading.
 */
 
 /* Region empty state: it replaces a whole table, list or grid. */
-.caja {
+.box {
   border: 1px dashed var(--line);
   border-radius: var(--r-4);
   padding: var(--s-12);
@@ -15,7 +15,7 @@ paddings, a `<b>` that was sometimes there) and three of loading.
   line-height: 1.6;
 }
 
-.titulo {
+.title {
   display: block;
   color: var(--ink);
   font-size: var(--t-5);

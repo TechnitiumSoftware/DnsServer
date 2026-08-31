@@ -10,7 +10,7 @@ hand —and out of that came four distances for the same thing—.
 */
 describe('Notifier', () => {
   it('with no alert it draws nothing', () => {
-    const { container } = render(<Notifier notice={null} onCerrar={() => {}} />)
+    const { container } = render(<Notifier notice={null} onClose={() => {}} />)
     expect(container).toBeEmptyDOMElement()
   })
 
@@ -19,7 +19,7 @@ describe('Notifier', () => {
     render(
       <Notifier
         notice={{ type: 'danger', title: 'Error!', text: 'Zone not found.' }}
-        onCerrar={close}
+        onClose={close}
       />,
     )
     expect(screen.getByText('Error!')).toBeInTheDocument()

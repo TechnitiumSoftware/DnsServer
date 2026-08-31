@@ -32,7 +32,7 @@ disappears is the echo.
 */
 export function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <Panel titulo={title} className={styles.block} agrupa>
+    <Panel title={title} className={styles.block} agrupa>
       {children}
     </Panel>
   )
@@ -65,7 +65,7 @@ export function TextRow({
   return (
     <Row label={label} help={help}>
       {(id) => (
-        <div className={styles.enLinea}>
+        <div className={styles.inline}>
           <Input
             id={id}
             type={type}
@@ -121,7 +121,7 @@ export function Coletilla({ children }: { children: ReactNode }) {
   return <span className={text.coletilla}>{children}</span>
 }
 
-export interface OpcionRadio {
+export interface RadioOption {
   value: string
   label: string
   help?: ReactNode
@@ -141,7 +141,7 @@ export function Radios({
 }: {
   name: string
   value: string
-  options: OpcionRadio[]
+  options: RadioOption[]
   onChange: (v: string) => void
   disabled?: boolean
 }) {
@@ -214,7 +214,7 @@ export function Pre({ children }: { children: ReactNode }) {
   return <pre className={styles.pre}>{children}</pre>
 }
 
-export interface Columna<T> {
+export interface Column<T> {
   key: keyof T & string
   label: string
   type?: 'text' | 'number'
@@ -246,22 +246,22 @@ cannot be resolved.
 */
 export function EditableList<T extends Record<string, string>>({
   label,
-  columnas,
+  columns,
   rows,
   onChange,
   blank,
   help,
   disabled,
-  idCelda,
+  cellId,
 }: {
   label: string
-  columnas: Columna<T>[]
+  columns: Column<T>[]
   rows: T[]
   onChange: (rows: T[]) => void
   blank: () => T
   help?: ReactNode
   disabled?: boolean
-  idCelda?: (row: number, columna: string) => string
+  cellId?: (row: number, column: string) => string
 }) {
   return (
     <GroupRow label={label}>
@@ -269,7 +269,7 @@ export function EditableList<T extends Record<string, string>>({
         className={styles.editable}
         header={
           <>
-            {columnas.map((c) => (
+            {columns.map((c) => (
               <th key={c.key}>{c.label}</th>
             ))}
             <th className={styles.tdel} />
@@ -284,8 +284,8 @@ export function EditableList<T extends Record<string, string>>({
             // a random number. The index is the same criterion.
             // eslint-disable-next-line react/no-array-index-key
             <tr key={i}>
-              {columnas.map((c) => {
-                const id = idCelda?.(i, c.key)
+              {columns.map((c) => {
+                const id = cellId?.(i, c.key)
                 const name = `${label} ${i + 1} ${c.label}`
                 return (
                   <td key={c.key}>

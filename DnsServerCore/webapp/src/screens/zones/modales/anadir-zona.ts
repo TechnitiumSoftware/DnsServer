@@ -1,4 +1,4 @@
-import { limpiarLista } from '../../../api/zonelists'
+import { cleanList } from '../../../api/zonelists'
 
 /*
 The `modalAddZone` form and its validation (`addZone`, zone.js:2911).
@@ -33,22 +33,22 @@ export type AddZoneKind =
 
 export interface AddZoneOption {
   value: AddZoneKind
-  etiqueta: string
+  label: string
   /** An external reference upstream draws in brackets after the label. */
   referencia?: { text: string; href: string }
 }
 
 export const ADD_TYPES: AddZoneOption[] = [
-  { value: 'Primary', etiqueta: 'Primary Zone (default)' },
-  { value: 'Secondary', etiqueta: 'Secondary Zone' },
-  { value: 'Stub', etiqueta: 'Stub Zone' },
-  { value: 'Forwarder', etiqueta: 'Conditional Forwarder Zone' },
-  { value: 'SecondaryForwarder', etiqueta: 'Secondary Conditional Forwarder Zone' },
-  { value: 'Catalog', etiqueta: 'Catalog Zone' },
-  { value: 'SecondaryCatalog', etiqueta: 'Secondary Catalog Zone' },
+  { value: 'Primary', label: 'Primary Zone (default)' },
+  { value: 'Secondary', label: 'Secondary Zone' },
+  { value: 'Stub', label: 'Stub Zone' },
+  { value: 'Forwarder', label: 'Conditional Forwarder Zone' },
+  { value: 'SecondaryForwarder', label: 'Secondary Conditional Forwarder Zone' },
+  { value: 'Catalog', label: 'Catalog Zone' },
+  { value: 'SecondaryCatalog', label: 'Secondary Catalog Zone' },
   {
     value: 'SecondaryRoot',
-    etiqueta: 'Secondary ROOT Zone',
+    label: 'Secondary ROOT Zone',
     // Upstream links the RFC from the type's own label.
     referencia: { text: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
   },
@@ -59,24 +59,24 @@ export const RAICES =
   '199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]'
 
 export const PROTOCOLOS_TRANSFERENCIA = [
-  { value: 'Tcp', etiqueta: 'XFR-over-TCP (default)' },
-  { value: 'Tls', etiqueta: 'XFR-over-TLS' },
-  { value: 'Quic', etiqueta: 'XFR-over-QUIC' },
+  { value: 'Tcp', label: 'XFR-over-TCP (default)' },
+  { value: 'Tls', label: 'XFR-over-TLS' },
+  { value: 'Quic', label: 'XFR-over-QUIC' },
 ]
 
 export const PROTOCOLOS_FORWARDER = [
-  { value: 'Udp', etiqueta: 'DNS-over-UDP (default)' },
-  { value: 'Tcp', etiqueta: 'DNS-over-TCP' },
-  { value: 'Tls', etiqueta: 'DNS-over-TLS' },
-  { value: 'Https', etiqueta: 'DNS-over-HTTPS' },
-  { value: 'Quic', etiqueta: 'DNS-over-QUIC' },
+  { value: 'Udp', label: 'DNS-over-UDP (default)' },
+  { value: 'Tcp', label: 'DNS-over-TCP' },
+  { value: 'Tls', label: 'DNS-over-TLS' },
+  { value: 'Https', label: 'DNS-over-HTTPS' },
+  { value: 'Quic', label: 'DNS-over-QUIC' },
 ]
 
 export const PROXY_TYPES = [
-  { value: 'NoProxy', etiqueta: 'No Proxy' },
-  { value: 'DefaultProxy', etiqueta: 'Default Proxy (default)' },
-  { value: 'Http', etiqueta: 'HTTP Proxy' },
-  { value: 'Socks5', etiqueta: 'SOCKS5 Proxy' },
+  { value: 'NoProxy', label: 'No Proxy' },
+  { value: 'DefaultProxy', label: 'Default Proxy (default)' },
+  { value: 'Http', label: 'HTTP Proxy' },
+  { value: 'Socks5', label: 'SOCKS5 Proxy' },
 ]
 
 export interface FormularioAlta {
@@ -131,12 +131,12 @@ export interface AddError {
   field: keyof FormularioAlta
 }
 
-export type ResultadoAlta = { error: AddError } | { parametros: Record<string, string> }
+export type ResultadoAlta = { error: AddError } | { params: Record<string, string> }
 
 export interface SeccionesAlta {
   /** Only if the dropdown also brought catalogs (`hasItems`). */
   catalogo: boolean
-  ficheroDeZona: boolean
+  zoneFile: boolean
   serieSoa: boolean
   servidoresPrimarios: boolean
   /** The label and the help change: optional for Secondary and Stub, required
@@ -144,11 +144,11 @@ export interface SeccionesAlta {
   servidoresPrimariosObligatorios: boolean
   protocoloTransferencia: boolean
   tsig: boolean
-  validarZona: boolean
+  validateZone: boolean
   casillaInicializarForwarder: boolean
-  camposDeForwarder: boolean
+  forwarderFields: boolean
   /** "Secondary ROOT" pins the zone to "." and locks the field. */
-  zonaFija: string | null
+  fixedZone: string | null
 }
 
 /**
@@ -160,21 +160,21 @@ export interface SeccionesAlta {
 export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolean): SeccionesAlta {
   const base: SeccionesAlta = {
     catalogo: false,
-    ficheroDeZona: false,
+    zoneFile: false,
     serieSoa: false,
     servidoresPrimarios: false,
     servidoresPrimariosObligatorios: false,
     protocoloTransferencia: false,
     tsig: false,
-    validarZona: false,
+    validateZone: false,
     casillaInicializarForwarder: false,
-    camposDeForwarder: false,
-    zonaFija: null,
+    forwarderFields: false,
+    fixedZone: null,
   }
 
   switch (type) {
     case 'Primary':
-      return { ...base, catalogo: true, ficheroDeZona: true, serieSoa: true }
+      return { ...base, catalogo: true, zoneFile: true, serieSoa: true }
 
     case 'Secondary':
       return {
@@ -183,7 +183,7 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
         servidoresPrimarios: true,
         protocoloTransferencia: true,
         tsig: true,
-        validarZona: true,
+        validateZone: true,
       }
 
     case 'Stub':
@@ -195,8 +195,8 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
         ...base,
         catalogo: true,
         casillaInicializarForwarder: true,
-        ficheroDeZona: !initializeForwarder,
-        camposDeForwarder: initializeForwarder,
+        zoneFile: !initializeForwarder,
+        forwarderFields: initializeForwarder,
       }
 
     case 'SecondaryForwarder':
@@ -210,7 +210,7 @@ export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolea
       }
 
     case 'SecondaryRoot':
-      return { ...base, catalogo: true, zonaFija: '.' }
+      return { ...base, catalogo: true, fixedZone: '.' }
 
     default:
       return base
@@ -235,7 +235,7 @@ export function proxyEditable(proxyType: string): boolean {
   return proxyType !== 'NoProxy' && proxyType !== 'DefaultProxy'
 }
 
-export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
+export function buildAddParams(f: FormularioAlta): ResultadoAlta {
   if (f.zone === '') {
     return {
       error: { title: 'Missing!', text: 'Please enter a domain name to add zone.', field: 'zone' },
@@ -253,7 +253,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
 
     case 'Secondary':
       p.catalog = f.catalog
-      p.primaryNameServerAddresses = limpiarLista(f.primaryNameServerAddresses)
+      p.primaryNameServerAddresses = cleanList(f.primaryNameServerAddresses)
       p.zoneTransferProtocol = f.zoneTransferProtocol
       p.tsigKeyName = f.tsigKeyName
       p.validateZone = String(f.validateZone)
@@ -261,7 +261,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
 
     case 'Stub':
       p.catalog = f.catalog
-      p.primaryNameServerAddresses = limpiarLista(f.primaryNameServerAddresses)
+      p.primaryNameServerAddresses = cleanList(f.primaryNameServerAddresses)
       break
 
     case 'Forwarder': {
@@ -322,7 +322,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
 
     case 'SecondaryForwarder':
     case 'SecondaryCatalog': {
-      const direcciones = limpiarLista(f.primaryNameServerAddresses)
+      const direcciones = cleanList(f.primaryNameServerAddresses)
       if (direcciones.length === 0 || direcciones === ',') {
         return {
           error: {
@@ -350,10 +350,10 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
       break
   }
 
-  return { parametros: { zone: f.zone, type, ...p } }
+  return { params: { zone: f.zone, type, ...p } }
 }
 
 /** Only Primary and Forwarder accept a zone file on creation (zone.js:3030). */
-export function admiteFicheroDeZona(type: AddZoneKind): boolean {
+export function acceptsZoneFile(type: AddZoneKind): boolean {
   return type === 'Primary' || type === 'Forwarder'
 }

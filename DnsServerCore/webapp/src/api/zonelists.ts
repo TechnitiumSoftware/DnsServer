@@ -41,7 +41,7 @@ JavaScript and that govern the screen:
 */
 
 export type List = 'cache' | 'allowed' | 'blocked'
-export type ListaDominios = Extract<List, 'allowed' | 'blocked'>
+export type DomainList = Extract<List, 'allowed' | 'blocked'>
 
 /** Metadata of the DNS response that left the record in the cache. */
 export interface ResponseMetadata {
@@ -66,7 +66,7 @@ The open index is not laziness: the screen draws `rData` by walking its keys, so
 a record type the server adds tomorrow still shows in full instead of
 disappearing.
 */
-export interface RegistroDns {
+export interface DnsRecord {
   name: string
   nameIdn?: string
   type: string
@@ -92,12 +92,12 @@ export interface RegistroDns {
   [field: string]: unknown
 }
 
-export interface NodoLista {
+export interface ListNode {
   domain: string
   /** Only comes if the domain is an IDN; then it is what gets shown. */
   domainIdn?: string
   zones: string[]
-  records: RegistroDns[]
+  records: DnsRecord[]
 }
 
 /*
@@ -105,7 +105,7 @@ export interface NodoLista {
 —the parent is the root— and `null` only for the root, which is what hides the
 [up] link in upstream.
 */
-export function dominioPadre(domain: string | null | undefined): string | null {
+export function parentDomain(domain: string | null | undefined): string | null {
   if (domain == null || domain === '') return null
   const i = domain.indexOf('.')
   return i === -1 ? '' : domain.substring(i + 1)
@@ -117,7 +117,7 @@ and out with the ones at the ends. A text of nothing but newlines collapses to
 "," and that is why upstream checks for it separately when validating the
 import.
 */
-export function limpiarLista(text: string): string {
+export function cleanList(text: string): string {
   let t = text.replace(/\n/g, ',')
   while (t.indexOf(',,') !== -1) t = t.replace(/,,/g, ',')
   if (t.startsWith(',')) t = t.substring(1)
@@ -139,22 +139,22 @@ the error handler of `HTTPRequest` (common.js) draws the server's `errorMessage`
 as an alert. With `null` that text would be lost, and losing a text is losing
 behaviour.
 */
-export async function listarNodo(
+export async function listNode(
   list: List,
   token: string | null,
   domain: string,
   direction?: 'up',
   node = '',
-): Promise<ApiOutcome<NodoLista>> {
+): Promise<ApiOutcome<ListNode>> {
   const body: Record<string, string> = { domain, node }
   if (direction != null) body.direction = direction
 
-  const outcome = await apiRequest<{ response: NodoLista }>(`${list}/list`, { token, body })
+  const outcome = await apiRequest<{ response: ListNode }>(`${list}/list`, { token, body })
   return outcome.kind === 'ok' ? { kind: 'ok', data: outcome.data.response } : outcome
 }
 
 /** `flushDnsCache` (other-zones.js:20). */
-export function vaciarCache(token: string | null, node = ''): Promise<ApiOutcome> {
+export function flushCache(token: string | null, node = ''): Promise<ApiOutcome> {
   return apiRequest('cache/flush', { token, body: { node } })
 }
 
@@ -169,7 +169,7 @@ export function deleteCacheNode(
 
 /** `allowZone` / `blockZone`. */
 export function addDomain(
-  list: ListaDominios,
+  list: DomainList,
   token: string | null,
   domain: string,
 ): Promise<ApiOutcome> {
@@ -178,7 +178,7 @@ export function addDomain(
 
 /** `deleteAllowedZone` / `deleteBlockedZone`. */
 export function deleteDomain(
-  list: ListaDominios,
+  list: DomainList,
   token: string | null,
   domain: string,
 ): Promise<ApiOutcome> {
@@ -186,7 +186,7 @@ export function deleteDomain(
 }
 
 /** `flushAllowedZone` / `flushBlockedZone`. Sin `node`, a diferencia de cache. */
-export function vaciarLista(list: ListaDominios, token: string | null): Promise<ApiOutcome> {
+export function flushList(list: DomainList, token: string | null): Promise<ApiOutcome> {
   return apiRequest(`${list}/flush`, { token })
 }
 
@@ -196,8 +196,8 @@ named differently in each list. The server splits on commas
 (`WebServiceOtherZonesApi.cs:271`), so the text has to arrive already cleaned by
 `limpiarLista`.
 */
-export function importarDominios(
-  list: ListaDominios,
+export function importDomains(
+  list: DomainList,
   token: string | null,
   zones: string,
 ): Promise<ApiOutcome> {
@@ -211,8 +211,8 @@ export function importarDominios(
 that is why it cannot go by XHR and is opened in a window with a single-use
 token.
 */
-export function exportarDominios(
-  list: ListaDominios,
+export function exportDomains(
+  list: DomainList,
   token: string | null,
 ): Promise<{ ok: boolean; url?: string }> {
   return openDownload(token, `${list}/export`)

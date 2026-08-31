@@ -23,7 +23,7 @@ export {
   TextRow,
   Warning,
   panelFormStyles,
-  type Columna,
-  type OpcionRadio,
+  type Column,
+  type RadioOption,
 } from '../../ui/Ajustes'
 export { default as settingsStyles } from './Settings.module.css'

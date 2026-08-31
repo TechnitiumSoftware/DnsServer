@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { RegistroDns } from '../../api/zonelists'
-import { entradasRData, extras, fechaCorta, meta, ttlPartido } from './registro'
+import type { DnsRecord } from '../../api/zonelists'
+import { rdataEntries, extras, fechaCorta, meta, ttlPartido } from './registro'
 
-const CACHE_DNSKEY: RegistroDns = {
+const CACHE_DNSKEY: DnsRecord = {
   name: '',
   type: 'DNSKEY',
   ttl: '2000 (33m20s)',
@@ -25,7 +25,7 @@ const CACHE_DNSKEY: RegistroDns = {
   lastUsedOn: '2026-08-25T13:10:49.1717478Z',
 }
 
-const ALLOWED_NS: RegistroDns = {
+const ALLOWED_NS: DnsRecord = {
   name: 'example.org',
   type: 'NS',
   ttl: 14400,
@@ -55,36 +55,36 @@ describe('ttlPartido', () => {
   })
 })
 
-describe('entradasRData', () => {
+describe('rdataEntries', () => {
   it('it loses no rData field', () => {
-    const keys = entradasRData(CACHE_DNSKEY.rData).map((e) => e.key)
+    const keys = rdataEntries(CACHE_DNSKEY.rData).map((e) => e.key)
     // 6 fields, but algorithmNumber merges into algorithm: 5 rows are left.
     expect(keys).toEqual(['Flags', 'Protocol', 'Algorithm', 'Public key', 'Key tag'])
   })
 
   it('it merges `x` with `xNumber` on a single line, without losing the number', () => {
-    const alg = entradasRData(CACHE_DNSKEY.rData).find((e) => e.key === 'Algorithm')
+    const alg = rdataEntries(CACHE_DNSKEY.rData).find((e) => e.key === 'Algorithm')
     expect(alg?.value).toBe('RSASHA256 (8)')
   })
 
   it('it merges `x` with `xString`, which is how the cache SOA arrives', () => {
-    const e = entradasRData({ refresh: 900, refreshString: '15m' })
+    const e = rdataEntries({ refresh: 900, refreshString: '15m' })
     expect(e).toEqual([{ key: 'Refresh', value: '900 (15m)', long: false }])
   })
 
   it('it merges `x` with `xIdn` showing the Unicode name and the ASCII after it', () => {
-    const e = entradasRData({ nameServer: 'xn--maana-pta.test', nameServerIdn: 'mañana.test' })
+    const e = rdataEntries({ nameServer: 'xn--maana-pta.test', nameServerIdn: 'mañana.test' })
     expect(e[0].value).toBe('mañana.test (xn--maana-pta.test)')
   })
 
   it('it marks the public keys as long so they can be truncated', () => {
-    const pk = entradasRData(CACHE_DNSKEY.rData).find((e) => e.key === 'Public key')
+    const pk = rdataEntries(CACHE_DNSKEY.rData).find((e) => e.key === 'Public key')
     expect(pk?.long).toBe(true)
-    expect(entradasRData({ ipAddress: '10.0.0.1' })[0].long).toBe(false)
+    expect(rdataEntries({ ipAddress: '10.0.0.1' })[0].long).toBe(false)
   })
 
   it('it humanises any key it does not know instead of hiding it', () => {
-    expect(entradasRData({ campoInventadoDelFuturo: 7 })[0].key).toBe('Campo inventado del futuro')
+    expect(rdataEntries({ inventedFieldFromTheFuture: 7 })[0].key).toBe('Invented field from the future')
   })
 })
 
@@ -150,8 +150,8 @@ describe('extras', () => {
 
   /* The safety net: if the server adds a field tomorrow, it comes out anyway. */
   it('an unknown field of the record is not lost', () => {
-    const e = extras({ ...ALLOWED_NS, campoNuevo: 'value' })
-    expect(e).toContainEqual({ key: 'Campo nuevo', value: 'value', long: false })
+    const e = extras({ ...ALLOWED_NS, newField: 'value' })
+    expect(e).toContainEqual({ key: 'New field', value: 'value', long: false })
   })
 
   it('the fields already drawn elsewhere are not repeated here', () => {

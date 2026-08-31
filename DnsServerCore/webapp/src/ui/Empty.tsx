@@ -19,13 +19,13 @@ Administration— with the same four values `.cargando` already had here.
 */
 
 export function Empty({
-  titulo,
+  title,
   children,
   actions,
   compacto = false,
 }: {
   /** What it is that is not there. Region empty state only. */
-  titulo?: string
+  title?: string
   /** Why it is not there, or what to do so that it is. */
   children?: ReactNode
   actions?: ReactNode
@@ -34,8 +34,8 @@ export function Empty({
   if (compacto) return <div className={styles.line}>{children}</div>
 
   return (
-    <div className={styles.caja}>
-      {titulo != null && <span className={styles.titulo}>{titulo}</span>}
+    <div className={styles.box}>
+      {title != null && <span className={styles.title}>{title}</span>}
       {children}
       {actions != null && <div className={styles.actions}>{actions}</div>}
     </div>

@@ -110,7 +110,7 @@ export function Configure2FA({
         </>
       }
     >
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
       {!enabled && init && (
         <>
           <img

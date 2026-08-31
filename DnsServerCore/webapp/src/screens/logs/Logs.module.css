@@ -10,7 +10,7 @@
 
 .dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: var(--s-10); align-items: start; }
 
-.pbLista { padding: var(--s-5); }
+.pbList { padding: var(--s-5); }
 
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
 .logfile { composes: row from '../../ui/lista.module.css'; justify-content: space-between; }
@@ -40,7 +40,7 @@
 .field input, .field select { width: 100%; }
 
 /* The count is `ui/recuento.module.css`'s: see there for why. */
-.count { composes: barra encima from '../../ui/recuento.module.css'; }
+.count { composes: barra above from '../../ui/recuento.module.css'; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nowrap { white-space: nowrap; }
 .romper { word-break: break-all; }

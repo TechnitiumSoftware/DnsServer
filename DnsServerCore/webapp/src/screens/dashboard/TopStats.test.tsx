@@ -23,19 +23,19 @@ function servidorTop(respuesta: Record<string, unknown>) {
 describe('modal Top Stats', () => {
   it('closed it asks the server for nothing', () => {
     const spy = servidorTop({ topClients: [] })
-    render(<TopStats type={null} range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type={null} range="LastHour" token="t" onClose={() => {}} />)
     expect(spy).not.toHaveBeenCalled()
   })
 
   it('the title carries the limit inside it, as in upstream', async () => {
     servidorTop({ topClients: CLIENTES })
-    render(<TopStats type="TopClients" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText('Top 1000 Clients')).toBeTruthy()
   })
 
   it('it asks getTop with the range, the type and the limit of 1000', async () => {
     const spy = servidorTop({ topDomains: [] })
-    render(<TopStats type="TopDomains" range="LastWeek" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopDomains" range="LastWeek" token="t" onClose={() => {}} />)
     await waitFor(() => {
       const call = spy.mock.calls.find((c) => c[0] === 'dashboard/stats/getTop')
       expect(call![1]?.body).toMatchObject({
@@ -48,26 +48,26 @@ describe('modal Top Stats', () => {
 
   it('a client shows its domain under the name', async () => {
     servidorTop({ topClients: CLIENTES })
-    render(<TopStats type="TopClients" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText('pc.casa.test')).toBeTruthy()
   })
 
   it('a client with no domain is drawn as the root', async () => {
     servidorTop({ topClients: CLIENTES })
-    render(<TopStats type="TopClients" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     await screen.findByText('pc.casa.test')
     expect(screen.getByText('.')).toBeTruthy()
   })
 
   it('a rate-limited client says so after the name', async () => {
     servidorTop({ topClients: CLIENTES })
-    render(<TopStats type="TopClients" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText(/10\.0\.0\.9 \(rate limited\)/)).toBeTruthy()
   })
 
   it('a domain does NOT show the domain line: that field belongs to clients only', async () => {
     servidorTop({ topDomains: [{ name: 'github.com', hits: 7 }] })
-    render(<TopStats type="TopDomains" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopDomains" range="LastHour" token="t" onClose={() => {}} />)
     await screen.findByText('github.com')
     expect(screen.queryByText('.')).toBeNull()
   })
@@ -75,21 +75,21 @@ describe('modal Top Stats', () => {
   it('the header switches between Client/Queries and Domain/Hits', async () => {
     servidorTop({ topClients: CLIENTES })
     const { unmount } = render(
-      <TopStats type="TopClients" range="LastHour" token="t" onCerrar={() => {}} />,
+      <TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />,
     )
     expect(await screen.findByText('Client')).toBeTruthy()
     expect(screen.getByText('Queries')).toBeTruthy()
     unmount()
 
     servidorTop({ topDomains: [{ name: 'a.test', hits: 1 }] })
-    render(<TopStats type="TopDomains" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopDomains" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText('Domain')).toBeTruthy()
     expect(screen.getByText('Hits')).toBeTruthy()
   })
 
   it('with no data it says \"No Data\", with the upstream text', async () => {
     servidorTop({ topClients: [] })
-    render(<TopStats type="TopClients" range="LastHour" token="t" onCerrar={() => {}} />)
+    render(<TopStats type="TopClients" range="LastHour" token="t" onClose={() => {}} />)
     expect(await screen.findByText('No Data')).toBeTruthy()
   })
 })

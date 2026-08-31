@@ -44,10 +44,10 @@ describe('api/logs — files', () => {
       ok({ response: { logFiles: [{ fileName: '2026-08-26', size: '2.96 KB' }] } }),
     )
 
-    const ficheros = await listLogFiles('tok')
+    const files = await listLogFiles('tok')
 
     expect(spy.mock.calls.find((c) => c[0] === 'logs/list')![1]?.body).toEqual({ node: '' })
-    expect(ficheros.kind === 'ok' && ficheros.data[0].fileName).toBe('2026-08-26')
+    expect(files.kind === 'ok' && files.data[0].fileName).toBe('2026-08-26')
   })
 
   /*

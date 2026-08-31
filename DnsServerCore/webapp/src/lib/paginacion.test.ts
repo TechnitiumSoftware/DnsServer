@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { textoDeEstado, ventanaDePaginas } from './paginacion'
+import { textoDeEstado, pageWindow } from './paginacion'
 
 describe('page window', () => {
   it('with fewer than ten pages they are all visible', () => {
-    expect(ventanaDePaginas(1, 3).pages).toEqual([1, 2, 3])
+    expect(pageWindow(1, 3).pages).toEqual([1, 2, 3])
   })
 
   it('it centres five pages before the current one', () => {
-    expect(ventanaDePaginas(20, 50).pages).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
+    expect(pageWindow(20, 50).pages).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
   })
 
   it('on the last page it SLIDES BACKWARDS and shows the last ten', () => {
     // The case that gets lost when "simplifying" the arithmetic: without the
     // adjustment, the last page would show a single one.
-    expect(ventanaDePaginas(50, 50).pages).toEqual([41, 42, 43, 44, 45, 46, 47, 48, 49, 50])
+    expect(pageWindow(50, 50).pages).toEqual([41, 42, 43, 44, 45, 46, 47, 48, 49, 50])
   })
 
   it('on the first it offers neither "previous" nor "first"', () => {
-    const p = ventanaDePaginas(1, 5)
+    const p = pageWindow(1, 5)
     expect(p.primera).toBe(false)
     expect(p.previous).toBeNull()
     expect(p.next).toBe(2)
@@ -25,7 +25,7 @@ describe('page window', () => {
   })
 
   it('on the last it offers neither "next" nor "last"', () => {
-    const p = ventanaDePaginas(5, 5)
+    const p = pageWindow(5, 5)
     expect(p.next).toBeNull()
     expect(p.last).toBe(false)
   })

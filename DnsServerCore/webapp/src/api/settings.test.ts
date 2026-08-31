@@ -5,9 +5,9 @@ import {
   flushCache,
   forceUpdateBlockLists,
   getSettings,
-  parametrosBackup,
+  backupParams,
   restoreSettings,
-  seleccionInicialBackup,
+  initialBackupSelection,
   setSettings,
   temporaryDisableBlocking,
   type DnsSettings, getTsigKeyNames } from './settings'
@@ -82,14 +82,14 @@ describe('api/settings', () => {
   })
 
   it('the initial backup selection checks everything except the logs', () => {
-    const s = seleccionInicialBackup()
+    const s = initialBackupSelection()
     expect(Object.keys(s)).toEqual(ELEMENTOS_BACKUP.map((e) => e.key))
     expect(s.logs).toBe(false)
     expect(s.authConfig).toBe(true)
   })
 
   it('the backup parameters send the thirteen items as true/false', () => {
-    const p = parametrosBackup({ ...seleccionInicialBackup(), zones: false })
+    const p = backupParams({ ...initialBackupSelection(), zones: false })
     expect(p.zones).toBe('false')
     expect(p.stats).toBe('true')
     expect(p.node).toBe('')
@@ -99,8 +99,8 @@ describe('api/settings', () => {
   it('settings/restore sends the file by multipart and the options in the query', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: {} }))
 
-    const fichero = new File(['zip'], 'backup.zip')
-    await restoreSettings('tok', fichero, seleccionInicialBackup(), true)
+    const file = new File(['zip'], 'backup.zip')
+    await restoreSettings('tok', file, initialBackupSelection(), true)
 
     const call = spy.mock.calls.find((c) => c[0].startsWith('settings/restore'))!
     expect(call[0]).toContain('deleteExistingFiles=true')
@@ -109,7 +109,7 @@ describe('api/settings', () => {
     expect(call[1]).toMatchObject({
       method: 'POST',
       token: 'tok',
-      file: { field: 'fileBackupZip', archivo: fichero },
+      file: { field: 'fileBackupZip', archivo: file },
     })
     // The body does NOT carry the options: upstream sends them by query only.
     expect(call[1]?.body).toBeUndefined()

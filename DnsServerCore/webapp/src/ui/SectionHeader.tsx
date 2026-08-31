@@ -42,8 +42,8 @@ a state other times and a setting others.
 export function SectionHeader({
   section,
   onVolver,
-  titulo,
-  etiquetas,
+  title,
+  labels,
   actions,
 }: {
   /** The section name. Only when there are sub-tabs. */
@@ -53,9 +53,9 @@ export function SectionHeader({
    *  saying the same thing two centimetres apart. */
   onVolver?: () => void
   /** The most specific name: the sub-tab if there is one, otherwise the section. */
-  titulo: string
+  title: string
   /** STATE pills. Counts go in the count bar. */
-  etiquetas?: ReactNode
+  labels?: ReactNode
   /** Action bar, always top right. */
   actions?: ReactNode
 }) {
@@ -74,8 +74,8 @@ export function SectionHeader({
             <Icon name="chevronRight" tam={12} className={styles.sep} />
           </nav>
         )}
-        <h1 className={styles.titulo}>{titulo}</h1>
-        {etiquetas != null && <div className={styles.tags}>{etiquetas}</div>}
+        <h1 className={styles.title}>{title}</h1>
+        {labels != null && <div className={styles.tags}>{labels}</div>}
       </div>
       {actions != null && <div className={styles.acts}>{actions}</div>}
     </div>

@@ -40,7 +40,7 @@ export function DnsClient({ token }: { token: string | null }) {
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [busy, setBusy] = useState(false)
 
-  async function lanzar(importar: boolean) {
+  async function lanzar(runImport: boolean) {
     // The order is upstream's: extract first, check afterwards.
     const ready = prepararServidor(server, protocol)
 
@@ -62,7 +62,7 @@ export function DnsClient({ token }: { token: string | null }) {
       protocol: ready.protocol,
       dnssec,
       eDnsClientSubnet: ecs,
-      importar,
+      runImport,
     })
     setBusy(false)
 
@@ -79,7 +79,7 @@ export function DnsClient({ token }: { token: string | null }) {
 
     if (r.warningMessage) {
       setAlert({ type: 'warning', title: 'Warning!', text: r.warningMessage })
-    } else if (importar) {
+    } else if (runImport) {
       setAlert({
         type: 'success',
         title: 'Records Imported!',
@@ -90,9 +90,9 @@ export function DnsClient({ token }: { token: string | null }) {
 
   return (
     <>
-      <SectionHeader titulo="DNS Client" />
+      <SectionHeader title="DNS Client" />
 
-      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onClose={() => setAlert(null)} />
 
       {/*
       The query bar used labels made by hand with inline `style` —`fontSize: 11`,
@@ -136,7 +136,7 @@ export function DnsClient({ token }: { token: string | null }) {
         <Empty>Run a query to see the response.</Empty>
       ) : (
         <Panel
-          titulo="Response"
+          title="Response"
           actions={<span className={styles.meta}>{protocol} · {type}</span>}
           className={styles.panel}
         >

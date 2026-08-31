@@ -12,9 +12,9 @@ particular the bug the flipping introduced: the handler that closes the menu on
 scroll is shared with `resize`, and there the `target` is `window`, which is not a
 node.
 */
-function Ejemplo({ comoFila = false }: { comoFila?: boolean } = {}) {
+function Ejemplo({ asRow = false }: { asRow?: boolean } = {}) {
   return (
-    <Menu etiqueta="Opciones" rotulo="Opciones" comoFila={comoFila}>
+    <Menu label="Opciones" rotulo="Opciones" asRow={asRow}>
       {(close) => (
         <>
           <button role="menuitem" onClick={close}>Uno</button>
@@ -38,7 +38,7 @@ describe('Menu', () => {
   it('it reports on opening, for whoever needs to check the state just before', async () => {
     const openOnes: number[] = []
     render(
-      <Menu etiqueta="Opciones" rotulo="Opciones" onAbrir={() => openOnes.push(1)}>
+      <Menu label="Opciones" rotulo="Opciones" onOpen={() => openOnes.push(1)}>
         {() => <button role="menuitem">Uno</button>}
       </Menu>,
     )
@@ -68,7 +68,7 @@ describe('Menu', () => {
   it('the row trigger closes on an outside click, just like the button one', async () => {
     render(
       <>
-        <Ejemplo comoFila />
+        <Ejemplo asRow />
         <p>outside</p>
       </>,
     )

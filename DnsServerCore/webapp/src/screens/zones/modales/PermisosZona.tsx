@@ -29,13 +29,13 @@ interface Row {
   canDelete: boolean
 }
 
-export function PermisosZona({
+export function ZonePermissions({
   zone,
   open,
   token,
   node = '',
   canModify,
-  onCerrar,
+  onClose,
   onHecho,
 }: {
   zone: string
@@ -43,7 +43,7 @@ export function PermisosZona({
   token: string | null
   node?: string
   canModify: boolean
-  onCerrar: () => void
+  onClose: () => void
   onHecho: (a: Notice) => void
 }) {
   /* Upstream titles it `Edit Permissions - <span>` (`index.html:6856`) and fills
@@ -51,29 +51,29 @@ export function PermisosZona({
      dialog does not say what it does: it is the only one of Zones' ten whose title
      does not name the action, and the same dialog opened from Administration does
      carry it. */
-  const [titulo, setTitulo] = useState(
+  const [title, setTitle] = useState(
     `Edit Permissions - Zones / ${zone === '.' ? '<root>' : zone}`,
   )
-  const [users, setUsuarios] = useState<Row[]>([])
-  const [groups, setGrupos] = useState<Row[]>([])
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState<string[]>([])
-  const [gruposDisponibles, setGruposDisponibles] = useState<string[]>([])
-  const [notice, setAviso] = useState<Notice | null>(null)
+  const [users, setUsers] = useState<Row[]>([])
+  const [groups, setGroups] = useState<Row[]>([])
+  const [availableUsers, setAvailableUsers] = useState<string[]>([])
+  const [availableGroups, setAvailableGroups] = useState<string[]>([])
+  const [notice, setNotice] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
-    setAviso(null)
+    setNotice(null)
     setLoading(true)
     void getZonePermissions(token, zone, node).then((r) => {
       setLoading(false)
       if (r == null) {
-        setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
+        setNotice({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
       }
-      setTitulo(`Edit Permissions - ${r.section} / ${r.subItem === '.' ? '<root>' : r.subItem}`)
-      setUsuarios(
+      setTitle(`Edit Permissions - ${r.section} / ${r.subItem === '.' ? '<root>' : r.subItem}`)
+      setUsers(
         r.userPermissions.map((p) => ({
           name: p.username,
           canView: p.canView,
@@ -81,7 +81,7 @@ export function PermisosZona({
           canDelete: p.canDelete,
         })),
       )
-      setGrupos(
+      setGroups(
         r.groupPermissions.map((p) => ({
           name: p.name,
           canView: p.canView,
@@ -89,8 +89,8 @@ export function PermisosZona({
           canDelete: p.canDelete,
         })),
       )
-      setUsuariosDisponibles(r.users ?? [])
-      setGruposDisponibles(r.groups ?? [])
+      setAvailableUsers(r.users ?? [])
+      setAvailableGroups(r.groups ?? [])
     })
   }, [open, token, zone, node])
 
@@ -106,20 +106,20 @@ export function PermisosZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(noticeFromFailure(outcome))
+      setNotice(noticeFromFailure(outcome))
       return
     }
 
-    onCerrar()
+    onClose()
     onHecho({ type: 'success', title: 'Permissions Saved!', text: 'Zone permissions were saved successfully.' })
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => !o && onCerrar()}
+      onOpenChange={(o) => !o && onClose()}
       size="medium"
-      title={titulo}
+      title={title}
       actions={
         <>
           {canModify && (
@@ -130,25 +130,25 @@ export function PermisosZona({
         </>
       }
     >
-      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       {loading ? (
         <Loading>Loading permissions…</Loading>
       ) : (
         <div className={styles.fields}>
-          <TablaPermisos
-            titulo="User Permissions"
+          <PermissionsTable
+            title="User Permissions"
             rows={users}
-            disponibles={usuariosDisponibles}
-            etiquetaAnadir="Add User"
-            onCambiar={setUsuarios}
+            disponibles={availableUsers}
+            addLabel="Add User"
+            onCambiar={setUsers}
           />
-          <TablaPermisos
-            titulo="Group Permissions"
+          <PermissionsTable
+            title="Group Permissions"
             rows={groups}
-            disponibles={gruposDisponibles}
-            etiquetaAnadir="Add Group"
-            onCambiar={setGrupos}
+            disponibles={availableGroups}
+            addLabel="Add Group"
+            onCambiar={setGroups}
           />
         </div>
       )}
@@ -156,27 +156,27 @@ export function PermisosZona({
   )
 }
 
-function TablaPermisos({
-  titulo,
+function PermissionsTable({
+  title,
   rows,
   disponibles,
-  etiquetaAnadir,
+  addLabel,
   onCambiar,
 }: {
-  titulo: string
+  title: string
   rows: Row[]
   disponibles: string[]
-  etiquetaAnadir: string
+  addLabel: string
   onCambiar: (f: Row[]) => void
 }) {
-  const sinAsignar = disponibles.filter((d) => !rows.some((f) => f.name === d))
+  const unassigned = disponibles.filter((d) => !rows.some((f) => f.name === d))
 
   const cambiar = (i: number, key: keyof Row, value: boolean) =>
     onCambiar(rows.map((f, j) => (j === i ? { ...f, [key]: value } : f)))
 
   return (
     <div className={styles.group}>
-      <div className={styles.grupoTit}>{titulo}</div>
+      <div className={styles.groupTitle}>{title}</div>
 
       {rows.length === 0 ? (
         <div className={styles.help}>No permissions assigned.</div>
@@ -219,7 +219,7 @@ function TablaPermisos({
         </Table>
       )}
 
-      <Field label={etiquetaAnadir}>
+      <Field label={addLabel}>
         {(id) => (
           <Select
             id={id}
@@ -233,7 +233,7 @@ function TablaPermisos({
           >
             <option value="" />
             <option value="none">None</option>
-            {sinAsignar.map((d) => (
+            {unassigned.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>

@@ -7,19 +7,19 @@ import * as dashboard from '../../api/dashboard'
 import * as apps from '../../api/apps'
 import type { InstalledApp } from '../../api/apps'
 import type { QueryLogEntry, QueryLogPage } from '../../api/logs'
-import { claseFila, rangoPaginas, textoEstado } from './QueryLogs'
-import { choose, opcionesDe, valorDe } from '../../test/desplegable'
+import { rowClass, pageRange, textoEstado } from './QueryLogs'
+import { choose, optionsOf, valorDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
 const OK = { kind: 'ok' as const, data: {} }
 
-const FICHEROS = [
+const FILES = [
   { fileName: '2026-08-26', size: '2.96 KB' },
   { fileName: '2026-08-25', size: '20.48 KB' },
 ]
 
-const DETALLE = {
+const DETAIL = {
   classPath: 'QueryLogsSqlite.App',
   description: 'Logs queries.',
   recordDataTemplate: null,
@@ -36,14 +36,14 @@ const APP: InstalledApp = {
   name: 'Query Logs (Sqlite)',
   description: 'Logs all incoming DNS requests.',
   version: '8.0',
-  dnsApps: [DETALLE],
+  dnsApps: [DETAIL],
 }
 
 const SIN_QUERY_LOGS: InstalledApp = {
   name: 'NO DATA',
   description: 'Returns NO DATA.',
   version: '5.0',
-  dnsApps: [{ ...DETALLE, classPath: 'NoData.App', isQueryLogs: false }],
+  dnsApps: [{ ...DETAIL, classPath: 'NoData.App', isQueryLogs: false }],
 }
 
 const ENTRY: QueryLogEntry = {
@@ -64,7 +64,7 @@ function page(parcial: Partial<QueryLogPage> = {}): QueryLogPage {
   return { pageNumber: 1, totalPages: 1, totalEntries: 1, entries: [ENTRY], ...parcial }
 }
 
-function conApps(list: InstalledApp[]) {
+function withApps(list: InstalledApp[]) {
   return vi
     .spyOn(apps, 'listApps')
     .mockResolvedValue({ kind: 'ok', data: { status: 'ok', response: { apps: list } } } as never)
@@ -72,7 +72,7 @@ function conApps(list: InstalledApp[]) {
 
 describe('Logs › View Logs', () => {
   it('it lists the files with their size and offers to delete them all', async () => {
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     render(<Logs token="t" sub="View Logs" />)
 
     expect(await screen.findByText('2026-08-26')).toBeInTheDocument()
@@ -92,7 +92,7 @@ describe('Logs › View Logs', () => {
 
   it('opening a file asks for only the first 2 MB and draws it', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     const spy = vi.spyOn(api, 'downloadLogText').mockResolvedValue('[2026-08-26] Logging started.')
     render(<Logs token="t" sub="View Logs" />)
     await screen.findByText('2026-08-26')
@@ -105,7 +105,7 @@ describe('Logs › View Logs', () => {
 
   it('\"Download\" asks for the whole file through a single-use token', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     vi.spyOn(api, 'downloadLogText').mockResolvedValue('x')
     const spy = vi.spyOn(api, 'openLogDownload').mockResolvedValue({ ok: true })
     render(<Logs token="t" sub="View Logs" />)
@@ -120,7 +120,7 @@ describe('Logs › View Logs', () => {
 
   it('deleting a file confirms with its name and alerts with the literal text', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     vi.spyOn(api, 'downloadLogText').mockResolvedValue('x')
     const spy = vi.spyOn(api, 'deleteLog').mockResolvedValue(OK)
     render(<Logs token="t" sub="View Logs" />)
@@ -141,7 +141,7 @@ describe('Logs › View Logs', () => {
 
   it('\"Delete All Logs\" confirms and alerts with \"Logs Deleted!\"', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     const spy = vi.spyOn(api, 'deleteAllLogs').mockResolvedValue(OK)
     render(<Logs token="t" sub="View Logs" />)
     await screen.findByText('2026-08-26')
@@ -161,7 +161,7 @@ describe('Logs › View Logs', () => {
 
   it('\"Delete All Stats\" calls the DASHBOARD endpoint, not the logs one', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     const spy = vi.spyOn(dashboard, 'deleteAllStats').mockResolvedValue(OK)
     render(<Logs token="t" sub="View Logs" />)
     await screen.findByText('2026-08-26')
@@ -180,7 +180,7 @@ describe('Logs › View Logs', () => {
   })
 
   it('the two delete permissions are different and apply separately', async () => {
-    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
+    vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FILES })
     const { unmount } = render(
       <Logs token="t" sub="View Logs" canDeleteLogs={false} canDeleteStats />,
     )
@@ -196,18 +196,18 @@ describe('Logs › View Logs', () => {
 
 describe('Logs › Query Logs — the form', () => {
   it('it only offers the apps that declare `isQueryLogs`', async () => {
-    conApps([SIN_QUERY_LOGS, APP])
+    withApps([SIN_QUERY_LOGS, APP])
     render(<Logs token="t" sub="Query Logs" />)
 
     const user = userEvent.setup()
     const appName = await screen.findByLabelText('App Name')
-    expect(await opcionesDe(user, appName)).toEqual(['Query Logs (Sqlite)'])
+    expect(await optionsOf(user, appName)).toEqual(['Query Logs (Sqlite)'])
     expect(valorDe(appName)).toBe('Query Logs (Sqlite)')
     expect(valorDe(screen.getByLabelText('Class Path'))).toBe('QueryLogsSqlite.App')
   })
 
   it('the default values are those of the upstream form, not the server ones', async () => {
-    conApps([APP])
+    withApps([APP])
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
@@ -220,7 +220,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('\"Logs Per Page\" is remembered in localStorage under the upstream key', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
@@ -232,7 +232,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('\"Query\" sends the fourteen filters with the form values', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     const spy = vi
       .spyOn(api, 'queryLogs')
       .mockResolvedValue({ kind: 'ok', data: { response: page() } } as never)
@@ -264,7 +264,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('with no query-logs app, \"Query\" alerts with the text that points at Apps', async () => {
     const user = userEvent.setup()
-    conApps([SIN_QUERY_LOGS])
+    withApps([SIN_QUERY_LOGS])
     const spy = vi.spyOn(api, 'queryLogs')
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -282,7 +282,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('\"Export\" alerts with the SAME title but WITHOUT \"from the Apps section.\"', async () => {
     const user = userEvent.setup()
-    conApps([SIN_QUERY_LOGS])
+    withApps([SIN_QUERY_LOGS])
     const spy = vi.spyOn(api, 'exportLogsCsv')
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -299,7 +299,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('\"Export\" with a valid app calls the export endpoint', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     const spy = vi.spyOn(api, 'exportLogsCsv').mockResolvedValue({ ok: true })
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -314,7 +314,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('\"Reset\" returns the form to its default values', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
@@ -328,7 +328,7 @@ describe('Logs › Query Logs — the form', () => {
 
   it('\"Live Update\" pins page and order, empties the range and disables those four controls', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
       data: { response: page() },
@@ -353,7 +353,7 @@ describe('Logs › Query Logs — the form', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       const user = userEvent.setup({ delay: null })
-      conApps([APP])
+      withApps([APP])
       const spy = vi.spyOn(api, 'queryLogs').mockResolvedValue({
         kind: 'ok',
         data: { response: page() },
@@ -379,7 +379,7 @@ describe('Logs › Query Logs — the form', () => {
 describe('Logs › Query Logs — the table', () => {
   it('it draws one row per entry, with the RTT and the formatted timestamp', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
       data: { response: page() },
@@ -395,7 +395,7 @@ describe('Logs › Query Logs — the table', () => {
 
   it('a response with no data leaves the counter at \"0 logs\"', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
       data: { response: page({ entries: [], totalEntries: 0 }) },
@@ -409,7 +409,7 @@ describe('Logs › Query Logs — the table', () => {
 
   it('the root is written with a dot and the null fields are left blank', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
       data: {
@@ -440,7 +440,7 @@ describe('Logs › Query Logs — the table', () => {
 
   it('\"Last\" is asked for with pageNumber -1, which is how upstream reaches the last', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     const spy = vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
       data: { response: page({ pageNumber: 1, totalPages: 5, totalEntries: 100 }) },
@@ -457,7 +457,7 @@ describe('Logs › Query Logs — the table', () => {
 
   it('a server error comes out as an alert and does not wipe the previous table', async () => {
     const user = userEvent.setup()
-    conApps([APP])
+    withApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'error',
       message: "Requested value 'ZZZ' was not found.",
@@ -490,16 +490,16 @@ describe('Query Logs — piezas puras', () => {
   })
 
   it('the page window is ten wide, centred on the current one', () => {
-    expect(rangoPaginas(1, 3)).toEqual([1, 2, 3])
-    expect(rangoPaginas(1, 100)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    expect(rangoPaginas(20, 100)).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
+    expect(pageRange(1, 3)).toEqual([1, 2, 3])
+    expect(pageRange(1, 100)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    expect(pageRange(20, 100)).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
     // At the end, the window slides backwards so it keeps being ten wide.
-    expect(rangoPaginas(100, 100)).toEqual([91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
+    expect(pageRange(100, 100)).toEqual([91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
   })
 
   it('the row colour is decided by the RCODE and, within it, the response type', () => {
     const c = (rcode: string, responseType: string) =>
-      claseFila({ ...ENTRY, rcode, responseType })
+      rowClass({ ...ENTRY, rcode, responseType })
 
     expect(c('ServerFailure', 'Recursive')).not.toBe('')
     expect(c('NxDomain', 'Blocked')).toBe(c('NoError', 'UpstreamBlockedCached'))
