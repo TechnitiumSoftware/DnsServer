@@ -17,14 +17,14 @@ per route, so the URL genuinely exists: it can be copied, bookmarked and reloade
 **The application root cannot be assumed.** The server honours
 `X-Forwarded-Prefix` by mounting a `PathBase` (`DnsWebService.cs:1943-1945`), so the
 console may be hanging off `/dns/` without knowing it. Each copy carries its own
-route in `<meta name="ruta">`, and the root comes from subtracting it from the
+route in `<meta name="route">`, and the root comes from subtracting it from the
 `pathname`. That is the piece that makes all of this work behind a proxy.
 */
 
 export { aSlug } from './slug'
 import { aSlug } from './slug'
-export { forgetRoot, raizDeLaApp } from './base'
-import { raizDeLaApp } from './base'
+export { forgetRoot, appRoot } from './base'
+import { appRoot } from './base'
 
 export interface Route {
   section: string
@@ -40,7 +40,7 @@ export interface Route {
  */
 /** What the address bar says, resolved against the visible sections. */
 export function readRoute(secciones: Section[]): Route | null {
-  const base = raizDeLaApp()
+  const base = appRoot()
   const trail = window.location.pathname
   if (!trail.startsWith(base)) return null
 
@@ -56,7 +56,7 @@ export function readRoute(secciones: Section[]): Route | null {
 }
 
 export function toTrail({ section, sub }: Route): string {
-  return raizDeLaApp() + (sub == null ? `${section}/` : `${section}/${aSlug(sub)}/`)
+  return appRoot() + (sub == null ? `${section}/` : `${section}/${aSlug(sub)}/`)
 }
 
 /**
@@ -69,7 +69,7 @@ export function toTrail({ section, sub }: Route): string {
  * return (`session/boot.ts`), which has already read it and wants it gone from the
  * bar.
  */
-export function escribirRuta(route: Route, reemplazar = false): void {
+export function writeRoute(route: Route, reemplazar = false): void {
   const blank = toTrail(route) + window.location.search
   if (window.location.pathname + window.location.search === blank) return
   if (reemplazar) window.history.replaceState(null, '', blank)

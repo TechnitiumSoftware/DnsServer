@@ -47,7 +47,7 @@ describe('apiRequest', () => {
 
   it('and honours the proxy prefix', async () => {
     const meta = document.createElement('meta')
-    meta.setAttribute('name', 'ruta')
+    meta.setAttribute('name', 'route')
     meta.setAttribute('content', 'settings/logging')
     document.head.appendChild(meta)
     window.history.replaceState(null, '', '/dns/settings/logging/')

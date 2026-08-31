@@ -70,7 +70,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
     <>
       <SectionHeader title="About" />
     <div className={styles.grid}>
-      <Panel className={styles.panel}>
+      <Panel>
         <Body>
           <div className={styles.head}>
             {/* Technitium's logo, not an initial of ours. Upstream puts it right
@@ -159,7 +159,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
       </Panel>
 
       <div className={styles.col}>
-        <Panel title="Server" className={styles.panel}>
+        <Panel title="Server">
           <Body>
             <dl className={styles.kv}>
               <dt>Version</dt><dd>{info?.version ?? '—'}</dd>
@@ -169,7 +169,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             </dl>
           </Body>
         </Panel>
-        <Panel title="Update" className={styles.panel}>
+        <Panel title="Update">
           <Body>
             {update === 'up-to-date' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {/*

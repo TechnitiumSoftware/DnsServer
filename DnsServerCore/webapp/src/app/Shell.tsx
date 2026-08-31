@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
-import { toTrail, escribirRuta, readRoute } from './route'
+import { toTrail, writeRoute, readRoute } from './route'
 import { ChangePassword } from '../screens/modals/ChangePassword'
 import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
@@ -72,12 +72,12 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   // Memoised: if it is recreated on every render, the `hashchange` resubscribes on each.
   const sections = useMemo(() => visibleSections(permissions), [permissions])
   /* The starting section comes from the address bar if it carries one, and only
-     if not, from the first visible one. See `app/ruta.ts` for the reasoning. */
-  const rutaInicial = readRoute(sections)
-  const [active, setActive] = useState(() => rutaInicial?.section ?? sections[0]?.id ?? 'about')
+     if not, from the first visible one. See `app/route.ts` for the reasoning. */
+  const initialRoute = readRoute(sections)
+  const [active, setActive] = useState(() => initialRoute?.section ?? sections[0]?.id ?? 'about')
   const [drawer, setCajon] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
-  const [sub, setSub] = useState<string | null>(rutaInicial?.sub ?? null)
+  const [sub, setSub] = useState<string | null>(initialRoute?.sub ?? null)
   const [displayName, setDisplayName] = useState(session.displayName)
   const [totpEnabled, setTotpEnabled] = useState(session.totpEnabled ?? false)
 
@@ -108,7 +108,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
   /*
   The URL follows the state, and the state follows the URL. The guard is in
-  `escribirRuta`, which does not touch history if the route is already the current
+  `writeRoute`, which does not touch history if the route is already the current
   one: without it, responding to `popstate` by setting the state would write the
   route again.
   */
@@ -119,7 +119,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   useEffect(() => {
     if (current == null) return
     activaRef.current = { section: current.id, sub: subActual }
-    escribirRuta({ section: current.id, sub: subActual }, primerRender.current)
+    writeRoute({ section: current.id, sub: subActual }, primerRender.current)
     primerRender.current = false
   }, [current, sub, subActual])
 
@@ -129,7 +129,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       if (r == null) {
         // A route that does not resolve left the bar and the screen saying different
         // different ones. The screen rules: the URL is corrected.
-        escribirRuta({ section: activaRef.current.section, sub: activaRef.current.sub }, true)
+        writeRoute({ section: activaRef.current.section, sub: activaRef.current.sub }, true)
         return
       }
       /*
@@ -143,7 +143,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       */
       const section = sections.find((x) => x.id === r.section)
       const own = r.sub ?? section?.subs?.[0] ?? null
-      if (own !== r.sub) escribirRuta({ section: r.section, sub: own }, true)
+      if (own !== r.sub) writeRoute({ section: r.section, sub: own }, true)
 
       setActive((v) => (v === r.section ? v : r.section))
       setSub((v) => (v === own ? v : own))
@@ -173,7 +173,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
           It was declared as tabs when the console had no addresses: twelve
           `role="tab"` over a single panel. Once it gained real routes
-          (`app/ruta.ts`) the description stopped being true —the ARIA guidance is
+          (`app/route.ts`) the description stopped being true —the ARIA guidance is
           explicit: if activating the element leads to another URL, it is a link,
           not a tab— and on top of that the sub-sections hung INSIDE the `tablist`
           as loose buttons, which is a child that role does not allow. It announced

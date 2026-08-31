@@ -1,13 +1,13 @@
 import { describe, expect, it, afterEach } from 'vitest'
 import { SECTIONS } from './sections'
-import { toTrail, aSlug, escribirRuta, readRoute, forgetRoot, raizDeLaApp } from './route'
+import { toTrail, aSlug, writeRoute, readRoute, forgetRoot, appRoot } from './route'
 
 /** Serves the document as the server would: in its folder and with its meta. */
 function servedAt(trail: string, route: string | null = null) {
-  document.head.querySelector('meta[name="ruta"]')?.remove()
+  document.head.querySelector('meta[name="route"]')?.remove()
   if (route != null) {
     const m = document.createElement('meta')
-    m.setAttribute('name', 'ruta')
+    m.setAttribute('name', 'route')
     m.setAttribute('content', route)
     document.head.appendChild(m)
   }
@@ -43,30 +43,30 @@ The console can hang off any prefix: the server honours `X-Forwarded-Prefix` by
 mounting a `PathBase`. The root is deduced by subtracting from the `pathname` the
 segments the document itself declares in its `<meta>`.
 */
-describe('raizDeLaApp', () => {
+describe('appRoot', () => {
   it('on the front page, the root is the front page', () => {
     servedAt('/')
-    expect(raizDeLaApp()).toBe('/')
+    expect(appRoot()).toBe('/')
   })
 
   it('on a one-level path', () => {
     servedAt('/zones/', 'zones')
-    expect(raizDeLaApp()).toBe('/')
+    expect(appRoot()).toBe('/')
   })
 
   it('on a two-level path', () => {
     servedAt('/settings/logging/', 'settings/logging')
-    expect(raizDeLaApp()).toBe('/')
+    expect(appRoot()).toBe('/')
   })
 
   it('and behind a proxy with a prefix, which is what all this is about', () => {
     servedAt('/dns/settings/logging/', 'settings/logging')
-    expect(raizDeLaApp()).toBe('/dns/')
+    expect(appRoot()).toBe('/dns/')
   })
 
   it('with a two-segment prefix', () => {
     servedAt('/casa/dns/zones/', 'zones')
-    expect(raizDeLaApp()).toBe('/casa/dns/')
+    expect(appRoot()).toBe('/casa/dns/')
   })
 })
 
@@ -124,17 +124,17 @@ describe('toTrail', () => {
   })
 })
 
-describe('escribirRuta', () => {
+describe('writeRoute', () => {
   it('it leaves the address bar on the requested path', () => {
     servedAt('/')
-    escribirRuta({ section: 'dhcp', sub: 'Leases' }, true)
+    writeRoute({ section: 'dhcp', sub: 'Leases' }, true)
     expect(window.location.pathname).toBe('/dhcp/leases/')
   })
 
   it('it does not touch the history if the path is already the current one', () => {
     servedAt('/zones/', 'zones')
     const before2 = window.history.length
-    escribirRuta({ section: 'zones', sub: null })
+    writeRoute({ section: 'zones', sub: null })
     expect(window.location.pathname).toBe('/zones/')
     expect(window.history.length).toBe(before2)
   })
@@ -143,7 +143,7 @@ describe('escribirRuta', () => {
     servedAt('/')
     for (const s of SECTIONS) {
       for (const sub of s.subs ?? [null]) {
-        escribirRuta({ section: s.id, sub }, true)
+        writeRoute({ section: s.id, sub }, true)
         expect(readRoute(SECTIONS)).toEqual({ section: s.id, sub })
       }
     }

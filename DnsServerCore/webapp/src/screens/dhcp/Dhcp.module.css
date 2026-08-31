@@ -31,3 +31,19 @@ title out again.
    `ui/PanelForm.module.css`'s, shared with Settings. */
 
 .bar { composes: bar from '../../ui/PanelForm.module.css'; }
+
+/*
+Tres clases que el formulario de scope PEDÍA y que no estaban aquí, así que
+`styles.ctlLine`, `styles.suffix` y `styles.area` valían `undefined` y el
+navegador no aplicaba nada. No se veía en typecheck ni en las pruebas —una clase
+que no existe no es un error de tipos, es una cadena vacía— y se destapó midiendo
+en el navegador: los sufijos «Days / Hours / Minutes» del tiempo de concesión
+salían a 13 px y en color de texto principal en vez de a 11,5 y apagados.
+
+Son las mismas tres que ya declaran Administration y Zones, compuestas de las
+mismas fuentes: es exactamente el fallo que este proyecto persigue —lo mismo
+escrito en varios sitios— sólo que aquí faltaba una de las copias.
+*/
+.ctlLine { composes: inline from '../../ui/PanelForm.module.css'; }
+.suffix { composes: trailer from '../../ui/text.module.css'; }
+.area { composes: area from '../../ui/PanelForm.module.css'; }

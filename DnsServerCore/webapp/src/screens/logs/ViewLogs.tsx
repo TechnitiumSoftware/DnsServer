@@ -184,7 +184,7 @@ export function ViewLogs({
       <Notifier notice={notice} onClose={() => setNotice(null)} />
 
       <div className={styles.dos}>
-        <Panel title="Log Files" className={styles.panel}>
+        <Panel title="Log Files">
           <Body className={styles.pbList}>
             {files.length === 0 ? (
               <Empty>
@@ -213,7 +213,6 @@ export function ViewLogs({
 
         {open != null && (
           <Panel
-            className={styles.panel}
             title={<span className={styles.mono}>{open}</span>}
             actions={
               <div className={styles.acts}>

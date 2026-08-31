@@ -13,7 +13,7 @@ comes from subtracting those segments from the `pathname`.
 */
 
 function compute(): string {
-  const route = document.querySelector('meta[name="ruta"]')?.getAttribute('content')
+  const route = document.querySelector('meta[name="route"]')?.getAttribute('content')
   const trail = window.location.pathname
   if (route == null || route === '') return trail.endsWith('/') ? trail : trail + '/'
 
@@ -32,7 +32,7 @@ the console is mounted, not of where the user is.
 */
 let cache: string | null = null
 
-export function raizDeLaApp(): string {
+export function appRoot(): string {
   cache ??= compute()
   return cache
 }
@@ -44,7 +44,7 @@ export function forgetRoot(): void {
 
 /** An endpoint's URL, hanging from the real root. */
 export function urlApi(trail: string): string {
-  return raizDeLaApp() + trail
+  return appRoot() + trail
 }
 
 /**
@@ -53,5 +53,5 @@ export function urlApi(trail: string): string {
  * `/settings/logging/` requests `/settings/logging/img/logo.png`.
  */
 export function urlPublica(trail: string): string {
-  return raizDeLaApp() + trail
+  return appRoot() + trail
 }
