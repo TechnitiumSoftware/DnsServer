@@ -1,40 +1,39 @@
-# Harness de desarrollo
+# Development harness
 
-Dos instancias de Technitium en Docker para desarrollar y verificar el rediseño
-de la consola sin tocar ningún DNS real.
+Two Technitium instances in Docker, to develop and verify the console redesign
+without touching any real DNS server.
 
-| Instancia | Puerto | Qué sirve |
+| Instance | Port | What it serves |
 |---|---|---|
-| `dev` | http://127.0.0.1:5380 | `DnsServerCore/www/` montado desde el repo |
-| `ref` | http://127.0.0.1:5381 | el `www` de la imagen oficial, intacto |
+| `dev` | http://127.0.0.1:5380 | `DnsServerCore/www/` mounted from the repo |
+| `ref` | http://127.0.0.1:5381 | the `www` from the official image, untouched |
 
-Usuario `admin`, contraseña `technitium-ui-dev` en ambas.
+User `admin`, password `technitium-ui-dev` on both.
 
 ```bash
-docker compose up -d      # levantar
-./check-paridad.sh        # comparar la portada de dev contra ref
-./check-paridad.sh /api/  # comparar otra ruta
-docker compose down -v    # tirar todo, incluida la config
+docker compose up -d      # start
+./check-paridad.sh        # compare dev's front page against ref
+./check-paridad.sh /api/  # compare another path
+docker compose down -v    # tear everything down, config included
 ```
 
-`ref` es la verdad de referencia: la restricción del proyecto es que el
-comportamiento no cambie, así que cualquier divergencia entre ambas que no sea
-visual es un fallo.
+`ref` is the reference truth: the project's constraint is that behaviour must not
+change, so any non-visual divergence between the two is a bug.
 
-No se mapea el puerto 53 (`systemd-resolved` lo ocupa en WSL) ni se habilita
-DHCP: aquí solo se prueba la consola web.
+Port 53 is not mapped (`systemd-resolved` holds it on WSL) and DHCP is not
+enabled: only the web console is exercised here.
 
-## Por qué la comparación normaliza los finales de línea
+## Why the comparison normalises line endings
 
-`check-paridad.sh` quita los `\r` antes de hashear, así que compara contenido y
-no bytes. Es necesario, no cosmético:
+`check-paridad.sh` strips `\r` before hashing, so it compares content and not
+bytes. This is necessary, not cosmetic:
 
-El `.gitattributes` de upstream declara `* text=auto`. Git guarda **LF** en los
-blobs del repositorio y convierte al hacer checkout según la plataforma. Nuestro
-árbol en Linux tiene LF —y `git status` lo ve limpio, es byte-correcto respecto
-al repositorio—, mientras que **la imagen oficial de Docker trae CRLF** porque se
-construyó en Windows.
+Upstream's `.gitattributes` declares `* text=auto`. Git stores **LF** in the
+repository blobs and converts on checkout according to the platform. Our tree on
+Linux has LF —and `git status` sees it clean, it is byte-correct with respect to
+the repository— while **the official Docker image ships CRLF**, because it was
+built on Windows.
 
-Sin normalizar, dos ficheros de contenido idéntico salen distintos por un byte
-por línea: en `index.html` son 7.426 bytes de diferencia sobre 619.718. Se
-detectó al ejecutar la primera comprobación de paridad de la fase 0.
+Without normalising, two files with identical content come out different by one
+byte per line: in `index.html` that is 7,426 bytes of difference out of 619,718.
+Found when running the first parity check of phase 0.

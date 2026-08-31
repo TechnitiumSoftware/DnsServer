@@ -1,69 +1,69 @@
 /*
-Qué enseña cada pantalla cuando el servidor falla.
+What each screen shows when the server fails.
 
-Es el punto 12 del plan de revisión, el único que decía «hay que escribirlo»
-y seguía sin escribirse. Las demás herramientas miran una consola que funciona;
-esta mira la que no.
+This is point 12 of the review plan, the only one that said "this has to be
+written" and still had not been. The other tools look at a console that works;
+this one looks at the one that does not.
 
-Lo que se busca NO es que salte un aviso. Es lo contrario: **que una petición
-fallida no acabe pintada como un estado vacío.** «No data for this period» y
-«No hay nada que enseñar porque la llamada se cayó» son la misma imagen y
-significan cosas opuestas, y de las dos, la primera es la que hace que alguien
-cierre la pestaña convencido de que su DNS no ha recibido consultas. Es el mismo
-fallo de fondo que la tabla aplastada de «User Details»: la pantalla miente sin
-avisar.
+What it looks for is NOT that an alert appears. It is the opposite: **that a
+failed request does not end up painted as an empty state.** "No data for this
+period" and "there is nothing to show because the call fell over" are the same
+picture and mean opposite things, and of the two, the first is the one that makes
+someone close the tab convinced their DNS has received no queries. It is the same
+underlying failure as the squashed "User Details" table: the screen lies without
+saying so.
 
-No usa Playwright a propósito, como el resto de `dev/`: se pega en la consola
-del navegador o se pasa a `browser_evaluate`. Meter un driver en
-`package.json` aparecería en el diff del pull request.
+It deliberately does not use Playwright, like the rest of `dev/`: paste it into
+the browser console or pass it to `browser_evaluate`. Putting a driver in
+`package.json` would show up in the pull request diff.
 
-    romper('api/', 'error')      el servidor contesta 200 con status=error
-    romper('api/', '500')        contesta 500 con HTML, que ni siquiera es JSON
-    romper('api/', 'red')        no contesta: fetch rechaza
-    romper('dashboard', 'error') sólo lo que case con ese trozo de URL
-    arreglar()                   devuelve el fetch de verdad
+    romper('api/', 'error')      the server answers 200 with status=error
+    romper('api/', '500')        answers 500 with HTML, which is not even JSON
+    romper('api/', 'red')        does not answer: fetch rejects
+    romper('dashboard', 'error') only what matches that piece of the URL
+    arreglar()                   gives back the real fetch
 
-    await queDice()              qué se ve ahora: avisos, vacíos y cargas
+    await queDice()              what is on screen now: alerts, empties and loads
 
-Uso normal: `romper(...)`, recargar la pantalla —o volver a entrar en ella—, y
+Normal use: `romper(...)`, reload the screen —or navigate back into it— and
 `await queDice()`.
 */
 
-const fetchDeVerdad = window.fetch
+const realFetch = window.fetch
 
-/** Sustituye el `fetch` por uno que falla como se le pida. */
-function romper(patron = 'api/', modo = 'error') {
-  window.fetch = async (entrada, init) => {
-    const url = typeof entrada === 'string' ? entrada : entrada.url
-    if (!url.includes(patron)) return fetchDeVerdad(entrada, init)
+/** Replaces `fetch` with one that fails as instructed. */
+function romper(pattern = 'api/', mode = 'error') {
+  window.fetch = async (input, init) => {
+    const url = typeof input === 'string' ? input : input.url
+    if (!url.includes(pattern)) return realFetch(input, init)
 
-    if (modo === 'red') throw new TypeError('Failed to fetch')
+    if (mode === 'red') throw new TypeError('Failed to fetch')
 
-    if (modo === '500') {
-      // 500 con cuerpo HTML: el caso en el que ni el JSON se puede leer.
+    if (mode === '500') {
+      // 500 with an HTML body: the case where not even the JSON can be read.
       return new Response('<html><body>500</body></html>', {
         status: 500,
         headers: { 'Content-Type': 'text/html' },
       })
     }
 
-    // El caso de verdad de esta API: 200 con el estado dentro del sobre.
-    const cuerpo =
-      modo === 'invalid-token'
+    // The real case for this API: 200 with the status inside the envelope.
+    const body =
+      mode === 'invalid-token'
         ? { status: 'invalid-token' }
         : { status: 'error', errorMessage: 'Simulated server failure.' }
 
-    return new Response(JSON.stringify(cuerpo), {
+    return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
   }
-  return `roto: ${patron} → ${modo}`
+  return `broken: ${pattern} → ${mode}`
 }
 
 function arreglar() {
-  window.fetch = fetchDeVerdad
-  return 'arreglado'
+  window.fetch = realFetch
+  return 'fixed'
 }
 
 const visible = (e) => {
@@ -71,61 +71,61 @@ const visible = (e) => {
   return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'
 }
 
-const texto = (e) => (e.innerText || '').replace(/\s+/g, ' ').trim()
+const text = (e) => (e.innerText || '').replace(/\s+/g, ' ').trim()
 
 /**
- * Qué se ve. Devuelve los avisos, los estados vacíos y si hay algo cargando,
- * más el veredicto: un vacío sin aviso es el hallazgo.
+ * What is on screen. Returns the alerts, the empty states and whether anything
+ * is loading, plus the verdict: an empty state with no alert is the finding.
  */
 async function queDice(ms = 1500) {
   await new Promise((r) => setTimeout(r, ms))
-  const raiz = document.querySelector('main') ?? document.body
+  const root = document.querySelector('main') ?? document.body
 
-  const avisos = [...document.querySelectorAll('[role="alert"]')]
+  const alerts = [...document.querySelectorAll('[role="alert"]')]
     .filter(visible)
-    .map((e) => texto(e).slice(0, 120))
+    .map((e) => text(e).slice(0, 120))
 
   /*
-  Y el fallo dicho SIN un `role="alert"`, que también cuenta. Settings, por
-  ejemplo, sustituye el formulario entero por «Unable to load the DNS Server
-  settings.», que es una forma perfectamente buena de contarlo; buscar sólo
-  alertas la daba por muda y era un falso positivo.
+  And the failure stated WITHOUT a `role="alert"`, which also counts. Settings,
+  for example, replaces the whole form with "Unable to load the DNS Server
+  settings.", which is a perfectly good way of saying it; looking only for alerts
+  called it mute and that was a false positive.
   */
-  const dicho = /Unable to (load|check|reach)|Failed to|Error!/i.test(texto(raiz))
+  const stated = /Unable to (load|check|reach)|Failed to|Error!/i.test(text(root))
 
-  /* Los estados vacíos de la consola: `ui/Empty` y los textos que upstream usa
-     para «aquí no hay nada». Se buscan por clase y por frase, porque no todos
-     pasan por el componente. */
-  const vacios = [...raiz.querySelectorAll('[class*="_empty_"], [class*="_vacio_"]')]
+  /* The console's empty states: `ui/Empty` and the phrases upstream uses for
+     "there is nothing here". Searched by class and by phrase, because not all of
+     them go through the component. */
+  const empties = [...root.querySelectorAll('[class*="_empty_"], [class*="_vacio_"]')]
     .filter(visible)
-    .map((e) => texto(e).slice(0, 90))
+    .map((e) => text(e).slice(0, 90))
 
-  const porFrase = /No data for this period|No queries for this period|No .{0,24} found|Nothing to show/i
-  const frases = [...raiz.querySelectorAll('div, p, td')]
-    .filter((e) => e.children.length === 0 && visible(e) && porFrase.test(texto(e)))
-    .map((e) => texto(e).slice(0, 90))
+  const byPhrase = /No data for this period|No queries for this period|No .{0,24} found|Nothing to show/i
+  const phrases = [...root.querySelectorAll('div, p, td')]
+    .filter((e) => e.children.length === 0 && visible(e) && byPhrase.test(text(e)))
+    .map((e) => text(e).slice(0, 90))
 
-  const cargando = [...raiz.querySelectorAll('[class*="_loading_"], [aria-busy="true"]')].filter(visible).length
+  const loading = [...root.querySelectorAll('[class*="_loading_"], [aria-busy="true"]')].filter(visible).length
 
-  const todosLosVacios = [...new Set([...vacios, ...frases])]
+  const allEmpties = [...new Set([...empties, ...phrases])]
 
   return {
     ruta: location.pathname,
-    avisos,
-    vacios: todosLosVacios,
-    cargando,
+    avisos: alerts,
+    vacios: allEmpties,
+    cargando: loading,
     /*
-    El veredicto. Un vacío sin un aviso al lado es la pantalla diciendo «no hay
-    nada» cuando lo que pasó es que la llamada se cayó.
+    The verdict. An empty state with no alert beside it is the screen saying
+    "there is nothing" when what happened is that the call fell over.
     */
-    dicho,
+    dicho: stated,
     veredicto:
-      avisos.length > 0 || dicho
-        ? 'AVISA'
-        : todosLosVacios.length > 0
-          ? 'MIENTE: enseña vacío y no dice que ha fallado'
-          : cargando > 0
-            ? 'SE QUEDA CARGANDO'
-            : 'NI AVISO NI NADA',
+      alerts.length > 0 || stated
+        ? 'REPORTS IT'
+        : allEmpties.length > 0
+          ? 'LIES: shows empty and does not say it failed'
+          : loading > 0
+            ? 'STUCK LOADING'
+            : 'NO ALERT AND NOTHING ELSE',
   }
 }

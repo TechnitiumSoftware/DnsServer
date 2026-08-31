@@ -1,35 +1,37 @@
-# Herramientas de la revisión pantalla a pantalla
+# Tools for the screen-by-screen review
 
-El procedimiento está en
+The procedure lives in
 `docs/superpowers/plans/2026-08-26-technitium-ui-revision-pantalla-a-pantalla.md`
-de ORBITLAB. Aquí sólo vive lo que se ejecuta.
+in ORBITLAB. Only what gets executed lives here.
 
 ## `medir-pantalla.js`
 
-Todo lo que un número puede contestar de una pantalla: contraste real de cada
-texto, espaciado fuera de la escala de tokens, tamaño del área sensible de cada
-control, controles sin nombre accesible, desborde horizontal y ritmo vertical.
+Everything a number can answer about a screen: real contrast of every piece of
+text, spacing outside the token scale, hit-area size of every control, controls
+with no accessible name, horizontal overflow and vertical rhythm.
 
-Se pega en la consola del navegador, o se pasa entero a `browser_evaluate`:
+Paste it into the browser console, or pass the whole thing to `browser_evaluate`:
 
-    medir()            // la pantalla abierta
-    await recorrer()   // las doce secciones seguidas
+    medir()            // the screen currently open
+    await recorrer()   // the twelve sections in a row
 
-Para un diálogo, hay que decirle cuál es la raíz:
+For a dialog, tell it which root to use:
 
     medir(document.querySelector('[role=dialog]'))
 
-Y para un estado —hover, foco— se apunta primero y se compara con el reposo:
+And for a state —hover, focus— point at it first and compare against rest:
 
     medirEstado(document.querySelector('[role=menu] button'), 'rgb(25,28,31)')
 
-**Lo que esto NO contesta**: si la pantalla se entiende, si el dato domina sobre
-los controles, si el estado vacío dice qué hacer. Eso es de mirar la captura.
+**What this does NOT answer**: whether the screen makes sense, whether the data
+dominates over the controls, whether the empty state says what to do. That comes
+from looking at the screenshot.
 
-## El estado que hace falta antes de empezar
+## The state you need before starting
 
-Sin prepararlo, doce diálogos no se pueden ni abrir. Medido el 2026-08-26 en el
-contenedor `dev`: cero zonas firmadas, cero concesiones DHCP, sin cluster. Los
-comandos de preparación están en el plan, sección 1.
+Without preparing it, twelve dialogs cannot even be opened. Measured on
+2026-08-26 in the `dev` container: zero signed zones, zero DHCP leases, no
+cluster. The preparation commands are in the plan, section 1.
 
-**Nunca contra el LXC 101.** Sólo contra los desechables de `compose.yaml`.
+**Never against LXC 101.** Only against the disposable instances in
+`compose.yaml`.

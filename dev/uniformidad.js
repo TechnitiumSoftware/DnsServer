@@ -1,207 +1,210 @@
 /*
-¿Se ve igual lo mismo en todas las pantallas?
+Does the same thing look the same on every screen?
 
-Las otras herramientas de `dev/` miran una pantalla y contestan si está bien.
-Ésta mira TODAS y contesta algo distinto: si el mismo objeto —un panel, una
-cabecera de tabla, un recuento— se pinta igual en todas partes.
+The other tools in `dev/` look at one screen and answer whether it is right. This
+one looks at ALL of them and answers something different: whether the same object
+—a panel, a table header, a count— is painted the same everywhere.
 
-Hacía falta porque la consola se escribió pantalla a pantalla, y cada una
-resolvió por su cuenta lo que ya estaba resuelto al lado. Medido antes de
-arreglarlo: el contenedor con borde estaba definido SIETE veces con cuatro
-aspectos distintos, el rótulo en versalitas CATORCE con tres tamaños y cuatro
-interletrados, y el pie de recuento OCHO con cuatro tratamientos. Nada de eso lo
-ve una revisión pantalla a pantalla, porque en cada pantalla, por separado, todo
-parece correcto.
+It was needed because the console was written screen by screen, and each one
+solved on its own what had already been solved next door. Measured before fixing
+it: the bordered container was defined SEVEN times with four different looks, the
+small-caps label FOURTEEN times with three sizes and four letter-spacings, and
+the count footer EIGHT times with four treatments. None of that is visible to a
+screen-by-screen review, because on each screen, taken alone, everything looks
+right.
 
-    await firmas()        agrupa cada familia por aspecto y dice cuántas hay
+    await firmas()        groups each family by look and says how many there are
 
-Las familias de CONTROL —campo de texto, área, lista, casilla, radio, aviso— se
-añadieron después, y son las que cazaron la última tanda: el área de texto se
-pintaba a mano en cuatro pantallas, con radio 6 en vez de 8 y sin la sombra
-interior que llevan todos los demás campos. Ninguna de las familias anteriores
-lo veía, porque un área, en su pantalla y sola, parece correcta.
+The CONTROL families —text field, textarea, dropdown, checkbox, radio, alert—
+were added later, and they are the ones that caught the last batch: the textarea
+was painted by hand on four screens, with radius 6 instead of 8 and without the
+inset shadow every other field carries. None of the earlier families saw it,
+because a textarea, alone on its screen, looks right.
 
-Lo que devuelve son GRUPOS, no un veredicto: dos firmas pueden estar bien
-—la tabla de datos y la editable son dos objetos a propósito— y una sola puede
-estar mal si es fea. Lo que no puede pasar es que haya cinco sin que nadie lo
-haya decidido.
+What it returns are GROUPS, not a verdict: two signatures can both be right —the
+data table and the editable one are two objects on purpose— and a single one can
+be wrong if it is ugly. What must not happen is that there are five without
+anyone having decided so.
 
-Y hay que saber leerlo. Una firma que acaba en «td —» no es una densidad
-distinta: es una tabla de la que no se pudo tomar muestra de celda, así que la
-misma tabla aparece dos veces. Con los datos de hoy, `tabla: 4` son en realidad
-dos —la de datos y la editable—, cada una con y sin muestra.
+And you have to know how to read it. A signature ending in "td —" is not a
+different density: it is a table no cell sample could be taken from, so the same
+table appears twice. With today's data, `tabla: 4` is really two —the data one
+and the editable one— each with and without a sample.
 
-Se pega en la consola del navegador o se pasa a `browser_evaluate`, pantalla por
-pantalla, acumulando el resultado.
+Paste it into the browser console or pass it to `browser_evaluate`, screen by
+screen, accumulating the result.
 */
 
 const css = (e) => getComputedStyle(e)
 
-/** La firma visual de cada familia presente en la pantalla actual. */
-function firmasDeLaPantalla() {
-  const raiz = document.querySelector('main') ?? document.body
+/** The visual signature of every family present on the current screen. */
+function screenSignatures() {
+  const root = document.querySelector('main') ?? document.body
   const out = {}
-  const anota = (familia, firma) => {
-    out[familia] = out[familia] ?? new Set()
-    out[familia].add(firma)
+  const note = (family, signature) => {
+    out[family] = out[family] ?? new Set()
+    out[family].add(signature)
   }
 
-  /* El contenedor con borde: panel, bloque o fieldset de formulario. */
-  for (const c of raiz.querySelectorAll('[class*="_panel_"], [class*="_block_"]')) {
+  /* The bordered container: panel, block or form fieldset. */
+  for (const c of root.querySelectorAll('[class*="_panel_"], [class*="_block_"]')) {
     const s = css(c)
-    const cab = c.querySelector('[class*="_ph_"], [class*="_blockTitle_"], [class*="_cabecera_"]')
-    /* El título no siempre es un `h2`: en Permissions es un `span` dentro de un
-       `h4`, y en un `fieldset` es el propio `legend`. */
+    const head = c.querySelector('[class*="_ph_"], [class*="_blockTitle_"], [class*="_cabecera_"]')
+    /* The title is not always an `h2`: in Permissions it is a `span` inside an
+       `h4`, and in a `fieldset` it is the `legend` itself. */
     const t =
-      cab?.tagName === 'LEGEND' ? cab : (cab?.querySelector('h2, h3') ?? cab?.firstElementChild)
-    anota(
+      head?.tagName === 'LEGEND' ? head : (head?.querySelector('h2, h3') ?? head?.firstElementChild)
+    note(
       'panel',
       [
-        s.boxShadow === 'none' ? 'sin-sombra' : 'sombra',
+        s.boxShadow === 'none' ? 'no-shadow' : 'shadow',
         s.borderRadius,
-        cab ? css(cab).backgroundColor : 'sin-cabecera',
+        head ? css(head).backgroundColor : 'no-header',
         t ? `${css(t).fontSize}/${css(t).fontWeight}/${css(t).textTransform}/${css(t).letterSpacing}` : '-',
       ].join(' | '),
     )
   }
 
-  /* La tabla: cabecera y densidad de celda. */
-  for (const t of raiz.querySelectorAll('table')) {
+  /* The table: header and cell density. */
+  for (const t of root.querySelectorAll('table')) {
     const th = t.querySelector('thead th')
-    /* La celda de muestra, saltándose la fila de «no hay nada»: su relleno es
-       el suyo, más alto a propósito, y salía como una densidad más. */
+    /* The sample cell, skipping the "there is nothing" row: its padding is its
+       own, taller on purpose, and it came out as one more density. */
     const td = [...t.querySelectorAll('tbody td')].find((c) => !/_sinFilas_/.test(c.className))
     if (!th) continue
-    anota(
+    note(
       'tabla',
       `th ${css(th).fontSize}/${css(th).fontWeight}/${css(th).letterSpacing}/${css(th).backgroundColor}` +
         ` · td ${td ? css(td).padding : '—'}`,
     )
   }
 
-  /* La columna de acciones: lo que sobra entre el último control y el borde. */
-  for (const t of raiz.querySelectorAll('table')) {
-    const fila = t.querySelector('tbody tr')
-    const ultima = fila ? [...fila.querySelectorAll('td')].pop() : null
-    const grupo = ultima?.querySelector('[class*="_acciones_"]')
-    if (!grupo) continue
-    anota('acciones', `${Math.round(t.getBoundingClientRect().right - grupo.getBoundingClientRect().right)}px del borde`)
+  /* The actions column: what is left over between the last control and the edge. */
+  for (const t of root.querySelectorAll('table')) {
+    const row = t.querySelector('tbody tr')
+    const last = row ? [...row.querySelectorAll('td')].pop() : null
+    const group = last?.querySelector('[class*="_acciones_"]')
+    if (!group) continue
+    note('acciones', `${Math.round(t.getBoundingClientRect().right - group.getBoundingClientRect().right)}px from the edge`)
   }
 
-  /* El recuento que acompaña a una tabla. Su TEXTO cambia a propósito —los tres
-     vocabularios son literales de upstream—; su aspecto, no. */
-  for (const n of raiz.querySelectorAll('div, span, b')) {
+  /* The count that goes with a table. Its TEXT changes on purpose —the three
+     vocabularies are upstream literals—; its look does not. */
+  for (const n of root.querySelectorAll('div, span, b')) {
     if (n.children.length > 0) continue
-    /* Con los dos puntos y el número: sin ellos, «Total Queries» —el rótulo de
-       una baldosa del Dashboard— pasaba por recuento y aparecía como una firma
-       distinta que no existía. */
+    /* With the colon and the number: without them, "Total Queries" —the label of
+       a Dashboard tile— passed for a count and showed up as a separate signature
+       that did not exist. */
     if (!/^(Total [A-Za-z ]+: ?\d|\d+ zones|\d+-\d+ \()/.test((n.textContent || '').trim())) continue
-    anota('recuento', `${css(n).fontSize}/${css(n).fontWeight}/${css(n).color}`)
+    note('recuento', `${css(n).fontSize}/${css(n).fontWeight}/${css(n).color}`)
   }
 
   /*
-  Los controles de formulario. Esta familia no estaba, y era la que faltaba: el
-  área de texto se pintaba a mano en Settings, DHCP, Administration y Listas
-  —radio 6 en vez de 8, un punto menos de cuerpo, sin la sombra interior que
-  llevan todos los demás campos—, y ni las capturas ni las otras familias lo
-  decían, porque en cada pantalla, sola, el área parecía correcta.
+  The form controls. This family was not here, and it was the one that was
+  missing: the textarea was painted by hand in Settings, DHCP, Administration and
+  the lists screens —radius 6 instead of 8, one step less in size, without the
+  inset shadow every other field carries— and neither the screenshots nor the
+  other families said so, because on each screen, alone, the textarea looked
+  right.
 
-  La firma no incluye el ANCHO: eso sí es propio de cada campo (upstream fija
-  80-100 px a los numéricos y deja anchos los de texto). Incluye la caja.
+  The signature does not include WIDTH: that one really is per-field (upstream
+  pins numeric fields at 80-100 px and leaves text fields wide). It includes the
+  box.
   */
-  const caja = (e) => {
+  const box = (e) => {
     const s = css(e)
     return [
       s.borderRadius,
       s.padding,
       s.fontSize,
       s.borderWidth,
-      s.boxShadow === 'none' ? 'sin-hundido' : 'hundido',
+      s.boxShadow === 'none' ? 'no-inset' : 'inset',
     ].join(' | ')
   }
-  for (const e of raiz.querySelectorAll('input[type=text], input[type=number], input[type=password], input:not([type])')) {
-    anota('campo-texto', caja(e))
+  for (const e of root.querySelectorAll('input[type=text], input[type=number], input[type=password], input:not([type])')) {
+    note('campo-texto', box(e))
   }
-  for (const e of raiz.querySelectorAll('textarea')) anota('campo-area', caja(e))
-  for (const e of raiz.querySelectorAll('[class*="_disparador_"], select')) anota('campo-lista', caja(e))
+  for (const e of root.querySelectorAll('textarea')) note('campo-area', box(e))
+  for (const e of root.querySelectorAll('[class*="_disparador_"], select')) note('campo-lista', box(e))
 
   /*
-  La fila de casilla o de radio.
+  The checkbox or radio row.
 
-  Un ajuste y una selección de fila NO son la misma familia, aunque los dos sean
-  un `input[type=checkbox]` dentro de un `label`: el ajuste cambia cómo se
-  comporta el servidor y se queda puesto, la selección dura un clic. Se miden
-  aparte porque si no, las dos excepciones legítimas de la casilla de tabla —40
-  px en la celda de datos, 0 en la de cabecera, las dos a propósito y
-  documentadas en `ui/Table.module.css`— salen como dos firmas más y entierran
-  cualquier deriva real de las casillas de ajuste bajo el ruido.
+  A setting and a row selection are NOT the same family, even though both are an
+  `input[type=checkbox]` inside a `label`: the setting changes how the server
+  behaves and stays put, the selection lasts one click. They are measured apart
+  because otherwise the two legitimate exceptions of the table checkbox —40 px in
+  the data cell, 0 in the header one, both deliberate and documented in
+  `ui/Table.module.css`— come out as two more signatures and bury any real drift
+  in the setting checkboxes under the noise.
   */
-  for (const e of raiz.querySelectorAll('input[type=checkbox], input[type=radio]')) {
-    const fila = e.closest('label')
-    if (!fila) continue
-    const s = css(fila)
-    const enTabla = fila.closest('td, th') != null
-    anota(
-      enTabla ? 'casilla-de-fila' : e.type === 'radio' ? 'radio' : 'casilla-de-ajuste',
+  for (const e of root.querySelectorAll('input[type=checkbox], input[type=radio]')) {
+    const row = e.closest('label')
+    if (!row) continue
+    const s = css(row)
+    const inTable = row.closest('td, th') != null
+    note(
+      inTable ? 'casilla-de-fila' : e.type === 'radio' ? 'radio' : 'casilla-de-ajuste',
       `${s.minHeight} | ${s.gap} | ${s.fontSize} | ${s.color}`,
     )
   }
 
   /*
-  El aviso «Note!»/«Warning!»: mismo bloque y misma sangría dentro de su panel.
+  The "Note!"/"Warning!" alert: same block and same inset inside its panel.
 
-  Se mide el RESULTADO —a cuántos píxeles del panel queda su borde— y no el
-  `margin-left` del padre, que fue el primer intento y dio una diferencia falsa:
-  en Settings el hueco lo pone un margen del envoltorio de avisos y en About un
-  relleno del cuerpo del panel, o sea el mismo sitio por dos mecanismos.
+  What is measured is the RESULT —how many pixels from the panel its edge sits—
+  and not the parent's `margin-left`, which was the first attempt and gave a
+  false difference: in Settings the gap comes from a margin on the alerts
+  wrapper, and in About from padding on the panel body, i.e. the same place by
+  two mechanisms.
   */
-  for (const e of raiz.querySelectorAll('[class*="_alerta_"], [role=note], [class*="_alert"]')) {
+  for (const e of root.querySelectorAll('[class*="_alerta_"], [role=note], [class*="_alert"]')) {
     const panel = e.closest('[class*="_panel_"], [class*="_block_"]')
-    const sangria = panel
-      ? `${Math.round(e.getBoundingClientRect().left - panel.getBoundingClientRect().left)}px del panel`
-      : 'suelto en la página'
-    anota('aviso', `${css(e).borderRadius} | ${sangria}`)
+    const inset = panel
+      ? `${Math.round(e.getBoundingClientRect().left - panel.getBoundingClientRect().left)}px from the panel`
+      : 'loose on the page'
+    note('aviso', `${css(e).borderRadius} | ${inset}`)
   }
 
-  /* El título de la pantalla. */
-  const h1 = raiz.querySelector('h1')
-  if (h1) anota('titulo', `${css(h1).fontSize}/${css(h1).fontWeight}/${css(h1).letterSpacing}`)
+  /* The screen title. */
+  const h1 = root.querySelector('h1')
+  if (h1) note('titulo', `${css(h1).fontSize}/${css(h1).fontWeight}/${css(h1).letterSpacing}`)
 
   /*
-  Y el hueco bajo ese título, que también se había separado: seis pantallas lo
-  tenían a 38 px y doce a 24, porque las seis meten la cabecera en un contenedor
-  `flex` con `gap` y en flex el hueco SE SUMA al margen del hijo. Se mide contra
-  el hermano siguiente y no contra «la primera caja con borde», que es lo que se
-  intentó primero: ese `find()` cogía elementos distintos en cada pantalla y dio
-  dos medidas falsas seguidas.
+  And the gap under that title, which had also drifted apart: six screens had it
+  at 38 px and twelve at 24, because those six put the header inside a `flex`
+  container with `gap`, and in flex the gap ADDS to the child's margin. It is
+  measured against the next sibling and not against "the first bordered box",
+  which was the first attempt: that `find()` picked different elements on
+  different screens and gave two false measurements in a row.
   */
-  const cabecera = h1?.closest('[class*="_hrow_"]')
-  const siguiente = cabecera?.nextElementSibling
-  if (cabecera && siguiente) {
-    anota(
+  const header = h1?.closest('[class*="_hrow_"]')
+  const next = header?.nextElementSibling
+  if (header && next) {
+    note(
       'hueco-bajo-el-titulo',
-      `${Math.round(siguiente.getBoundingClientRect().top - cabecera.getBoundingClientRect().bottom)}px`,
+      `${Math.round(next.getBoundingClientRect().top - header.getBoundingClientRect().bottom)}px`,
     )
   }
 
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, [...v]]))
 }
 
-/** Acumula las firmas de varias pantallas en un solo informe. */
-function juntar(informes) {
+/** Accumulates the signatures of several screens into a single report. */
+function merge(reports) {
   const total = {}
-  for (const { ruta, firmas } of informes) {
-    for (const [familia, lista] of Object.entries(firmas)) {
-      total[familia] = total[familia] ?? {}
-      for (const f of lista) {
-        total[familia][f] = total[familia][f] ?? []
-        total[familia][f].push(ruta)
+  for (const { ruta, firmas } of reports) {
+    for (const [family, list] of Object.entries(firmas)) {
+      total[family] = total[family] ?? {}
+      for (const f of list) {
+        total[family][f] = total[family][f] ?? []
+        total[family][f].push(ruta)
       }
     }
   }
-  return Object.entries(total).map(([familia, firmas]) => ({
-    familia,
-    cuantas: Object.keys(firmas).length,
-    firmas: Object.entries(firmas).map(([f, rutas]) => `${f}  →  ${rutas.join(', ')}`),
+  return Object.entries(total).map(([family, signatures]) => ({
+    familia: family,
+    cuantas: Object.keys(signatures).length,
+    firmas: Object.entries(signatures).map(([f, routes]) => `${f}  →  ${routes.join(', ')}`),
   }))
 }

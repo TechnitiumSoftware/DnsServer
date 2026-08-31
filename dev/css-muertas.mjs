@@ -1,51 +1,51 @@
 /*
-Reglas CSS escritas y nunca aplicadas.
+CSS rules written and never applied.
 
-Este es el defecto que ninguna prueba ve y ninguna captura delata: una clase
-declarada en un módulo que ningún componente referencia. Pasó con `.v`, `.p` y
-`.k` de los tiles del Dashboard, que llevaban desde la fase 1 sin aplicarse.
+This is the defect no test sees and no screenshot gives away: a class declared in
+a module that no component references. It happened with `.v`, `.p` and `.k` on
+the Dashboard tiles, which had gone unapplied since phase 1.
 
-Es estático a propósito. Barrer el DOM daría falsos positivos con todo lo que
-vive en un estado al que la sesión no llegó (un diálogo cerrado, una tabla
-vacía, un hover).
+It is static on purpose. Sweeping the DOM would produce false positives for
+everything living in a state the session never reached (a closed dialog, an empty
+table, a hover).
 
-## Por qué resuelve el import y no busca el nombre a secas
+## Why it resolves the import instead of just searching for the name
 
-La primera versión daba por viva cualquier clase cuyo nombre apareciera en
-CUALQUIER fichero de `src/`. Su comentario decía que el único error posible era
-callar una clase muerta, nunca inventarla, y era verdad — pero callaba muchas:
-`.fail` estaba declarada en cuatro módulos y usada en uno, y las otras tres
-copias pasaban el corte porque la palabra existía en Settings. Al unificar el
-formulario-de-panel aparecieron así media docena de restos.
+The first version treated any class as alive if its name appeared in ANY file
+under `src/`. Its comment claimed the only possible error was staying silent
+about a dead class, never inventing one, and that was true — but it stayed silent
+about many: `.fail` was declared in four modules and used in one, and the other
+three copies passed because the word existed in Settings. Unifying the panel-form
+kit surfaced half a dozen leftovers that way.
 
-Ahora se resuelve a qué módulo apunta cada `styles` de cada fichero, siguiendo
-los dos saltos que hay en esta base: el import directo y la re-exportación
-(`export { default as settingsStyles } from './Settings.module.css'`, que usan
-las nueve sub-pestañas de Settings). Lo que no se pueda resolver no se juzga.
+Now it resolves which module each `styles` in each file points at, following the
+two hops this codebase has: the direct import and the re-export
+(`export { default as settingsStyles } from './Settings.module.css'`, used by the
+nine Settings sub-tabs). Whatever cannot be resolved is not judged.
 
     node dev/css-muertas.mjs
 */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 
-const RAIZ = join(import.meta.dirname, '..', 'DnsServerCore', 'webapp', 'src')
+const ROOT = join(import.meta.dirname, '..', 'DnsServerCore', 'webapp', 'src')
 
-function ficheros(dir, filtro, acc = []) {
+function files(dir, filter, acc = []) {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e)
-    if (statSync(p).isDirectory()) ficheros(p, filtro, acc)
-    else if (filtro.test(e)) acc.push(p)
+    if (statSync(p).isDirectory()) files(p, filter, acc)
+    else if (filter.test(e)) acc.push(p)
   }
   return acc
 }
 
-const modulos = ficheros(RAIZ, /\.module\.css$/)
-const fuentes = ficheros(RAIZ, /\.tsx?$/).filter((f) => !/\.test\./.test(f))
-const codigo = new Map(fuentes.map((f) => [f, readFileSync(f, 'utf8')]))
+const modules = files(ROOT, /\.module\.css$/)
+const sources = files(ROOT, /\.tsx?$/).filter((f) => !/\.test\./.test(f))
+const code = new Map(sources.map((f) => [f, readFileSync(f, 'utf8')]))
 
-/** Resuelve un import relativo a un fichero real de `src/`. */
-function resolver(desde, rel) {
-  const base = resolve(dirname(desde), rel)
+/** Resolves a relative import to a real file under `src/`. */
+function resolveImport(from, rel) {
+  const base = resolve(dirname(from), rel)
   for (const cand of [base, `${base}.tsx`, `${base}.ts`, join(base, 'index.tsx')]) {
     if (existsSync(cand) && statSync(cand).isFile()) return cand
   }
@@ -53,13 +53,13 @@ function resolver(desde, rel) {
 }
 
 /*
-Paso 1: qué módulo trae cada fichero con nombre propio, y bajo qué nombre lo
-vuelve a exportar. `alias` es lo que ese fichero escribe; `expone` es el nombre
-por el que otro fichero puede pedírselo.
+Step 1: which module each file brings in under its own name, and under what name
+it re-exports it. `alias` is what that file writes; `exposes` is the name another
+file can ask for it by.
 */
-const alias = new Map() // fichero -> Map(identificador -> módulo)
-const expone = new Map() // fichero -> Map(nombre exportado -> módulo)
-for (const [f, src] of codigo) {
+const alias = new Map() // file -> Map(identifier -> module)
+const exposes = new Map() // file -> Map(exported name -> module)
+for (const [f, src] of code) {
   const a = new Map()
   const e = new Map()
   for (const m of src.matchAll(/import\s+(\w+)\s+from\s+['"]([^'"]*\.module\.css)['"]/g)) {
@@ -74,109 +74,109 @@ for (const [f, src] of codigo) {
     if (a.has(m[1])) e.set(m[2], a.get(m[1]))
   }
   alias.set(f, a)
-  expone.set(f, e)
+  exposes.set(f, e)
 }
 
-/* Paso 2: el salto indirecto — `import { settingsStyles as styles } from '../parts'`. */
-for (const [f, src] of codigo) {
+/* Step 2: the indirect hop — `import { settingsStyles as styles } from '../parts'`. */
+for (const [f, src] of code) {
   for (const m of src.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"](\.[^'"]*)['"]/g)) {
-    const destino = resolver(f, m[2])
-    if (!destino || !expone.has(destino)) continue
-    for (const trozo of m[1].split(',')) {
-      const [, nombre, local] = /^\s*(\w+)(?:\s+as\s+(\w+))?\s*$/.exec(trozo.trim()) ?? []
-      if (nombre && expone.get(destino).has(nombre)) {
-        alias.get(f).set(local ?? nombre, expone.get(destino).get(nombre))
+    const target = resolveImport(f, m[2])
+    if (!target || !exposes.has(target)) continue
+    for (const piece of m[1].split(',')) {
+      const [, name, local] = /^\s*(\w+)(?:\s+as\s+(\w+))?\s*$/.exec(piece.trim()) ?? []
+      if (name && exposes.get(target).has(name)) {
+        alias.get(f).set(local ?? name, exposes.get(target).get(name))
       }
     }
   }
 }
 
 /*
-Un módulo consumido con corchetes —`styles[variant]`— puede usar cualquier
-clase, así que no se juzga. Hay que mirar el identificador con el que CADA
-fichero importa su módulo: el Dashboard llama `s` a un objeto de datos y hace
-`s[m.k]`, que no tiene nada que ver con sus estilos.
+A module consumed with brackets —`styles[variant]`— can use any class, so it is
+not judged. You have to look at the identifier EACH file imports its module
+under: the Dashboard calls a data object `s` and does `s[m.k]`, which has nothing
+to do with its styles.
 */
-const dinamicos = new Set()
-for (const [f, src] of codigo) {
+const dynamic = new Set()
+for (const [f, src] of code) {
   for (const [id, mod] of alias.get(f)) {
-    if (new RegExp(`\\b${id}\\[`).test(src)) dinamicos.add(mod)
+    if (new RegExp(`\\b${id}\\[`).test(src)) dynamic.add(mod)
   }
 }
 
-/* Paso 3: qué clases nombra cada módulo, ya atribuidas. */
-const nombradas = new Map(modulos.map((m) => [m, new Set()]))
-const consumidores = new Map(modulos.map((m) => [m, new Set()]))
-for (const [f, src] of codigo) {
+/* Step 3: which classes each module names, now properly attributed. */
+const named = new Map(modules.map((m) => [m, new Set()]))
+const consumers = new Map(modules.map((m) => [m, new Set()]))
+for (const [f, src] of code) {
   for (const [id, mod] of alias.get(f)) {
-    if (!nombradas.has(mod)) continue
-    consumidores.get(mod).add(f)
+    if (!named.has(mod)) continue
+    consumers.get(mod).add(f)
     for (const m of src.matchAll(new RegExp(`\\b${id}\\.(\\w+)`, 'g'))) {
-      nombradas.get(mod).add(m[1])
+      named.get(mod).add(m[1])
     }
   }
 }
 
 /*
-Cuatro sitios de un CSS parecen declarar una clase y no declaran ninguna: los
-comentarios (`.zt` vivía en uno), el contenido de `url()` —donde `www.w3.org` se
-lee como `.w3`—, los `:global()` y la ruta de un `composes: … from '…'`, que
-acaba en `.module.css` y se leería como dos clases, `.module` y `.css`. Se
-recortan antes de mirar.
+Four places in a CSS file look like they declare a class and declare none: the
+comments (`.zt` lived in one), the contents of `url()` —where `www.w3.org` reads
+as `.w3`—, the `:global()` blocks, and the path of a `composes: … from '…'`,
+which ends in `.module.css` and would read as two classes, `.module` and `.css`.
+They are stripped before looking.
 */
-const limpiar = (css) =>
+const strip = (css) =>
   css
     .replaceAll(/\/\*[\s\S]*?\*\//g, '')
     .replaceAll(/url\((?:[^()]|\([^()]*\))*\)/g, '')
     .replaceAll(/:global\([^)]*\)/g, '')
     .replaceAll(/(['"])(?:(?!\1).)*\1/g, "''")
 
-/* Y una clase también vive si otro módulo la hereda con `composes: x from '…'`. */
-const compuestas = new Map(modulos.map((m) => [m, new Set()]))
-for (const mod of modulos) {
-  // Sin `limpiar`: ahí se borran las cadenas, y la ruta del `from` es una.
+/* And a class is also alive if another module inherits it with `composes: x from '…'`. */
+const composed = new Map(modules.map((m) => [m, new Set()]))
+for (const mod of modules) {
+  // No `strip` here: that removes strings, and the `from` path is one.
   const css = readFileSync(mod, 'utf8').replaceAll(/\/\*[\s\S]*?\*\//g, '')
   for (const m of css.matchAll(/composes:\s*([\w\s-]+?)\s+from\s*['"]([^'"]+)['"]/g)) {
-    const destino = resolve(dirname(mod), m[2])
-    if (!compuestas.has(destino)) continue
-    for (const c of m[1].trim().split(/\s+/)) compuestas.get(destino).add(c)
+    const target = resolve(dirname(mod), m[2])
+    if (!composed.has(target)) continue
+    for (const c of m[1].trim().split(/\s+/)) composed.get(target).add(c)
   }
 }
 
-let muertas = 0
+let dead = 0
 let total = 0
-const dudosos = new Set()
+const unjudged = new Set()
 
-for (const mod of modulos) {
+for (const mod of modules) {
   const css = readFileSync(mod, 'utf8')
-  const declaradas = new Set()
-  for (const m of limpiar(css).matchAll(/\.(-?[A-Za-z_][\w-]*)/g)) declaradas.add(m[1])
-  total += declaradas.size
+  const declared = new Set()
+  for (const m of strip(css).matchAll(/\.(-?[A-Za-z_][\w-]*)/g)) declared.add(m[1])
+  total += declared.size
 
-  if (dinamicos.has(mod)) {
-    dudosos.add(`${mod.slice(RAIZ.length + 1)} (acceso por corchetes: no se juzga)`)
+  if (dynamic.has(mod)) {
+    unjudged.add(`${mod.slice(ROOT.length + 1)} (bracket access: not judged)`)
     continue
   }
-  if (consumidores.get(mod).size === 0 && compuestas.get(mod).size === 0) {
-    dudosos.add(`${mod.slice(RAIZ.length + 1)} (sin consumidor resuelto: no se juzga)`)
+  if (consumers.get(mod).size === 0 && composed.get(mod).size === 0) {
+    unjudged.add(`${mod.slice(ROOT.length + 1)} (no resolved consumer: not judged)`)
     continue
   }
 
-  const vivas = new Set([...nombradas.get(mod), ...compuestas.get(mod)])
-  const sinUsar = [...declaradas].filter((c) => !vivas.has(c))
+  const alive = new Set([...named.get(mod), ...composed.get(mod)])
+  const unused = [...declared].filter((c) => !alive.has(c))
 
-  if (sinUsar.length) {
-    muertas += sinUsar.length
-    console.log(`\n${mod.slice(RAIZ.length + 1)}  —  ${consumidores.get(mod).size} consumidor(es)`)
-    for (const c of sinUsar) {
-      const linea = css.split('\n').findIndex((l) => l.includes(`.${c}`)) + 1
-      console.log(`  .${c}  (línea ${linea})`)
+  if (unused.length) {
+    dead += unused.length
+    console.log(`\n${mod.slice(ROOT.length + 1)}  —  ${consumers.get(mod).size} consumer(s)`)
+    for (const c of unused) {
+      const line = css.split('\n').findIndex((l) => l.includes(`.${c}`)) + 1
+      console.log(`  .${c}  (line ${line})`)
     }
   }
 }
 
-console.log(`\n${muertas} clases declaradas y nunca nombradas, de ${total} en ${modulos.length} módulos`)
-if (dudosos.size) {
-  console.log('\nNo juzgados:')
-  for (const d of dudosos) console.log(`  ${d}`)
+console.log(`\n${dead} classes declared and never named, out of ${total} in ${modules.length} modules`)
+if (unjudged.size) {
+  console.log('\nNot judged:')
+  for (const d of unjudged) console.log(`  ${d}`)
 }

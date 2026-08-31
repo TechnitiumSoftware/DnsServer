@@ -1,35 +1,35 @@
-# Comprobaciones de paridad
+# Parity checks
 
-## `check-paridad-acciones.sh` — la que de verdad vale
+## `check-paridad-acciones.sh` — the one that actually counts
 
-Ejecuta **la misma acción en las dos instancias** y compara el estado que deja
-el servidor, no los bytes de la página. Es la verificación que habilita la
-restricción rectora del proyecto: como el comportamiento no cambia, si el cuerpo
-que manda la consola nueva difiere en un parámetro, el registro que queda
-difiere y aquí sale.
+Runs **the same action on both instances** and compares the state the server is
+left in, not the bytes of the page. This is the check that makes the project's
+governing constraint enforceable: since behaviour does not change, if the body
+the new console sends differs by one parameter, the record left behind differs
+and it shows up here.
 
 ```bash
 docker compose up -d
 ./check-paridad-acciones.sh
 ```
 
-Cubre catorce acciones: siete altas (incluidas las que tienen trampa —TXT
-partido, SVCB con `svcParams` aplanados, CAA con sus valores por defecto—),
-tres ediciones (entre ellas deshabilitar un registro, que en upstream es un
-`records/update` reenviando el registro entero), tres borrados (incluido el
-CNAME, que cae al `default` y no manda ningún parámetro de identidad) y el
-`options/set` con las seis listas vacías viajando como la cadena `"false"`.
+It covers fourteen actions: seven creates (including the awkward ones —split TXT,
+SVCB with flattened `svcParams`, CAA with its default values—), three edits
+(among them disabling a record, which upstream does as a `records/update`
+resending the whole record), three deletes (including CNAME, which falls to the
+`default` branch and sends no identity parameter at all) and the `options/set`
+with all six empty lists travelling as the string `"false"`.
 
-Normaliza tres cosas antes de comparar, y las tres porque no son paridad:
-`lastModified`, el serial del SOA y **el nombre del propio servidor**, que va
-metido en el NS y el SOA de cada zona y es distinto en cada contenedor a
-propósito.
+It normalises three things before comparing, and all three because they are not
+parity: `lastModified`, the SOA serial and **the server's own name**, which is
+embedded in the NS and SOA of every zone and is deliberately different in each
+container.
 
-## `check-paridad.sh` — sólo para los ficheros preservados
+## `check-paridad.sh` — only for the preserved files
 
-Compara el contenido de una ruta entre las dos instancias. Desde la fase 0 la
-consola es nuestra, así que **para `/` da `DISTINTOS` y eso es el objetivo del
-proyecto**. Sigue sirviendo para lo que el build preserva sin tocar:
+Compares the content of a path between the two instances. Since phase 0 the
+console is ours, so **for `/` it reports `DISTINTOS` and that is the point of the
+project**. It still serves for what the build preserves untouched:
 
 ```bash
 ./check-paridad.sh /robots.txt   # IDENTICOS
@@ -38,14 +38,14 @@ proyecto**. Sigue sirviendo para lo que el build preserva sin tocar:
 
 ## `paridad-login.mjs`
 
-Compara los avisos de la pantalla de login entre la consola
-nueva (5380) y la de upstream (5381). Necesita Playwright:
+Compares the alerts on the login screen between the new console (5380) and
+upstream's (5381). Needs Playwright:
 
 ```bash
 npm i -D playwright && npx playwright install chromium
 node paridad-login.mjs
 ```
 
-Encontró dos divergencias reales la primera vez que se ejecutó: faltaba el botón
-«×» para descartar el aviso —que en upstream existe, así que su ausencia era una
-diferencia de comportamiento— y faltaba el espacio entre el título y el texto.
+It found two real divergences the first time it ran: the «×» button to dismiss
+the alert was missing —upstream has it, so its absence was a behavioural
+difference— and so was the space between the title and the text.

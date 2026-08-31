@@ -1,62 +1,61 @@
 /*
-¿Se nos ha caído algún destino de upstream?
+Have we dropped any of upstream's destinations?
 
-El plan de revisión decía «abrir la misma pantalla en `technitium-ui-ref` y
-comparar a ojo». A ojo se pasan cosas — se pasaron, y de las gordas: el panel
-About se había quedado con ocho de sus nueve enlaces fuera y el pie del `body`
-entero, con el correo de soporte y el de donaciones del autor dentro.
+The review plan said "open the same screen in `technitium-ui-ref` and compare by
+eye". Things slip past the eye — and they did, big ones: the About panel had lost
+eight of its nine links, and the whole `body` footer, with the author's support
+and donation addresses inside it.
 
-Esto lo hace por lista, y sin navegador: la consola de upstream es un único
-`index.html` con TODOS sus paneles en el marcado, así que sus destinos se leen
-del HTML; los nuestros se leen del código de la aplicación. Sin dependencias
-nuevas —meter Playwright en `package.json` aparecería en el diff del pull
-request— y por tanto ejecutable en cualquier sitio con la consola de referencia
-levantada.
+This does it by list, and without a browser: upstream's console is a single
+`index.html` with ALL its panels in the markup, so its destinations are read from
+the HTML; ours are read from the application code. No new dependencies —putting
+Playwright in `package.json` would show up in the pull request diff— and
+therefore runnable anywhere with the reference console up.
 
     node dev/check-paridad-controles.mjs
-    REF=http://otra:5381 node dev/check-paridad-controles.mjs
+    REF=http://other:5381 node dev/check-paridad-controles.mjs
 
-Lo que NO contesta, y conviene tenerlo delante antes de creerle un verde:
+What it does NOT answer, worth having in front of you before believing a green:
 
-- **Busca en TODO el código, no en la pantalla que toca.** Si una explicación
-  aparece en dos diálogos y se cae de uno, esto sigue en verde. Comprobado: se
-  quitó a propósito el texto del TTL de la DNSKEY de «Sign Zone» y no dijo nada,
-  porque el mismo texto vive en «DNSSEC Properties». Muerde con lo que sólo está
-  en un sitio, que es como se pierden las cosas de verdad —el panel About se
-  quedó sin ocho enlaces y ninguno estaba en ninguna otra parte—.
-- Si un destino que está en las dos apunta a lo mismo desde la pantalla
-  equivalente.
-- Si un botón que existe en las dos hace lo mismo. Para la conducta está
-  `check-paridad-acciones.sh`, que compara el estado del servidor.
+- **It searches ALL the code, not the screen in question.** If an explanation
+  appears in two dialogs and falls out of one, this stays green. Verified: the
+  DNSKEY TTL text was deliberately removed from "Sign Zone" and it said nothing,
+  because the same text lives in "DNSSEC Properties". It bites on what exists in
+  only one place, which is how things actually get lost —the About panel lost
+  eight links and none of them was anywhere else—.
+- Whether a destination present in both points to the same thing from the
+  equivalent screen.
+- Whether a button that exists in both does the same thing. For behaviour there
+  is `check-paridad-acciones.sh`, which compares server state.
 */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const REF = process.env.REF ?? 'http://127.0.0.1:5381'
-const FUENTE = new URL('../DnsServerCore/webapp/src/', import.meta.url).pathname
+const SOURCE = new URL('../DnsServerCore/webapp/src/', import.meta.url).pathname
 
-/* Destinos que upstream tiene y aquí NO deben estar, con su razón. Cada línea
-   es una decisión, no un olvido: si no está justificada, es un hallazgo. */
-const EXCUSAS = new Map([
-  // El modal de temas desaparece con la decisión «un solo tema, el oscuro».
-  // No lleva enlaces propios, así que hoy esta lista está vacía a propósito:
-  // se deja escrita para que quien añada una excusa tenga que razonarla aquí.
+/* Destinations upstream has and that must NOT be here, with their reason. Every
+   line is a decision, not an oversight: if it is not justified, it is a finding. */
+const EXCUSED = new Map([
+  // The themes modal goes away with the "a single theme, the dark one" decision.
+  // It carries no links of its own, so today this list is deliberately empty:
+  // it is left written so that whoever adds an excuse has to reason it out here.
 ])
 
-function ficheros(dir) {
+function files(dir) {
   const out = []
   for (const n of readdirSync(dir)) {
     const p = join(dir, n)
-    if (statSync(p).isDirectory()) out.push(...ficheros(p))
+    if (statSync(p).isDirectory()) out.push(...files(p))
     else if (/\.(tsx?|css)$/.test(n)) out.push(p)
   }
   return out
 }
 
-const normaliza = (u) => u.replace(/\/$/, '').replace(/^http:/, 'https:')
+const normalise = (u) => u.replace(/\/$/, '').replace(/^http:/, 'https:')
 
-/** Las cuatro entidades que aparecen en los textos de upstream. */
-const decodifica = (t) =>
+/** The four entities that appear in upstream's texts. */
+const decode = (t) =>
   t
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
@@ -65,59 +64,58 @@ const decodifica = (t) =>
     .replace(/&gt;/g, '>')
 
 /*
-La fuente SIN comentarios.
+The source WITHOUT comments.
 
-Un comentario no es interfaz: nadie lo lee en la pantalla. Mientras estuvieron en
-castellano daba igual, porque no podían casar con una frase inglesa de upstream;
-al traducirlos al inglés dejó de dar igual — un comentario que citara el texto de
-ayuda que explica haría casar una ayuda REALMENTE perdida, y esta comprobación
-pasaría a verde por el motivo contrario al que existe.
+A comment is not interface: nobody reads it on screen. While they were in Spanish
+it made no difference, because they could not match an English sentence from
+upstream; once translated to English it stopped making no difference — a comment
+quoting the help text it explains would make a REALLY missing help text match,
+and this check would go green for the opposite reason to the one it exists for.
 
-Se recortan antes de comparar. Las cadenas del código se quedan, que ahí es
-justamente donde vive el texto que se busca.
+They are stripped before comparing. String literals in the code stay, since that
+is exactly where the text being searched for lives.
 */
-const sinComentarios = (t) =>
+const withoutComments = (t) =>
   t.replaceAll(/\/\*[\s\S]*?\*\//g, ' ').replaceAll(/^\s*\/\/[^\n]*/gm, ' ')
 
-const nuestro = ficheros(FUENTE)
+const ours = files(SOURCE)
   .filter((f) => !/\.test\./.test(f))
-  .map((f) => sinComentarios(readFileSync(f, 'utf8')))
+  .map((f) => withoutComments(readFileSync(f, 'utf8')))
   .join('\n')
 
 const html = await fetch(`${REF}/`).then((r) => {
-  if (!r.ok) throw new Error(`la consola de referencia responde ${r.status} en ${REF}`)
+  if (!r.ok) throw new Error(`the reference console answers ${r.status} at ${REF}`)
   return r.text()
 })
 
-/* Los destinos de upstream, con la pantalla en la que aparecen. */
-const suyos = new Map()
+/* Upstream's destinations, with the screen they appear on. */
+const theirs = new Map()
 for (const m of html.matchAll(/href="((?:https?:|mailto:)[^"]+)"/g)) {
-  const url = normaliza(m[1])
-  if (!suyos.has(url)) suyos.set(url, [])
-  /* El contenedor con id más cercano hacia atrás. Es una PISTA, no una
-     verdad: el marcado de upstream no cierra los modales antes del siguiente,
-     así que sirve para ir a buscarlo, no para citarlo. */
-  const antes = html.slice(0, m.index)
-  const cerca = [...antes.matchAll(/id="(modal\w+|\w*TabPane\w+|footer)"/g)].pop()
-  suyos.get(url).push(cerca ? cerca[1] : '?')
+  const url = normalise(m[1])
+  if (!theirs.has(url)) theirs.set(url, [])
+  /* The nearest container with an id, searching backwards. It is a HINT, not a
+     truth: upstream's markup does not close a modal before the next one starts,
+     so it serves to go and find it, not to cite it. */
+  const before = html.slice(0, m.index)
+  const near = [...before.matchAll(/id="(modal\w+|\w*TabPane\w+|footer)"/g)].pop()
+  theirs.get(url).push(near ? near[1] : '?')
 }
 
 /*
-El texto de la aplicación, reducido a palabras.
+The application's text, reduced to words.
 
-Aquí no vale comparar marcado. JSX parte las frases —`Add{' '}<code>!</code>
-character`— y además muchas explicaciones viajan como ATRIBUTO
-(`help="The duration for which…"`), así que quien borre las etiquetas para
-limpiar se lleva por delante el texto que venía a buscar. Las dos cosas
-produjeron falsos positivos: la primera acusó de perdido el texto de la ACL y la
-segunda otros tres que llevaban meses en su sitio.
+Comparing markup does not work here. JSX splits sentences —`Add{' '}<code>!</code>
+character`— and many explanations travel as an ATTRIBUTE (`help="The duration for
+which…"`), so stripping the tags to clean up takes with it the very text you came
+looking for. Both produced false positives: the first accused the ACL text of
+being lost, the second three more that had been in place for months.
 
-Reducir los dos lados a palabras sueltas —sin puntuación, sin mayúsculas, sin
-signos— quita toda esa diferencia. Añade ruido (nombres de clases, atributos),
-pero el ruido sólo puede producir un falso NEGATIVO en una frase de ocho
-palabras seguidas, y eso no pasa.
+Reducing both sides to bare words —no punctuation, no case, no symbols— removes
+all of that difference. It adds noise (class names, attributes), but noise can
+only produce a false NEGATIVE across eight consecutive words, and that does not
+happen.
 */
-const enPalabras = (t) =>
+const asWords = (t) =>
   ' ' +
   t
     .toLowerCase()
@@ -126,106 +124,107 @@ const enPalabras = (t) =>
     .trim() +
   ' '
 
-const prosa = enPalabras(nuestro)
+const prose = asWords(ours)
 
-const faltan = []
-for (const [url] of suyos) {
-  if (EXCUSAS.has(url)) continue
-  // se busca el destino tal cual y sin la barra final: en el código puede ir
-  // partido por el formateador, pero la URL nunca se parte.
-  const crudo = url.replace(/^https:/, 'http:')
-  if (nuestro.includes(url) || nuestro.includes(crudo) || nuestro.includes(`${url}/`)) continue
-  faltan.push(url)
+const missing = []
+for (const [url] of theirs) {
+  if (EXCUSED.has(url)) continue
+  // the destination is searched for as-is and without the trailing slash: in the
+  // code it may be wrapped by the formatter, but a URL is never split.
+  const raw = url.replace(/^https:/, 'http:')
+  if (ours.includes(url) || ours.includes(raw) || ours.includes(`${url}/`)) continue
+  missing.push(url)
 }
 
-const total = suyos.size
-for (const url of faltan) {
-  console.log(`  FALTA    ${url}   (upstream, cerca de: ${[...new Set(suyos.get(url))].join(', ')})`)
+const total = theirs.size
+for (const url of missing) {
+  console.log(`  MISSING  ${url}   (upstream, near: ${[...new Set(theirs.get(url))].join(', ')})`)
 }
 
 console.log(
-  faltan.length === 0
-    ? `PARIDAD DE DESTINOS: los ${total} de upstream están en la consola nueva.`
-    : `PARIDAD DE DESTINOS: faltan ${faltan.length} de ${total}.`,
+  missing.length === 0
+    ? `DESTINATION PARITY: all ${total} of upstream's are in the new console.`
+    : `DESTINATION PARITY: ${missing.length} of ${total} missing.`,
 )
 
 /*
-Y los textos de ayuda. Upstream no los marca con una clase suya: son `div` con
-el desplazamiento de la rejilla de Bootstrap (`col-sm-offset-N col-sm-M`), que
-resulta ser una firma fiable porque ahí no va otra cosa.
+And the help texts. Upstream does not mark them with a class of its own: they are
+`div`s carrying the Bootstrap grid offset (`col-sm-offset-N col-sm-M`), which
+turns out to be a reliable signature because nothing else goes there.
 
-Se comparan por una tirada de palabras del medio, no por la frase entera: el
-principio y el final son los que más se retocan al maquetar, y lo que importa es
-si la explicación está o no está.
+They are compared by a run of words from the middle, not by the whole sentence:
+the beginning and the end are what gets reworded most while laying out, and what
+matters is whether the explanation is there or not.
 */
-const AYUDAS = [...html.matchAll(/<div class="col-sm-offset-\d+ col-sm-\d+"[^>]*>([\s\S]*?)<\/div>/g)]
+const HELP = [...html.matchAll(/<div class="col-sm-offset-\d+ col-sm-\d+"[^>]*>([\s\S]*?)<\/div>/g)]
   .map((m) => m[1].replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' '))
-  .map((t) => decodifica(t).replace(/\s+/g, ' ').trim())
+  .map((t) => decode(t).replace(/\s+/g, ' ').trim())
   .filter((t) => t.length > 40)
 
-const sinAyuda = AYUDAS.filter((t) => {
-  const palabras = enPalabras(t).trim().split(' ')
-  if (palabras.length < 12) return false
-  // tres tiradas repartidas: si NINGUNA está, la explicación no está
-  const trozos = [palabras.slice(2, 10), palabras.slice(6, 14), palabras.slice(-8)]
-  return !trozos.some((p) => prosa.includes(` ${p.join(' ')} `))
+const missingHelp = HELP.filter((t) => {
+  const words = asWords(t).trim().split(' ')
+  if (words.length < 12) return false
+  // three runs spread out: if NONE is there, the explanation is not there
+  const runs = [words.slice(2, 10), words.slice(6, 14), words.slice(-8)]
+  return !runs.some((p) => prose.includes(` ${p.join(' ')} `))
 })
 
 console.log('')
-for (const t of sinAyuda) console.log(`  FALTA    ayuda: ${t.slice(0, 120)}…`)
+for (const t of missingHelp) console.log(`  MISSING  help: ${t.slice(0, 120)}…`)
 console.log(
-  sinAyuda.length === 0
-    ? `PARIDAD DE AYUDAS: los ${AYUDAS.length} textos de upstream están.`
-    : `PARIDAD DE AYUDAS: faltan ${sinAyuda.length} de ${AYUDAS.length}.`,
+  missingHelp.length === 0
+    ? `HELP PARITY: all ${HELP.length} of upstream's texts are present.`
+    : `HELP PARITY: ${missingHelp.length} of ${HELP.length} missing.`,
 )
 
 /*
-Y los EJEMPLOS de cada campo, que es lo que upstream pone en `placeholder`.
+And each field's EXAMPLE, which is what upstream puts in `placeholder`.
 
-Se añadió después de encontrar treinta y cuatro perdidos, y algunos no eran
-adorno: el de «Add Zone» decía `example.com or 192.168.0.0/24 or 2001:db8::/64`,
-que es cómo se descubre que ahí cabe una zona inversa en CIDR, y el de
-«Certificate Association Data» traía el hexadecimal de ejemplo y la alternativa
-en PEM. Sin ellos el campo no explica qué espera.
+Added after finding thirty-four of them lost, and some were not decoration: the
+one on "Add Zone" read `example.com or 192.168.0.0/24 or 2001:db8::/64`, which is
+how you discover that field takes a reverse zone in CIDR form, and the one on
+"Certificate Association Data" carried the example hex and the PEM alternative.
+Without them the field does not explain what it expects.
 
-Se compara por VALOR contra toda la fuente, con la misma limitación que las
-otras dos comprobaciones y por el mismo motivo: encontrar en qué componente
-acaba cada campo exigiría entender el JSX. Eso deja pasar el caso en que el
-ejemplo está, pero en otro campo —pasó con «confirm password», que existía en
-«Add User» y faltaba en «Change Password»—, así que un valor repetido en varios
-campos hay que mirarlo a ojo. Lo que sí caza, y es lo que hacía falta, es la
-pérdida entera.
+It compares by VALUE against the whole source, with the same limitation as the
+other two checks and for the same reason: working out which component each field
+ends up in would require understanding the JSX. That lets through the case where
+the example is present but on another field —it happened with "confirm password",
+which existed in "Add User" and was missing from "Change Password"— so a value
+repeated across several fields has to be looked at by eye. What it does catch,
+and what was needed, is the wholesale loss.
 */
-const EJEMPLOS = new Map()
+const EXAMPLES = new Map()
 for (const m of html.matchAll(/<(?:input|textarea)[^>]*>/g)) {
   const ph = /placeholder="([^"]*)"/.exec(m[0])
   if (!ph) continue
   const id = /id="([^"]*)"/.exec(m[0])
-  /* La imagen de upstream se construyó en Windows y sus ejemplos de varias
-     líneas traen CRLF; nuestro árbol es LF. Es la misma normalización que hace
-     `dev/check-paridad.sh`, y sin ella los cuatro ejemplos multilínea salían
-     como perdidos por un retorno de carro. */
-  const valor = decodifica(ph[1]).replace(/\r\n/g, '\n')
-  if (valor.trim().length < 1) continue
-  if (!EJEMPLOS.has(valor)) EJEMPLOS.set(valor, id ? id[1] : '?')
+  /* Upstream's image was built on Windows and its multi-line examples carry
+     CRLF; our tree is LF. It is the same normalisation `dev/check-paridad.sh`
+     does, and without it the four multi-line examples came out as lost over a
+     carriage return. */
+  const value = decode(ph[1]).replace(/\r\n/g, '\n')
+  if (value.trim().length < 1) continue
+  if (!EXAMPLES.has(value)) EXAMPLES.set(value, id ? id[1] : '?')
 }
 
-/* El ejemplo del forwarder lo reescribe `zone.js:139-152` según el protocolo, y
-   aquí se hace lo mismo en `ejemploDeForwarder`: el del HTML es sólo el inicial. */
-const DINAMICOS = new Set(['8.8.8.8'])
+/* The forwarder example is rewritten by `zone.js:139-152` depending on the
+   protocol, and the same is done here in `forwarderExample`: the one in the HTML
+   is only the initial value. */
+const DYNAMIC = new Set(['8.8.8.8'])
 
-const sinEjemplo = [...EJEMPLOS].filter(
-  ([valor]) => !DINAMICOS.has(valor) && !nuestro.includes(valor.split('\n')[0]),
+const missingExample = [...EXAMPLES].filter(
+  ([value]) => !DYNAMIC.has(value) && !ours.includes(value.split('\n')[0]),
 )
 
 console.log('')
-for (const [valor, id] of sinEjemplo) {
-  console.log(`  FALTA    ejemplo de ${id}: ${valor.split('\n')[0].slice(0, 60)}`)
+for (const [value, id] of missingExample) {
+  console.log(`  MISSING  example for ${id}: ${value.split('\n')[0].slice(0, 60)}`)
 }
 console.log(
-  sinEjemplo.length === 0
-    ? `PARIDAD DE EJEMPLOS: los ${EJEMPLOS.size} de upstream están.`
-    : `PARIDAD DE EJEMPLOS: faltan ${sinEjemplo.length} de ${EJEMPLOS.size}.`,
+  missingExample.length === 0
+    ? `EXAMPLE PARITY: all ${EXAMPLES.size} of upstream's are present.`
+    : `EXAMPLE PARITY: ${missingExample.length} of ${EXAMPLES.size} missing.`,
 )
 
-process.exit(faltan.length + sinAyuda.length + sinEjemplo.length === 0 ? 0 : 1)
+process.exit(missing.length + missingHelp.length + missingExample.length === 0 ? 0 : 1)

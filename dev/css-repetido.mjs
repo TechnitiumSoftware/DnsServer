@@ -1,88 +1,90 @@
 /*
-Lo mismo, escrito en dos módulos.
+The same thing, written in two modules.
 
-`css-muertas.mjs` contesta si una regla sobra. Ésta contesta algo distinto: si la
-MISMA regla está escrita más de una vez. Es el defecto que produce la deriva —dos
-copias que empiezan iguales y dejan de serlo—, y ninguna revisión pantalla a
-pantalla lo ve, porque en cada pantalla, por separado, todo parece correcto.
+`css-muertas.mjs` answers whether a rule is unused. This one answers something
+different: whether the SAME rule is written more than once. That is the defect
+that produces drift —two copies that start identical and stop being identical—
+and no screen-by-screen review catches it, because on each screen, taken alone,
+everything looks right.
 
-Medido antes de arreglarlo, encontró 27 grupos, y de ahí salieron entre otras:
+Measured before fixing it, it found 27 groups, and out of those came, among
+others:
 
-  · once `<textarea>` que se pintaban la caja a mano, con radio 6 en vez de 8 y
-    sin la sombra interior que llevan todos los demás campos;
-  · el `<code>` en línea en cinco módulos y el párrafo de entrada en cinco, con
-    uno a 1,65 de interlínea contra 1,6 de los otros cuatro;
-  · el chevron del `<details>` recodificado a mano como SVG en un `data:` URI,
-    en dos módulos, con otro grosor de trazo que el resto de los iconos;
-  · el recuento del pie de una tabla con cuatro distancias distintas.
+  · eleven `<textarea>` elements painting their own box by hand, with radius 6
+    instead of 8 and without the inset shadow every other field carries;
+  · the inline `<code>` in five modules and the intro paragraph in five, one of
+    them at 1.65 line-height against 1.6 in the other four;
+  · the `<details>` chevron hand-encoded as an SVG in a `data:` URI, in two
+    modules, with a different stroke width from every other icon;
+  · the count under a table sitting at four different distances.
 
     node dev/css-repetido.mjs
 
-## Cómo leerlo
+## How to read it
 
-Agrupa por CUERPO de la regla, ignorando `composes`, y sólo enseña los cuerpos
-que aparecen en más de un módulo. Eso deja fuera lo que ya está compartido —una
-clase que compone de otra no repite nada— y deja dentro tres cosas que NO son
-defectos, así que hay que mirarlas antes de tocar:
+It groups by rule BODY, ignoring `composes`, and only shows bodies that appear in
+more than one module. That leaves out what is already shared —a class that
+composes from another repeats nothing— and leaves in three things that are NOT
+defects, so look before you touch:
 
-  · **Aplicar el mismo token.** Dos componentes con `background: var(--acc)` no
-    duplican nada: el token ES la fuente única, y `composes` ni siquiera alcanza
-    a una pseudo-clase o a un selector de atributo, que es de donde salen casi
-    todos estos. Ejemplo real: el resaltado de la opción de un menú y el de la
-    opción de un desplegable.
-  · **Coincidencias de maquetación genérica.** `display:flex;
-    flex-direction:column; gap:var(--s-9)` sale en una columna de About, otra
-    del Dashboard y el formulario de Login. No son la misma cosa; es que hay
-    pocas maneras de apilar tres elementos.
-  · **El mismo colapso responsivo.** `grid-template-columns: minmax(0,1fr)`
-    dentro de una media query es «a una columna en estrecho», y eso lo dicen
-    todas las rejillas de la consola.
+  · **Applying the same token.** Two components with `background: var(--acc)`
+    duplicate nothing: the token IS the single source, and `composes` cannot even
+    reach a pseudo-class or an attribute selector, which is where nearly all of
+    these come from. Real example: the highlight on a menu option and the one on
+    a dropdown option.
+  · **Generic layout coincidences.** `display:flex; flex-direction:column;
+    gap:var(--s-9)` shows up in a column on About, another on the Dashboard and
+    the Login form. They are not the same thing; there are just few ways to stack
+    three elements.
+  · **The same responsive collapse.** `grid-template-columns: minmax(0,1fr)`
+    inside a media query means "one column when narrow", and every grid in the
+    console says it.
 
-El umbral de longitud del cuerpo está para no ahogar la salida en reglas de una
-sola propiedad, que casi siempre son de los tres casos de arriba.
+The minimum body length is there so the output is not drowned in single-property
+rules, which are almost always one of the three cases above.
 */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const RAIZ = join(import.meta.dirname, '..', 'DnsServerCore', 'webapp', 'src')
-const MINIMO = Number(process.env.MINIMO ?? 28)
+const ROOT = join(import.meta.dirname, '..', 'DnsServerCore', 'webapp', 'src')
+const MINIMUM = Number(process.env.MINIMO ?? 28)
 
-function ficheros(dir, acc = []) {
+function files(dir, acc = []) {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e)
-    if (statSync(p).isDirectory()) ficheros(p, acc)
+    if (statSync(p).isDirectory()) files(p, acc)
     else if (e.endsWith('.module.css')) acc.push(p)
   }
   return acc
 }
 
-const grupos = new Map()
+const groups = new Map()
 
-for (const mod of ficheros(RAIZ)) {
+for (const mod of files(ROOT)) {
   const css = readFileSync(mod, 'utf8').replaceAll(/\/\*[\s\S]*?\*\//g, '')
   for (const m of css.matchAll(/([^{}]+)\{([^{}]+)\}/g)) {
     const selector = m[1].trim().split('\n').at(-1).trim()
-    /* Normalizado: sin espacios y en orden, para que dos reglas iguales escritas
-       con distinto formato —o con las propiedades en otro orden— coincidan. */
-    const cuerpo = m[2]
+    /* Normalised: no spaces and sorted, so two identical rules written with
+       different formatting —or with the properties in another order— match. */
+    const body = m[2]
       .split(';')
       .map((d) => d.trim().replaceAll(' ', ''))
       .filter((d) => d && !d.startsWith('composes'))
       .sort()
       .join(' ')
-    if (cuerpo.length < MINIMO) continue
-    if (!grupos.has(cuerpo)) grupos.set(cuerpo, [])
-    grupos.get(cuerpo).push({ mod: mod.slice(RAIZ.length + 1), selector })
+    if (body.length < MINIMUM) continue
+    if (!groups.has(body)) groups.set(body, [])
+    groups.get(body).push({ mod: mod.slice(ROOT.length + 1), selector })
   }
 }
 
-const repetidos = [...grupos]
-  .filter(([, sitios]) => new Set(sitios.map((s) => s.mod)).size > 1)
+const repeated = [...groups]
+  .filter(([, places]) => new Set(places.map((s) => s.mod)).size > 1)
   .sort((a, b) => b[1].length - a[1].length)
 
-for (const [cuerpo, sitios] of repetidos) {
-  console.log(`\n[${sitios.length}] ${cuerpo}`)
-  for (const s of sitios) console.log(`     ${s.mod}  ${s.selector}`)
+for (const [body, places] of repeated) {
+  console.log(`\n[${places.length}] ${body}`)
+  for (const s of places) console.log(`     ${s.mod}  ${s.selector}`)
 }
 
-console.log(`\n${repetidos.length} cuerpos de regla escritos en más de un módulo`)
+console.log(`\n${repeated.length} rule bodies written in more than one module`)
