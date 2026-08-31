@@ -19,10 +19,10 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { aIso, fechaHora } from './fechas'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
-import pag from '../../ui/Pagination.module.css'
 import { Tabla } from '../../ui/Table'
 import styles from './Logs.module.css'
-import { Icono } from '../../ui/Icono'
+import { ventanaDePaginas } from '../../lib/paginacion'
+import { Paginacion } from '../../ui/Paginacion'
 
 /*
 Logs › Query Logs (logs.js:20-101 y 270-710).
@@ -142,21 +142,14 @@ export function textoEstado(p: QueryLogPage): string {
   return `${primera}-${ultima} (${p.entries.length}) of ${p.totalEntries} logs (page ${p.pageNumber} of ${p.totalPages})`
 }
 
-/** Las diez páginas centradas en la actual (logs.js:571-586). */
+/*
+Las diez páginas centradas en la actual. Era una copia letra por letra de
+`lib/paginacion.ts` —aquella citaba `zone.js:880-905` y ésta `logs.js:571-586`,
+dos sitios de upstream que hacen lo mismo—, con sus propias pruebas. Se conserva
+el nombre porque las pruebas de esta pantalla lo usan.
+*/
 export function rangoPaginas(pageNumber: number, totalPages: number): number[] {
-  let inicio = pageNumber - 5
-  if (inicio < 1) inicio = 1
-
-  let fin = inicio + 9
-  if (fin > totalPages) {
-    inicio -= fin - totalPages
-    fin = totalPages
-    if (inicio < 1) inicio = 1
-  }
-
-  const paginas: number[] = []
-  for (let i = inicio; i <= fin; i++) paginas.push(i)
-  return paginas
+  return ventanaDePaginas(pageNumber, totalPages).paginas
 }
 
 export interface QueryLogsProps {
@@ -394,7 +387,6 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
   if (apps == null) return <Loading />
 
-  const paginacion = pagina != null ? rangoPaginas(pagina.pageNumber, pagina.totalPages) : []
 
   return (
     <div className={styles.wrap}>
@@ -636,60 +628,13 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         <>
           <div className={styles.count}>
             <span>{textoEstado(pagina)}</span>
-            <span className={pag.pg}>
-              {pagina.pageNumber > 1 && (
-                <>
-                  <button
-                    type="button"
-                    className={pag.pgb}
-                    aria-label="First"
-                    onClick={() => void consultar('1', false)}
-                  >
-                    <Icono nombre="primera" tam={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className={pag.pgb}
-                    aria-label="Previous"
-                    onClick={() => void consultar(String(pagina.pageNumber - 1), false)}
-                  >
-                    <Icono nombre="chevronIzquierda" tam={14} />
-                  </button>
-                </>
-              )}
-              {paginacion.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className={pag.pgb}
-                  aria-current={n === pagina.pageNumber}
-                  onClick={() => void consultar(String(n), false)}
-                >
-                  {n}
-                </button>
-              ))}
-              {pagina.pageNumber < pagina.totalPages && (
-                <>
-                  <button
-                    type="button"
-                    className={pag.pgb}
-                    aria-label="Next"
-                    onClick={() => void consultar(String(pagina.pageNumber + 1), false)}
-                  >
-                    <Icono nombre="chevronDerecha" tam={14} />
-                  </button>
-                  {/* logs.js:589 — «Last» se pide con -1; lo resuelve el servidor. */}
-                  <button
-                    type="button"
-                    className={pag.pgb}
-                    aria-label="Last"
-                    onClick={() => void consultar('-1', false)}
-                  >
-                    <Icono nombre="ultima" tam={14} />
-                  </button>
-                </>
-              )}
-            </span>
+            {/* logs.js:589 — «Last» se pide con -1; lo resuelve el servidor. */}
+            <Paginacion
+              ventana={ventanaDePaginas(pagina.pageNumber, pagina.totalPages)}
+              actual={pagina.pageNumber}
+              ultima={-1}
+              onIr={(n) => void consultar(String(n), false)}
+            />
           </div>
 
           <Tabla

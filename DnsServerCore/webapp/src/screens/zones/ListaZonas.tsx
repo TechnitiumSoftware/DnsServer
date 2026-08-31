@@ -20,13 +20,12 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { Tag, type TagTone } from '../../ui/Tag'
 import { Menu, Separador } from '../../ui/Menu'
 import { fechaMinuto as fecha } from '../../lib/fechas'
-import { textoDeEstado, ventanaDePaginas } from './paginacion'
-import pag from '../../ui/Pagination.module.css'
+import { textoDeEstado, ventanaDePaginas } from '../../lib/paginacion'
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
-import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
+import { Paginacion } from '../../ui/Paginacion'
 
 /*
 La lista de zonas. Réplica de `refreshZones` (zone.js:649) y de las seis
@@ -310,42 +309,8 @@ export function ListaZonas({
 
   const todasMarcadas = zonas.length > 0 && marcadas.length === zonas.length
 
-  const paginacion = (
-    <span className={pag.pg}>
-      {pg.primera && (
-        <button type="button" className={pag.pgb} aria-label="First" onClick={() => irA(1)}>
-          <Icono nombre="primera" tam={14} />
-        </button>
-      )}
-      {pg.anterior != null && (
-        <button type="button" className={pag.pgb} aria-label="Previous" onClick={() => irA(pg.anterior!)}>
-          <Icono nombre="chevronIzquierda" tam={14} />
-        </button>
-      )}
-      {pg.paginas.map((p) => (
-        <button
-          key={p}
-          type="button"
-          className={pag.pgb}
-          aria-current={p === pageNumber}
-          onClick={() => irA(p)}
-        >
-          {p}
-        </button>
-      ))}
-      {pg.siguiente != null && (
-        <button type="button" className={pag.pgb} aria-label="Next" onClick={() => irA(pg.siguiente!)}>
-          <Icono nombre="chevronDerecha" tam={14} />
-        </button>
-      )}
-      {/* La última página se pide con -1: el servidor la resuelve él. */}
-      {pg.ultima && (
-        <button type="button" className={pag.pgb} aria-label="Last" onClick={() => irA(-1)}>
-          <Icono nombre="ultima" tam={14} />
-        </button>
-      )}
-    </span>
-  )
+  // La última página se pide con -1: el servidor la resuelve él.
+  const paginacion = <Paginacion ventana={pg} actual={pageNumber} ultima={-1} onIr={irA} />
 
   return (
     <>

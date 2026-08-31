@@ -25,18 +25,17 @@ import { CeldaDatos } from './CeldaDatos'
 import { fechaMinuto as fecha } from '../../lib/fechas'
 import { Menu, Separador } from '../../ui/Menu'
 import { filtrar } from './filtro'
-import { textoDeEstado, ventanaDePaginas } from './paginacion'
+import { textoDeEstado, ventanaDePaginas } from '../../lib/paginacion'
 import { accionesDeFila, celdasDeRegistro, nombreRelativo, ocultarDnssec, type Celda } from './registro-vista'
 import { cabeceraDeZona, estaFirmada, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
-import pag from '../../ui/Pagination.module.css'
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
-import { Icono } from '../../ui/Icono'
 import type { Aviso, Confirmacion } from './tipos'
+import { Paginacion } from '../../ui/Paginacion'
 
 /*
 Los registros de una zona. Réplica de `showEditZone` (zone.js:3079) y
@@ -330,40 +329,10 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   const texto = textoDeEstado(inicio + 1, enPagina.length, visibles.length, paginaActual, totalPages, 'records')
   const pg = ventanaDePaginas(paginaActual, totalPages)
 
+  /* Aquí la última página se calcula en el cliente: los registros están todos
+     cargados, no hay que preguntarle al servidor. */
   const paginacion = (
-    <span className={pag.pg}>
-      {pg.primera && (
-        <button type="button" className={pag.pgb} aria-label="First" onClick={() => setPagina(1)}>
-          <Icono nombre="primera" tam={14} />
-        </button>
-      )}
-      {pg.anterior != null && (
-        <button type="button" className={pag.pgb} aria-label="Previous" onClick={() => setPagina(pg.anterior!)}>
-          <Icono nombre="chevronIzquierda" tam={14} />
-        </button>
-      )}
-      {pg.paginas.map((n) => (
-        <button
-          key={n}
-          type="button"
-          className={pag.pgb}
-          aria-current={n === paginaActual}
-          onClick={() => setPagina(n)}
-        >
-          {n}
-        </button>
-      ))}
-      {pg.siguiente != null && (
-        <button type="button" className={pag.pgb} aria-label="Next" onClick={() => setPagina(pg.siguiente!)}>
-          <Icono nombre="chevronDerecha" tam={14} />
-        </button>
-      )}
-      {pg.ultima && (
-        <button type="button" className={pag.pgb} aria-label="Last" onClick={() => setPagina(totalPages)}>
-          <Icono nombre="ultima" tam={14} />
-        </button>
-      )}
-    </span>
+    <Paginacion ventana={pg} actual={paginaActual} ultima={totalPages} onIr={setPagina} />
   )
 
   return (

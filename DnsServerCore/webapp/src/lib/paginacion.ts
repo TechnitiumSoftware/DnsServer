@@ -1,4 +1,10 @@
 /*
+Vive en `lib/` y no bajo `screens/zones/` porque la usan tres pantallas: la lista
+de zonas, los registros de una zona y Query Logs. Esta última llevaba su propia
+copia —`rangoPaginas`, con la misma aritmética letra por letra y sus propias
+pruebas—, citando `logs.js:571-586` donde la otra cita `zone.js:880-905`: dos
+sitios de upstream que hacen exactamente lo mismo.
+
 La ventana de páginas de upstream (`refreshZones`, zone.js:880-905) y el texto
 de estado que la acompaña. Se extrae aquí porque es aritmética con dos casos
 borde y merece prueba propia.
