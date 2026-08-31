@@ -24,7 +24,7 @@
 
 /* ---- Query Logs ---- */
 
-.fs { border: 1px solid var(--line); border-radius: var(--r-4); background: var(--pan); margin-bottom: var(--s-9); }
+.fs { composes: panel from '../../ui/Panel.module.css'; margin-bottom: var(--s-9); }
 .fsTitle {
   display: block; width: 100%; padding: var(--s-8) var(--s-10); margin: 0;
   border-bottom: 1px solid var(--line); font-size: var(--t-1); font-weight: 600;

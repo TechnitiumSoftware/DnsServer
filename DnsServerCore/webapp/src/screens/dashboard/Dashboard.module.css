@@ -11,7 +11,7 @@ es la marca de fábrica de una interfaz generada y además no se parece a nada d
 la gráfica. Se dice con la misma muestra que usa una leyenda, que es de donde
 viene la relación.
 */
-.tile { padding: var(--s-8) var(--s-8); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); box-shadow: var(--e-1), var(--filo); }
+.tile { composes: panel from '../../ui/Panel.module.css'; padding: var(--s-8); }
 .tile .v { font:600 var(--t-7)/1.1 var(--font-mono); letter-spacing:-.02em; color:var(--ink); }
 .p { composes: anotacionMinima from '../../ui/texto.module.css'; }
 .tile .k { display:flex; align-items:center; gap: var(--s-4); font-size: var(--t-1); color:var(--mute); margin-top: var(--s-3); text-transform:uppercase; letter-spacing:.05em; font-weight: 550; }

@@ -59,7 +59,9 @@ en otros dos módulos con los mismos valores copiados a mano.
 
 .edit input, .edit select { width:100%; }
 .tdel { width:84px; }
-.bar { display:flex; align-items:center; gap: var(--s-5); padding: var(--s-8) var(--s-9); border:1px solid var(--line); border-radius: var(--r-4); background:var(--pan); }
+/* La misma barra de guardar que Settings y DHCP: PEGAJOSA. Sin eso, en un
+   formulario tan largo como el de SSO el botón se queda arriba al bajar. */
+.bar { composes: bar from '../../ui/Ajustes.module.css'; }
 
 /* Cuerpo de modal: mismas filas, pero con la etiqueta más estrecha. */
 .mval { font-size: var(--t-4); font-weight: 600; color:var(--ink); padding-top: var(--s-5); }

@@ -2,7 +2,7 @@
 /* Las dos columnas: árbol a la izquierda, registros a la derecha */
 .brow { display:grid; grid-template-columns:270px minmax(0,1fr); gap: var(--s-10); align-items:start; }
 
-.tree { background:var(--pan); border:1px solid var(--line); border-radius: var(--r-4); padding: var(--s-8); }
+.tree { composes: panel from '../../ui/Panel.module.css'; padding: var(--s-8); }
 .browse { display:flex; flex-direction:column; gap: var(--s-3); margin-bottom: var(--s-7); }
 .browseRow { display:flex; gap: var(--s-3); align-items:flex-end; }
 .browseRow > div { flex:1; min-width:0; }
