@@ -2,18 +2,18 @@ import type { ReactNode } from 'react'
 import styles from './Externo.module.css'
 
 /*
-Los enlaces que salen de la consola.
+The links that lead out of the console.
 
-Están aquí y no repartidos porque una revisión encontró que se habían ido
-perdiendo de uno en uno: quedaba la frase de upstream y desaparecía el destino
-—«read the change log» sin change log, «Use ZONEMD to Validate Zone» sin el
-RFC—. Con un solo sitio donde se escriben, `dev/check-paridad-controles.mjs`
-puede comprobar por lista que no falta ninguno.
+They are here and not scattered because a review found they had been going missing
+one at a time: upstream's sentence stayed and the destination disappeared —"read
+the change log" with no change log, "Use ZONEMD to Validate Zone" with no RFC—.
+With a single place where they are written, `dev/check-paridad-controles.mjs` can
+verify by list that none is missing.
 
-Dos formas, que es lo que hay en upstream:
+Two shapes, which is what upstream has:
 
-- `Externo`, dentro de una frase: «validated using the [ZONEMD] record».
-- `Ayuda`, el renglón suelto al pie de un panel o un diálogo: «Help: …».
+- `Externo`, inside a sentence: "validated using the [ZONEMD] record".
+- `Ayuda`, the standalone line at the foot of a panel or a dialog: "Help: …".
 */
 export function Externo({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -24,8 +24,8 @@ export function Externo({ href, children }: { href: string; children: ReactNode 
 }
 
 /**
- * El renglón de ayuda. No es un enlace dentro de una frase, así que no le vale
- * la excepción de tamaño de objetivo de WCAG: lleva caja propia.
+ * The help line. It is not a link inside a sentence, so WCAG's target-size
+ * exception does not apply to it: it carries a box of its own.
  */
 export function Ayuda({ href, children }: { href: string; children: ReactNode }) {
   return (

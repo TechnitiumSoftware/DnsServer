@@ -1,16 +1,16 @@
 /*
-La lista de clave y valor: «Range / 10.0.1.10 - 10.0.1.200», «Key Tag / 42».
+The key/value list: "Range / 10.0.1.10 - 10.0.1.200", "Key Tag / 42".
 
-Estaba escrita cinco veces —About, Zones, DHCP, Listas y el modal de DS— y de
-las cinco salieron cuatro objetos distintos: dos plantillas de columnas (`auto
-1fr` y `auto minmax(0,1fr)`, que no es lo mismo en cuanto el valor es largo), dos
-huecos de fila, y tres tratamientos del valor. Sólo uno de los cinco partía las
-cadenas largas, así que la misma lista se salía de su celda en DHCP y en Listas y
-no en Zones.
+It was written five times —About, Zones, DHCP, the lists screens and the DS modal—
+and out of the five came four different objects: two column templates (`auto 1fr`
+and `auto minmax(0,1fr)`, which are not the same thing as soon as the value is
+long), two row gaps, and three treatments of the value. Only one of the five broke
+long strings, so the same list overflowed its cell in DHCP and in the lists screens
+and not in Zones.
 
-`minmax(0,1fr)` y no `1fr`: una pista de rejilla `1fr` tiene mínimo `auto`, así
-que no baja del ancho de su contenido y un valor sin espacios —una clave DNSSEC,
-un hexadecimal— empuja la columna fuera de la tabla.
+`minmax(0,1fr)` and not `1fr`: a `1fr` grid track has a minimum of `auto`, so it
+does not go below the width of its content and a value with no spaces —a DNSSEC
+key, a hex string— pushes the column out of the table.
 */
 
 .kv {

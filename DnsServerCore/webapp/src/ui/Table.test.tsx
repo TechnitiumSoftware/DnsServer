@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest'
 import { Th, useOrden, type Claves } from './Table'
 
 /*
-La regla de upstream (`sortTable`, common.js:228-280) no es un interruptor: la
-pulsación ordena ascendente SALVO que la columna ya esté ascendente, y entonces
-baja. La diferencia se nota justo en la primera pulsación.
+Upstream's rule (`sortTable`, common.js:228-280) is not a toggle: a click sorts
+ascending UNLESS the column is already ascending, in which case it goes down. The
+difference shows precisely on the first click.
 */
 
 interface Fila {

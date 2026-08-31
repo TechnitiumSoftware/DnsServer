@@ -1,9 +1,9 @@
 /*
-El aviso va RELLENO, no sólo con el borde teñido. Convivían dos tratamientos:
-este, que sólo pintaba el borde y el texto, y la copia local de Zones
-(`.nota` + `.notaAviso`), con fondo. El resultado era que el «Note!» de
-«Delete Cluster» pesaba menos que el mismo aviso dentro de un modal de zona.
-Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
+The alert is FILLED, not just tinted at the border. Two treatments coexisted:
+this one, which only painted the border and the text, and Zones' local copy
+(`.nota` + `.notaAviso`), with a background. The result was that the "Note!" in
+"Delete Cluster" weighed less than the same alert inside a zone modal. The filled
+one wins, which is what was drawn and what is seen on the first pass.
 */
 
 .alert {
@@ -18,7 +18,7 @@ Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
 
 .alert b { display: inline; }
 
-/* Medía 22×17: por debajo del mínimo de 24 de objetivo. */
+/* It measured 22×17: below the 24 target minimum. */
 .close {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 26px; min-height: 26px;
@@ -35,23 +35,23 @@ Gana el relleno, que es lo dibujado y lo que se ve a la primera pasada.
 
 .close:hover { opacity: 1; }
 
-/* Los tonos son los de `ui/tonos.module.css`, compartidos con la píldora. */
+/* The tones come from `ui/tonos.module.css`, shared with the pill. */
 .success { composes: ok from './tonos.module.css'; }
 .info    { composes: info from './tonos.module.css'; }
 .warning { composes: warn from './tonos.module.css'; }
 .danger  { composes: dan from './tonos.module.css'; }
 
 /*
-El aire que deja un aviso debajo. Estaba escrito en once módulos con tres
-nombres —`.aviso`, `.avisoHueco` y `.alertSlot`— y salían cuatro distancias:
-24 px en Zones y sus modales, Listas, Administration, Dashboard, DNS Client y
-Apps; 14 en DHCP, en Logs y en el login; y 12 en los cuatro modales de cuenta,
-donde el aviso iba suelto y se quedaba con el `gap` del contenedor.
+The air an alert leaves beneath it. It was written across eleven modules under
+three names —`.aviso`, `.avisoHueco` and `.alertSlot`— and produced four
+distances: 24 px in Zones and its modals, the lists screens, Administration, the
+Dashboard, DNS Client and Apps; 14 in DHCP, in Logs and on login; and 12 in the
+four account modals, where the alert sat loose and kept the container's `gap`.
 
-La resta es la misma que hace la cabecera de sección: en un contenedor `flex`
-con `gap`, el margen del hijo SE SUMA al hueco, así que 24 de margen dentro de
-un `gap` de 14 dan 38. `--hueco` lo declara `.pantalla` en
-`SectionHeader.module.css` y se hereda; fuera de ahí no existe y la reserva
-vale 0, que es justo lo que hace falta.
+The subtraction is the same one the section header does: in a `flex` container
+with `gap`, the child's margin ADDS to the gap, so 24 of margin inside a `gap` of
+14 gives 38. `--hueco` is declared by `.pantalla` in `SectionHeader.module.css`
+and inherits; outside it does not exist and the fallback is 0, which is exactly
+what is needed.
 */
 .hueco { margin-bottom: calc(var(--hueco-bloque) - var(--hueco, 0px)); }

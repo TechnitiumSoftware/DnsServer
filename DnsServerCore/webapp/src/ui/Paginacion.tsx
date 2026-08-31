@@ -3,18 +3,17 @@ import styles from './Pagination.module.css'
 import type { Paginacion as Ventana } from '../lib/paginacion'
 
 /*
-La barra de páginas: primera, anterior, la ventana de diez, siguiente y última.
+The page bar: first, previous, the window of ten, next and last.
 
-Estaba escrita a mano en tres pantallas —la lista de zonas, los registros de una
-zona y Query Logs— con el mismo marcado y la misma ristra de botones. La
-aritmética ya vivía en un sitio (`lib/paginacion.ts`, que se prueba
-sola); lo que faltaba era que los botones también.
+It was written by hand on three screens —the zone list, a zone's records and Query
+Logs— with the same markup and the same string of buttons. The arithmetic already
+lived in one place (`lib/paginacion.ts`, which is tested on its own); what was
+missing was the buttons doing the same.
 
-Lo único que de verdad cambiaba entre las tres es CÓMO se pide la última página:
-la lista de zonas y Query Logs mandan `-1` y deja que la resuelva el servidor
-—es lo que hace upstream—, y los registros de una zona la calculan en el
-cliente porque los tiene todos. Por eso `ultima` es un parámetro y no está
-metido a fuego.
+The only thing that really differed between the three is HOW the last page is
+asked for: the zone list and Query Logs send `-1` and let the server resolve it
+—which is what upstream does— and a zone's records compute it client-side because
+they have them all. That is why `ultima` is a parameter and not hard-coded.
 */
 export function Paginacion({
   ventana,
@@ -24,7 +23,7 @@ export function Paginacion({
 }: {
   ventana: Ventana
   actual: number
-  /** Qué número pedir para «última». `-1` deja que lo resuelva el servidor. */
+  /** Which number to ask for as "last". `-1` lets the server resolve it. */
   ultima: number
   onIr: (pagina: number) => void
 }) {

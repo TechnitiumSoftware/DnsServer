@@ -1,24 +1,23 @@
 /*
-Las primitivas de texto de la consola.
+The console's text primitives.
 
-No son componentes: son tratamientos que aparecen dentro de la prosa de muchas
-pantallas —una coletilla apagada, un párrafo de entrada, un `<code>` en línea— y
-que por eso no tienen un elemento propio donde vivir. Antes cada pantalla los
-reescribía, y el copiado se notaba: el monoespaciado de «My Profile» había
-perdido las cifras tabulares y era un paso más pequeño que el del resto, y el
-párrafo de «Forgot Password» iba a 1,65 de interlínea contra 1,6 de los otros
-cuatro. Nadie decidió ninguna de las dos cosas; salieron de teclear lo mismo
-seis veces.
+They are not components: they are treatments that appear inside the prose of many
+screens —a muted suffix, an intro paragraph, an inline `<code>`— and which
+therefore have no element of their own to live in. Each screen used to rewrite
+them, and the copying showed: the monospacing in "My Profile" had lost its tabular
+figures and was one step smaller than everywhere else, and the "Forgot Password"
+paragraph ran at 1.65 line-height against 1.6 in the other four. Nobody decided
+either of those; they came out of typing the same thing six times.
 */
 
-/* Cifras y texto que se leen carácter a carácter: IPs, dominios, contadores.
-   `tabular-nums` es lo que hace que una columna de números no baile. */
+/* Figures and text read character by character: IPs, domains, counters.
+   `tabular-nums` is what stops a column of numbers from dancing. */
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* El párrafo que abre una pantalla o un bloque y explica de qué va. */
+/* The paragraph that opens a screen or a block and says what it is about. */
 .parrafo {
   margin: 0 0 var(--s-7);
   font-size: var(--t-4);
@@ -28,15 +27,15 @@ seis veces.
 
 .parrafo b { color: var(--ink); }
 
-/* La coletilla que sigue a un control: «seconds», «MB», «(0 to disable)». */
+/* The suffix that follows a control: "seconds", "MB", "(0 to disable)". */
 .coletilla {
   font-size: var(--t-3);
   color: var(--mute);
 }
 
 /*
-El `<code>` en línea. Va como `composes` en el bloque de texto que lo contenga,
-no en el `<code>`, porque quien lo escribe es la prosa: `{'…'} <code>x</code>`.
+The inline `<code>`. It goes as a `composes` on the block of text containing it,
+not on the `<code>`, because what writes it is the prose: `{'…'} <code>x</code>`.
 */
 .conCodigo code,
 .parrafo code,
@@ -49,8 +48,8 @@ no en el `<code>`, porque quien lo escribe es la prosa: `{'…'} <code>x</code>`
   padding: 0 var(--s-2);
 }
 
-/* El párrafo de ayuda de dentro de un panel: más pequeño y con la sangría del
-   cuerpo, para que no compita con el ajuste al que acompaña. */
+/* The help paragraph inside a panel: smaller and carrying the body inset, so it
+   does not compete with the setting it accompanies. */
 .ayudaPanel {
   font-size: var(--t-3);
   color: var(--mute);
@@ -59,13 +58,13 @@ no en el `<code>`, porque quien lo escribe es la prosa: `{'…'} <code>x</code>`
 }
 
 /*
-La anotación monoespaciada y apagada. Hay dos tamaños y la diferencia es real,
-así que se nombran los dos en vez de fundirlos: `.anotacion` es contenido que
-hay que poder leer —el dominio del servidor, la ruta de una clase de app, el
-agente de una sesión—; `.anotacionMinima` acompaña a otra cosa y no debe
-competir con ella —la unidad de una baldosa, el tamaño de un fichero—.
+The muted monospace annotation. There are two sizes and the difference is real,
+so both get named instead of being merged: `.anotacion` is content you have to be
+able to read —the server domain, an app class path, a session's user agent—;
+`.anotacionMinima` accompanies something else and must not compete with it —a
+tile's unit, a file's size—.
 
-Estaban escritas en seis módulos, con los dos tamaños repartidos sin criterio.
+They were written across six modules, with the two sizes handed out at random.
 */
 .anotacion {
   font-family: var(--font-mono);
@@ -79,7 +78,7 @@ Estaban escritas en seis módulos, con los dos tamaños repartidos sin criterio.
   color: var(--faint);
 }
 
-/* Una línea que no cabe y se corta con puntos suspensivos. */
+/* A line that does not fit and is cut with an ellipsis. */
 .truncado {
   overflow: hidden;
   text-overflow: ellipsis;

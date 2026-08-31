@@ -4,27 +4,27 @@ import styles from './Menu.module.css'
 import { Icono } from './Icono'
 
 /*
-El menú «⋮» de cada fila. Upstream lo resuelve con el dropdown de Bootstrap 3;
-aquí es un botón con una lista que se cierra al pulsar fuera o con Escape.
+The `⋮` menu on each row. Upstream solves it with the Bootstrap 3 dropdown; here
+it is a button with a list that closes on an outside click or on Escape.
 
-Vivía dentro de Zones y ahora es de todos, porque la regla que ordena las
-acciones de fila lo necesita en todas las tablas: **lo destructivo va aquí
-dentro**. En una fila no puede haber un «Delete» suelto al lado de un
-«Disable» —son doscientas cuarenta filas y esta consola no tiene deshacer en
-ninguna parte—, así que borrar cuesta abrir el menú. En una pantalla de detalle
-sí va fuera: allí actúas sobre un objeto que estás mirando.
+It used to live inside Zones and now belongs to everyone, because the rule that
+orders row actions needs it on every table: **destructive things go in here**. A
+row cannot have a loose "Delete" next to a "Disable" —there are two hundred and
+forty rows and this console has no undo anywhere— so deleting costs you opening
+the menu. On a detail screen it does go outside: there you act on an object you
+are looking at.
 
-No usa Radix a propósito: `DropdownMenu` traería una dependencia nueva a
-`package.json` para un componente de veinte líneas, y las primitivas del
-proyecto son deliberadamente pocas.
+It deliberately does not use Radix: `DropdownMenu` would bring a new dependency
+into `package.json` for a twenty-line component, and the project's primitives are
+deliberately few.
 
-Y es el ÚNICO menú. Había otro escrito a mano en la barra lateral —el de la
-cuenta— con su propia lista, sus propios estilos y su propio estado, y lo que se
-le había olvidado era todo lo que no se ve al mirarlo abierto: no se cerraba al
-pulsar fuera, ni con Escape, ni al rodar la página. Tres comportamientos que
-aquí ya estaban resueltos. La diferencia que sí era real —cuelga hacia arriba
-desde el pie de la barra, alineado a la izquierda, y su disparador es una fila
-ancha en vez de un botón— son los dos parámetros de abajo.
+And it is the ONLY menu. There was another one written by hand in the sidebar
+—the account one— with its own list, its own styles and its own state, and what
+it had forgotten was everything you cannot see by looking at it open: it did not
+close on an outside click, nor on Escape, nor on scroll. Three behaviours already
+solved here. The difference that was real —it hangs upwards from the foot of the
+sidebar, aligned left, and its trigger is a wide row instead of a button— is the
+two parameters below.
 */
 
 export function Menu({
@@ -35,21 +35,20 @@ export function Menu({
   comoFila = false,
   children,
 }: {
-  /** Nombre accesible; es lo único que hay cuando no lleva rótulo visible. */
+  /** Accessible name; it is all there is when it carries no visible label. */
   etiqueta: string
-  /** Texto visible. Sin él, el botón es el «⋮» compacto de una fila. */
+  /** Visible text. Without it, the button is the compact `⋮` of a row. */
   rotulo?: string
   /**
-   * Se avisa al abrir, para el menú que necesita saber el estado del servidor
-   * justo antes de enseñar sus opciones. Upstream hace lo mismo con el de
-   * bloqueo del Dashboard (`main.js:2429`): pregunta al abrir, no al pintar,
-   * porque entre una cosa y otra el ajuste puede haber cambiado en otra
-   * pestaña.
+   * Fired on open, for the menu that needs to know the server state right before
+   * showing its options. Upstream does the same with the Dashboard's blocking
+   * menu (`main.js:2429`): it asks on open, not on render, because between the
+   * two the setting may have changed in another tab.
    */
   onAbrir?: () => void
-  /** Por qué borde se alinea la lista con el disparador. */
+  /** Which edge the list aligns to against the trigger. */
   ancla?: 'derecha' | 'izquierda'
-  /** El disparador ocupa el ancho de su columna, con el rótulo a la izquierda. */
+  /** The trigger fills the width of its column, with the label on the left. */
   comoFila?: boolean
   children: (cerrar: () => void) => ReactNode
 }) {
@@ -61,24 +60,23 @@ export function Menu({
   const lista = useRef<HTMLDivElement>(null)
 
   /*
-  La lista va en `position: fixed`, medida desde el disparador, y NO absoluta
-  dentro de la fila. Absoluta no valía: la recortaban dos contenedores a la vez
-  —el grupo segmentado de acciones, que lleva `overflow: hidden` por sus
-  esquinas, y el envoltorio de la tabla, que lleva `overflow-x: auto`—, así que
-  el menú se abría y no se veía. Es el mismo motivo por el que `ui/Select` la
-  saca fija, y por el mismo motivo se cierra al rodar la página.
+  The list is `position: fixed`, measured from the trigger, and NOT absolute
+  inside the row. Absolute did not work: two containers clipped it at once —the
+  segmented actions group, which carries `overflow: hidden` for its corners, and
+  the table wrapper, which carries `overflow-x: auto`— so the menu opened and was
+  not visible. It is the same reason `ui/Select` takes its list out fixed, and the
+  same reason it closes on scroll.
   */
   /*
-  Y se abre hacia donde quepa. Un menú largo colgado de un disparador bajo se
-  salía por debajo: el de bloqueo del Dashboard son nueve opciones sobre un panel
-  a media pantalla, y las tres últimas quedaban fuera de la ventana. Sin salida,
-  además, porque este menú se cierra al rodar la página.
+  And it opens wherever it fits. A long menu hanging off a low trigger spilled
+  out the bottom: the Dashboard's blocking menu is nine options over a panel
+  halfway down the screen, and the last three fell outside the window. With no way
+  out, on top of that, because this menu closes on scroll.
 
-  Así que si abajo no cabe y arriba hay más sitio, se ancla por el borde de
-  abajo; y en cualquier caso se le pone el alto disponible como tope, con la
-  lista rodando por dentro. Lo segundo es el cinturón: aunque no quepa en
-  ninguno de los dos lados —una ventana muy baja—, todas las opciones siguen
-  siendo alcanzables.
+  So if it does not fit below and there is more room above, it anchors by its
+  bottom edge; and either way the available height is set as a cap, with the list
+  scrolling inside. The second part is the belt: even if it fits on neither side
+  —a very short window— every option is still reachable.
   */
   useLayoutEffect(() => {
     if (!abierto) { setCaja(null); return }
@@ -110,12 +108,12 @@ export function Menu({
         disparador.current?.focus()
       }
     }
-    /* Rodar la página lo cierra, pero rodar la propia lista no: desde que la
-       lista puede tener tope de alto, ese scroll es suyo.
+    /* Scrolling the page closes it, but scrolling the list itself does not: ever
+       since the list can have a height cap, that scroll is its own.
 
-       El `instanceof` no sobra: este mismo manejador atiende al `resize`, y ahí
-       el `target` es `window`, que no es un nodo. Sin la guarda, `contains()`
-       lanzaba en cada cambio de tamaño con un menú abierto. */
+       The `instanceof` is not redundant: this same handler serves `resize`, and
+       there the `target` is `window`, which is not a node. Without the guard,
+       `contains()` threw on every resize with a menu open. */
     const alRodar = (e: Event) => {
       if (e.target instanceof Node && lista.current?.contains(e.target)) return
       setAbierto(false)

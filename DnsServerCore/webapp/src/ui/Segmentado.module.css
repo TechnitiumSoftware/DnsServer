@@ -1,11 +1,10 @@
 /*
-El control segmentado: elegir UNO de un puñado de valores, con todos a la vista.
+The segmented control: pick ONE of a handful of values, with all of them in view.
 
-Vivía sólo en el Dashboard, para el periodo. Las pestañas del diálogo de
-opciones de una zona hacían lo mismo —elegir una de cinco— pero tomaban prestada
-la clase del BOTÓN DE PAGINACIÓN, así que una pestaña y un número de página se
-veían igual: dos significados con un mismo aspecto, y cualquier cambio en la
-paginación se llevaba las pestañas por delante.
+It lived only on the Dashboard, for the period. The tabs in a zone's options
+dialog did the same thing —pick one of five— but borrowed the PAGINATION BUTTON's
+class, so a tab and a page number looked identical: two meanings with one
+appearance, and any change to the pagination took the tabs down with it.
 */
 .seg {
   display: inline-flex;
@@ -16,8 +15,8 @@ paginación se llevaba las pestañas por delante.
   border-radius: var(--r-3);
 }
 
-/* Longhands y no el atajo `font:`: `inherit` no vale como componente de un
-   atajo, y con él la declaración entera se caía. */
+/* Longhands and not the `font:` shorthand: `inherit` is not valid as a component
+   of a shorthand, and with it the whole declaration was dropped. */
 .opcion {
   font-family: inherit;
   font-size: var(--t-4);
@@ -42,17 +41,17 @@ paginación se llevaba las pestañas por delante.
 }
 
 /*
-En estrecho envuelve.
+It wraps when narrow.
 
-Esta regla estaba escrita —el commit «la consola se puede usar a 390 px» la
-añadió— pero en `screens/dashboard/Dashboard.module.css`, apuntando a una clase
-que es de ESTE módulo. Con CSS Modules cada uno tiene su hash, así que nunca
-llegó a aplicarse: el selector de periodo seguía midiendo 495 px dentro de una
-ventana de 390 y sacaba el Dashboard 115 px por la derecha. Lo destapó el
-detector de clases muertas al resolver de qué módulo es cada `styles`.
+This rule was written —the commit "the console is usable at 390 px" added it— but
+in `screens/dashboard/Dashboard.module.css`, pointing at a class that belongs to
+THIS module. With CSS Modules each one has its own hash, so it never applied: the
+period picker still measured 495 px inside a 390 px window and pushed the
+Dashboard 115 px off to the right. The dead-class detector uncovered it once it
+resolved which module each `styles` belongs to.
 
-Va aquí, que es donde vive la clase y donde sirve para los dos sitios que usan
-el control: el periodo del Dashboard y las pestañas del diálogo de opciones.
+It goes here, which is where the class lives and where it serves both places that
+use the control: the Dashboard period and the options dialog's tabs.
 */
 @media (max-width: 720px) {
   .seg { flex-wrap: wrap; }

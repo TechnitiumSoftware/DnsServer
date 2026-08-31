@@ -4,37 +4,38 @@ import { Icono, type NombreIcono } from './Icono'
 import styles from './Table.module.css'
 
 /*
-Ordenación por columna. Upstream la tiene en trece tablas (`sortTable`,
-common.js:228-280) y la consola nueva la había perdido entera: con 240 zonas
-paginadas de diez en diez, «cuáles me faltan por firmar» no se podía contestar.
+Sorting by column. Upstream has it on thirteen tables (`sortTable`,
+common.js:228-280) and the new console had lost it entirely: with 240 zones
+paginated ten at a time, "which ones do I still have to sign" could not be
+answered.
 
-Se replica su regla, que no es un simple ida y vuelta:
+Its rule is replicated, and it is not a plain toggle:
 
-  · La pulsación ordena ASCENDENTE…
-  · …salvo que la columna ya esté ascendente, y entonces ordena DESCENDENTE.
+  · A click sorts ASCENDING…
+  · …unless the column is already ascending, in which case it sorts DESCENDING.
 
-Es lo que hace su burbuja: arranca en `asc` y, si la primera pasada no
-intercambia nada, se da la vuelta. Para el usuario que pulsa dos veces seguidas
-el efecto es el mismo que un interruptor; la diferencia está en la PRIMERA
-pulsación sobre una columna que ya venía ordenada, y ahí también coincidimos.
+That is what its bubble sort does: it starts at `asc` and, if the first pass
+swaps nothing, it turns around. For a user clicking twice in a row the effect is
+the same as a switch; the difference is in the FIRST click on a column that was
+already sorted, and there we match too.
 
-Y se ordena por el TEXTO QUE SE VE, en minúsculas y comparando por código de
-carácter, igual que upstream: así una columna de fechas `2026-08-26 10:48` sale
-bien sin tratarla como fecha, y el orden es el mismo que daba la consola vieja.
+And it sorts by the TEXT YOU SEE, lowercased and compared by character code, just
+like upstream: that way a column of `2026-08-26 10:48` dates comes out right
+without treating it as a date, and the order is the same the old console gave.
 */
 
 /*
-La tabla: el andamiaje, no sólo los estilos.
+The table: the scaffolding, not just the styles.
 
-Este módulo exportaba `useOrden`, `Th` y `AccionFila` —los ayudantes— y dejaba
-que cada pantalla escribiera a mano el envoltorio, la `table`, el `thead` y el
-`tbody`. Dieciocho tablas con la misma estructura tecleada dieciocho veces, y
-todo lo que la copia permite: seis de las siete tablas de datos se habían
-quedado sin la fila de «no hay nada», y la de «My Profile» acabó con una
-densidad de celda propia porque nadie la ató a la compartida.
+This module exported `useOrden`, `Th` and `AccionFila` —the helpers— and let each
+screen write the wrapper, the `table`, the `thead` and the `tbody` by hand.
+Eighteen tables with the same structure typed out eighteen times, and everything
+copying allows: six of the seven data tables had been left without their "there
+is nothing here" row, and the "My Profile" one ended up with a cell density of
+its own because nobody tied it to the shared one.
 
-Lo que se comparte ahora es la PIEZA. Lo que sigue siendo de cada pantalla es lo
-único que de verdad cambia: qué columnas hay y qué va en cada fila.
+What is shared now is the PIECE. What still belongs to each screen is the only
+thing that really changes: which columns there are and what goes in each row.
 
     <Tabla
       cabecera={<><Th …>Username</Th>…</>}
@@ -45,9 +46,9 @@ Lo que se comparte ahora es la PIEZA. Lo que sigue siendo de cada pantalla es lo
       {usuarios.map((u) => <tr key={u.username}>…</tr>)}
     </Tabla>
 
-`vacia` va explícito y no se adivina contando hijos: un `.map()` sobre una lista
-vacía entrega un array vacío, no cero hijos, y una detección que acierta por
-accidente es peor que un parámetro.
+`vacia` is explicit and not guessed by counting children: a `.map()` over an empty
+list hands back an empty array, not zero children, and a detection that is right
+by accident is worse than a parameter.
 */
 export function Tabla({
   cabecera,
@@ -59,18 +60,18 @@ export function Tabla({
   claseTabla,
   pie,
 }: {
-  /** Las celdas del `thead`; normalmente `Th` de este mismo módulo. */
+  /** The `thead` cells; normally `Th` from this same module. */
   cabecera: ReactNode
   children: ReactNode
   /** Si no hay filas que pintar. */
   vacia?: boolean
-  /** Qué decir entonces. Sin esto, una tabla vacía enseña el cuerpo en blanco. */
+  /** What to say then. Without this, an empty table shows a blank body. */
   vacio?: ReactNode
-  /** Cuántas columnas ocupa esa fila. */
+  /** How many columns that row spans. */
   columnas?: number
-  /** Para el envoltorio: el ancho máximo de una tabla estrecha, por ejemplo. */
+  /** For the wrapper: the max width of a narrow table, for example. */
   className?: string
-  /** Para la tabla: la cabecera pegajosa del diálogo «More», por ejemplo. */
+  /** For the table: the sticky header of the "More" dialog, for example. */
   claseTabla?: string
   /** La fila de pie, cuando la tabla lleva su recuento dentro. */
   pie?: ReactNode
@@ -107,7 +108,7 @@ export interface Orden {
   desc: boolean
 }
 
-/** Cómo se lee cada columna ordenable: el texto que el usuario ve en la celda. */
+/** How each sortable column is read: the text the user sees in the cell. */
 export type Claves<T> = Record<string, (fila: T) => string | number | null | undefined>
 
 function texto(v: string | number | null | undefined): string {
@@ -152,8 +153,8 @@ export function Th({
   orden?: Orden | null
   onOrdenar?: (campo: string) => void
   children?: ReactNode
-  /** Para una cabecera que upstream deja EN BLANCO y aun así se puede ordenar:
-   *  el botón necesita nombre aunque la celda no enseñe rótulo. */
+  /** For a header upstream leaves BLANK and which is still sortable: the button
+   *  needs a name even though the cell shows no label. */
   nombre?: string
 } & React.ThHTMLAttributes<HTMLTableCellElement>) {
   if (campo == null || onOrdenar == null) return <th {...rest}>{children}</th>
@@ -177,10 +178,10 @@ export function Th({
 }
 
 /*
-El botón de una acción de fila. Lleva icono y no rótulo —ver el porqué medido en
-`Table.module.css`— pero conserva su nombre en `aria-label` y en `title`, así que
-el teclado, el lector de pantalla y el globo de ayuda dicen lo mismo que decía el
-texto que ocupaba la columna.
+The button for a row action. It carries an icon and not a label —see the measured
+reasoning in `Table.module.css`— but keeps its name in `aria-label` and in
+`title`, so the keyboard, the screen reader and the tooltip all say the same thing
+the text that used to fill the column said.
 */
 export function AccionFila({
   icono,
@@ -188,7 +189,7 @@ export function AccionFila({
   ...rest
 }: {
   icono: NombreIcono
-  /** Lo que hace, en el idioma de upstream: «Options», «Disable», «Edit». */
+  /** What it does, in upstream's wording: "Options", "Disable", "Edit". */
   nombre: string
 } & Omit<React.ComponentProps<typeof Button>, 'children' | 'size' | 'icono'>) {
   return (

@@ -1,10 +1,10 @@
 /*
-Los dos estados de «aquí no hay nada» y el de «todavía no ha llegado». Antes
-había cinco tratamientos del vacío (caja de puntos, texto apagado suelto, dos
-paddings distintos, una `<b>` que a veces estaba) y tres del cargando.
+The two "there is nothing here" states and the "it has not arrived yet" one. There
+used to be five treatments of empty (dotted box, loose muted text, two different
+paddings, a `<b>` that was sometimes there) and three of loading.
 */
 
-/* Vacío de región: sustituye a una tabla, una lista o una rejilla entera. */
+/* Region empty state: it replaces a whole table, list or grid. */
 .caja {
   border: 1px dashed var(--line);
   border-radius: var(--r-4);
@@ -31,14 +31,14 @@ paddings distintos, una `<b>` que a veces estaba) y tres del cargando.
   flex-wrap: wrap;
 }
 
-/* Vacío de dentro de un panel: una línea, sin caja, que no compita con él. */
+/* Empty state inside a panel: one line, no box, not competing with it. */
 .linea {
   color: var(--faint);
   font-size: var(--t-4);
   padding: var(--s-7) 0;
 }
 
-/* Cargando: mismo sitio y mismo peso que el vacío al que va a sustituir. */
+/* Loading: same place and same weight as the empty state it will replace. */
 .cargando {
   padding: var(--s-12);
   text-align: center;

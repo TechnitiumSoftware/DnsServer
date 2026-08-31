@@ -1,6 +1,6 @@
 /*
-El disparador es el mismo hueco que un campo de texto: en un formulario, elegir
-y escribir tienen que pesar lo mismo. Lo que cambia es que éste se abre.
+The trigger is the same hole as a text field: in a form, choosing and typing have
+to weigh the same. What changes is that this one opens.
 */
 
 .disparador {
@@ -41,8 +41,8 @@ y escribir tienen que pesar lo mismo. Lo que cambia es que éste se abre.
 .disparador[aria-expanded='true'] .chevron { transform: rotate(180deg); }
 
 /*
-La lista. Va elevada de verdad —dos escalones por encima del campo— porque
-flota sobre el formulario y tiene que leerse como algo que está por delante.
+The list. It is genuinely raised —two steps above the field— because it floats
+over the form and has to read as something in front.
 */
 .lista {
   position: fixed;
@@ -73,7 +73,7 @@ flota sobre el formulario y tiene que leerse como algo que está por delante.
 .opcion[aria-disabled='true'] { color: var(--faint); cursor: default; }
 .opcion[aria-disabled='true'][data-activa='true'] { background: none; }
 
-/* Hueco fijo para la marca: sin él, elegir movería el texto de sitio. */
+/* Fixed room for the tick: without it, choosing would shift the text. */
 .marca {
   display: inline-flex;
   justify-content: center;

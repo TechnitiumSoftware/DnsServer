@@ -2,18 +2,18 @@ import type { ReactNode } from 'react'
 import styles from './Check.module.css'
 
 /*
-La casilla con etiqueta y ayuda. Estaba escrita tres veces —Settings, DHCP y
-Administration— byte a byte igual salvo el módulo de estilos.
+The checkbox with its label and help. It was written three times —Settings, DHCP
+and Administration— byte for byte identical apart from the styles module.
 
-Y trae el **conmutador**, que es el único gesto propio que se ha permitido esta
-consola. Un ajuste de sí/no no es lo mismo que marcar una fila de una tabla: el
-primero cambia cómo se comporta el servidor y se queda así, el segundo es una
-selección que dura un clic. Upstream los pinta iguales porque Bootstrap 3 sólo
-tenía casilla. Aquí el ajuste lleva conmutador y la selección sigue siendo
-casilla, que es la diferencia que la forma tenía que decir y no decía.
+And it brings the **switch**, which is the only gesture of its own this console has
+allowed itself. A yes/no setting is not the same as ticking a table row: the first
+changes how the server behaves and stays that way, the second is a selection that
+lasts one click. Upstream paints them the same because Bootstrap 3 only had a
+checkbox. Here the setting gets a switch and the selection stays a checkbox, which
+is the difference the shape had to say and was not saying.
 
-Por debajo sigue siendo un `input[type=checkbox]`: mismo teclado, mismo rol,
-mismas pruebas. Lo que cambia es lo que se ve.
+Underneath it is still an `input[type=checkbox]`: same keyboard, same role, same
+tests. What changes is what you see.
 */
 
 export function Check({
@@ -29,7 +29,7 @@ export function Check({
   onChange: (v: boolean) => void
   help?: ReactNode
   disabled?: boolean
-  /** Un ajuste que se queda puesto. Falso para una selección de fila. */
+  /** A setting that stays put. False for a row selection. */
   conmutador?: boolean
 }) {
   return (

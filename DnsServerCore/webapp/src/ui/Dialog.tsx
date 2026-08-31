@@ -5,17 +5,17 @@ import { Icono } from './Icono'
 import styles from './Dialog.module.css'
 
 /*
-El pie NO es texto libre. Cuando lo era, 23 modales ponían la acción primero y
-17 la ponían última, y en cinco de ellos la acción era destructiva: `Delete` y
-`Close` intercambiaban de sitio entre dos diálogos de la misma pantalla.
+The footer is NOT free text. When it was, 23 modals put the action first and 17
+put it last, and in five of them the action was destructive: `Delete` and `Close`
+swapped places between two dialogs on the same screen.
 
-Aquí el orden es del componente, no de quien lo usa:
+Here the order belongs to the component, not to whoever uses it:
 
-    [ acciones … ] [ Close ]
+    [ actions … ] [ Close ]
 
-`acciones` son los botones que HACEN algo; el de descartar lo pinta `Dialog` y
-va siempre el último, en la esquina donde upstream lo tenía en sus 40 modales.
-Así ningún modal nuevo puede volver a elegir su propio orden.
+`acciones` are the buttons that DO something; the dismiss one is painted by
+`Dialog` and always goes last, in the corner upstream had it in all 40 of its
+modals. That way no new modal can pick its own order again.
 */
 
 export function Dialog({
@@ -31,23 +31,23 @@ export function Dialog({
   onOpenChange: (open: boolean) => void
   title: string
   children: ReactNode
-  /** Los botones que hacen algo. El de descartar no se pasa: lo pone Dialog. */
+  /** The buttons that do something. The dismiss one is not passed: Dialog adds it. */
   acciones?: ReactNode
-  /** Rótulo del botón de descartar. `Cancel` cuando el modal es una pregunta. */
+  /** Label for the dismiss button. `Cancel` when the modal is a question. */
   cerrar?: string
   /**
-   * La talla, que la decide el CONTENIDO y no el gusto:
+   * The size, decided by the CONTENT and not by taste:
    *
-   * · `compacto` — una pregunta y dos botones. El literal de confirmación más
-   *   largo de la consola mide 405 px con la tipografía real, así que en 440
-   *   caben todos en un renglón. Upstream no tiene esta talla porque sus
-   *   confirmaciones son `confirm()` del navegador.
-   * · `formulario` — campos con sus rótulos. Los que upstream deja en 600.
-   * · `medio` — formularios largos y tablas estrechas. Los 750-800 de upstream.
-   * · `ancho` — tablas de verdad. Los 940 de upstream.
+   * · `compacto` — a question and two buttons. The longest confirmation literal
+   *   in the console measures 405 px in the real typeface, so at 440 they all fit
+   *   on one line. Upstream does not have this size because its confirmations are
+   *   the browser's `confirm()`.
+   * · `formulario` — fields with their labels. The ones upstream leaves at 600.
+   * · `medio` — long forms and narrow tables. Upstream's 750-800.
+   * · `ancho` — real tables. Upstream's 940.
    *
-   * Los escalones son los de upstream, que sí decidía modal por modal; las
-   * cifras son más bajas porque nuestra tipografía va más apretada.
+   * The steps are upstream's, which did decide modal by modal; the figures are
+   * lower because our typography runs tighter.
    */
   tamano?: 'compacto' | 'formulario' | 'medio' | 'ancho'
 }) {

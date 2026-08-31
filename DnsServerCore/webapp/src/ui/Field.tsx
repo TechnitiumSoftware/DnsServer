@@ -15,7 +15,7 @@ export function Field({ label, children }: { label: string; children: (id: strin
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   mono?: boolean
-  /** React 19 pasa `ref` como una prop normal, pero hay que declararla. */
+  /** React 19 passes `ref` as a normal prop, but it still has to be declared. */
   ref?: Ref<HTMLInputElement>
 }
 
@@ -28,8 +28,8 @@ export function Input({ mono, className, ...rest }: InputProps) {
   )
 }
 
-/** Campo con etiqueta asociada por `htmlFor`, que es lo que permite consultarlo
- *  en las pruebas con `getByLabelText` igual que lo haría un lector de pantalla. */
+/** A field with its label associated via `htmlFor`, which is what lets the tests
+ *  query it with `getByLabelText` exactly as a screen reader would. */
 export function LabeledInput({ label, mono, ...rest }: InputProps & { label: string }) {
   return <Field label={label}>{(id) => <Input id={id} mono={mono} {...rest} />}</Field>
 }
@@ -48,21 +48,21 @@ export function Textarea({ mono, className, ...rest }: TextareaProps) {
   )
 }
 
-/** Área de texto con etiqueta asociada, para poder consultarla por su nombre. */
+/** A textarea with an associated label, so it can be queried by its name. */
 export function LabeledTextarea({ label, mono, ...rest }: TextareaProps & { label: string }) {
   return <Field label={label}>{(id) => <Textarea id={id} mono={mono} {...rest} />}</Field>
 }
 
 /*
-El desplegable vive en `ui/Select`: ya no es un `<select>` nativo, así que no
-toma `SelectHTMLAttributes` sino su lista de opciones. Se re-exporta desde aquí
-porque las pantallas lo piden junto al resto de campos.
+The dropdown lives in `ui/Select`: it is no longer a native `<select>`, so it does
+not take `SelectHTMLAttributes` but its list of options. It is re-exported from
+here because the screens ask for it alongside the rest of the fields.
 */
 import { Select, type Opcion } from './Select'
 
 export { Select, type Opcion }
 
-/** Desplegable con etiqueta asociada. Lo pidieron las fases 6 y 7. */
+/** A dropdown with an associated label. Phases 6 and 7 asked for it. */
 export function LabeledSelect({
   label,
   ...rest

@@ -1,7 +1,7 @@
 /*
-La píldora de estado. Había seis copias de `.tag` idénticas y cuatro juegos de
-modificadores distintos, con `.tagInfo` en azul en Zones y en ámbar en Apps: la
-misma píldora significaba una cosa en una pantalla y otra en la de al lado.
+The state pill. There were six identical copies of `.tag` and four different sets
+of modifiers, with `.tagInfo` blue in Zones and amber in Apps: the same pill meant
+one thing on one screen and another on the next.
 */
 
 .tag {
@@ -17,15 +17,15 @@ misma píldora significaba una cosa en una pantalla y otra en la de al lado.
   white-space: nowrap;
 }
 
-/* Los tonos son los de `ui/tonos.module.css`, compartidos con el aviso. */
+/* The tones come from `ui/tonos.module.css`, shared with the alert. */
 .ok   { composes: ok from './tonos.module.css'; }
 .warn { composes: warn from './tonos.module.css'; }
 .dan  { composes: dan from './tonos.module.css'; }
 .info { composes: info from './tonos.module.css'; }
 
 /*
-El chip de código: un tipo de registro (`A`, `SOA`), la clase de un app. No es
-una píldora de estado —no juzga nada—, así que ni es redonda ni lleva color.
+The code chip: a record type (`A`, `SOA`), an app's class. It is not a state pill
+—it judges nothing— so it is neither round nor coloured.
 */
 .chip {
   display: inline-block;

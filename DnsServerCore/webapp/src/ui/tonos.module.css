@@ -1,10 +1,10 @@
 /*
-Los cuatro tonos semánticos: fondo, borde y texto de cada uno.
+The four semantic tones: background, border and text for each.
 
-Los aplican dos componentes —el aviso (`ui/Alert`) y la píldora (`ui/Tag`)— y
-estaban escritos en los dos, con nombres distintos para lo mismo
-(`success/warning/danger` contra `ok/warn/dan`). Doce declaraciones para cuatro
-decisiones, y añadir un tono quinto obligaba a acordarse de los dos ficheros.
+Two components apply them —the alert (`ui/Alert`) and the pill (`ui/Tag`)— and they
+were written in both, with different names for the same thing
+(`success/warning/danger` against `ok/warn/dan`). Twelve declarations for four
+decisions, and adding a fifth tone meant remembering both files.
 */
 
 .ok   { background: var(--ok-bg);   border-color: var(--ok-bd);   color: var(--ok); }

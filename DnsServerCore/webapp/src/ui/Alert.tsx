@@ -3,17 +3,17 @@ import { Icono } from './Icono'
 import styles from './Alert.module.css'
 
 /*
-Réplica de `showAlert` de la consola antigua (common.js:202-217): un tipo, un
-título en negrita, el texto a continuación y una «×» para descartarlo.
+A replica of the old console's `showAlert` (common.js:202-217): a type, a bold
+title, the text after it and a "×" to dismiss it.
 
-La «×» no es adorno: en upstream el aviso se puede cerrar, así que quitarla
-sería quitar comportamiento. Se detectó comparando lado a lado contra la
-instancia de referencia.
+The "×" is not decoration: in upstream the alert can be closed, so removing it
+would be removing behaviour. It was caught by comparing side by side against the
+reference instance.
 
-Y **los avisos de éxito se van solos a los cinco segundos**, como allí
-(`common.js:213-217`, sólo los `success`). Faltaba: era una diferencia real de
-comportamiento, y de las que se notan, porque un «Settings Saved!» que no se va
-nunca acaba tapando el siguiente aviso.
+And **success alerts dismiss themselves after five seconds**, as they do there
+(`common.js:213-217`, `success` only). It was missing: it was a real behavioural
+difference, and a noticeable one, because a "Settings Saved!" that never goes away
+ends up covering the next alert.
 */
 export type AlertType = 'success' | 'info' | 'warning' | 'danger'
 
@@ -30,9 +30,9 @@ export function Alert({
   children?: ReactNode
   onDismiss?: () => void
 }) {
-  // El descarte se guarda en una ref: los sitios que lo pasan escriben una
-  // función nueva en cada render, y como dependencia reiniciaría el reloj
-  // eternamente y no saltaría nunca.
+  // The dismiss callback is kept in a ref: the places that pass it write a new
+  // function on every render, and as a dependency it would restart the timer
+  // forever and never fire.
   const descartar = useRef(onDismiss)
   descartar.current = onDismiss
 
@@ -40,8 +40,8 @@ export function Alert({
     if (type !== 'success' || onDismiss == null) return
     const t = setTimeout(() => descartar.current?.(), AUTO_DESCARTE_MS)
     return () => clearTimeout(t)
-    // El reloj arranca de nuevo con cada aviso nuevo, aunque el anterior fuera
-    // también un éxito: es lo que hace upstream, que rehace el nodo entero.
+    // The timer restarts with each new alert, even if the previous one was also
+    // a success: that is what upstream does, since it rebuilds the whole node.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, title, children])
 

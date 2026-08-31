@@ -2,19 +2,18 @@ import type { ReactNode } from 'react'
 import styles from './TablaEditable.module.css'
 
 /*
-La tabla de una lista que se edita en el sitio: las claves TSIG, los
-reenviadores, las rutas estáticas de un scope, los mapas de grupos de SSO, los
-permisos de una sección.
+The table of a list edited in place: the TSIG keys, the forwarders, a scope's
+static routes, the SSO group maps, a section's permissions.
 
-Es otra pieza que la tabla de datos (`ui/Table`) y debe serlo: aquella es el
-objeto principal de una pantalla, con su panel y su borde; ésta vive DENTRO de
-un panel, pegada a sus campos, y por eso va sin caja y más apretada. Lo que
-comparten —el rótulo de columna en versalitas— sale de los mismos tokens.
+It is a different piece from the data table (`ui/Table`) and it must be: that one
+is a screen's main object, with its panel and its border; this one lives INSIDE a
+panel, up against its fields, and that is why it goes without a box and tighter.
+What they share —the small-caps column label— comes from the same tokens.
 
-Existe como componente por lo mismo que la otra: el andamiaje estaba escrito
-cinco veces. Tres módulos definían además su propia clase con los mismos valores
-copiados a mano, y ahí es donde una acabó con 0.07em de interletrado y las demás
-con 0.05.
+It exists as a component for the same reason as the other one: the scaffolding was
+written five times. Three modules also defined their own class with the same values
+copied by hand, and that is where one ended up with 0.07em of letter-spacing and
+the rest with 0.05.
 */
 export function TablaEditable({
   cabecera,

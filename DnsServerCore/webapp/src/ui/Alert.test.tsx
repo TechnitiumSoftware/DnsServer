@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Alert } from './Alert'
 
-/* common.js:213-217 — sólo los avisos de éxito se van solos, y a los 5 s. */
+/* common.js:213-217 — only success alerts dismiss themselves, and after 5 s. */
 
 afterEach(() => vi.useRealTimers())
 

@@ -1,16 +1,16 @@
 /*
-La tabla de una lista que se edita en el sitio: las claves TSIG, los
-reenviadores, las rutas estáticas de un scope, los mapas de grupos de SSO.
+The table of a list edited in place: the TSIG keys, the forwarders, a scope's
+static routes, the SSO group maps.
 
-No es la tabla de datos de `ui/Table.module.css` y no debe parecerlo: aquella es
-el objeto principal de una pantalla —con su panel, su borde y su sombra— y ésta
-vive DENTRO de un panel, apretada contra sus campos. Por eso va sin caja, sin
-fondo en la cabecera y con la celda más estrecha.
+It is not the data table of `ui/Table.module.css` and must not look like it: that
+one is a screen's main object —with its panel, its border and its shadow— and this
+one lives INSIDE a panel, tight against its fields. That is why it goes without a
+box, without a header background and with a narrower cell.
 
-Lo que sí comparten es el rótulo: la cabecera de columna es la misma versalita
-que la de cualquier otra tabla (`--rotulo-*` en tokens). Antes no lo era —iba a
-0.07em— y además esta tabla estaba escrita TRES veces, en Settings, en DHCP y en
-Administration, con los mismos valores copiados a mano.
+What they do share is the label: the column header is the same small caps as any
+other table's (`--rotulo-*` in tokens). It was not before —it ran at 0.07em— and on
+top of that this table was written THREE times, in Settings, in DHCP and in
+Administration, with the same values copied by hand.
 */
 .tabla {
   width: 100%;

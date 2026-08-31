@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Icono } from './Icono'
 import styles from './Detalles.module.css'
 
-/** Un `<details>` con el chevron del juego de iconos. Ver el módulo de estilos. */
+/** A `<details>` with the icon set's chevron. See the styles module. */
 export function Detalles({
   resumen,
   children,

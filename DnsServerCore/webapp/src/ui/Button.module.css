@@ -1,8 +1,8 @@
 /*
-Dos tamaños y tres variantes, y nada más. Antes las acciones de fila usaban
-`.ib` —definida tres veces, con tres opacidades distintas al deshabilitar— en
-nueve pantallas y el `Button` normal en DHCP, así que la misma acción se veía
-de dos maneras según la tabla.
+Two sizes and three variants, and nothing else. Row actions used to use `.ib`
+—defined three times, with three different disabled opacities— on nine screens
+and the normal `Button` in DHCP, so the same action looked two different ways
+depending on the table.
 */
 
 .btn {
@@ -30,7 +30,7 @@ de dos maneras según la tabla.
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn:focus-visible { outline: var(--focus); outline-offset: var(--focus-offset); }
 
-/* El de una fila de tabla: no compite con el dato de la fila. */
+/* The one in a table row: it does not compete with the row's data. */
 .sm {
   font-size: var(--t-3);
   font-weight: 400;
@@ -39,21 +39,21 @@ de dos maneras según la tabla.
 }
 
 /*
-Sólo para el pequeño SIN variante. `.sm:hover` es una clase más una
-pseudo-clase, así que le ganaba a `.primary` —una clase sola— y un primario
-pequeño se aclaraba al pasar el ratón: texto `--ink` sobre el ámbar, 1.69:1. No
-se vio hasta que hubo el primer `size="sm" variant="primary"` de la consola, en
-el «Show» del rango personalizado del Dashboard.
+Only for the small one WITHOUT a variant. `.sm:hover` is a class plus a
+pseudo-class, so it beat `.primary` —a class alone— and a small primary got
+lighter on hover: `--ink` text over the amber, 1.69:1. It was not seen until the
+console had its first `size="sm" variant="primary"`, on the "Show" of the
+Dashboard's custom range.
 */
 .sm:not(.primary):not(.danger):hover:not(:disabled) { color: var(--ink); }
 
-/* Un botón que se queda pulsado —los filtros «Glue» y «RRSIG»— lo dice con el
-   color de acento, no sólo con `aria-pressed`. */
+/* A button that stays pressed —the "Glue" and "RRSIG" filters— says so with the
+   accent colour, not only with `aria-pressed`. */
 .btn[aria-pressed='true'] { color: var(--acc); border-color: var(--acc); }
 
-/* El primario lleva su propio filo, más marcado porque el ámbar aguanta más luz.
-   El texto es oscuro y no blanco por una razón medida: blanco sobre `#f5a524`
-   da 2.04:1 y no llega ni al mínimo de texto grande; el oscuro da 9.09:1. */
+/* The primary carries its own edge, stronger because amber takes more light. The
+   text is dark and not white for a measured reason: white over `#f5a524` gives
+   2.04:1 and does not even reach the large-text minimum; dark gives 9.09:1. */
 .primary {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%), var(--acc);
   border-color: var(--acc);
@@ -63,20 +63,21 @@ el «Show» del rango personalizado del Dashboard.
 }
 
 /*
-El hover del primario ACLARABA un 6 %, y sobre `--acc` eso da 1.108:1 —por debajo
-del 1.20 que esta consola se fijó al arreglar `--hover`, y el mismo orden de
-magnitud que aquel defecto—. Aclarar más no cabe: el canal rojo de `#f5a524` ya
-está en 245 y satura antes de llegar al umbral. Se oscurece, que es lo único que
-alcanza. Y se quita el `border-color: var(--acc)`, que era lo que el botón ya
-valía en reposo: no hacía nada.
+The primary's hover LIGHTENED by 6 %, and over `--acc` that gives 1.108:1 —below
+the 1.20 this console settled on when fixing `--hover`, and the same order of
+magnitude as that defect—. Lightening further does not fit: the red channel of
+`#f5a524` is already at 245 and saturates before reaching the threshold. It
+darkens instead, which is the only thing that gets there. And the
+`border-color: var(--acc)` goes, since that was what the button was already worth
+at rest: it did nothing.
 */
 .primary:hover:not(:disabled) { filter: brightness(0.90); }  /* 1.240:1 */
 
 /*
-El destructivo va RELLENO. Sólo teñía el borde, así que el «Delete» de «Delete
-Cluster» pesaba lo mismo que el «Close» de al lado, mientras que el «Add» de un
-modal inocuo era un bloque ámbar sólido: el botón más consecuente de la pantalla
-era el más callado, y en esta consola no hay deshacer en ninguna parte.
+The destructive one is FILLED. It only tinted the border, so the "Delete" in
+"Delete Cluster" weighed the same as the "Close" beside it, while the "Add" of a
+harmless modal was a solid amber block: the most consequential button on the
+screen was the quietest, and this console has no undo anywhere.
 */
 .danger {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 65%), var(--dan-fill);
@@ -86,9 +87,9 @@ era el más callado, y en esta consola no hay deshacer en ninguna parte.
 }
 
 /*
-En una FILA de tabla no: ahí «Delete» se repite una vez por fila y un bloque
-rojo por fila convierte la tabla en una alarma. Se queda en texto rojo, y el
-relleno aparece al apuntarlo y al enfocarlo con el teclado.
+Not in a table ROW: there "Delete" repeats once per row and a red block per row
+turns the table into an alarm. It stays as red text, and the fill appears on hover
+and on keyboard focus.
 */
 .sm.danger {
   background: var(--pan2);

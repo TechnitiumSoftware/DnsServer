@@ -1,7 +1,8 @@
 /*
-La paginación, una sola. Había dos: en Zones el botón activo era transparente
-con borde ámbar y medía 26 px; en Logs era ámbar sólido y medía 24. Gana el
-sólido, que es lo dibujado y lo que se distingue de un vistazo.
+Pagination, a single one. There were two: in Zones the active button was
+transparent with an amber border and measured 26 px; in Logs it was solid amber and
+measured 24. The solid one wins, which is what was drawn and what is told apart at
+a glance.
 */
 
 .pg { display: flex; gap: var(--s-2); flex-wrap: wrap; }

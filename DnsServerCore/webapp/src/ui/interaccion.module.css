@@ -1,15 +1,14 @@
 /*
-Agrandar el objetivo sin agrandar el dibujo.
+Enlarge the target without enlarging the drawing.
 
-En una tabla densa, un enlace de 70×20 px es lo correcto visualmente y lo
-incorrecto para el dedo: la recomendación son 44 px y aquí hay seis controles
-entre 14 y 20 px de alto —el nombre de una zona, la cabecera ordenable, el
-enlace de un usuario—. Agrandarlos de verdad rompería la tabla, que es lo que
-esta consola hace mejor.
+In a dense table, a 70×20 px link is visually right and wrong for a finger: the
+recommendation is 44 px and there are six controls here between 14 and 20 px tall
+—a zone name, the sortable header, a user's link—. Actually enlarging them would
+break the table, which is what this console does best.
 
-`.golpe` extiende el ÁREA SENSIBLE con un pseudo-elemento invisible, sin mover
-un píxel de lo que se ve. El control sigue midiendo 20 px y se pulsa como si
-midiera 36.
+`.golpe` extends the HIT AREA with an invisible pseudo-element, without moving a
+single pixel of what is seen. The control still measures 20 px and is clicked as
+if it measured 36.
 */
 .golpe {
   position: relative;
@@ -19,6 +18,6 @@ midiera 36.
   content: '';
   position: absolute;
   inset: -8px -6px;
-  /* Sólo amplía el blanco: no debe tapar lo que tenga al lado. */
+  /* It only widens the target: it must not cover whatever sits beside it. */
   z-index: var(--capa-golpe);
 }

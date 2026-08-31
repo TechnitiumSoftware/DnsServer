@@ -3,22 +3,23 @@ import type { Aviso } from '../lib/aviso'
 import styles from './Alert.module.css'
 
 /*
-El hueco del aviso de una pantalla o de un modal: si hay aviso, se pinta; si no,
-no hay nada. Y siempre con el mismo aire debajo.
+The alert slot of a screen or a modal: if there is an alert, it is painted; if
+not, there is nothing. And always with the same air beneath it.
 
-Existía como componente dentro de Administration y lo usaba UNA pantalla; las
-otras cincuenta escribían el mismo `{aviso && (<Alert …>{aviso.text}</Alert>)}` a
-mano. De ahí salieron tres distancias distintas para lo mismo, medidas en el
-navegador forzando un fallo del servidor:
+It existed as a component inside Administration and ONE screen used it; the other
+fifty wrote the same `{aviso && (<Alert …>{aviso.text}</Alert>)}` by hand. Out of
+that came three different distances for the same thing, measured in the browser by
+forcing a server failure:
 
-  · 24 px en Zones, sus doce modales, Listas, Administration, Dashboard, DNS
-    Client y Apps, que envolvían el aviso en un `div` con margen;
-  · 14 px en DHCP y en Logs, donde el aviso iba suelto dentro del contenedor
-    `flex` de la pantalla y se quedaba con su `gap`;
-  · 12 px en los cuatro modales de cuenta, por lo mismo dentro del diálogo.
+  · 24 px in Zones, its twelve modals, the lists screens, Administration, the
+    Dashboard, DNS Client and Apps, which wrapped the alert in a `div` with a
+    margin;
+  · 14 px in DHCP and in Logs, where the alert sat loose inside the screen's
+    `flex` container and kept its `gap`;
+  · 12 px in the four account modals, for the same reason inside the dialog.
 
-Se queda en 24, que es `--hueco-bloque` —el token que nombra la distancia entre
-bloques independientes— y el que ya tenían las tres cuartas partes.
+It settles at 24, which is `--hueco-bloque` —the token that names the distance
+between independent blocks— and the one three quarters of them already had.
 */
 export function Avisador({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: () => void }) {
   if (aviso == null) return null

@@ -1,14 +1,13 @@
 /*
-La fila de una lista lateral seleccionable: el árbol de zonas y listas, y los
-ficheros de Logs. Se pulsa, se resalta al pasar por encima y una de ellas es la
-que se está viendo.
+The row of a selectable side list: the zones and lists tree, and the Logs files.
+It is clickable, it highlights on hover, and one of them is the one being viewed.
 
-Estaba escrita dos veces. Los ESTADOS coincidían byte a byte —el mismo
-`--hover-fuerte` al pasar, el mismo `--pan2` y `--acc` en la actual—, así que
-sólo eran dos sitios donde tocar lo mismo. La densidad NO coincidía, y ésa sí es
-una decisión: el árbol es una jerarquía de muchos nodos y se lee mejor apretado;
-la lista de ficheros son cuatro entradas. Se separa en `.fila` y `.compacta`,
-que es nombrar la diferencia en vez de tenerla escondida en dos paddings.
+It was written twice. The STATES matched byte for byte —the same `--hover-fuerte`
+on hover, the same `--pan2` and `--acc` on the current one— so they were just two
+places to touch the same thing. The density did NOT match, and that one is a real
+decision: the tree is a hierarchy of many nodes and reads better tight; the file
+list is four entries. It splits into `.fila` and `.compacta`, which is naming the
+difference instead of leaving it hidden in two paddings.
 */
 
 .fila {
@@ -27,7 +26,7 @@ que es nombrar la diferencia en vez de tenerla escondida en dos paddings.
   text-align: left;
 }
 
-/* El árbol: misma fila, menos aire, porque hay muchas y van anidadas. */
+/* The tree: same row, less air, because there are many and they nest. */
 .compacta {
   composes: fila;
   gap: var(--s-4);

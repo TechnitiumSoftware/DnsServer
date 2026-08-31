@@ -1,7 +1,7 @@
 /*
-Reemplaza las catorce copias de `.hrow` / `.zt` / `.tags` / `.acts` que cada
-módulo de sección se había hecho por su cuenta. Todos los valores salen de
-`theme/tokens.css`: aquí no se escribe un px suelto.
+Replaces the fourteen copies of `.hrow` / `.zt` / `.tags` / `.acts` that each
+section module had made for itself. Every value comes from `theme/tokens.css`:
+not a single loose px is written here.
 */
 
 .hrow {
@@ -15,8 +15,8 @@ módulo de sección se había hecho por su cuenta. Todos los valores salen de
 .izq { min-width: 0; }
 
 /*
-El camino. En caja normal y a tamaño de cuerpo: en versalitas apretadas se leería
-como un antetítulo de revista, que es adorno, y esto es navegación.
+The path. In normal case and at body size: in tight small caps it would read as a
+magazine kicker, which is decoration, and this is navigation.
 */
 .camino {
   display: flex;
@@ -34,7 +34,7 @@ como un antetítulo de revista, que es adorno, y esto es navegación.
   word-break: break-word;
 }
 
-/* Cuando la pantalla es un detalle, el tramo es además el camino de vuelta. */
+/* When the screen is a detail view, the crumb is also the way back. */
 .ctx {
   font-family: inherit;
   font-size: var(--t-4);
@@ -61,13 +61,13 @@ button.ctx:hover { color: var(--acc); }
   gap: var(--s-4);
   flex-wrap: wrap;
   justify-content: flex-end;
-  /* Se alinea con el título, no con el antetítulo: si no, la barra de acciones
-     de una sección con sub-pestañas queda más alta que la de una sin ellas. */
+  /* It aligns with the title, not with the kicker: otherwise the action bar of a
+     section with sub-tabs sits higher than that of one without. */
   padding-top: var(--s-1);
 }
 
-/* En estrecho el título y la barra de acciones se apilan: si no, la columna del
-   título se estrecha hasta partir el nombre de la sección letra a letra. */
+/* When narrow the title and the action bar stack: otherwise the title column
+   narrows until it breaks the section name letter by letter. */
 @media (max-width: 720px) {
   .hrow {
     flex-direction: column;
@@ -82,14 +82,15 @@ button.ctx:hover { color: var(--acc); }
 }
 
 /*
-La columna de una pantalla cuya cabecera va dentro de un contenedor `flex` con
-`gap`. Vive aquí y no en las pantallas porque lo que corrige es esta cabecera.
+The column of a screen whose header sits inside a `flex` container with `gap`. It
+lives here and not in the screens because what it corrects is this header.
 
-El hueco bajo el título es `--hueco-bloque` en toda la consola. En estas
-pantallas se llevaba 38 px en vez de 24 porque en flex el hueco SE SUMA al
-margen del hijo: la cabecera aportaba sus 24 y el contenedor otros 14. Se resta,
-y la resta se escribe UNA vez: el hueco del contenedor vive en `--hueco` y las
-dos reglas lo leen de ahí, así que cambiarlo no vuelve a descuadrar el título.
+The gap under the title is `--hueco-bloque` across the whole console. On these
+screens it came to 38 px instead of 24 because in flex the gap ADDS to the child's
+margin: the header contributed its 24 and the container another 14. It is
+subtracted, and the subtraction is written ONCE: the container's gap lives in
+`--hueco` and both rules read it from there, so changing it does not knock the
+title out of line again.
 */
 .pantalla {
   --hueco: var(--s-9);
@@ -98,5 +99,5 @@ dos reglas lo leen de ahí, así que cambiarlo no vuelve a descuadrar el título
   gap: var(--hueco);
 }
 
-/* La cabecera de sección, que siempre es el primer hijo. */
+/* The section header, which is always the first child. */
 .pantalla > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }

@@ -13,25 +13,26 @@ import { Icono } from './Icono'
 import styles from './Select.module.css'
 
 /*
-El desplegable, hecho aquí.
+The dropdown, built here.
 
-Antes era el `<select>` del sistema operativo con un chevron pintado encima: la
-caja cerrada casi colaba, pero al abrirlo salía la lista del sistema —fuente,
-tamaño, colores y esquinas del SO— y la consola cambiaba de aspecto según la
-máquina. Y por eso «se veía muy igual»: la mitad del control no era nuestra.
+It used to be the operating system's `<select>` with a chevron painted on top:
+the closed box almost passed, but on opening it the system list appeared —the
+OS's font, size, colours and corners— and the console changed appearance
+depending on the machine. And that is why it "looked very much the same": half
+the control was not ours.
 
-Se reconstruye como listbox con las reglas de la especificación ARIA:
+It is rebuilt as a listbox following the ARIA specification's rules:
 
-  · el disparador es `combobox`, con `aria-expanded` y `aria-activedescendant`
-  · la lista es `listbox` y cada línea `option` con `aria-selected`
-  · teclado completo: ↑ ↓ Inicio Fin, Enter y Espacio abren y eligen, Esc cierra
-    devolviendo el foco, y escribir salta a la opción que empieza por ahí
-  · el foco no se mueve a la lista, así que el lector de pantalla sigue
-    anunciando el campo y su etiqueta
+  · the trigger is a `combobox`, with `aria-expanded` and `aria-activedescendant`
+  · the list is a `listbox` and each line an `option` with `aria-selected`
+  · full keyboard: ↑ ↓ Home End, Enter and Space open and choose, Esc closes and
+    returns focus, and typing jumps to the option starting with it
+  · focus does not move into the list, so the screen reader keeps announcing the
+    field and its label
 
-La lista va en `position: fixed` calculada desde el disparador, no absoluta: si
-no, dentro de un modal —que tiene `overflow: auto`— quedaría recortada. Por lo
-mismo se cierra al hacer scroll, que es lo que hace el `select` nativo.
+The list is `position: fixed` computed from the trigger, not absolute: otherwise,
+inside a modal —which has `overflow: auto`— it would be clipped. For the same
+reason it closes on scroll, which is what the native `select` does.
 */
 
 export interface Opcion {
@@ -43,11 +44,11 @@ export interface Opcion {
 const ALTO_MAX = 280
 
 /*
-Las opciones se leen de los hijos `<option>`, como en el elemento que sustituye.
-Se podría haber pedido un array y obligar a reescribir los veinticinco sitios
-que lo usan, pero entonces el cambio dejaría de ser sólo de diseño: cada uno de
-esos sitios es una lista con su lógica —claves TSIG, catálogos, tipos de
-registro, algoritmos DNSSEC— y reescribirla es una oportunidad de romperla.
+The options are read from the `<option>` children, as in the element it replaces.
+It could have taken an array and forced a rewrite of the twenty-five places that
+use it, but then the change would stop being design-only: each of those places is
+a list with its own logic —TSIG keys, catalogs, record types, DNSSEC algorithms—
+and rewriting it is an opportunity to break it.
 */
 function opcionesDeHijos(children: ReactNode): Opcion[] {
   const fuera: Opcion[] = []
@@ -78,10 +79,10 @@ export function Select({
   id?: string
   value: string | number
   children?: ReactNode
-  /** La misma firma que el elemento nativo, para no tocar quien ya lo usa. */
+  /** The same signature as the native element, so existing callers are untouched. */
   onChange?: (e: { target: { value: string } }) => void
   disabled?: boolean
-  /** Qué poner cuando el valor no está entre las opciones. */
+  /** What to show when the value is not among the options. */
   placeholder?: string
   className?: string
   ref?: Ref<HTMLButtonElement>
@@ -117,7 +118,7 @@ export function Select({
     cerrar()
   }
 
-  // La caja se mide justo antes de pintar, para que no dé un salto visible.
+  // The box is measured right before painting, so it does not visibly jump.
   useLayoutEffect(() => {
     if (!abierto) { setCaja(null); return }
     const r = disparador.current?.getBoundingClientRect()
@@ -135,8 +136,8 @@ export function Select({
     }
     const alRodar = () => setAbierto(false)
     document.addEventListener('mousedown', fuera)
-    // `true` para enterarse también del scroll de un contenedor, no sólo del de
-    // la página: dentro de un modal el que rueda es el modal.
+    // `true` so it also hears a container's scroll, not only the page's:
+    // inside a modal the thing that scrolls is the modal.
     window.addEventListener('scroll', alRodar, true)
     window.addEventListener('resize', alRodar)
     return () => {
@@ -146,11 +147,11 @@ export function Select({
     }
   }, [abierto])
 
-  // La opción marcada se mantiene a la vista al moverse con el teclado.
+  // The selected option is kept in view when moving with the keyboard.
   useEffect(() => {
     if (!abierto) return
     const marcada = lista.current?.querySelector('[data-activa="true"]')
-    // `scrollIntoView` no existe en jsdom, y tampoco pasa nada si no está.
+    // `scrollIntoView` does not exist in jsdom, and nothing breaks without it.
     marcada?.scrollIntoView?.({ block: 'nearest' })
   }, [abierto, activo])
 
@@ -198,7 +199,7 @@ export function Select({
         break
     }
 
-    // Escribir salta a la opción que empieza por lo tecleado, como el nativo.
+    // Typing jumps to the option starting with what was typed, like the native one.
     if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       const ahora = Date.now()
       teclas.current.texto = ahora > teclas.current.hasta ? e.key : teclas.current.texto + e.key
@@ -226,9 +227,9 @@ export function Select({
         onKeyDown={alTeclado}
       >
         {/*
-        Una opción sin rótulo —el «cualquiera» de un filtro— se dibuja con una
-        raya, igual que dentro de la lista. Vacío del todo, el control se lee
-        como una caja rota en vez de como «no hay nada elegido».
+        An option with no label —a filter's "any"— is drawn with a dash, just as
+        it is inside the list. Completely empty, the control reads as a broken box
+        rather than as "nothing is selected".
         */}
         <span className={elegida?.label ? styles.valor : styles.vacio}>
           {elegida?.label || placeholder || '—'}
@@ -275,7 +276,7 @@ export function Select({
   )
 }
 
-/** El siguiente índice utilizable en esa dirección; si no hay, se queda donde está. */
+/** The next usable index in that direction; if there is none, it stays put. */
 function primeraUtil(opciones: Opcion[], desde: number, paso: number, actual = desde): number {
   for (let i = desde; i >= 0 && i < opciones.length; i += paso) {
     if (!opciones[i].disabled) return i
@@ -283,7 +284,7 @@ function primeraUtil(opciones: Opcion[], desde: number, paso: number, actual = d
   return actual
 }
 
-/** Une la referencia interna con la que pueda pasar quien usa el componente. */
+/** Merges the internal ref with whatever the caller may pass. */
 function fusionar(propia: React.RefObject<HTMLButtonElement | null>, fuera?: Ref<HTMLButtonElement>) {
   return (nodo: HTMLButtonElement | null) => {
     propia.current = nodo

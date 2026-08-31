@@ -1,14 +1,14 @@
 /*
-Las celdas de una tabla de registros DNS. Las usan Zones —los registros de una
-zona— y Listas —las entradas de Allowed y Blocked—, que son la misma tabla
-mirando dos sitios distintos, y las tenían escritas dos veces cada una.
+The cells of a DNS records table. Zones uses them —a zone's records— and the
+lists screens too —the Allowed and Blocked entries— which are the same table
+looking at two different places, and each had them written twice.
 
-Son celdas y no componentes porque el marcado cambia (un `<td>`, un `<dd>`, un
-`<span>` dentro de un valor compuesto); lo que no cambia, y no debe, es cómo se
-leen.
+They are cells and not components because the markup changes (a `<td>`, a `<dd>`,
+a `<span>` inside a compound value); what does not change, and must not, is how
+they read.
 */
 
-/* El TTL: monoespaciado y sin partir, con su unidad más apagada al lado. */
+/* The TTL: monospaced and unbroken, with its unit muted beside it. */
 .ttl {
   composes: mono from './texto.module.css';
   white-space: nowrap;
@@ -16,18 +16,18 @@ leen.
 
 .ttl small { color: var(--faint); }
 
-/* Una clave pública o un hexadecimal: se parte por caracteres, no por palabras,
-   porque no tiene ninguna. */
+/* A public key or a hex string: it breaks by characters, not by words, because
+   it has none. */
 .clave {
   word-break: break-all;
   color: var(--mute);
 }
 
 /*
-«show full», el botón que despliega esa clave. Iba dentro de una clave truncada
-y medía 62×17 en un sitio y 44×18 en otro: dos tamaños para el mismo control, y
-los dos por debajo del mínimo de 24. `.golpe` amplía el objetivo sin mover el
-dibujo. Y `nowrap`: la clave que lo precede se parte, el botón NO.
+"show full", the button that expands that key. It sat inside a truncated key and
+measured 62×17 in one place and 44×18 in another: two sizes for the same control,
+and both below the 24 minimum. `.golpe` enlarges the target without moving the
+drawing. And `nowrap`: the key preceding it breaks, the button does NOT.
 */
 .verlo {
   composes: golpe from './interaccion.module.css';
@@ -41,7 +41,7 @@ dibujo. Y `nowrap`: la clave que lo precede se parte, el botón NO.
   white-space: nowrap;
 }
 
-/* La línea de detalle bajo el valor de un registro. */
+/* The detail line under a record's value. */
 .meta {
   margin-top: var(--s-4);
   font-size: var(--t-2);

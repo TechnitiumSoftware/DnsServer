@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { Menu } from './Menu'
 
 /*
-De esta pieza, jsdom sólo puede contestar la mitad: no hay maquetación, así que
-`getBoundingClientRect()` devuelve ceros y no tiene sentido afirmar aquí que el
-menú se voltea cuando no cabe —eso está medido en el navegador, con la ventana a
-900 y a 560 px—. Lo que sí puede contestar es la conducta, y en particular el
-fallo que introdujo el volteo: el manejador que cierra el menú al rodar la
-página lo comparte el `resize`, y ahí el `target` es `window`, que no es un
-nodo.
+For this piece, jsdom can only answer half: there is no layout, so
+`getBoundingClientRect()` returns zeros and there is no point asserting here that
+the menu flips when it does not fit —that is measured in the browser, with the
+window at 900 and at 560 px—. What it can answer is the behaviour, and in
+particular the bug the flipping introduced: the handler that closes the menu on
+scroll is shared with `resize`, and there the `target` is `window`, which is not a
+node.
 */
 function Ejemplo({ comoFila = false }: { comoFila?: boolean } = {}) {
   return (
@@ -59,11 +59,11 @@ describe('Menu', () => {
   })
 
   /*
-  El disparador de fila es el de la cuenta, al pie de la barra lateral. Estaba
-  escrito aparte, con su propio estado, y se le habían olvidado justo las tres
-  cosas que no se ven mirándolo abierto: no cerraba al pulsar fuera, ni con
-  Escape, ni al rodar. Ahora es este mismo menú, así que las hereda; esta prueba
-  es lo que impide que vuelva a escribirse por su cuenta.
+  The row trigger is the account one, at the foot of the sidebar. It was written
+  separately, with its own state, and it had forgotten precisely the three things
+  you cannot see by looking at it open: it did not close on an outside click, nor
+  on Escape, nor on scroll. Now it is this same menu, so it inherits them; this
+  test is what stops it being written on its own again.
   */
   it('el disparador de fila cierra al pulsar fuera, igual que el de botón', async () => {
     render(

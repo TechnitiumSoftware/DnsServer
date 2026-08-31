@@ -4,28 +4,29 @@ import { Dialog } from './Dialog'
 import texto from './texto.module.css'
 
 /*
-El paso de «¿seguro?».
+The "are you sure?" step.
 
-Upstream lo resuelve con `confirm()` nativo; el texto y el paso son los mismos,
-porque sigue haciendo falta confirmar antes de que salga la petición.
+Upstream solves it with a native `confirm()`; the text and the step are the same,
+because you still need to confirm before the request goes out.
 
-Estaba escrito seis veces: una como componente dentro de Administration —de
-donde lo importaban el Dashboard, Zones y Listas, que no tienen nada que ver con
-Administration—, otra como componente dentro de Settings, y cuatro a pelo con
-`Dialog` + un botón + `cerrar="Cancel"` + `tamano="compacto"` en Logs, DHCP y
-otra vez Zones y Listas. Esta consola no tiene deshacer en ninguna parte, así
-que el sitio donde menos conviene tener seis versiones es justo éste.
+It was written six times: once as a component inside Administration —from where
+the Dashboard, Zones and the lists screens imported it, none of which have
+anything to do with Administration— another as a component inside Settings, and
+four times bare with `Dialog` + one button + `cerrar="Cancel"` +
+`tamano="compacto"` in Logs, DHCP and again Zones and the lists. This console has
+no undo anywhere, so the place where six versions are least welcome is precisely
+this one.
 
-De las seis, dos —Zones y Listas— llevaban el «ocupado» y el cierre DENTRO del
-diálogo, y las otras cuatro se lo pedían a cada sitio de llamada. La primera
-forma es mejor y no hace falta una segunda API para tenerla: si `onConfirmar`
-devuelve una promesa, este componente deshabilita el botón mientras dura y
-cierra al acabar. Quien ya lleva su propio estado sigue pasando `ocupado`.
+Of the six, two —Zones and the lists— kept the "busy" flag and the closing INSIDE
+the dialog, and the other four asked each call site for them. The first form is
+better and no second API is needed to have it: if `onConfirmar` returns a promise,
+this component disables the button while it runs and closes when it settles.
+Whoever already tracks their own state keeps passing `ocupado`.
 
-No cubre el diálogo de «Remove Lease?», y es a propósito: ése no es una
-confirmación de una línea sino cuatro párrafos de advertencia con su lista de
-alternativas y su hueco para un aviso del servidor. Que quepa en `texto` no lo
-convierte en lo mismo.
+It does not cover the "Remove Lease?" dialog, and that is deliberate: that one is
+not a one-line confirmation but four paragraphs of warning with its list of
+alternatives and its slot for a server alert. That it would fit in `texto` does
+not make it the same thing.
 */
 export function Confirmar({
   abierto,
@@ -40,12 +41,12 @@ export function Confirmar({
   abierto: boolean
   titulo: string
   texto: ReactNode
-  /** El verbo de la acción: «Delete», «Convert», «Disable». */
+  /** The action's verb: "Delete", "Convert", "Disable". */
   etiqueta: string
   variante?: 'primary' | 'danger'
   ocupado?: boolean
   onCerrar: () => void
-  /** Si devuelve una promesa, el diálogo se ocupa mientras dura y cierra al acabar. */
+  /** If it returns a promise, the dialog stays busy while it runs and closes when it settles. */
   onConfirmar: () => unknown
 }) {
   const [enCurso, setEnCurso] = useState(false)
@@ -73,8 +74,9 @@ export function Confirmar({
       cerrar="Cancel"
       tamano="compacto"
     >
-      {/* `pre-wrap`: hay confirmaciones de varias líneas —las de Zones— y sin
-          esto se leían como un párrafo corrido en una pantalla y no en otra. */}
+      {/* `pre-wrap`: there are multi-line confirmations —the Zones ones— and
+          without this they read as one run-on paragraph on one screen and not on
+          another. */}
       <div className={texto.parrafo} style={{ whiteSpace: 'pre-wrap' }}>
         {cuerpo}
       </div>

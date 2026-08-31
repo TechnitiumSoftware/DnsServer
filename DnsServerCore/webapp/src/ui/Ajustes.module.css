@@ -1,27 +1,26 @@
 /*
-El formulario-de-panel: bloques con título, fila etiqueta/control, listas
-editables y la barra pegajosa de guardar. Lo usan Settings y DHCP, que son los
-dos formularios grandes de la consola.
+The panel-form kit: blocks with a title, label/control rows, editable lists and
+the sticky save bar. Settings and DHCP use it, the two big forms in the console.
 
-Estaba escrito dos veces. El fichero de DHCP lo explicaba: «la fase 6 es de otro
-agente y acoplar dos pantallas por sus componentes de presentación convierte
-cualquier retoque de Settings en un cambio en DHCP». Eso resolvía un problema de
-coordinación mientras se construía, y su factura se pagó en la pantalla: la
-barra de acciones de Settings flotaba con sombra y la de DHCP no; el aviso
-«Note!» iba sangrado en DHCP y a ras en Settings; el `<code>` de la ayuda partía
-palabras largas en una y no en la otra. Ninguna de las tres cosas se decidió.
+It was written twice. DHCP's file explained why: "phase 6 belongs to another
+agent, and coupling two screens through their presentation components turns any
+tweak in Settings into a change in DHCP". That solved a coordination problem while
+it was being built, and its bill was paid on screen: Settings' action bar floated
+with a shadow and DHCP's did not; the "Note!" alert was indented in DHCP and flush
+in Settings; the `<code>` in the help broke long words in one and not in the
+other. None of the three was decided.
 
-Vive en `ui/` y no en una de las dos pantallas, que es lo que impide que volver a
-tocarlo signifique que una pantalla mande sobre la otra.
+It lives in `ui/` and not in one of the two screens, which is what stops touching
+it again from meaning one screen rules over the other.
 */
 
-/* Lo propio del bloque: la caja la pinta `ui/Panel`. */
+/* Only what belongs to the block: the box is painted by `ui/Panel`. */
 .block {
   margin: 0 0 var(--s-9) 0;
   padding-bottom: var(--s-9);
 }
 
-/* Control y coletilla en la misma línea: «3600  seconds». */
+/* Control and suffix on the same line: "3600  seconds". */
 .enLinea {
   display: flex;
   align-items: center;
@@ -29,14 +28,14 @@ tocarlo signifique que una pantalla mande sobre la otra.
   flex-wrap: wrap;
 }
 
-/* Sólo lo propio del área: la caja la pone `ui/Field`. */
+/* Only what belongs to the textarea: the box comes from `ui/Field`. */
 .area {
   width: 100%;
   max-width: 560px;
   resize: vertical;
 }
 
-/* La sangría del cuerpo del panel, para lo que va suelto entre filas. */
+/* The panel body's inset, for whatever sits loose between rows. */
 .avisos {
   margin: var(--s-3) var(--s-9) 0 var(--s-9);
   display: flex;
@@ -68,9 +67,9 @@ tocarlo signifique que una pantalla mande sobre la otra.
 .editable input { width: 100%; }
 .tdel { width: 74px; }
 
-/* La barra de guardar, pegada al fondo del área de contenido. Flota sobre el
-   formulario, así que lleva elevación: sin ella el contenido pasa por debajo
-   sin que nada diga que hay dos planos. */
+/* The save bar, stuck to the bottom of the content area. It floats over the
+   form, so it carries elevation: without it the content slides underneath with
+   nothing saying there are two planes. */
 .bar {
   display: flex;
   align-items: center;
@@ -87,8 +86,8 @@ tocarlo signifique que una pantalla mande sobre la otra.
 
 .spacer { flex: 1; }
 
-/* En estrecho la barra se apila y el separador elástico deja de tener sentido:
-   con él, «Backup Settings» se salía de la pantalla. */
+/* When narrow the bar stacks and the elastic spacer stops making sense: with it,
+   "Backup Settings" fell off the screen. */
 @media (max-width: 720px) {
   .spacer { display: none; }
   .bar { padding: var(--s-7) var(--s-8); }

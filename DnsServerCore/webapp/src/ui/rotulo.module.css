@@ -1,19 +1,18 @@
 /*
-El rótulo en versalitas, UNA vez.
+The small-caps label, ONCE.
 
-Es la etiqueta pequeña que dice «esto de aquí es X»: la cabecera de una columna,
-el título de un panel, el nombre de un grupo de campos. Estaba escrita en
-catorce sitios con tres tamaños (`--t-1`, `--t-2`, `--t-3`) y cuatro
-interletrados (.04, .05, .07 y .09 em), así que dos paneles vecinos no se
-parecían y las cabeceras de tabla no se parecían a los títulos de bloque —siendo
-lo mismo: el rótulo de una caja—.
+It is the small tag that says "this thing here is X": a column header, a panel
+title, the name of a group of fields. It was written in fourteen places with three
+sizes (`--t-1`, `--t-2`, `--t-3`) and four letter-spacings (.04, .05, .07 and
+.09 em), so two neighbouring panels did not look alike and table headers did not
+look like block titles —being the same thing: the label of a box—.
 
-Los valores son los que ya decía el fichero de tokens: `--t-1` está definido
-como «rótulo en versalitas, cabecera de tabla, píldora», y era justo lo que la
-cabecera de tabla NO usaba. El interletrado es el que más se repetía (.05em, en
-siete de los catorce).
+The values are the ones the tokens file already stated: `--t-1` is defined as
+"small-caps label, table header, pill", and that was exactly what the table header
+was NOT using. The letter-spacing is the one that repeated most (.05em, in seven
+of the fourteen).
 
-Se aplica con `composes:`, no copiándolo.
+It is applied with `composes:`, not by copying it.
 */
 .versalita {
   font-size: var(--rotulo-tam);

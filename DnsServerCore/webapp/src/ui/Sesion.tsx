@@ -2,7 +2,7 @@ import { Tag } from './Tag'
 import styles from './Sesion.module.css'
 import texto from './texto.module.css'
 
-/** Lo que las tres tablas de sesiones necesitan de una sesión. */
+/** What the three sessions tables need from a session. */
 export interface Sesion {
   partialToken: string
   tokenName: string | null
@@ -14,12 +14,13 @@ export interface Sesion {
 }
 
 /*
-La celda «Session»: nombre del token si lo tiene, el token parcial, «(current)»
-si es ésta, y el tipo como etiqueta. Es el orden de upstream (`auth.js:694-719`)
-y las tres tablas lo pintan igual.
+The "Session" cell: the token name if it has one, the partial token, "(current)"
+if it is this one, and the type as a tag. It is upstream's order
+(`auth.js:694-719`) and all three tables paint it the same.
 
-Un tipo que no se reconoce sale como «Unknown» en ámbar, que es lo que hace
-upstream con su `default`: callarlo sería peor que decir que no se sabe.
+A type that is not recognised comes out as "Unknown" in amber, which is what
+upstream does with its `default`: staying silent would be worse than saying it is
+not known.
 */
 export function CeldaSesion({ sesion }: { sesion: Pick<Sesion, 'partialToken' | 'tokenName' | 'isCurrentSession' | 'type'> }) {
   const etiqueta =
@@ -43,7 +44,7 @@ export function CeldaSesion({ sesion }: { sesion: Pick<Sesion, 'partialToken' | 
   )
 }
 
-/** La celda «Last Seen»: la fecha, y debajo cuánto hace. */
+/** The "Last Seen" cell: the date, and beneath it how long ago. */
 export function CeldaUltimaVez({ fecha, hace }: { fecha: string; hace: string }) {
   return (
     <>

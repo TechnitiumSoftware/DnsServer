@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { Avisador } from './Avisador'
 
 /*
-El aire que deja debajo se mide en el navegador, no aquí: jsdom no maqueta. Lo
-que sí puede contestar es el contrato, que es lo que cincuenta sitios escribían
-a mano —y de ahí salieron cuatro distancias para lo mismo—.
+The air it leaves beneath is measured in the browser, not here: jsdom does not lay
+out. What it can answer is the contract, which is what fifty places were writing by
+hand —and out of that came four distances for the same thing—.
 */
 describe('Avisador', () => {
   it('sin aviso no pinta nada', () => {

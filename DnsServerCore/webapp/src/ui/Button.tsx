@@ -4,9 +4,9 @@ import styles from './Button.module.css'
 export type ButtonVariant = 'primary' | 'secondary' | 'danger'
 
 /*
-`size="sm"` es el botón de una fila de tabla. Existía como `.ib` copiada en
-tres módulos y no existía en DHCP, que usaba el botón grande: la misma acción
-—«Edit»— se veía distinta según la pantalla en la que estuvieras.
+`size="sm"` is the button for a table row. It existed as `.ib` copied across three
+modules and did not exist in DHCP, which used the large button: the same action
+—"Edit"— looked different depending on which screen you were on.
 */
 export function Button({
   variant = 'secondary',
@@ -18,7 +18,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   size?: 'md' | 'sm'
-  /** Sin rótulo: sólo un icono. El ancho lo da el icono, no el texto. */
+  /** No label: an icon only. The width comes from the icon, not from text. */
   icono?: boolean
   ref?: Ref<HTMLButtonElement>
 }) {

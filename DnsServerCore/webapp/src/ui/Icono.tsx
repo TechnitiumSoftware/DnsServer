@@ -1,19 +1,19 @@
 import type { ReactElement, SVGProps } from 'react'
 
 /*
-El juego de iconos de la consola, dibujado aquí.
+The console's icon set, drawn here.
 
-Antes eran caracteres Unicode —`▣ ◆ ○ ✓ ⊘ ⊞ ⌕ ⚙ ▤ ☺ ≡ ⓘ`— y eso tiene dos
-problemas y medio: cada sistema operativo los pinta con su propia fuente, así
-que la consola cambiaba de aspecto según la máquina; no comparten grosor ni
-rejilla, porque no son un juego sino doce símbolos sueltos de tablas distintas;
-y `☺` para Administration es literalmente una carita sonriente.
+They used to be Unicode characters —`▣ ◆ ○ ✓ ⊘ ⊞ ⌕ ⚙ ▤ ☺ ≡ ⓘ`— and that has two
+and a half problems: every operating system paints them with its own font, so the
+console changed appearance depending on the machine; they share neither stroke
+weight nor grid, because they are not a set but twelve loose symbols from
+different tables; and `☺` for Administration is literally a smiley face.
 
-No se puede traer una librería: la CSP del servidor es `default-src 'self'` sin
-`font-src` (DnsWebService.cs:1969-1975), así que ni CDN ni fuente de iconos. Van
-como SVG en línea, que además es lo que permite que hereden el color del texto.
+A library cannot be brought in: the server's CSP is `default-src 'self'` with no
+`font-src` (DnsWebService.cs:1969-1975), so no CDN and no icon font. They go as
+inline SVG, which is also what lets them inherit the text colour.
 
-Rejilla de 24, trazo de 1.75 y remates redondos, los mismos para los veintiuno.
+24 grid, 1.75 stroke and round caps, the same for all twenty-one.
 */
 
 const TRAZO = {
@@ -33,7 +33,7 @@ export type NombreIcono =
 
 const TRAZADOS: Record<NombreIcono, ReactElement> = {
   // ── Secciones ─────────────────────────────────────────────────────────
-  /* Un panel con sus medidas: el cuadro de mando. */
+  /* A panel with its readings: the dashboard. */
   dashboard: (
     <>
       <rect x="3" y="3" width="7.5" height="8.5" rx="1.5" />
@@ -42,7 +42,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <rect x="13.5" y="11" width="7.5" height="10" rx="1.5" />
     </>
   ),
-  /* Un árbol de dominio: la raíz y sus ramas. Es lo que es una zona. */
+  /* A domain tree: the root and its branches. That is what a zone is. */
   zones: (
     <>
       <path d="M12 3v5" />
@@ -54,7 +54,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <circle cx="12" cy="10.5" r="1.5" />
     </>
   ),
-  /* Capas apiladas: lo que está guardado a la espera de volver a servirse. */
+  /* Stacked layers: what is stored waiting to be served again. */
   cache: (
     <>
       <ellipse cx="12" cy="5.5" rx="8" ry="2.75" />
@@ -62,21 +62,21 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M4 11.5v6c0 1.5 3.6 2.75 8 2.75s8-1.25 8-2.75v-6" />
     </>
   ),
-  /* Escudo con visto: lo que pasa. */
+  /* Shield with a tick: what gets through. */
   allowed: (
     <>
       <path d="M12 3 5 6v5.5c0 4.2 2.9 8 7 9.5 4.1-1.5 7-5.3 7-9.5V6z" />
       <path d="m9 12 2.2 2.2L15.5 10" />
     </>
   ),
-  /* Escudo con aspa: lo que no pasa. */
+  /* Shield with a cross: what does not. */
   blocked: (
     <>
       <path d="M12 3 5 6v5.5c0 4.2 2.9 8 7 9.5 4.1-1.5 7-5.3 7-9.5V6z" />
       <path d="m9.5 9.5 5 5m0-5-5 5" />
     </>
   ),
-  /* Un módulo que se enchufa al servidor. */
+  /* A module that plugs into the server. */
   apps: (
     <>
       <rect x="4" y="8" width="16" height="12" rx="2" />
@@ -84,7 +84,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M9.5 14h5" />
     </>
   ),
-  /* Una consulta que sale y una respuesta que vuelve. */
+  /* A query going out and an answer coming back. */
   dnsclient: (
     <>
       <path d="M4 9h11" />
@@ -104,7 +104,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <circle cx="11" cy="17" r="2" />
     </>
   ),
-  /* Una asignación: la dirección que se reparte a un equipo. */
+  /* An assignment: the address handed out to a machine. */
   dhcp: (
     <>
       <rect x="3" y="4" width="18" height="9" rx="2" />
@@ -114,7 +114,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M12 13v4" />
     </>
   ),
-  /* Una llave: quién puede qué. Ni carita ni persona. */
+  /* A key: who can do what. Not a smiley, not a person. */
   admin: (
     <>
       <circle cx="8" cy="12" r="4" />
@@ -123,7 +123,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M20 11v2.5" />
     </>
   ),
-  /* Renglones de registro, uno más corto porque el último está a medias. */
+  /* Log lines, one shorter because the last one is mid-write. */
   logs: (
     <>
       <path d="M4.5 6.5h15" />
@@ -166,8 +166,8 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" />
     </>
   ),
-  /* Encender y apagar: el mismo símbolo para los dos estados, porque la
-     columna «Status» ya dice en cuál está. */
+  /* Power on and off: the same symbol for both states, because the "Status"
+     column already says which one it is in. */
   energia: (
     <>
       <path d="M12 3v9" />
@@ -199,7 +199,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M4 17h16" />
     </>
   ),
-  /* Los tres puntos del menú de una fila. Rellenos, no trazados. */
+  /* The three dots of a row menu. Filled, not stroked. */
   mas: (
     <g fill="currentColor" stroke="none">
       <circle cx="12" cy="5.5" r="1.6" />
@@ -207,7 +207,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <circle cx="12" cy="18.5" r="1.6" />
     </g>
   ),
-  /* La doble punta de una columna ordenable, sin dirección todavía. */
+  /* The double arrowhead of a sortable column, with no direction yet. */
   orden: (
     <>
       <path d="m8 10 4-4 4 4" />

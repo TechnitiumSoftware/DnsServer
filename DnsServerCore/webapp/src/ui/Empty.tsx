@@ -2,20 +2,20 @@ import type { ReactNode } from 'react'
 import styles from './Empty.module.css'
 
 /*
-Un vacío se pinta de dos maneras y no más:
+An empty state is painted in two ways and no more:
 
-  · `Empty` — el vacío de una REGIÓN, el que ocupa el sitio de la tabla o la
-    rejilla que no tiene filas. Caja de puntos, centrado, con título y, si el
-    usuario puede hacer algo al respecto, el botón que lo hace.
-  · `Empty compacto` — el vacío de DENTRO de un panel, una línea apagada que no
-    compite con el panel que la contiene.
+  · `Empty` — a REGION's empty state, the one that takes the place of the table or
+    grid that has no rows. Dotted box, centred, with a title and, if the user can
+    do something about it, the button that does it.
+  · `Empty compacto` — the empty state INSIDE a panel, a muted line that does not
+    compete with the panel containing it.
 
-Y `Loading` y `Fallo` son el mismo hueco antes del dato: uno mientras viaja y
-otro cuando no llegó. Mismo sitio y mismo peso que el vacío al que sustituyen,
-para que la pantalla no salte al resolverse.
+And `Loading` and `Fallo` are the same slot before the data: one while it travels
+and the other when it never arrived. Same place and same weight as the empty state
+they replace, so the screen does not jump when it resolves.
 
-`Fallo` estaba escrito a mano en cuatro módulos —`.fail` en Settings, DHCP, Logs
-y Administration— con los mismos cuatro valores que ya tenía `.cargando` aquí.
+`Fallo` was written by hand in four modules —`.fail` in Settings, DHCP, Logs and
+Administration— with the same four values `.cargando` already had here.
 */
 
 export function Empty({
@@ -24,9 +24,9 @@ export function Empty({
   acciones,
   compacto = false,
 }: {
-  /** Qué es lo que no hay. Sólo en el vacío de región. */
+  /** What it is that is not there. Region empty state only. */
   titulo?: string
-  /** Por qué no lo hay, o qué hacer para que lo haya. */
+  /** Why it is not there, or what to do so that it is. */
   children?: ReactNode
   acciones?: ReactNode
   compacto?: boolean
@@ -46,14 +46,14 @@ export function Loading({
   children = 'Loading…',
   compacto = false,
 }: {
-  /** Qué se está cargando, cuando decirlo ayuda: «Loading DS records…». */
+  /** What is loading, when saying so helps: "Loading DS records…". */
   children?: ReactNode
   compacto?: boolean
 }) {
   return <div className={`${styles.cargando}${compacto ? ` ${styles.linea}` : ''}`}>{children}</div>
 }
 
-/** El dato no llegó. Ocupa el mismo hueco que el `Loading` al que sustituye. */
+/** The data never arrived. It fills the same slot as the `Loading` it replaces. */
 export function Fallo({ children }: { children: ReactNode }) {
   return <div className={styles.cargando}>{children}</div>
 }

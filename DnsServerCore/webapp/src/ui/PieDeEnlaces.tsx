@@ -3,8 +3,8 @@ import { CREDITO_TEMA, PIE } from '../app/pie'
 import styles from './PieDeEnlaces.module.css'
 
 /**
- * Los enlaces del pie de upstream, y debajo el crédito del tema —lo único que
- * esta consola añade aquí—. Ver `app/pie.ts` y el módulo de estilos.
+ * Upstream's footer links, and beneath them the theme credit —the only thing this
+ * console adds here—. See `app/pie.ts` and the styles module.
  */
 export function PieDeEnlaces({ className }: { className?: string }) {
   return (

@@ -1,34 +1,34 @@
-/* El velo y el contenido van a la misma capa y se ordenan entre sí por el orden
-   del DOM. Sin esta declaración el cabecero pegajoso les pasaba por encima. */
+/* The veil and the content go on the same layer and order themselves by DOM
+   order. Without this declaration the sticky header painted over them. */
 .overlay { position: fixed; inset: 0; z-index: var(--capa-dialogo); background: rgba(5, 7, 10, 0.72); }
 /*
-Scrollea el CUERPO, no el diálogo entero.
+The BODY scrolls, not the whole dialog.
 
-Antes el `overflow: auto` estaba aquí, en la caja completa, y eso tenía dos
-consecuencias que sólo se ven con un diálogo alto y una ventana baja —medido con
-«Restore Settings», 880 px de contenido en una ventana de 700—:
+`overflow: auto` used to be here, on the whole box, and that had two consequences
+you only see with a tall dialog and a short window —measured with "Restore
+Settings", 880 px of content in a 700 px window—:
 
-  · el pie quedaba en `y=858`, o sea **fuera de la pantalla**: había que
-    descubrir que se podía scrollear para encontrar los botones de la acción;
-  · y al scrollear, el título se iba a `y=-196`, así que dejabas de saber en qué
-    diálogo estabas justo cuando más lejos habías llegado de su principio.
+  · the footer sat at `y=858`, i.e. **off screen**: you had to discover you could
+    scroll in order to find the action buttons;
+  · and on scrolling, the title went to `y=-196`, so you stopped knowing which
+    dialog you were in exactly when you had gone furthest from its start.
 
-Con el cuerpo como única zona que rueda, el título y las acciones no se mueven
-nunca. El `min-height: 0` no es adorno: sin él un hijo flexible se niega a
-encogerse por debajo de su contenido y el scroll no aparece.
+With the body as the only scrolling area, the title and the actions never move.
+The `min-height: 0` is not decoration: without it a flex child refuses to shrink
+below its content and the scrollbar never appears.
 */
 /*
-Se centra con `inset: 0` y `margin: auto`, y NO con `transform`.
+It is centred with `inset: 0` and `margin: auto`, and NOT with `transform`.
 
-Un `transform` crea bloque contenedor para sus descendientes con `position:
-fixed`, así que la lista de `ui/Select` y la de `ui/Menu` —que se colocan fijas,
-midiendo su disparador contra la ventana— aparecían corridas justo lo que medía
-el desplazamiento del centrado. Medido en «User Details»: el disparador terminaba
-en `x=489 y=594` y la lista salía en `x=770 y=308`, o sea **281 px a la derecha y
-287 por encima**. Y como el puntero nunca llegaba a ella, al mover el ratón se
-cerraba: parecía que «desaparecía al hacer hover».
+A `transform` creates a containing block for its `position: fixed` descendants,
+so `ui/Select`'s list and `ui/Menu`'s —which position themselves fixed, measuring
+their trigger against the viewport— appeared shifted by exactly the centring
+offset. Measured in "User Details": the trigger ended at `x=489 y=594` and the
+list came out at `x=770 y=308`, i.e. **281 px to the right and 287 above**. And
+since the pointer never reached it, moving the mouse closed it: it looked like it
+"disappeared on hover".
 
-Centrar con márgenes automáticos da el mismo resultado sin crear ese bloque.
+Centring with auto margins gives the same result without creating that block.
 */
 .content {
   position: fixed; z-index: var(--capa-dialogo);
@@ -39,33 +39,33 @@ Centrar con márgenes automáticos da el mismo resultado sin crear ese bloque.
   box-shadow: var(--e-3), var(--filo);
 }
 /*
-Los que llevan tabla dentro. El dibujo daba 760 px, pero ninguno de sus modales
-tenía la tabla de claves DNSSEC —siete columnas— ni la de permisos: a 760 px las
-dos vuelven al scroll horizontal, que es justo lo que este ancho evita. Se queda
-en 880 y NO se usa para texto: un diálogo de prosa a 880 px da renglones de 130
-caracteres.
+The ones with a table inside. The comp gave 760 px, but none of its modals had
+the DNSSEC keys table —seven columns— or the permissions one: at 760 px both go
+back to horizontal scrolling, which is exactly what this width avoids. It stays
+at 880 and is NOT used for text: a prose dialog at 880 px gives 130-character
+lines.
 */
 /*
-Cuatro tallas, y la decide el contenido —no el gusto ni la comodidad.
+Four sizes, and the content decides —not taste, not convenience.
 
-Todos medían 560 px. Y resulta que **upstream no tiene un tamaño: tiene cinco**,
-declarados a mano modal por modal (`index.html`, `style="width: …"`):
+They all measured 560 px. And it turns out **upstream does not have one size: it
+has five**, declared by hand modal by modal (`index.html`, `style="width: …"`):
 
     940 px (4)   My Profile · View DS Info · DNSSEC Properties · User Details
     800 px (1)   DNS App Store
     780 px (13)  Add Zone · Add-Edit Record · Zone Options · Sign Zone ·
-                 App Config · Edit Permissions · Create API Token · 4 de Cluster…
+                 App Config · Edit Permissions · Create API Token · 4 from Cluster…
     750 px (1)   Configure 2FA
-    600 px (21)  el resto
+    600 px (21)  the rest
 
-O sea que al aplanarlo a dos anchuras perdimos una decisión que upstream sí había
-tomado, y se notaba: «User Details» tiene una tabla de sesiones cuyas columnas
-piden **1395 px** —medido poniéndolas a `max-content`— y vivía en 560.
+So by flattening it to two widths we lost a decision upstream had actually made,
+and it showed: "User Details" has a sessions table whose columns ask for **1395
+px** —measured by setting them to `max-content`— and it lived in 560.
 
-Las cifras no son las de upstream porque nuestra tipografía y nuestro espaciado
-son más apretados —de ahí que el ancho de tabla sean 880 y no 940; ver abajo—,
-pero los escalones son los suyos. El `compacto` es el único que upstream no
-tiene, y por una razón: sus confirmaciones son `confirm()` del navegador.
+The figures are not upstream's because our typography and our spacing are tighter
+—hence the table width being 880 and not 940; see above— but the steps are theirs.
+`compacto` is the only one upstream does not have, and for a reason: its
+confirmations are the browser's `confirm()`.
 */
 .compacto { width: min(440px, calc(100vw - 32px)); }
 .formulario { width: min(560px, calc(100vw - 32px)); }
@@ -78,17 +78,17 @@ tiene, y por una razón: sus confirmaciones son `confirm()` del navegador.
   background: var(--pan2);
 }
 .title { margin: 0; font-size: var(--t-5); font-weight: 550; color: var(--ink); }
-/* La ✕ medía 28×22 y el mínimo de objetivo son 24. Es la de los 48 diálogos. */
+/* The ✕ measured 28×22 and the minimum target is 24. It is the one on all 48 dialogs. */
 .close {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 28px; min-height: 28px;
   background: none; border: 0; color: var(--faint); font-size: var(--t-6); cursor: pointer;
 }
 .body {
-  /* El hueco del cuerpo, declarado con nombre para que quien traiga su propio
-     margen inferior —el aviso— pueda restarlo: en flex el margen del hijo SE
-     SUMA al `gap`, y sin la resta el aviso quedaba a 36 px del formulario
-     dentro del diálogo y a 24 en una pantalla. Mismo mecanismo que en
+  /* The body's gap, declared under a name so that whoever brings their own
+     bottom margin —the alert— can subtract it: in flex the child's margin ADDS
+     to the `gap`, and without the subtraction the alert sat 36 px from the form
+     inside a dialog and 24 on a page. Same mechanism as in
      `SectionHeader.module.css`. */
   --hueco: var(--s-8);
   padding: var(--s-3) var(--s-10) var(--s-9);
@@ -97,17 +97,17 @@ tiene, y por una razón: sus confirmaciones son `confirm()` del navegador.
 }
 
 /*
-Y sus hijos NO se encogen.
+And its children do NOT shrink.
 
-Al pasar el scroll al cuerpo, éste dejó de crecer con su contenido y pasó a
-repartir un alto fijo entre sus hijos. Un hijo con `overflow` propio —el
-envoltorio de una tabla— tiene por regla `min-height: 0`, así que el reparto se
-lo puede llevar entero: la tabla de sesiones de «User Details» medía 814×298 y su
-contenedor **831×2**. Se veía el rótulo «Active Sessions», una línea y «Total
-Sessions: 3», y ni una fila.
+Once the scroll moved to the body, it stopped growing with its content and started
+dividing a fixed height among its children. A child with its own `overflow` —a
+table wrapper— has `min-height: 0` by rule, so the division can take all of it:
+the "User Details" sessions table measured 814×298 and its container **831×2**.
+You could see the "Active Sessions" label, one line and "Total Sessions: 3", and
+not a single row.
 
-En una columna que rueda, cada hijo vale lo que mide. Es el precio de haber
-movido el scroll, y va aquí para que no lo pague el siguiente.
+In a scrolling column, each child is worth what it measures. That is the price of
+having moved the scroll, and it goes here so the next person does not pay it.
 */
 .body > * { flex-shrink: 0; }
 .foot {

@@ -1,12 +1,12 @@
 /*
-La fila etiqueta + control, una sola. Había cuatro rejillas —210 px en página,
-180 px en los modales de Zones, 170 px en los de Administration, 110 px en el
-filtro de Logs— y dos etiquetas distintas: 600 y `--ink` en página, 400 y
-`--mute` en los modales de Zones. Con la apagada, en «Add Zone» la etiqueta se
-retiraba detrás del valor; con la fuerte, en «Add User» competía con él.
+The label + control row, a single one. There were four grids —210 px on pages,
+180 px in the Zones modals, 170 px in the Administration ones, 110 px in the Logs
+filter— and two different labels: 600 and `--ink` on pages, 400 and `--mute` in
+the Zones modals. With the muted one, in "Add Zone" the label receded behind the
+value; with the strong one, in "Add User" it competed with it.
 
-Gana la fuerte: en un formulario largo la etiqueta es lo que se busca al
-escanear, no lo que se lee después.
+The strong one wins: in a long form the label is what you look for when scanning,
+not what you read afterwards.
 */
 
 .row {
@@ -47,20 +47,19 @@ escanear, no lo que se lee después.
 }
 
 /*
-Un campo de una línea no gana nada por medir 640 px.
+A one-line field gains nothing from being 640 px wide.
 
-La columna del control es `1fr`, así que se come todo lo que sobre — y eso no se
-notaba mientras todos los diálogos midieran 560. Al darle a «User Details» los
-880 que pide su tabla de sesiones, el cuadro para escribir «admin» pasó a medir
-640 px. El tope son 420, que es el que ya usaban de hecho los formularios de
-página: medidos los 46 campos de la consola, la mediana es 174 px y el máximo 420.
+The control column is `1fr`, so it eats everything left over — and that did not
+show while every dialog was 560 wide. Once "User Details" got the 880 its sessions
+table asks for, the box for typing "admin" grew to 640 px. The cap is 420, which
+is what the page forms were already using in practice: measured across the
+console's 46 fields, the median is 174 px and the maximum 420.
 
-El tope alcanza también a una tabla que sea el control de una fila: la de
-«Member Of» de My Profile es de UNA columna y medía 831 px para un nombre de
-grupo de 82. Upstream tampoco la estira: la mete en un `col-sm-7`. Lo que queda
-fuera es el `textarea` —listas de IP, que sí aprovechan el ancho— y las tablas
-que NO son control de una fila, como la de sesiones, que necesita todo lo que
-haya.
+The cap also reaches a table that is a row's control: "Member Of" in My Profile is
+ONE column and measured 831 px for an 82 px group name. Upstream does not stretch
+it either: it puts it in a `col-sm-7`. What stays outside is the `textarea` —IP
+lists, which do use the width— and tables that are NOT a row's control, like the
+sessions one, which needs everything it can get.
 */
 .mrow input:not([type='checkbox']):not([type='radio']),
 .mrow select,
@@ -86,11 +85,11 @@ dejaba 20 px al campo: diecisiete campos de texto de Settings eran invisibles.
 }
 
 /*
-La ayuda bajo un campo, y el grupo de casillas de una fila.
+The help under a field, and the group of checkboxes in a row.
 
-Las dos estaban definidas tres veces —en Settings, en DHCP y en
-Administration— con los mismos valores copiados a mano. Es la misma historia que
-la tabla y el panel: lo que se repite acaba separándose.
+Both were defined three times —in Settings, in DHCP and in Administration— with
+the same values copied by hand. It is the same story as the table and the panel:
+what gets repeated ends up drifting apart.
 */
 .ayuda {
   composes: conCodigo from './texto.module.css';
@@ -103,7 +102,7 @@ la tabla y el panel: lo que se repite acaba separándose.
 .ayuda a { color: var(--acc); }
 
 
-/* Varias casillas o radios dentro de una misma fila. */
+/* Several checkboxes or radios inside a single row. */
 .grupo {
   display: flex;
   flex-direction: column;

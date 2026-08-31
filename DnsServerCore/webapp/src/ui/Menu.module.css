@@ -1,8 +1,8 @@
-/* El menú «⋮» de una fila. Estaba dentro de Zones; lo usan todas las tablas. */
+/* A row's `⋮` menu. It used to live inside Zones; every table uses it. */
 
 .menu { position:relative; display:inline-block; }
 
-/* El disparador que es una fila entera: el de la cuenta, al pie de la barra. */
+/* The trigger that is a whole row: the account one, at the foot of the sidebar. */
 .menuAncho { position: relative; }
 .fila {
   display: flex;
@@ -22,10 +22,10 @@
 .fila:hover { background: var(--hover-fuerte); }
 .menuLista { position:fixed; overflow-y:auto; z-index: var(--capa-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
 .sep { height:1px; margin: var(--s-2) var(--s-3); background:var(--line); }
-.menuLista button { text-align:left; border:0; background:transparent; color:var(--mute); /* Longhands y no el atajo `font:`: `inherit` no vale como componente de un
-     atajo —sólo como valor entero—, así que la declaración era inválida y el
-     navegador la tiraba. Los ítems del menú llevaban desde siempre el tamaño y
-     el peso por defecto del navegador (13 px) en vez de los de la consola. */
+.menuLista button { text-align:left; border:0; background:transparent; color:var(--mute); /* Longhands and not the `font:` shorthand: `inherit` is not valid as a
+     component of a shorthand —only as the whole value— so the declaration was
+     invalid and the browser dropped it. The menu items had always carried the
+     browser's default size and weight (13 px) instead of the console's. */
   font-family: inherit;
   font-size: var(--t-4);
   font-weight: 400;
@@ -35,21 +35,21 @@
 .menuLista button:disabled { opacity:.4; cursor:default; }
 
 /*
-Lo destructivo se marca, y aquí no se marcaba.
+Destructive things get marked, and here they were not.
 
-`Menu.tsx` dice que «lo destructivo va aquí dentro» y `ui/Table.module.css` dice
-que «el de borrar mantiene su color». Entre las dos frases se quedaba el hecho:
-las SIETE acciones de borrado de la consola —Delete Zone, Remove Lease, Delete
-Scope, Delete Session, Delete User, Delete Group, Remove Node— se pintaban en el
-mismo gris que «Export Zone». Y en cuatro de los seis menús la destructiva es la
-ÚNICA opción: se abría un menú cuyo contenido entero era una acción sin deshacer,
-sin una sola señal de que lo fuera.
+`Menu.tsx` says "destructive things go in here" and `ui/Table.module.css` says
+"delete keeps its colour". The fact fell between the two sentences: all SEVEN
+delete actions in the console —Delete Zone, Remove Lease, Delete Scope, Delete
+Session, Delete User, Delete Group, Remove Node— were painted the same grey as
+"Export Zone". And in four of the six menus the destructive one is the ONLY
+option: you opened a menu whose entire content was an action with no undo, without
+a single signal that it was one.
 
-Va en rojo y no en ámbar por una medida, no por gusto: `--warn` es
-`rgb(251,191,36)` y `--acc` `rgb(245,165,36)` —los dos son el mismo ámbar—, así
-que una opción naranja se leería como el color de acento, que en esta consola
-significa «ésta es la acción recomendada». Exactamente lo contrario. `--dan` da
-6.19:1 sobre el fondo del menú.
+It goes red and not amber for a measured reason, not a taste one: `--warn` is
+`rgb(251,191,36)` and `--acc` is `rgb(245,165,36)` —both are the same amber— so an
+orange option would read as the accent colour, which in this console means "this
+is the recommended action". Exactly the opposite. `--dan` gives 6.19:1 over the
+menu background.
 */
 .menuLista button[data-variant='danger'] { color: var(--dan); }
 

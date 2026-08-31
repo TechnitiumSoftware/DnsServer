@@ -2,15 +2,15 @@
   display: flex;
   align-items: flex-start;
   gap: var(--s-6);
-  /* El rótulo ES el objetivo: se pulsa desde el texto, no sólo desde la casilla.
-     Con 22 px de alto se quedaba corto para el dedo. */
+  /* The label IS the target: it is clicked from the text, not only from the box.
+     At 22 px tall it fell short for a finger. */
   min-height: 26px;
   padding: var(--s-2) 0;
   font-size: var(--t-4);
   cursor: pointer;
 }
 
-/* La casilla se alinea con la primera línea del rótulo, no con su caja. */
+/* The box aligns with the label's first line, not with its box. */
 .check input { margin-top: var(--s-1); }
 .check input:disabled { cursor: default; }
 .texto { min-width: 0; }
@@ -26,10 +26,9 @@
 }
 
 /*
-El conmutador. Es el mismo `input[type=checkbox]`, redibujado: el carril es la
-caja del propio input y el botón es su sombra interior desplazada, así que no
-hace falta ni un elemento de más ni un pseudo-elemento que el navegador pinte a
-su manera.
+The switch. It is the same `input[type=checkbox]`, redrawn: the track is the
+input's own box and the knob is its offset inset shadow, so neither an extra
+element nor a pseudo-element the browser paints its own way is needed.
 */
 .conmutador input {
   width: var(--ctrl-track-w);
@@ -46,7 +45,7 @@ su manera.
     border-color var(--t-rapido);
 }
 
-/* El botón: un círculo que viaja de un extremo al otro del carril. */
+/* The knob: a circle that travels from one end of the track to the other. */
 .conmutador input::after {
   content: '';
   position: absolute;

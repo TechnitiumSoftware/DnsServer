@@ -1,18 +1,18 @@
 /*
-El panel: la caja con borde donde vive un trozo de pantalla.
+The panel: the bordered box where a piece of screen lives.
 
-Estaba definido SIETE veces —`.panel` en Dashboard, DNS Client, Logs y About;
-`.block` en Settings, DHCP y Administration— y no había dos iguales:
+It was defined SEVEN times —`.panel` in Dashboard, DNS Client, Logs and About;
+`.block` in Settings, DHCP and Administration— and no two were alike:
 
-  · sombra sí en Dashboard, About y Settings; no en Logs, DNS Client, DHCP y Admin
-  · fondo de cabecera sí en Dashboard y Settings; no en los otros cinco
-  · y DOS tipografías de título para el mismo objeto: 12,5 px en caja baja unos,
-    10,5 px en versalitas otros
+  · shadow yes in Dashboard, About and Settings; no in Logs, DNS Client, DHCP and Admin
+  · header background yes in Dashboard and Settings; no in the other five
+  · and TWO title typographies for the same object: 12.5 px in sentence case for
+    some, 10.5 px in small caps for others
 
-Los valores no se eligen de cero: son los de la tabla (`ui/Table.module.css`),
-que es la superficie que más se ve en esta consola. Así un panel y una tabla son
-el mismo objeto —mismo borde, misma sombra, misma cabecera en el escalón
-elevado— en vez de dos cosas parecidas.
+The values are not chosen from scratch: they are the table's
+(`ui/Table.module.css`), which is the most-seen surface in this console. That way
+a panel and a table are the same object —same border, same shadow, same header on
+the raised step— instead of two similar things.
 */
 .panel {
   border: 1px solid var(--line);
@@ -24,11 +24,11 @@ elevado— en vez de dos cosas parecidas.
 }
 
 /*
-La cabecera va en el escalón elevado, igual que el `thead` de la tabla: separa
-el rótulo del contenido sin gastar una línea más.
+The header sits on the raised step, just like the table's `thead`: it separates
+the label from the content without spending another rule line.
 
-Es `flex` porque muchas llevan una acción a la derecha —«More», «Blocking»— y
-las que no, no lo notan.
+It is `flex` because many of them carry an action on the right —"More",
+"Blocking"— and the ones that do not never notice.
 */
 .cabecera {
   display: flex;
@@ -46,9 +46,9 @@ las que no, no lo notan.
 }
 
 /*
-Y por descendiente, para las pantallas cuyo `.ph` COMPONE esta cabecera en vez
-de usar el componente: su `h2` no lleva clase, así que no hay dónde componer.
-Los valores son los mismos tokens, que es lo que impide que se separen.
+And by descendant, for the screens whose `.ph` COMPOSES this header instead of
+using the component: their `h2` carries no class, so there is nowhere to compose
+onto. The values are the same tokens, which is what stops them drifting apart.
 */
 .cabecera h2,
 .cabecera h3 {
@@ -62,5 +62,5 @@ Los valores son los mismos tokens, que es lo que impide que se separen.
 
 .cuerpo { padding: var(--s-9); }
 
-/* Un panel sin cabecera necesita recuperar arriba el aire que ponía ella. */
+/* A panel with no header needs to recover the air the header used to give it. */
 .sinCabecera { padding-top: var(--s-9); }

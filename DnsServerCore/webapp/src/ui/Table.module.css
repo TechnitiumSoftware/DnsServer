@@ -1,14 +1,14 @@
 /*
-La tabla de la consola, una sola. Estaba copiada en cinco módulos: la misma
-regla cinco veces, con dos densidades de celda (12 px en cuatro secciones, 9 px
-en Logs y Dashboard) y sin hover de fila justo en Query Logs, que es la tabla
-más ancha de todas y la que más falta le hace para no perder el renglón.
+The console's table, a single one. It was copied across five modules: the same
+rule five times, with two cell densities (12 px in four sections, 9 px in Logs
+and Dashboard) and no row hover in Query Logs of all places, which is the widest
+table of them all and the one that needs it most to not lose your place.
 */
 
 /*
-La tabla es UN objeto, no un montón de filas sueltas sobre el fondo. En una
-consola de DNS la tabla es el producto: es donde se pasa el 90 % del tiempo, así
-que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
+The table is ONE object, not a pile of loose rows on the background. In a DNS
+console the table is the product: it is where 90 % of the time is spent, so it
+is given a body —panel, border and corners— instead of being left floating.
 */
 .wrap {
   overflow-x: auto;
@@ -20,14 +20,14 @@ que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
 
 .tabla { border-collapse: collapse; width: 100%; }
 
-/* La cabecera va en el escalón elevado: separa los rótulos del dato sin
-   necesidad de una línea más. */
+/* The header sits on the raised step: it separates the labels from the data
+   without needing another rule line. */
 .tabla thead th {
   background: var(--pan2);
   text-align: left;
-  /* El mismo rótulo que el título de un panel: ver `--rotulo-*` en tokens. La
-     cabecera de tabla iba a `--t-2` cuando el propio token `--t-1` dice, desde
-     que se escribió, «rótulo en versalitas, cabecera de tabla, píldora». */
+  /* The same label as a panel title: see `--rotulo-*` in tokens. The table
+     header was at `--t-2` when the `--t-1` token itself has said, ever since it
+     was written, "small-caps label, table header, pill". */
   font-size: var(--rotulo-tam);
   text-transform: uppercase;
   letter-spacing: var(--rotulo-interletrado);
@@ -36,7 +36,7 @@ que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
   padding: var(--s-5) var(--s-7);
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
-  /* Una sola altura para todas las cabeceras; ver `--fila-cabecera`. */
+  /* A single height for every header; see `--fila-cabecera`. */
   height: var(--fila-cabecera);
 }
 
@@ -47,21 +47,20 @@ que se le da cuerpo —panel, borde y esquinas— en vez de dejarla flotando.
   color: var(--ink);
 }
 
-/* La última fila no lleva línea: la cierra el borde del panel. */
+/* The last row carries no line: the panel border closes it. */
 .tabla tbody tr:last-child td { border-bottom: 0; }
 
 .tabla tbody tr { transition: background var(--t-rapido); }
 .tabla tbody tr:hover { background: var(--hover); }
 
 /*
-Las columnas tienen ley, y hasta ahora no la tenían: las diez iban alineadas a
-la izquierda, incluida `Serial`, que es un número. Un número alineado a la
-izquierda no se puede comparar con el de la fila de abajo, que es justo para lo
-que está en una columna.
+Columns have rules, and until now they did not: all ten were left-aligned,
+`Serial` included, which is a number. A left-aligned number cannot be compared
+against the one on the row below, which is exactly what it is in a column for.
 */
 
-/* La ENTIDAD de la fila: el nombre de la zona, del scope, del usuario. Es lo
-   que se busca al escanear, así que pesa más que el resto del renglón. */
+/* The row's ENTITY: the name of the zone, the scope, the user. It is what you
+   look for when scanning, so it weighs more than the rest of the line. */
 .entidad {
   font-size: var(--t-5);
   font-weight: 550;
@@ -69,20 +68,19 @@ que está en una columna.
 }
 
 /*
-El nombre propio de una fila cuando además abre su ficha.
+The row's own name when it also opens its detail view.
 
-Estaba escrito dos veces y con tratamientos opuestos: en Zones el nombre es el
-nombre —tinta y negrita— y pasa a `--acc` al pasar por encima; en las tres
-tablas de Administration era `--acc` YA en reposo. Con doscientas cuarenta filas
-eso es una columna entera de ámbar, y el color deja de significar «esto se
-pulsa» justo donde tenía que significarlo. Gana el de Zones, que es además lo
-que describe `.entidad` aquí arriba.
+It was written twice and with opposite treatments: in Zones the name is the name
+—ink and bold— and turns `--acc` on hover; in the three Administration tables it
+was `--acc` ALREADY at rest. With two hundred and forty rows that is a whole
+column of amber, and the colour stops meaning "this is clickable" exactly where
+it had to mean it. Zones wins, which is also what `.entidad` above describes.
 
-La familia monoespaciada NO entra: es de Zones porque el valor es un dominio, no
-porque sea una entidad. Y por eso aquí van LONGHANDS y no el atajo `font`:
-`font: inherit` reinicia también la familia, y como esta clase se compone desde
-otro módulo, su regla se emite después y le borraba a Zones el monoespaciado.
-Es la misma trampa que ya está anotada en `Menu.module.css`.
+The monospace family does NOT come along: it belongs to Zones because the value
+is a domain, not because it is an entity. And that is why LONGHANDS go here and
+not the `font` shorthand: `font: inherit` also resets the family, and since this
+class is composed from another module, its rule is emitted later and was wiping
+out Zones' monospacing. It is the same trap already noted in `Menu.module.css`.
 */
 .entidadEnlace {
   composes: golpe from './interaccion.module.css';
@@ -101,29 +99,30 @@ Es la misma trampa que ya está anotada en `Menu.module.css`.
 
 .entidadEnlace:hover { color: var(--acc); }
 
-/* Números: a la derecha y con cifras de ancho fijo, para que las unidades
-   caigan unas encima de otras. */
+/* Numbers: right-aligned and with fixed-width digits, so the units line up one
+   above the other. */
 .numero {
   text-align: right;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* Metadatos: la fecha, el «hace tanto», el contador. Acompañan, no compiten. */
+/* Metadata: the date, the "N ago", the counter. They accompany, they do not compete. */
 .meta { composes: coletilla from './texto.module.css'; }
 
-/* Una celda con varias líneas dentro se alinea arriba; el resto, al centro. */
+/* A cell with several lines inside aligns to the top; the rest, to the middle. */
 .apilada { vertical-align: top; }
 
 /*
-La fila de «no hay nada». Estaba escrita con `style={{textAlign:'center'}}` en
-cuatro sitios y con dos nombres de clase más para la misma regla.
+The "there is nothing here" row. It was written with
+`style={{textAlign:'center'}}` in four places and with two more class names for
+the same rule.
 
-Va como `td.sinFilas` y no como `.sinFilas` a secas porque `.tabla td` —una
-clase y un tipo— le ganaba por especificidad, así que ni el color ni el relleno
-llegaban a aplicarse: la fila salía con el color del dato y la altura de una
-celda normal. Sólo se veía centrada, que es la única de las tres reglas que no
-choca con nada.
+It goes as `td.sinFilas` and not as plain `.sinFilas` because `.tabla td` —one
+class and one type— beat it on specificity, so neither the colour nor the padding
+ever applied: the row came out with the data colour and the height of a normal
+cell. Only the centring showed, which is the one of the three rules that clashes
+with nothing.
 */
 .tabla td.sinFilas {
   text-align: center;
@@ -131,19 +130,19 @@ choca con nada.
   padding: var(--s-11) var(--s-7);
 }
 
-/* La cabecera ordenable es un botón, no un `th` con `onclick`: así se llega con
-   el tabulador y se anuncia como lo que es. */
+/* A sortable header is a button, not a `th` with `onclick`: that way it is
+   reachable with the tab key and announced for what it is. */
 .orden {
   composes: golpe from '../ui/interaccion.module.css';
   display: inline-flex;
   /*
-  Alineado al MEDIO del texto y no a su línea base.
+  Aligned to the MIDDLE of the text and not to its baseline.
 
-  Un `inline-flex` se apoya en la línea base, y cuando dentro sólo hay un icono
-  —la cabecera «Type» de DHCP Leases, cuyo rótulo es sólo para lectores de
-  pantalla— la caja de línea crece por debajo para dejar sitio al descendente
-  que no hay. Esa cabecera medía 33,77 px cuando las otras seis tablas medían
-  33: el hueco lo ponía un carácter que nunca se escribe.
+  An `inline-flex` sits on the baseline, and when there is only an icon inside
+  —the "Type" header in DHCP Leases, whose label is for screen readers only— the
+  line box grows underneath to make room for a descender that is not there. That
+  header measured 33.77 px when the other six tables measured 33: the gap came
+  from a character that is never written.
   */
   vertical-align: middle;
   align-items: center;
@@ -161,10 +160,10 @@ choca con nada.
 .orden:hover { color: var(--ink); }
 
 /*
-La flecha de ordenar sólo se ve cuando hace falta: en la columna activa, al
-pasar por encima y al llegar con el teclado. Con las nueve cabeceras llevando su
-flechita a la vez, la fila de rótulos era una hilera de signos que competía con
-los datos y no decía nada, porque «se puede ordenar» es igual en todas.
+The sort arrow is only visible when it is needed: on the active column, on hover
+and when reached with the keyboard. With all nine headers carrying their little
+arrow at once, the label row was a line of symbols competing with the data and
+saying nothing, because "this is sortable" is the same on all of them.
 */
 .flecha {
   display: inline-flex;
@@ -178,8 +177,8 @@ los datos y no decía nada, porque «se puede ordenar» es igual en todas.
 [aria-sort='ascending'] .flecha,
 [aria-sort='descending'] .flecha { opacity: 1; }
 
-/* Ascendente y descendente son el MISMO chevron girado, no dos caracteres
-   distintos: así la flecha rota al pulsar en vez de saltar. */
+/* Ascending and descending are the SAME chevron rotated, not two different
+   characters: that way the arrow turns on click instead of jumping. */
 .flecha svg { transition: transform var(--t-rapido), color var(--t-rapido); }
 .flecha svg[data-desc='true'] { transform: rotate(180deg); }
 
@@ -188,16 +187,16 @@ los datos y no decía nada, porque «se puede ordenar» es igual en todas.
 [aria-sort='descending'] .flecha { color: var(--acc); }
 
 /*
-La columna de acciones: pegada al final y del ancho de lo que lleva.
+The actions column: hard against the end and as wide as what it carries.
 
-Sin esta regla la celda heredaba `text-align: left` y la columna se quedaba con
-todo el ancho que le sobrara a la tabla, así que los botones flotaban en medio
-del hueco: medido antes de arreglarlo, entre el último control y el borde de la
-tabla había 51 px en Cache, 80 en Zones, 126 en Users, 196 en Scopes y 306 en
-Groups. Cinco tablas y cinco sitios distintos para lo mismo.
+Without this rule the cell inherited `text-align: left` and the column kept all
+the width the table had left over, so the buttons floated in the middle of the
+gap: measured before fixing it, between the last control and the table edge there
+were 51 px in Cache, 80 in Zones, 126 in Users, 196 in Scopes and 306 in Groups.
+Five tables and five different places for the same thing.
 
-`width: 1%` con `table-layout: auto` es la forma de decir «esta columna, lo
-mínimo»: el navegador reparte lo que sobra entre las demás.
+`width: 1%` with `table-layout: auto` is how you say "this column, the minimum":
+the browser hands what is left over to the others.
 */
 .celdaAcciones {
   width: 1%;
@@ -206,15 +205,16 @@ mínimo»: el navegador reparte lo que sobra entre las demás.
 }
 
 /*
-Las acciones de una fila, como UN grupo y no como cuatro fichas sueltas.
+A row's actions, as ONE group and not as four loose chips.
 
-Sueltas no se leían: su fondo quedaba a 1.25:1 de la fila y su borde a 1.57:1,
-o sea que el control no se separaba de la fila que lo contiene, y el `⋮` acababa
-siendo una tira estrecha al lado de «Delete» que parecía un fallo de maquetación.
+Loose they did not read: their background sat at 1.25:1 against the row and their
+border at 1.57:1, meaning the control did not separate from the row containing
+it, and the `⋮` ended up a narrow strip next to "Delete" that looked like a
+layout bug.
 
-Agrupadas en un segmentado con un solo borde y divisiones dentro, la fila tiene
-UN sitio donde se actúa, y ese sitio sí se ve. Además ocupa menos y aguanta que
-una fila tenga tres acciones y la de al lado cinco.
+Grouped into a segmented control with a single border and dividers inside, the
+row has ONE place where you act, and that place is visible. It also takes less
+space and copes with one row having three actions and the next one five.
 */
 .acciones {
   display: inline-flex;
@@ -227,12 +227,12 @@ una fila tenga tres acciones y la de al lado cinco.
 }
 
 /*
-El `> *` es hijo DIRECTO, y el disparador del menú «⋮» no lo es: `ui/Menu` lo
-envuelve en un `div`. Así que el aplanado le pasaba por encima y se quedaba con
-el borde, el radio de 6 px, el fondo sólido y la sombra interior del botón
-suelto — una cajita redondeada por fila, pegada a un grupo plano. Medido en la
-misma celda: «Zone Options» y «Disable Zone» con radio 0 y fondo transparente,
-y el «⋮» con radio 6 y `rgb(33,37,41)`.
+`> *` is a DIRECT child, and the `⋮` menu trigger is not one: `ui/Menu` wraps it
+in a `div`. So the flattening passed it by and it kept the border, the 6 px
+radius, the solid background and the inset shadow of a loose button — one little
+rounded box per row, glued to a flat group. Measured in the same cell: "Zone
+Options" and "Disable Zone" with radius 0 and transparent background, and the
+`⋮` with radius 6 and `rgb(33,37,41)`.
 */
 .acciones > *,
 .acciones > * > button {
@@ -253,8 +253,8 @@ y el «⋮» con radio 6 y `rgb(33,37,41)`.
 .acciones > *:disabled,
 .acciones > * > button:disabled { color: var(--faint); }
 
-/* El de borrar mantiene su color, pero dentro del grupo: no se rellena de rojo
-   porque una fila con un bloque rojo convierte la tabla en una alarma. */
+/* Delete keeps its colour, but inside the group: it is not filled with red,
+   because a row with a red block turns the table into an alarm. */
 .acciones > [data-variant='danger'] { color: var(--dan); font-weight: 500; }
 .acciones > [data-variant='danger']:hover:not(:disabled) {
   background: var(--dan-fill) !important;
@@ -262,22 +262,22 @@ y el «⋮» con radio 6 y `rgb(33,37,41)`.
 }
 
 /*
-Los botones de fila van con ICONO y no con rótulo, y el motivo es una medida: la
-columna de acciones era 239 px —la más ancha de la tabla, por delante del nombre
-de la zona, que mide 163— y su contenido era el mismo texto repetido en cada
-fila. «Options», «Disable», «Delete», doscientas cuarenta veces. Eso no es
-información: es algo que hay que filtrar para poder leer el dato.
+Row buttons carry an ICON and not a label, and the reason is a measurement: the
+actions column was 239 px —the widest in the table, ahead of the zone name, which
+is 163— and its content was the same text repeated on every row. "Options",
+"Disable", "Delete", two hundred and forty times. That is not information: it is
+something you have to filter out in order to read the data.
 
-Con icono la columna baja a ~100 px y los 140 que sobran se los queda la tabla.
-El nombre de cada acción no se pierde: va en `aria-label` —así que el teclado y
-el lector de pantalla lo anuncian igual— y en `title`, que es el globo al pasar
-por encima. Y el menú `⋮` lleva TODAS las acciones con su texto, incluida la de
-borrar, así que ningún nombre vive sólo dentro de un dibujo.
+With an icon the column drops to ~100 px and the 140 left over go to the table.
+No action loses its name: it goes in `aria-label` —so the keyboard and the screen
+reader announce it just the same— and in `title`, which is the tooltip on hover.
+And the `⋮` menu carries EVERY action with its text, delete included, so no name
+lives only inside a drawing.
 */
 .acciones > [data-icono='true'],
 .acciones > * > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
 
-/* La casilla de seleccionar fila mide 18 px: se pulsa desde toda su celda. */
+/* The row-selection checkbox is 18 px: it is clicked from anywhere in its cell. */
 .celdaCheck {
   padding: 0;
 }
@@ -292,14 +292,13 @@ borrar, así que ningún nombre vive sólo dentro de un dibujo.
 }
 
 /*
-En la CABECERA la casilla va sola y no debe mandar sobre la altura de la fila.
+In the HEADER the checkbox stands alone and must not dictate the row height.
 
-Los 40 px de arriba son para una fila de datos, donde el objetivo táctil ocupa
-toda la celda y coincide con el alto de la fila. Aplicados también a la
-cabecera, la de Zones medía 57 px mientras las otras seis tablas de la consola
-median 33: la misma cabecera, casi el doble de alta, y sin que ningún rótulo
-ocupara dos líneas. Aquí el objetivo es la celda entera igualmente, sólo que la
-celda mide lo que mide la cabecera.
+The 40 px above are for a data row, where the touch target fills the cell and
+matches the row height. Applied to the header too, Zones' measured 57 px while
+the other six tables in the console measured 33: the same header, nearly twice as
+tall, and without any label taking two lines. Here the target is still the whole
+cell, only the cell is as tall as the header is.
 */
 thead th.celdaCheck { padding: 0; }
 thead .celdaCheck label { min-height: 0; }

@@ -1,20 +1,20 @@
 /*
-El desplegable de «More Details» y de «Raw Responses».
+The "More Details" and "Raw Responses" disclosure.
 
-El triángulo de un `<details>` lo pinta el navegador —y cada uno el suyo—, así
-que es otra superficie que no habíamos dibujado. Estaba resuelto dos veces, en
-Apps y en DNS Client, y las dos con el chevron recodificado a mano como SVG en
-un `data:` URI: el mismo trazado que `chevronDerecha` de `ui/Icono`, pero con
-`stroke-width: 2.5` contra el 1,75 del juego entero. O sea, el único icono de la
-consola con otro grosor de trazo, y por duplicado. Ahora es el icono de verdad.
+A `<details>` triangle is painted by the browser —and each one paints its own— so
+it is another surface we had not drawn. It was solved twice, in Apps and in DNS
+Client, and both times with the chevron hand-encoded as an SVG in a `data:` URI:
+the same path as `chevronDerecha` from `ui/Icono`, but with `stroke-width: 2.5`
+against the 1.75 of the whole set. In other words, the only icon in the console
+with a different stroke weight, and in duplicate. Now it is the real icon.
 */
 
 .detalles > summary {
   display: flex;
   align-items: center;
   gap: var(--s-4);
-  /* El objetivo se pulsa: sin relleno medía 17 px de alto en Apps, y en DNS
-     Client sí lo llevaba. Era la misma diferencia de siempre. */
+  /* The target gets clicked: with no padding it measured 17 px tall in Apps, and
+     in DNS Client it did carry it. The same old difference. */
   padding: var(--s-3) 0;
   font-size: var(--t-3);
   color: var(--acc);

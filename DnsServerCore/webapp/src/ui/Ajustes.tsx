@@ -11,24 +11,24 @@ import texto from './texto.module.css'
 import styles from './Ajustes.module.css'
 
 /*
-Las piezas del formulario-de-panel. Ver `Ajustes.module.css` para por qué viven
-aquí y no dentro de Settings o de DHCP.
+The pieces of the panel-form kit. See `Ajustes.module.css` for why they live
+here and not inside Settings or DHCP.
 
-Upstream mete cada grupo de campos en un `div.well` SIN título (index.html:2565
-y siguientes). El rediseño le pone cabecera en versalitas: mismos campos, mismo
-orden, sólo agrupados a la vista. Los títulos salen del `id` del `well`
-(`divSettingsGeneralRateLimiting` -> «Rate Limiting») para no inventar
-taxonomías nuevas.
+Upstream puts each group of fields in a `div.well` with NO title (index.html:2565
+onwards). The redesign gives it a small-caps header: same fields, same order,
+just visually grouped. The titles come from the `well`'s `id`
+(`divSettingsGeneralRateLimiting` -> "Rate Limiting") so as not to invent new
+taxonomies.
 */
 
 /*
-El título es opcional a propósito.
+The title is optional on purpose.
 
-Cinco paneles repetían su propio nombre como leyenda del primer bloque —TSIG,
-Recursion, Blocking, Logging y SSO—, y en tres de ellos era la ÚNICA leyenda,
-así que no agrupaba nada: sólo repetía. En SSO llegaba a decirse cuatro veces
-seguidas antes del primer control. Sin `title` el panel sigue agrupando: lo que
-desaparece es el eco.
+Five panels repeated their own name as the legend of the first block —TSIG,
+Recursion, Blocking, Logging and SSO— and in three of them it was the ONLY
+legend, so it grouped nothing: it just repeated. In SSO it got said four times in
+a row before the first control. Without `title` the panel still groups: what
+disappears is the echo.
 */
 export function Block({ title, children }: { title?: string; children: ReactNode }) {
   return (
@@ -57,7 +57,7 @@ export function TextRow({
   suffix?: string
   help?: ReactNode
   type?: 'text' | 'number' | 'password'
-  /** Upstream fija 80-100 px a los campos numéricos y deja anchos los de texto. */
+  /** Upstream pins numeric fields at 80-100 px and leaves text fields wide. */
   width?: number | 'wide'
   disabled?: boolean
   maxLength?: number
@@ -116,7 +116,7 @@ export function AreaRow({
   )
 }
 
-/** La coletilla que sigue a un control: «seconds», «MB», «(0 to disable)». */
+/** The suffix that follows a control: "seconds", "MB", "(0 to disable)". */
 export function Coletilla({ children }: { children: ReactNode }) {
   return <span className={texto.coletilla}>{children}</span>
 }
@@ -128,9 +128,9 @@ export interface OpcionRadio {
 }
 
 /*
-El grupo de radios. Comparte fila y ayuda con `ui/Check`: son el mismo control
-con distinta cardinalidad, y cuando cada pantalla se escribía la suya la ayuda
-de un radio y la de una casilla no caían en el mismo borde izquierdo.
+The radio group. It shares its row and its help with `ui/Check`: they are the
+same control with different cardinality, and when each screen wrote its own, a
+radio's help and a checkbox's help did not land on the same left edge.
 */
 export function Radios({
   name,
@@ -167,17 +167,17 @@ export function Radios({
   )
 }
 
-/** Varios bloques sueltos con la sangría del cuerpo del panel. */
+/** Several loose blocks carrying the panel body's inset. */
 export function Avisos({ children }: { children: ReactNode }) {
   return <div className={styles.avisos}>{children}</div>
 }
 
 /*
-Los avisos de upstream son `<p><b>Note!</b> …</p>` en negrita dentro del flujo.
-Aquí pasan a bloque con color: `Warning!` ámbar, `Note!` azul. Van siempre
-dentro de un `Avisos`, que es quien pone la sangría — cuando la ponía el propio
-aviso en una pantalla y no en la otra, el mismo «Note!» salía metido en DHCP y a
-ras en Settings.
+Upstream's alerts are `<p><b>Note!</b> …</p>` in bold, inline. Here they become
+a coloured block: `Warning!` amber, `Note!` blue. They always go inside an
+`Avisos`, which is what supplies the inset — when the alert supplied it itself on
+one screen and not the other, the same "Note!" came out indented in DHCP and flush
+in Settings.
 */
 export function Warning({ children }: { children: ReactNode }) {
   return (
@@ -195,7 +195,7 @@ export function Note({ children }: { children: ReactNode }) {
   )
 }
 
-/** Texto suelto de upstream que no es ni `Note!` ni `Warning!`. */
+/** Loose upstream text that is neither `Note!` nor `Warning!`. */
 export function Plain({ children }: { children: ReactNode }) {
   return <div className={styles.plain}>{children}</div>
 }
@@ -225,24 +225,24 @@ export interface Columna<T> {
 }
 
 /*
-Lista editable: cabecera, una fila por entrada con su «Delete», «Add» debajo.
-Upstream pone el «Add» en la cabecera; aquí va abajo, porque una cabecera de
-tabla con un botón dentro no se puede etiquetar.
+Editable list: a header, one row per entry with its "Delete", and "Add" below.
+Upstream puts the "Add" in the header; here it goes underneath, because a table
+header with a button inside cannot be labelled.
 
-Había dos, y habían dejado de ser copias: la de DHCP declaraba las columnas y
-generaba sola el nombre y el `id` de cada celda; la de Settings recibía las
-celdas ya construidas, así que cada sitio de llamada se escribía su propio
-`aria-label` a mano y ninguno tenía `id`. Gana la declarativa, con una salida
-(`render`) para la única celda que no es un campo de texto.
+There were two, and they had stopped being copies: DHCP's declared its columns and
+generated each cell's name and `id` by itself; Settings' received the cells
+already built, so every call site wrote its own `aria-label` by hand and none had
+an `id`. The declarative one wins, with an escape hatch (`render`) for the single
+cell that is not a text field.
 
-El nombre accesible es `«<tabla> <fila> <columna>»`. Es único por construcción;
-el otro esquema —`«<columna> <fila>»`— obligaba a desambiguar las columnas a
-mano, y de ahí salió un `aria-label` «IPv4 UDP Limit» sobre una cabecera que
-decía «UDP Limit».
+The accessible name is `"<table> <row> <column>"`. It is unique by construction;
+the other scheme —`"<column> <row>"`— forced you to disambiguate the columns by
+hand, and out of that came an `aria-label` of "IPv4 UDP Limit" over a header that
+said "UDP Limit".
 
-El `id` determinista existe porque el aviso de validación de upstream dice
-literalmente «the text field in focus»: sin poder enfocar la celda que falla, el
-aviso no se puede resolver.
+The deterministic `id` exists because upstream's validation alert says literally
+"the text field in focus": without being able to focus the failing cell, the alert
+cannot be resolved.
 */
 export function EditableTable<T extends Record<string, string>>({
   label,
@@ -280,8 +280,8 @@ export function EditableTable<T extends Record<string, string>>({
           const set = (parcial: Partial<T>) =>
             onChange(filas.map((r, j) => (j === i ? { ...r, ...parcial } : r)))
           return (
-            // Las filas no tienen identidad estable en upstream: se numeran con
-            // un aleatorio. El índice es el mismo criterio.
+            // Rows have no stable identity in upstream: they are numbered with
+            // a random number. The index is the same criterion.
             // eslint-disable-next-line react/no-array-index-key
             <tr key={i}>
               {columnas.map((c) => {
@@ -319,8 +319,8 @@ export function EditableTable<T extends Record<string, string>>({
           )
         })}
       </TablaEditable>
-      {/* Sin filas, la tabla enseñaba las cabeceras y nada debajo: en blanco no
-          dice «no hay ninguna», dice «no lo sé». */}
+      {/* With no rows, the table showed the headers and nothing beneath: blank
+          does not say "there are none", it says "I do not know". */}
       {filas.length === 0 && <Empty compacto>No entries.</Empty>}
       <div>
         <Button disabled={disabled} onClick={() => onChange([...filas, nueva()])}>

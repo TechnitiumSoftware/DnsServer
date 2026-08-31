@@ -2,22 +2,21 @@ import { useId, type ReactNode } from 'react'
 import styles from './Panel.module.css'
 
 /*
-La caja con borde de la consola: UN componente, no una clase que cada pantalla
-se aplica por su cuenta.
+The console's bordered box: ONE component, not a class each screen applies on its
+own.
 
-Antes esto era `<fieldset>` con un `<legend>` de cabecera, y no funcionaba: un
-`legend` mide su `width: 100%` contra la caja de CONTENIDO del `fieldset`, y el
-navegador le reserva a ese `fieldset` un relleno lateral propio que nadie había
-quitado. La banda del título quedaba 21 px más estrecha que la tarjeta, flotando
-por dentro en vez de tocar los bordes. Se intentó tapar con `float: left`, que
-es exactamente el tipo de parche que aparece cuando se unifica por CSS en vez de
-por componente.
+This used to be a `<fieldset>` with a `<legend>` as its header, and it did not
+work: a `legend` measures its `width: 100%` against the fieldset's CONTENT box,
+and the browser reserves that fieldset a side padding of its own that nobody had
+removed. The title band ended up 21 px narrower than the card, floating inside
+instead of touching the edges. It was patched over with `float: left`, which is
+exactly the kind of patch that appears when you unify through CSS instead of
+through a component.
 
-Con un `div` la cabecera es un hijo normal y la banda llega al borde sin
-trucos. El grupo se sigue anunciando: `role="group"` con `aria-labelledby` es lo
-que la especificación de ARIA da como equivalente de `fieldset`/`legend`, y es
-además lo que hace upstream, que usa `div.panel` con su título y ningún
-`fieldset`.
+With a `div` the header is an ordinary child and the band reaches the edge with no
+tricks. The group is still announced: `role="group"` with `aria-labelledby` is
+what the ARIA specification gives as the equivalent of `fieldset`/`legend`, and it
+is also what upstream does, using `div.panel` with its title and no `fieldset`.
 */
 export function Panel({
   titulo,
@@ -27,25 +26,25 @@ export function Panel({
   className,
 }: {
   /*
-  Sin título, el panel sólo agrupa: no se le inventa un rótulo.
+  With no title, the panel just groups: no label is invented for it.
 
-  Admite nodo y no sólo cadena porque hay títulos que llevan formato —el visor
-  de logs pone el nombre del fichero en monoespaciada—, y un componente que sólo
-  acepta texto plano obliga a la pantalla a saltárselo y a replicar el marcado,
-  que es justo lo que esto viene a evitar.
+  It takes a node and not only a string because some titles carry formatting —the
+  log viewer puts the file name in monospace— and a component that only accepts
+  plain text forces the screen to skip it and replicate the markup, which is
+  exactly what this exists to avoid.
   */
   titulo?: ReactNode
-  /** Lo que va a la derecha de la cabecera. */
+  /** What goes on the right of the header. */
   acciones?: ReactNode
   /*
-  Anunciar el panel como un GRUPO con nombre. Sólo donde de verdad agrupa
-  controles relacionados —los bloques de Settings y de DHCP, que son lo que
-  antes era un `fieldset`—; no en un panel que contiene una gráfica o una
-  tabla, donde el `h2` ya da la estructura y el rol sobra.
+  Announce the panel as a named GROUP. Only where it really does group related
+  controls —the Settings and DHCP blocks, which are what used to be a `fieldset`—;
+  not on a panel containing a chart or a table, where the `h2` already provides
+  the structure and the role is redundant.
 
-  No es cosmético: puesto en todos, el panel de «Query Response Types» pasaba a
-  llamarse igual que la gráfica que contiene, y un lector de pantalla decía el
-  mismo nombre dos veces seguidas.
+  This is not cosmetic: applied to all of them, the "Query Response Types" panel
+  ended up named the same as the chart it contains, and a screen reader said the
+  same name twice in a row.
   */
   agrupa?: boolean
   children: ReactNode
@@ -72,15 +71,15 @@ export function Panel({
 }
 
 /*
-El cuerpo del panel: el relleno que separa el contenido de sus bordes.
+The panel body: the padding that separates the content from its edges.
 
-Va como componente y no como una clase que cada pantalla compone, por la misma
-razón que el panel: lo que se comparte es la PIEZA, no una regla suelta. Es
-opcional porque hay paneles cuyo contenido llega a los bordes a propósito —los
-bloques de Settings, cuyas filas traen su propio relleno, y las tablas—.
+It goes as a component and not as a class each screen composes, for the same
+reason as the panel: what is shared is the PIECE, not a loose rule. It is optional
+because some panels have content that reaches the edges on purpose —the Settings
+blocks, whose rows bring their own padding, and the tables—.
 
-`className` es para las variantes que sí existen: el visor de logs aprieta su
-lista y el panel de «Top» del Dashboard recorta el aire de arriba.
+`className` is for the variants that do exist: the log viewer tightens its list
+and the Dashboard's "Top" panel trims the air above.
 */
 export function Cuerpo({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={[styles.cuerpo, className].filter(Boolean).join(' ')}>{children}</div>

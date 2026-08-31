@@ -1,12 +1,12 @@
 /*
-El campo de texto.
+The text field.
 
-Tenía 28 px de alto, el mismo fondo que la página y un borde de 1 px: no se leía
-como un sitio donde escribir, se leía como un rectángulo. Ahora es un HUECO en
-la superficie —más oscuro que el panel que lo contiene, con sombra interior— y
-al enfocarlo se LEVANTA: el borde pasa a ámbar y sale un halo que lo despega del
-formulario. Es el único sitio de la consola donde algo brilla, y es a propósito:
-es donde está el cursor.
+It was 28 px tall, the same background as the page and a 1 px border: it did not
+read as a place to type, it read as a rectangle. Now it is a HOLE in the surface
+—darker than the panel containing it, with an inset shadow— and on focus it LIFTS:
+the border turns amber and a halo appears that detaches it from the form. It is the
+only place in the console where anything glows, and that is deliberate: it is where
+the cursor is.
 */
 
 .field { display: flex; flex-direction: column; gap: var(--s-4); }
@@ -24,8 +24,8 @@ es donde está el cursor.
   padding: var(--s-5) var(--s-7);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
-  /* `background-color` y no `background`: el atajo borraría el chevron que
-     `theme/base.css` le pone al desplegable. */
+  /* `background-color` and not `background`: the shorthand would wipe out the
+     chevron `theme/base.css` puts on the dropdown. */
   background-color: var(--field);
   color: var(--ink);
   font-family: inherit;

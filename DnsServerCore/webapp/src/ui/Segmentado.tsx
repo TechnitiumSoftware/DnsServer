@@ -1,13 +1,13 @@
 import styles from './Segmentado.module.css'
 
 /*
-Elegir uno de un puñado de valores, con todos a la vista. Ver el módulo de
-estilos para por qué existe.
+Pick one of a handful of values, with all of them in view. See the styles module
+for why it exists.
 
-`comoPestanas` cambia la semántica, no el aspecto: un grupo de pestañas gobierna
-un panel y se anuncia con `role="tab"` y `aria-selected`; un grupo de opciones
-—el periodo del Dashboard— son botones de estado y se anuncian con
-`aria-pressed`. Se parecen y no son lo mismo, así que lo decide quien lo usa.
+`comoPestanas` changes the semantics, not the look: a tab group governs a panel and
+is announced with `role="tab"` and `aria-selected`; a group of options —the
+Dashboard's period— are state buttons and are announced with `aria-pressed`. They
+look alike and are not the same thing, so the caller decides.
 */
 export function Segmentado<T extends string>({
   opciones,
@@ -19,7 +19,7 @@ export function Segmentado<T extends string>({
   opciones: { id: T; etiqueta: string }[]
   activa: T
   onElegir: (id: T) => void
-  /** Nombre del grupo, para quien no ve la pantalla. */
+  /** The group's name, for whoever does not see the screen. */
   etiqueta: string
   comoPestanas?: boolean
 }) {

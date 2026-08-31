@@ -1,20 +1,20 @@
 /*
-El recuento que acompaña a una tabla: «Total Users: 3», «2 zones», «1-6 (6) of 6
-zones (page 1 of 1)».
+The count that accompanies a table: "Total Users: 3", "2 zones", "1-6 (6) of 6
+zones (page 1 of 1)".
 
-El TEXTO no se toca —los tres son literales de upstream, de `auth.js`, `dhcp.js`,
-`apps.js` y `zone.js:923`—; lo que estaba suelto era cómo se pinta. Ocho módulos
-lo definían por su cuenta y salían cuatro tratamientos: `Total Scopes` en
-negrita, `Total Users` en normal, `Total Groups` de «My Profile» un punto más
-pequeño, y el de Apps a medio camino con peso 550.
+The TEXT is not touched —all three are upstream literals, from `auth.js`,
+`dhcp.js`, `apps.js` and `zone.js:923`—; what was loose was how it is painted.
+Eight modules defined it for themselves and four treatments came out: `Total
+Scopes` in bold, `Total Users` in normal, "My Profile"'s `Total Groups` one step
+smaller, and Apps' halfway there at weight 550.
 
-CUÁL de las dos posiciones usa cada pantalla sigue siendo suyo —en Zones
-acompaña a la paginación y hay una arriba y otra abajo—, pero la DISTANCIA no:
-el recuento de encima iba a `--hueco-pegado` en las tres pantallas que lo tienen,
-y el de debajo a cuatro distancias distintas (`--s-8`, `--s-5`, `--hueco-grupo` y
-un `padding-top` de `--s-7`) en las cuatro que lo tienen. `--hueco-grupo` es el
-token que nombra esa distancia; su propia definición dice «entre cosas que se
-leen juntas: el pie de una tabla».
+WHICH of the two positions each screen uses is still its own —in Zones it goes
+with the pagination and there is one above and one below— but the DISTANCE is not:
+the count above sat at `--hueco-pegado` on the three screens that have it, and the
+one below at four different distances (`--s-8`, `--s-5`, `--hueco-grupo` and a
+`padding-top` of `--s-7`) on the four that have it. `--hueco-grupo` is the token
+that names that distance; its own definition says "between things read together:
+the foot of a table".
 */
 .recuento {
   font-size: var(--t-4);
@@ -22,7 +22,7 @@ leen juntas: el pie de una tabla».
   color: var(--mute);
 }
 
-/* Cuando comparte renglón con controles —la paginación, un par de botones—. */
+/* When it shares a line with controls —the pagination, a couple of buttons—. */
 .barra {
   composes: recuento;
   display: flex;
@@ -32,8 +32,8 @@ leen juntas: el pie de una tabla».
   flex-wrap: wrap;
 }
 
-/* Encima de la tabla: pegado a ella, que es a lo que se refiere. */
+/* Above the table: tight against it, which is what it refers to. */
 .encima { margin-bottom: var(--hueco-pegado); }
 
-/* Debajo: el pie de la tabla, que se lee junto a la última fila. */
+/* Below: the table's foot, read together with the last row. */
 .debajo { margin-top: var(--hueco-grupo); }

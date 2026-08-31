@@ -3,40 +3,40 @@ import { Icono } from './Icono'
 import styles from './SectionHeader.module.css'
 
 /*
-La cabecera de una sección. Antes había cuatro tratamientos distintos:
+A section's header. There used to be four different treatments:
 
-  · 22 px en Zones, Cache, Allowed, Blocked, Apps, DHCP, Administration y Logs
-  · 19 px en About
-  · **14 px** en Settings, con el nombre del panel en un `span` apagado
-  · **ninguno** en Dashboard y DNS Client
+  · 22 px in Zones, Cache, Allowed, Blocked, Apps, DHCP, Administration and Logs
+  · 19 px in About
+  · **14 px** in Settings, with the panel name in a muted `span`
+  · **none at all** in Dashboard and DNS Client
 
-El de 14 px era el peor sitio para el título más pequeño: Settings es la
-pantalla más larga de la consola (5.400 px de scroll, 54 campos) y la que puede
-tirar el servidor. Y las nueve sub-pestañas mostraban el mismo «Settings», así
-que el título no servía ni para saber dónde estabas ni para buscar con Ctrl+F.
+The 14 px one was the worst possible place for the smallest title: Settings is the
+longest screen in the console (5,400 px of scroll, 54 fields) and the one that can
+take the server down. And all nine sub-tabs showed the same "Settings", so the
+title was no use either for knowing where you were or for finding it with Ctrl+F.
 
-## La composición
+## The composition
 
-Encima del título va un CAMINO, no un antetítulo:
+Above the title goes a PATH, not a kicker:
 
     DHCP ›
     Leases
 
-La diferencia no es de sitio, es de qué es cada cosa. Un antetítulo es adorno
-editorial —versalitas apretadas y apagadas— y no aporta nada; un camino es
-navegación, y aquí hace falta porque hay nombres que chocan: «Cache» es una
-sección de primer nivel Y una sub-pestaña de Settings, y «General» o «Logging»
-no dicen nada por su cuenta. Por eso va en un `nav`, en caja normal, y el `h1`
-sigue siendo exactamente el nombre de la pantalla.
+The difference is not where it sits, it is what each thing is. A kicker is
+editorial decoration —tight muted small caps— and adds nothing; a path is
+navigation, and it is needed here because some names collide: "Cache" is a
+top-level section AND a Settings sub-tab, and "General" or "Logging" say nothing
+on their own. That is why it goes in a `nav`, in normal case, and the `h1` remains
+exactly the name of the screen.
 
-Sin sub-pestañas no hay camino: el título es el nombre de la sección a secas.
+With no sub-tabs there is no path: the title is the section name, plain.
 
-## Las etiquetas son ESTADO, no recuento
+## Tags are STATE, not counts
 
-`etiquetas` está para píldoras de estado —`Primary`, `Enabled`, `DNSSEC`—. Los
-recuentos tienen su sitio en la barra de recuento sobre la tabla; ponerlos aquí
-con el mismo aspecto que un estado era otra de las incongruencias: la misma
-píldora significaba unas veces un dato, otras un estado y otras un ajuste.
+`etiquetas` is for state pills —`Primary`, `Enabled`, `DNSSEC`—. Counts have their
+place in the count bar above the table; putting them here with the same look as a
+state was another of the inconsistencies: the same pill meant a figure sometimes,
+a state other times and a setting others.
 */
 
 export function SectionHeader({
@@ -46,17 +46,17 @@ export function SectionHeader({
   etiquetas,
   acciones,
 }: {
-  /** Nombre de la sección. Sólo cuando hay sub-pestañas. */
+  /** The section name. Only when there are sub-tabs. */
   seccion?: string
-  /** En una pantalla de detalle, la vuelta a la sección. El antetítulo pasa a
-   *  ser ese camino: antes había un «← Zones» encima y un «ZONES» debajo, dos
-   *  elementos diciendo lo mismo a dos centímetros de distancia. */
+  /** On a detail screen, the way back to the section. The kicker becomes that
+   *  path: there used to be a "← Zones" above and a "ZONES" below, two elements
+   *  saying the same thing two centimetres apart. */
   onVolver?: () => void
-  /** El nombre más específico: la sub-pestaña si la hay, si no la sección. */
+  /** The most specific name: the sub-tab if there is one, otherwise the section. */
   titulo: string
-  /** Píldoras de ESTADO. Los recuentos van en la barra de recuento. */
+  /** STATE pills. Counts go in the count bar. */
   etiquetas?: ReactNode
-  /** Barra de acciones, siempre arriba a la derecha. */
+  /** Action bar, always top right. */
   acciones?: ReactNode
 }) {
   return (

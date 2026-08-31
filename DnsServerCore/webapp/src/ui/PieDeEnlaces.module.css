@@ -1,24 +1,24 @@
 /*
-Los cinco enlaces de upstream que cuelgan del `body`. Ver `app/pie.ts` para
-cuáles son y por qué están.
+Upstream's five links that hang off the `body`. See `app/pie.ts` for which ones
+they are and why.
 
-El marcado y el tratamiento del enlace estaban escritos dos veces —en el panel
-lateral y en la pantalla de login— y de ahí salieron dos objetivos distintos
-para el mismo enlace: `padding: var(--s-2) var(--s-1)` en uno y
-`var(--s-1) 0` en el otro. Aquí van una vez.
+The markup and the link treatment were written twice —in the sidebar and on the
+login screen— and out of that came two different targets for the same link:
+`padding: var(--s-2) var(--s-1)` in one and `var(--s-1) 0` in the other. Here they
+go once.
 
-Lo que sí decide cada sitio es el CUERPO y la alineación: en el panel va apretado
-contra el borde y en el login centrado bajo la tarjeta. Eso lo pone el
-`className` de quien lo usa.
+What each place does decide is the SIZE and the alignment: in the sidebar it sits
+tight against the edge and on login it is centred under the card. That comes from
+the caller's `className`.
 */
 
 .pie { color: var(--faint); }
 
-/* El nombre no se parte —«DNS Client» caía en dos renglones—, pero el corte
-   sigue siendo posible: el separador va suelto entre las anclas, con sus
-   espacios, igual que en upstream. Ponerle `nowrap` al envoltorio en vez de al
-   enlace dejaba la lista sin un solo punto de corte y el lateral desbordaba
-   47 px en horizontal. */
+/* The name does not break —"DNS Client" was falling onto two lines— but a break
+   is still possible: the separator sits loose between the anchors, with its
+   spaces, exactly as upstream has it. Putting `nowrap` on the wrapper instead of
+   on the link left the list without a single break opportunity and the sidebar
+   overflowed by 47 px horizontally. */
 .pie a {
   color: var(--faint);
   text-decoration: none;
@@ -31,12 +31,13 @@ contra el borde y en el login centrado bajo la tarjeta. Eso lo pone el
 .sep { color: var(--line); }
 
 /*
-El crédito del tema: línea propia bajo los enlaces. No comparte fila con ellos a
-propósito —ver `app/pie.ts`— y el enlace se trata igual que los de arriba, para
-no inventar un tercer tipo de enlace en el mismo bloque de seis líneas.
+The theme credit: its own line below the links. It deliberately does not share a
+row with them —see `app/pie.ts`— and the link is treated like the ones above, so
+as not to invent a third kind of link inside the same six-line block.
 
-La jerarquía la da la LÍNEA APARTE, no el color: el primer intento bajó el
-«Theme by» a `--line`, que es un color de borde, y medía 1,62:1 contra el fondo
-—el mínimo para texto es 4,5—. Hereda el `--faint` del pie, que da 5,61:1.
+The hierarchy comes from the SEPARATE LINE, not from colour: the first attempt
+dropped the "Theme by" to `--line`, which is a border colour, and it measured
+1.62:1 against the background —the minimum for text is 4.5—. It inherits the
+footer's `--faint`, which gives 5.61:1.
 */
 .credito { margin-top: var(--s-3); }

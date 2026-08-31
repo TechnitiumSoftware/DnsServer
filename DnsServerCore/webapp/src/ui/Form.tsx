@@ -2,19 +2,18 @@ import { useId, type ReactNode } from 'react'
 import frm from './Form.module.css'
 
 /*
-La fila de un formulario: etiqueta a la izquierda, control a la derecha.
+A form row: label on the left, control on the right.
 
-Estaba escrita a mano 38 veces, y además existía DOS veces como componente —en
-`screens/settings/parts.tsx` y en `screens/dhcp/parts.tsx`, idénticas byte a
-byte salvo un comentario—, sin que ninguna de las otras doce pantallas usara
-ninguna de las dos. Con la fila suelta se fueron separando también las piezas
-que la acompañan: la ayuda bajo el campo y el grupo de casillas estaban
-definidos tres veces cada uno.
+It was written by hand 38 times, and on top of that existed TWICE as a component
+—in `screens/settings/parts.tsx` and in `screens/dhcp/parts.tsx`, byte-identical
+apart from one comment— without any of the other twelve screens using either. With
+the row loose, the pieces around it drifted apart too: the help under a field and
+the checkbox group were each defined three times.
 
-`modal` cambia la rejilla: dentro de un diálogo hay menos sitio y menos filas,
-así que la columna de la etiqueta es más estrecha y no lleva separador. Es la
-única diferencia real entre las dos variantes, y por eso es un parámetro y no
-otro componente.
+`modal` changes the grid: inside a dialog there is less room and fewer rows, so the
+label column is narrower and carries no separator. That is the only real
+difference between the two variants, which is why it is a parameter and not
+another component.
 */
 export function Row({
   label,
@@ -25,7 +24,7 @@ export function Row({
   label: string
   help?: ReactNode
   modal?: boolean
-  /** Recibe el `id` que hay que poner en el control, para que la etiqueta lo gobierne. */
+  /** Receives the `id` to put on the control, so the label governs it. */
   children: (id: string) => ReactNode
 }) {
   const id = useId()
@@ -43,9 +42,9 @@ export function Row({
 }
 
 /**
- * Fila cuya etiqueta no gobierna un control concreto —grupos de casillas y de
- * radios—: upstream usa ahí un `<label>` sin `for`, porque apuntar a uno de los
- * controles del grupo mentiría sobre a qué se refiere.
+ * A row whose label governs no single control —checkbox and radio groups—:
+ * upstream uses a `<label>` with no `for` there, because pointing it at one of the
+ * group's controls would lie about what it refers to.
  */
 export function GroupRow({
   label,
@@ -69,7 +68,7 @@ export function GroupRow({
   )
 }
 
-/** La ayuda suelta, para cuando no cuelga de una fila. */
+/** The standalone help, for when it does not hang off a row. */
 export function Ayuda({ children }: { children: ReactNode }) {
   return <div className={frm.ayuda}>{children}</div>
 }
