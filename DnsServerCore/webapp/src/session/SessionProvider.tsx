@@ -42,9 +42,9 @@ export function SessionProvider() {
   }, [])
 
   /*
-  Si el servidor rechaza la sesión en CUALQUIER llamada, se acaba aquí: se borra
-  el token y se vuelve al login, como hace upstream. Sin esto, la consola se
-  quedaba en pie con una sesión muerta.
+  If the server rejects the session on ANY call, it ends here: the token is
+  cleared and we return to login, as upstream does. Without this, the console
+  stayed standing with a dead session.
   */
   useEffect(() => {
     avisarSiCaducaLaSesion(() => {
@@ -66,7 +66,7 @@ export function SessionProvider() {
     setState({ phase: 'ready', session: session as ShellSession })
   }, [])
 
-  // auth.js:299-312 — la sesión se limpia tanto si la llamada va bien como si falla.
+  // auth.js:299-312 — the session is cleared whether the call succeeds or fails.
   const onLogout = useCallback(async () => {
     const token = localStorage.getItem('token')
     await apiRequest('user/logout', { token })

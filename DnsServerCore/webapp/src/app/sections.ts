@@ -1,21 +1,21 @@
 /*
-Las 12 secciones de la consola, en el orden de upstream.
+The console's 12 sections, in upstream's order.
 
-`permission` es la clave dentro de `sessionData.info.permissions`, y NO siempre
-coincide con la etiqueta: la pestaña «DNS Client» se gobierna con `DnsClient` y
-«DHCP» con `DhcpServer`. `About` no tiene permiso: se ve siempre.
+`permission` is the key inside `sessionData.info.permissions`, and it does NOT
+always match the label: the "DNS Client" tab is governed by `DnsClient` and "DHCP"
+by `DhcpServer`. `About` has no permission: it is always visible.
 
-Cada sección se oculta si su `canView` es falso (main.js:119-250). `phase` deja
-anotado de qué fase salió cada una; con las fases 4, 8 y 9 cerradas ya no queda
-ninguna sin implementar.
+Each section is hidden if its `canView` is false (main.js:119-250). `phase` records
+which phase each one came out of; with phases 4, 8 and 9 closed there is none left
+unimplemented.
 */
 export interface Section {
   id: string
   label: string
   permission: string | null
   phase: string
-  /** Sub-secciones, con sus etiquetas literales de upstream. Sólo se muestran
-   *  cuando su sección está activa, igual que hoy las sub-pestañas. */
+  /** Sub-sections, with upstream's literal labels. They are only shown when their
+   *  section is active, exactly as the sub-tabs are today. */
   subs?: string[]
 }
 

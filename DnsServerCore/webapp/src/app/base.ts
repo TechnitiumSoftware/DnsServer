@@ -1,15 +1,15 @@
 /*
-De dónde cuelga la consola.
+Where the console hangs from.
 
-No se puede dar por supuesto que sea `/`: el servidor honra `X-Forwarded-Prefix`
-montando un `PathBase` (`DnsWebService.cs:1943-1945`), así que detrás de un proxy
-la consola puede vivir en `/dns/`. Y desde que las rutas son reales
-—`/settings/logging/`— tampoco vale usar rutas relativas: `api/status` desde ahí
-pide `/settings/logging/api/status`, que es un 404. Comprobado en el navegador
-antes de arreglarlo.
+It cannot be assumed to be `/`: the server honours `X-Forwarded-Prefix` by mounting
+a `PathBase` (`DnsWebService.cs:1943-1945`), so behind a proxy the console can live
+at `/dns/`. And ever since the routes became real —`/settings/logging/`— relative
+paths do not work either: `api/status` from there requests
+`/settings/logging/api/status`, which is a 404. Verified in the browser before
+fixing it.
 
-Cada `index.html` generado declara su propia ruta en un `<meta>`, y la raíz sale
-de restarle esos segmentos al `pathname`.
+Each generated `index.html` declares its own route in a `<meta>`, and the root
+comes from subtracting those segments from the `pathname`.
 */
 
 function calcular(): string {
@@ -24,11 +24,11 @@ function calcular(): string {
 }
 
 /*
-Se calcula UNA vez y se congela. El `<meta>` es el del documento que sirvió el
-servidor y no cambia al navegar: en cuanto la aplicación empuja
-`/settings/logging/` sobre un documento que decía `dashboard`, restar sus
-segmentos daría una raíz distinta en cada salto. La raíz es una propiedad de
-dónde está montada la consola, no de dónde está el usuario.
+It is computed ONCE and frozen. The `<meta>` belongs to the document the server
+served and does not change on navigation: as soon as the application pushes
+`/settings/logging/` onto a document that said `dashboard`, subtracting its
+segments would give a different root on every hop. The root is a property of where
+the console is mounted, not of where the user is.
 */
 let cache: string | null = null
 
@@ -37,20 +37,20 @@ export function raizDeLaApp(): string {
   return cache
 }
 
-/** Sólo para las pruebas, que cambian de raíz entre casos. */
+/** For the tests only, which change root between cases. */
 export function olvidarRaiz(): void {
   cache = null
 }
 
-/** La URL de un endpoint, colgando de la raíz de verdad. */
+/** An endpoint's URL, hanging from the real root. */
 export function urlApi(camino: string): string {
   return raizDeLaApp() + camino
 }
 
 /**
- * Lo mismo para un fichero de `public/` —el logo, los `loader.gif`—. Un `src`
- * relativo también se rompe desde una ruta de dos niveles: `img/logo.png` en
- * `/settings/logging/` pide `/settings/logging/img/logo.png`.
+ * The same for a file from `public/` —the logo, the `loader.gif`s—. A relative
+ * `src` also breaks from a two-level route: `img/logo.png` at
+ * `/settings/logging/` requests `/settings/logging/img/logo.png`.
  */
 export function urlPublica(camino: string): string {
   return raizDeLaApp() + camino

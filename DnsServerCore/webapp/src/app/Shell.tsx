@@ -23,14 +23,14 @@ import { PieDeEnlaces } from '../ui/PieDeEnlaces'
 
 type ModalId = 'profile' | 'password' | 'twofa' | 'token'
 
-/** Un glifo por sección. Sin dependencia de iconos: la CSP del servidor no
- *  permite CDN y una fuente de iconos tendría que ir como fichero en www/. */
-/* Los doce iconos de sección viven en `ui/Icono`, dibujados; aquí sólo se dice
-   cuál lleva cada una. */
+/** One glyph per section. No icon dependency: the server's CSP does not allow a
+ *  CDN and an icon font would have to ship as a file in www/. */
+/* The twelve section icons live in `ui/Icono`, drawn; here we only say which one
+   each section carries. */
 /*
-Los tres grupos del panel. No es una taxonomía nueva: es el mismo orden de
-upstream, con hueco donde ya cambiaba el tipo de tarea. Lo que se opera a
-diario, lo que se configura y lo que se consulta.
+The sidebar's three groups. It is not a new taxonomy: it is upstream's own order,
+with a gap where the kind of task already changed. What you operate daily, what you
+configure and what you consult.
 */
 const GRUPOS: string[][] = [
   ['dashboard', 'zones', 'cache', 'allowed', 'blocked', 'apps', 'dnsclient'],
@@ -59,10 +59,9 @@ export interface ShellSession {
 }
 
 /*
-Un clic que el navegador debe atender él: botón central o derecho, o con
-modificador —abrir en pestaña nueva, en ventana, descargar—. Interceptarlos
-convertiría un enlace real en un botón disfrazado, que es justo lo que se acaba
-de quitar.
+A click the browser should handle itself: middle or right button, or with a
+modifier —open in a new tab, in a window, download—. Intercepting them would turn a
+real link into a button in disguise, which is exactly what has just been removed.
 */
 function clicSimple(e: React.MouseEvent): boolean {
   return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
@@ -72,8 +71,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const permisos = session.info?.permissions
   // Memorizada: si se recrea en cada render, el `hashchange` se resuscribe en cada uno.
   const sections = useMemo(() => visibleSections(permisos), [permisos])
-  /* La sección de arranque sale de la barra de direcciones si la trae, y sólo
-     si no, de la primera visible. Ver `app/ruta.ts` para por qué va en el hash. */
+  /* The starting section comes from the address bar if it carries one, and only
+     if not, from the first visible one. See `app/ruta.ts` for the reasoning. */
   const rutaInicial = leerRuta(sections)
   const [active, setActive] = useState(() => rutaInicial?.seccion ?? sections[0]?.id ?? 'about')
   const [cajon, setCajon] = useState(false)
@@ -86,7 +85,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
     setModal(id)
   }
 
-  // main.js — el título del documento lleva el dominio del servidor y la versión.
+  // main.js — the document title carries the server domain and the version.
   useEffect(() => {
     if (session.info) {
       document.title = `${session.info.dnsServerDomain} - Technitium DNS Server v${session.info.version}`
@@ -96,20 +95,22 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const current = sections.find((s) => s.id === active) ?? sections[0]
 
   /*
-  La sub efectiva. Una sección con sub-secciones SIEMPRE está en una de ellas,
-  así que `null` quiere decir «la primera».
+  The effective sub. A section with sub-sections is ALWAYS in one of them, so
+  `null` means "the first one".
 
-  Se resuelve aquí y no en cada rama —había cinco `sub ?? 'General'` sueltos, y
-  el panel lateral repetía el mismo apaño para decidir a quién marcar— porque la
-  regla repartida es justo la que se desincroniza: el menú decía «General» y la
-  barra de direcciones ponía `/settings/`, que es media página.
+  It is resolved here and not in each branch —there were five loose
+  `sub ?? 'General'`, and the sidebar repeated the same workaround to decide what
+  to mark— because a rule spread around is precisely the one that goes out of
+  sync: the menu said "General" and the address bar said `/settings/`, which is
+  half a page.
   */
   const subActual = current?.subs != null ? (sub ?? current.subs[0] ?? null) : null
 
   /*
-  La URL sigue al estado, y el estado sigue a la URL. El guardia está en
-  `escribirRuta`, que no toca el historial si la ruta ya es la que está: sin él,
-  responder a `popstate` fijando el estado volvería a escribir la ruta.
+  The URL follows the state, and the state follows the URL. The guard is in
+  `escribirRuta`, which does not touch history if the route is already the current
+  one: without it, responding to `popstate` by setting the state would write the
+  route again.
   */
   // La primera escritura normaliza la URL y no debe dejar entrada en el historial.
   const primerRender = useRef(true)
@@ -126,19 +127,19 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
     function alCambiar() {
       const r = leerRuta(sections)
       if (r == null) {
-        // Una ruta que no resuelve dejaba la barra y la pantalla diciendo cosas
+        // A route that does not resolve left the bar and the screen saying different
         // distintas. La pantalla manda: se corrige la URL.
         escribirRuta({ seccion: activaRef.current.seccion, sub: activaRef.current.sub }, true)
         return
       }
       /*
-      Una dirección a medias —`/settings/`, sin sub— se completa aquí y no en el
-      efecto que escribe la ruta: al volver con «atrás» el estado no cambia
-      (`sub` ya valía `null`), así que aquel efecto no se vuelve a ejecutar y la
-      barra se quedaba diciendo media página.
+      A half address —`/settings/`, with no sub— is completed here and not in the
+      effect that writes the route: on going "back" the state does not change
+      (`sub` was already `null`), so that effect does not run again and the bar was
+      left saying half a page.
 
-      Y se completa reemplazando: empujar dejaría una entrada nueva que apunta a
-      donde ya estamos, y el botón «atrás» daría vueltas sobre sí mismo.
+      And it is completed by replacing: pushing would leave a new entry pointing at
+      where we already are, and the back button would go round in circles.
       */
       const seccion = sections.find((x) => x.id === r.seccion)
       const suya = r.sub ?? seccion?.subs?.[0] ?? null
@@ -168,23 +169,23 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         </div>
         <nav className={styles.slist} role="navigation" aria-label="Sections">
           {/*
-          Esto es un menú de navegación, y hasta ahora decía ser un `tablist`.
+          This is a navigation menu, and until now it claimed to be a `tablist`.
 
-          Se declaró como pestañas cuando la consola no tenía direcciones: doce
-          `role="tab"` sobre un único panel. Al ganar rutas reales
-          (`app/ruta.ts`) la descripción dejó de ser cierta —la guía de ARIA es
-          explícita: si activar el elemento lleva a otra URL, es un enlace, no
-          una pestaña—, y encima las sub-secciones colgaban DENTRO del
-          `tablist` siendo botones sueltos, que es un hijo que ese rol no
-          admite. Anunciaba «pestaña 3 de 12» y navegaba.
+          It was declared as tabs when the console had no addresses: twelve
+          `role="tab"` over a single panel. Once it gained real routes
+          (`app/ruta.ts`) the description stopped being true —the ARIA guidance is
+          explicit: if activating the element leads to another URL, it is a link,
+          not a tab— and on top of that the sub-sections hung INSIDE the `tablist`
+          as loose buttons, which is a child that role does not allow. It announced
+          "tab 3 of 12" and navigated.
 
-          Ahora son enlaces con `href` de verdad: se abren en pestaña nueva, se
-          copian y se marcan. El clic normal lo intercepta la aplicación —no hay
-          recarga—; el clic con modificador se deja pasar al navegador, que para
-          eso las rutas existen como fichero. La sección activa se marca con
-          `data-activa` (es estado visual) y `aria-current="page"` se reserva
-          para UNA sola cosa: la página en la que se está, que es la
-          sub-sección cuando la hay.
+          Now they are links with real `href`s: they open in a new tab, they are
+          copied and bookmarked. The plain click is intercepted by the application
+          —there is no reload—; the modifier click is passed through to the
+          browser, which is what the routes existing as files is for. The active
+          section is marked with `data-activa` (that is visual state) and
+          `aria-current="page"` is reserved for ONE thing: the page you are on,
+          which is the sub-section when there is one.
           */}
           {GRUPOS.map((grupo, g) => (
             <div className={styles.grupo} key={g}>
@@ -211,8 +212,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                       </span>
                       {sec.label}
                     </a>
-                    {/* main.js — los sub-items sólo se ven cuando su sección está
-                        activa, igual que hoy las sub-pestañas. Sin desplegable. */}
+                    {/* main.js — the sub-items are only visible when their section is
+                        active, exactly as the sub-tabs are today. No dropdown. */}
                     {activa && sec.subs && (
                       <div className={styles.sub}>
                         {sec.subs.map((t) => (
@@ -240,19 +241,19 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           ))}
         </nav>
 
-        {/* El servidor y la cuenta, al pie. En estrecho se llega por el cajón. */}
+        {/* The server and the account, at the foot. When narrow you reach it via the drawer. */}
         <div className={styles.pieLateral}>
           {/*
-          Los enlaces del pie de upstream, recuperados.
+          Upstream's footer links, recovered.
 
-          Upstream los tiene en un `div#footer` colgando del `body`, así que se
-          ven en TODAS sus pantallas, incluida la de login: Technitium, Blog,
-          Donate, DNS Client y GitHub. Aquí no había ninguno, y dos de ellos
-          —technitium.com y dnsclient.net— no aparecían en ningún otro sitio de
-          la consola: se habían perdido del todo.
+          Upstream has them in a `div#footer` hanging off the `body`, so they are
+          visible on ALL its screens, the login one included: Technitium, Blog,
+          Donate, DNS Client and GitHub. There were none here, and two of them
+          —technitium.com and dnsclient.net— appeared nowhere else in the console:
+          they had been lost entirely.
 
-          «About» no se repite porque en este rediseño es una sección del panel,
-          justo encima.
+          "About" is not repeated because in this redesign it is a sidebar section,
+          right above.
           */}
           <PieDeEnlaces className={styles.pieEnlaces} />
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
@@ -287,14 +288,14 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
       <div className={styles.main}>
         {/*
-        En pantalla ANCHA no hay cabecero: sólo llevaba el dominio del servidor y
-        el menú de cuenta, los dos pegados al borde derecho, y medía 1224×52 con
-        el 78 % del ancho vacío —952 px de 1224— empujando el título de cada
-        sección hasta `y=76`. Las dos cosas bajan al pie del panel lateral, que
-        tenía 377 px libres, el 42 % de su alto.
+        On a WIDE screen there is no header: it only carried the server domain and
+        the account menu, both pinned to the right edge, and it measured 1224×52
+        with 78 % of the width empty —952 px out of 1224— pushing every section's
+        title down to `y=76`. Both things move down to the foot of the sidebar,
+        which had 377 px free, 42 % of its height.
 
-        En pantalla ESTRECHA sí hace falta, porque el lateral es un cajón cerrado
-        y su disparador tiene que vivir fuera.
+        On a NARROW screen it is needed, because the sidebar is a closed drawer and
+        its trigger has to live outside.
         */}
         <header className={styles.rtop}>
           <button
@@ -311,8 +312,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           </span>
         </header>
 
-        {/* Ni `tabpanel` ni `aria-labelledby`: desde que cada sección tiene su
-            propia URL esto no es un panel que se alterna, es la página. */}
+        {/* Neither `tabpanel` nor `aria-labelledby`: ever since each section has its
+            own URL this is not a panel being switched, it is the page. */}
         <main className={styles.body} id="panel-seccion">
         {current?.id === 'dashboard' ? (
           <Dashboard token={session.token} />
@@ -343,8 +344,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             canDelete={permisos?.DhcpServer?.canDelete !== false}
           />
         ) : current?.id === 'logs' ? (
-          /* «Delete All Stats» vive en la pantalla de Logs pero pide permiso
-             del Dashboard (WebServiceLogsApi.cs:135). No es un despiste. */
+          /* "Delete All Stats" lives on the Logs screen but asks for the
+             Dashboard's permission (WebServiceLogsApi.cs:135). Not an oversight. */
           <Logs
             token={session.token}
             sub={subActual ?? 'View Logs'}
@@ -353,13 +354,13 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             canDeleteStats={permisos?.Dashboard?.canDelete !== false}
           />
         ) : current?.id === 'admin' ? (
-          /* Sin props de permiso a propósito: upstream no oculta ni deshabilita
-             nada dentro de Administration, sólo la sección entera (main.js:165). */
+          /* No permission props on purpose: upstream hides and disables nothing
+             inside Administration, only the whole section (main.js:165). */
           <Admin token={session.token} sub={subActual ?? 'Sessions'} onSubChange={setSub} />
         ) : current?.id === 'settings' ? (
-          /* main.js:906-930 — tres permisos distintos en una sola barra:
-             guardar exige Settings.canModify, vaciar caché Cache.canDelete y
-             copia/restauración Settings.canDelete. */
+          /* main.js:906-930 — three different permissions in a single bar:
+             saving requires Settings.canModify, flushing the cache
+             Cache.canDelete, and backup/restore Settings.canDelete. */
           <Settings
             token={session.token}
             sub={subActual ?? 'General'}

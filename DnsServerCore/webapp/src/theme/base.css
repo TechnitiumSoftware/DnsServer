@@ -1,20 +1,21 @@
 /*
-La tipografía de la consola.
+The console's typography.
 
-Era la del sistema operativo, y ésa es la razón de fondo por la que se leía
-correcta pero anónima: la misma letra que cualquier otra cosa, distinta en cada
-máquina. La CSP del servidor es `default-src 'self'` sin `font-src`
-(DnsWebService.cs:1969-1974), así que un CDN queda descartado y la fuente tiene
-que viajar dentro de `www/`. Van en `public/fonts/`, con su licencia al lado.
+It was the operating system's, and that is the underlying reason it read as
+correct but anonymous: the same letterforms as anything else, different on every
+machine. The server's CSP is `default-src 'self'` with no `font-src`
+(DnsWebService.cs:1969-1974), so a CDN is ruled out and the font has to travel
+inside `www/`. They go in `public/fonts/`, with their licence beside them.
 
-**Archivo** para el texto y **IBM Plex Mono** para el dato, 65 KB entre las tres.
-Se descartaron Inter y Geist a propósito: las dos son excelentes y las dos están
-en todas partes —Inter es la de NetBird, Geist la de Vercel—, así que habrían
-sido cambiar una fuente prestada por otra.
+**Archivo** for the text and **IBM Plex Mono** for the data, 65 KB across the
+three files. Inter and Geist were ruled out on purpose: both are excellent and both
+are everywhere —Inter is NetBird's, Geist is Vercel's— so they would have been
+swapping one borrowed typeface for another.
 
-La monoespaciada no es un adorno: dominios, direcciones, seriales y TTL son la
-mitad de lo que enseña esta consola, y ahí lo que importa es que las cifras no se
-confundan. Plex Mono da cero barrado, uno con base y ele inconfundible.
+The monospace is not decoration: domains, addresses, serials and TTLs are half of
+what this console shows, and there what matters is that the figures are not
+confused with one another. Plex Mono gives a slashed zero, a one with a base and an
+unmistakable lowercase L.
 */
 @font-face {
   font-family: 'Archivo';
@@ -50,21 +51,21 @@ confundan. Plex Mono da cero barrado, uno con base y ele inconfundible.
 html, body, #root { height: 100%; }
 
 /*
-Un `<p>` sin reset se queda con el `margin: 1em 0` del navegador, que a 11,5 px de
-texto son 11,5 px: un hueco que no está en la escala de espaciado y que salía en
-los cuatro párrafos del cuerpo. El hueco lo pone quien compone, no el navegador.
+A `<p>` with no reset keeps the browser's `margin: 1em 0`, which at 11.5 px of text
+is 11.5 px: a gap that is not on the spacing scale and that showed up in all four
+body paragraphs. The gap is set by whoever composes, not by the browser.
 */
 p { margin: 0; }
-/* Dos párrafos seguidos sí necesitan separarse —los hay en Blocking y en About—,
-   pero con la escala, no con el em del navegador. */
+/* Two consecutive paragraphs do need separating —there are some in Blocking and
+   in About— but with the scale, not with the browser's em. */
 p + p { margin-top: var(--s-7); }
 
 /*
-El cuerpo va en 400 con el interletraje algo abierto. Iba en pesos de 650 y 700
-por casi todo, y eso —más que ninguna otra cosa— es lo que hacía que la consola
-se leyera densa y utilitaria en vez de tranquila. La jerarquía la dan el tamaño
-y el color, que es lo que se lee de reojo; el peso se reserva para lo que manda
-de verdad en su renglón.
+The body runs at 400 with slightly open tracking. It used to run at weights of 650
+and 700 almost everywhere, and that —more than anything else— is what made the
+console read as dense and utilitarian instead of calm. Hierarchy comes from size
+and colour, which is what is read out of the corner of the eye; weight is reserved
+for whatever really rules its own line.
 */
 body {
   margin: 0;
@@ -80,10 +81,9 @@ body {
 button, input, select, textarea { font-family: inherit; }
 
 /*
-Las superficies que no dibuja nadie. La selección de texto, el cursor de
-escritura, la barra de scroll y el anillo de foco vienen con los valores del
-navegador, que no pertenecen a ningún sistema de diseño: son lo que delata que
-una interfaz está montada y no construida.
+The surfaces nobody draws. Text selection, the caret, the scrollbar and the focus
+ring come with the browser's values, which belong to no design system: they are
+what gives away that an interface was assembled and not built.
 */
 
 ::selection { background: rgba(245, 165, 36, 0.28); color: var(--ink); }
@@ -110,17 +110,17 @@ una interfaz está montada y no construida.
 ::-webkit-scrollbar-corner { background: transparent; }
 
 /*
-`select` y el botón de `input[type=file]` los pintaba el sistema: cajas blancas
-en una consola oscura, y en el modal «Add Zone» convivían tres controles con
-tres aspectos distintos. Se les da aquí el mismo aspecto que a `ui/Field`,
-porque son elementos nativos y no pasan por ningún componente.
+`select` and the `input[type=file]` button were painted by the system: white boxes
+in a dark console, and in the "Add Zone" modal three controls with three different
+looks lived side by side. They are given the same look as `ui/Field` here, because
+they are native elements and go through no component.
 
-Esto es una COPIA de `ui/Field.module.css`, y no se puede evitar: `composes` sólo
-funciona entre clases de módulos y aquí el selector es de elemento. Lo que sí se
-puede es que no se separe, y ya se había separado: al `input[type=file]` le
-faltaba la regla de hover, así que era el único campo de la consola que no
-respondía al puntero, y su opacidad al deshabilitarse era 0,5 contra el 0,45 de
-todos los demás. Si se toca la caja de `ui/Field`, hay que tocar ésta.
+This is a COPY of `ui/Field.module.css`, and it cannot be avoided: `composes` only
+works between module classes and here the selector is an element one. What can be
+done is stopping it drifting apart, and it already had: `input[type=file]` was
+missing the hover rule, so it was the only field in the console that did not
+respond to the pointer, and its disabled opacity was 0.5 against the 0.45 of every
+other one. If `ui/Field`'s box is touched, this one has to be touched too.
 */
 select,
 input[type='file'] {
@@ -144,9 +144,9 @@ input[type='file']:focus-visible {
 }
 
 /*
-El desplegable llevaba la flecha del sistema operativo, que es de otro sistema
-de diseño. Se dibuja la nuestra: el mismo chevron que el resto de la consola,
-como fondo SVG en línea porque la CSP no deja traer nada de fuera.
+The dropdown carried the operating system's arrow, which belongs to another design
+system. Ours is drawn instead: the same chevron as the rest of the console, as an
+inline SVG background because the CSP does not allow bringing anything in.
 */
 select {
   appearance: none;
@@ -177,11 +177,11 @@ input[type='file']::file-selector-button {
 input[type='file']::file-selector-button:hover { border-color: var(--acc); }
 
 /*
-La casilla y el radio, dibujados aquí y no por el sistema operativo. Eran los
-del navegador con `accent-color`, o sea que la consola cambiaba de aspecto según
-en qué máquina la abrieras. Son 51 controles: se hacen en un sitio, sobre el
-elemento nativo, y así siguen siendo casillas de verdad para el teclado y para
-quien lea la página con un lector.
+The checkbox and the radio, drawn here and not by the operating system. They were
+the browser's with `accent-color`, meaning the console changed appearance depending
+on which machine you opened it on. There are 51 of them: they are done in one
+place, on the native element, so they remain real checkboxes for the keyboard and
+for whoever reads the page with a screen reader.
 */
 
 input[type='checkbox'],
@@ -202,8 +202,8 @@ input[type='radio'] {
     transform var(--t-rapido);
 }
 
-/* Al pulsar, el control se hunde un pelo. Es el único movimiento que hace, y
-   es el que dice que se ha registrado el clic antes de que llegue el dato. */
+/* On press, the control sinks a hair. It is the only movement it makes, and it is
+   what says the click registered before the data arrives. */
 input[type='checkbox']:active:not(:disabled),
 input[type='radio']:active:not(:disabled) { transform: scale(0.92); }
 
@@ -224,7 +224,7 @@ input[type='radio']:checked {
   box-shadow: var(--filo-fuerte);
 }
 
-/* La marca se dibuja, no se escribe con un carácter. */
+/* The tick is drawn, not written with a character. */
 input[type='checkbox']:checked {
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a1205' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m20 6-11 11-5-5'/%3E%3C/svg%3E"),
@@ -253,9 +253,9 @@ input[type='checkbox']:disabled,
 input[type='radio']:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
 
 /*
-Los campos que no pasan por `ui/Field` —las áreas de texto de Settings, sobre
-todo— reciben el mismo hueco y el mismo levantarse al enfocar. Si no, en la
-misma pantalla convivirían dos ideas de qué es un campo.
+The fields that do not go through `ui/Field` —the Settings textareas above all—
+get the same hole and the same lift on focus. Otherwise two ideas of what a field
+is would live side by side on the same screen.
 */
 input[type='text'],
 input[type='password'],

@@ -1,25 +1,24 @@
 import type { Section } from './sections'
 
 /*
-La ruta de la consola, en la barra de direcciones de verdad.
+The console's route, in the real address bar.
 
-Upstream no tiene ninguna: sus pestañas son las de Bootstrap 3, que llaman a
-`preventDefault()` y no tocan la URL, así que recargar devuelve siempre al
-Dashboard. Esto es, por tanto, un AÑADIDO nuestro y no una paridad recuperada —
-queda dicho aquí porque la restricción rectora del proyecto es «solo diseño,
-cero funcionalidad» y conviene que quien lea el diff sepa cuál de las dos cosas
-está mirando.
+Upstream has none: its tabs are Bootstrap 3's, which call `preventDefault()` and
+never touch the URL, so reloading always returns to the Dashboard. This is
+therefore an ADDITION of ours and not recovered parity — it is stated here because
+the project's governing constraint is "design only, zero functionality" and whoever
+reads the diff should know which of the two they are looking at.
 
-**Y no hace falta tocar el servidor.** `www/` se sirve con `UseDefaultFiles()`,
-que resuelve `/settings/logging/` a `/settings/logging/index.html` y redirige la
-versión sin barra con un 301. El build (ver `vite.config.ts`) emite una carpeta
-por ruta, así que la URL existe de verdad: se puede copiar, marcar y recargar.
+**And it needs no server change.** `www/` is served with `UseDefaultFiles()`, which
+resolves `/settings/logging/` to `/settings/logging/index.html` and redirects the
+slash-less version with a 301. The build (see `vite.config.ts`) emits one folder
+per route, so the URL genuinely exists: it can be copied, bookmarked and reloaded.
 
-**La raíz de la aplicación no se puede dar por supuesta.** El servidor honra
-`X-Forwarded-Prefix` montando un `PathBase` (`DnsWebService.cs:1943-1945`), así
-que la consola puede estar colgando de `/dns/` sin saberlo. Cada copia lleva su
-propia ruta en `<meta name="ruta">`, y la raíz sale de restarla al `pathname`.
-Esa es la pieza que hace que todo esto funcione detrás de un proxy.
+**The application root cannot be assumed.** The server honours
+`X-Forwarded-Prefix` by mounting a `PathBase` (`DnsWebService.cs:1943-1945`), so the
+console may be hanging off `/dns/` without knowing it. Each copy carries its own
+route in `<meta name="ruta">`, and the root comes from subtracting it from the
+`pathname`. That is the piece that makes all of this work behind a proxy.
 */
 
 export { aSlug } from './slug'
@@ -33,12 +32,13 @@ export interface Ruta {
 }
 
 /**
- * De dónde cuelga la consola, terminado en `/`.
+ * Where the console hangs from, ending in `/`.
  *
- * En la portada es el propio `pathname`. En `/dns/settings/logging/` es `/dns/`,
- * y se sabe porque el documento declara que su ruta es `settings/logging`.
+ * On the front page it is the `pathname` itself. At `/dns/settings/logging/` it is
+ * `/dns/`, and that is known because the document declares its route to be
+ * `settings/logging`.
  */
-/** Lo que dice la barra de direcciones, resuelto contra las secciones visibles. */
+/** What the address bar says, resolved against the visible sections. */
 export function leerRuta(secciones: Section[]): Ruta | null {
   const base = raizDeLaApp()
   const camino = window.location.pathname
@@ -50,7 +50,7 @@ export function leerRuta(secciones: Section[]): Ruta | null {
   const seccion = secciones.find((s) => s.id === idSeccion)
   if (seccion == null) return null
 
-  // Una sub que no existe no invalida la sección: se cae a la primera.
+  // A sub that does not exist does not invalidate the section: it falls to the first.
   const sub = slugSub == null ? null : (seccion.subs?.find((t) => aSlug(t) === slugSub) ?? null)
   return { seccion: seccion.id, sub }
 }
@@ -60,13 +60,14 @@ export function aCamino({ seccion, sub }: Ruta): string {
 }
 
 /**
- * Escribe la ruta. `reemplazar` para la normalización del arranque —que no es
- * una navegación y no debe dejar una entrada en el historial— y empujando para
- * lo que hace el usuario, de modo que el botón «atrás» recorra las secciones en
- * vez de sacarlo de la consola.
+ * Writes the route. `reemplazar` for the boot normalisation —which is not a
+ * navigation and must not leave a history entry— and pushing for what the user
+ * does, so the back button walks the sections instead of taking them out of the
+ * console.
  *
- * Se conserva el `search` y NO el `hash`: el hash sólo lo usa el retorno de SSO
- * (`session/boot.ts`), que ya lo ha leído y quiere que desaparezca de la barra.
+ * The `search` is kept and the `hash` is NOT: the hash is only used by the SSO
+ * return (`session/boot.ts`), which has already read it and wants it gone from the
+ * bar.
  */
 export function escribirRuta(ruta: Ruta, reemplazar = false): void {
   const nuevo = aCamino(ruta) + window.location.search

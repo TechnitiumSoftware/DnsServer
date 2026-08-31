@@ -1,25 +1,26 @@
 /*
-Tokens de la consola. **Un solo tema: el oscuro** (decisión de Adrián, 2026-08-25).
+The console's tokens. **A single theme: the dark one** (Adrián's decision,
+2026-08-25).
 
-Upstream trae tres —claro, oscuro y ámbar— y un modal `Change Theme` para elegir.
-Aquí ese modal no existe. Es la ÚNICA excepción deliberada a la regla «solo
-diseño, cero funcionalidad» de todo el proyecto: es lo único que quita algo en
-vez de sólo cambiar cómo se ve.
+Upstream ships three —light, dark and amber— and a `Change Theme` modal to pick.
+That modal does not exist here. It is the ONLY deliberate exception to the
+project's "design only, zero functionality" rule: it is the one thing that removes
+something instead of only changing how it looks.
 
-── Por qué esto ya no es sólo una paleta ──────────────────────────────────────
+── Why this is no longer just a palette ───────────────────────────────────────
 
-Hasta el 2026-08-26 este fichero declaraba SÓLO color, y esa ausencia era la
-causa mecánica de la deriva entre secciones: sin escala declarada, cada módulo
-inventó la suya. La consola llegó a tener 13 tamaños de texto, 25 valores de
-`padding`, 13 de `gap` y 9 radios, con las mismas ideas resueltas de tres
-maneras según qué fase la hubiera construido.
+Until 2026-08-26 this file declared ONLY colour, and that absence was the
+mechanical cause of the drift between sections: with no declared scale, each
+module invented its own. The console got to 13 text sizes, 25 `padding` values, 13
+`gap` values and 9 radii, with the same ideas solved three different ways
+depending on which phase had built it.
 
-Las escalas de abajo NO son un rediseño: son la escala que ya existía implícita,
-medida por frecuencia de uso real y declarada. Los valores dominantes se
-conservan tal cual; los sueltos convergen al escalón vecino.
+The scales below are NOT a redesign: they are the scale that already existed
+implicitly, measured by real usage frequency and then declared. The dominant
+values are kept as they were; the outliers converge to the neighbouring step.
 
-**Regla: en `*.module.css` no se escribe un px de espaciado, de tipo ni de radio
-que no sea uno de estos tokens.** Un valor suelto es deriva futura.
+**Rule: in `*.module.css` you do not write a spacing, type or radius px that is
+not one of these tokens.** A loose value is future drift.
 */
 
 :root {
@@ -28,37 +29,37 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --pan: #191c1f;
   --pan2: #212529;
   /*
-  LA RAMPA DE SUPERFICIE. En una interfaz oscura la elevación NO la cuenta la
-  sombra —negro sobre casi-negro no se ve— sino que la superficie SUBA de luz.
-  La rampa vieja vivía entera dentro de 1.03-1.10:1, o sea por debajo del umbral
-  al que el ojo separa dos planos: el hover de una fila estaba a 1.031 del panel
-  y un campo de texto a 1.029 de la página. Por eso se veía plano por mucha
-  sombra que se le echara encima; la sombra estaba tratando el síntoma.
+  THE SURFACE RAMP. In a dark interface elevation is NOT told by the shadow
+  —black on near-black is invisible— but by the surface RISING in light. The old
+  ramp lived entirely inside 1.03-1.10:1, i.e. below the threshold at which the
+  eye separates two planes: a row's hover was 1.031 from the panel and a text
+  field 1.029 from the page. That is why it looked flat no matter how much shadow
+  was thrown at it; the shadow was treating the symptom.
 
-  Medida contra las consolas oscuras que sí tienen material —GitHub, Linear,
-  Vercel separan panel de elevado en 1.09-1.14—, la rampa:
+  Measured against the dark consoles that do have material —GitHub, Linear and
+  Vercel separate panel from raised by 1.09-1.14— the ramp:
 
-    lienzo → panel            1.09
-    panel  → elevado          1.11   (antes 1.04)
-    panel  → hover de fila    1.23   (antes 1.03)
-    panel  → campo hundido    1.12
-    panel  → borde            1.49   (antes 1.22)
+    canvas → panel            1.09
+    panel  → raised           1.11   (was 1.04)
+    panel  → row hover        1.23   (was 1.03)
+    panel  → sunken field     1.12
+    panel  → border           1.49   (was 1.22)
 
-  Y es CARBÓN NEUTRO, no azul casi negro. El lienzo era `#0b0e14`: nueve puntos
-  más de azul que de rojo, con una luminancia de 0.0044. Eso se lee como
-  terminal, no como producto. `#111315` deja la diferencia en cuatro puntos y
-  sube a 0.0064, que es el registro de las consolas que se leen profesionales.
+  And it is NEUTRAL CHARCOAL, not near-black blue. The canvas was `#0b0e14`: nine
+  points more blue than red, with a luminance of 0.0044. That reads as a terminal,
+  not as a product. `#111315` leaves the difference at four points and rises to
+  0.0064, which is the register of consoles that read as professional.
 
-  El ámbar de Technitium se queda tal cual: es SU marca, no nuestra, y sobre
-  este carbón da 8.38:1.
+  Technitium's amber stays exactly as it is: it is THEIR brand, not ours, and over
+  this charcoal it gives 8.38:1.
   */
   --ink: #e8eaec;
   --mute: #9aa1a8;
   /*
-  `--faint` era `#5d6779` y daba 2.70-3.34:1: no cumplía el 4.5:1 de texto normal
-  en ninguna superficie, y se estaba usando para los `(4h)` de TTL, los «hace 2
-  horas» y los marcadores de campo. Subido, da 4.41-5.45:1 y cumple en todas.
-  Sigue siendo el escalón más apagado de los tres, sólo que ahora legible.
+  `--faint` was `#5d6779` and gave 2.70-3.34:1: it met the 4.5:1 for normal text
+  on no surface at all, and it was being used for the `(4h)` of a TTL, the "2
+  hours ago" and the field placeholders. Raised, it gives 4.41-5.45:1 and meets it
+  everywhere. It is still the most muted of the three steps, only now legible.
   */
   --faint: #868e96;
   --line: #333a41;
@@ -69,69 +70,68 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --warn: #fbbf24;
   --dan: #f87171;
   --info: #60a5fa;
-  /* Los dos que el dibujo tiene y se habían caído: las series de Query Logs
-     los necesitan para no volver a los `rgba()` sueltos heredados de upstream. */
+  /* The two the comp has and that had fallen out: the Query Logs series need
+     them so as not to go back to the loose `rgba()` inherited from upstream. */
   --viol: #a78bfa;
   --cyan: #2dd4bf;
 
-  /* Fondo y borde de cada estado. Estaban escritos a mano en seis módulos, con
-     dos lecturas distintas de `.tagInfo`: azul en Zones, ámbar en Apps. */
-  /* El chip de código —el tipo de registro, la clase de un app— repetía estos
-     dos valores en tres módulos con el nombre `.ty` en dos y `.cap` en otro. */
+  /* Background and border for each state. They were written by hand across six
+     modules, with two readings of `.tagInfo`: blue in Zones, amber in Apps. */
+  /* The code chip —a record type, an app's class— repeated these two values
+     across three modules, named `.ty` in two of them and `.cap` in the other. */
   --chip-bg: #1b2230;  --chip-fg: #b6c2d6;
 
   --ok-bg: #052e26;    --ok-bd: #065f46;
   --warn-bg: #2a1e05;  --warn-bd: #4a3609;
   --dan-bg: #2a1113;   --dan-bd: #7f1d1d;
-  /* El botón destructivo: relleno propio y texto legible sobre él. */
+  /* The destructive button: its own fill and text legible on top of it. */
   --dan-fill: #3a1214; --on-dan: #fecaca;
   --info-bg: #0d1730;  --info-bd: #1e3a8a;
   --field: #0d0f11;
   /*
-  EL HOVER ES UN VELO, NO UN COLOR. Era `#282d32` fijo, y por eso se veía o no
-  según dónde cayera: 1.34:1 sobre el lienzo, 1.23 sobre un panel y **1.11 sobre
-  el escalón elevado**, que es justo donde viven los items de un menú, las
-  opciones de un desplegable y los botones de acción de una fila. Ahí no se veía.
+  HOVER IS A VEIL, NOT A COLOUR. It was a fixed `#282d32`, and that is why it was
+  visible or not depending on where it landed: 1.34:1 over the canvas, 1.23 over a
+  panel and **1.11 over the raised step**, which is exactly where menu items,
+  dropdown options and row action buttons live. There it was invisible.
 
-  Un blanco translúcido aclara en PROPORCIÓN, así que da el mismo salto sobre
-  las tres superficies:
+  A translucent white lightens in PROPORTION, so it gives the same jump over all
+  three surfaces:
 
-               lienzo   panel   elevado
-    --hover     1.19     1.22     1.23    filas y navegación: se repite mucho
-    --hover-f   1.35     1.39     1.41    menús y opciones: estás apuntando
+               canvas   panel   raised
+    --hover     1.19     1.22     1.23    rows and navigation: it repeats a lot
+    --hover-f   1.35     1.39     1.41    menus and options: you are pointing
   */
   --hover: rgba(255, 255, 255, 0.07);
   --hover-fuerte: rgba(255, 255, 255, 0.11);
 
-  /* ── Tipografía ─────────────────────────────────────────────────────── */
+  /* ── Typography ──────────────────────────────────────────────────────── */
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /*
-  Siete escalones. Entre paréntesis, los usos que absorbe cada uno al converger.
-  El dominante es `--t-3` (12,5 px): es el cuerpo de la consola.
+  Seven steps. In brackets, the uses each absorbs on converging. The dominant one
+  is `--t-3` (12.5 px): it is the console's body size.
   */
   /*
-  El rótulo en versalitas: la etiqueta pequeña que dice «esto de aquí es X».
-  Cabecera de columna, título de panel, nombre de un grupo de campos.
+  The small-caps label: the small tag that says "this thing here is X". Column
+  header, panel title, the name of a group of fields.
 
-  Está en tokens y no en una clase porque quien lo pinta no siempre es una
-  clase: el `thead th` de la tabla y el `h2` de una cabecera de panel son
-  selectores de descendiente, y `composes:` no llega ahí. Con los valores aquí,
-  la lista de propiedades se repite pero no puede DERIVAR, que es lo que había
-  pasado: catorce sitios, tres tamaños y cuatro interletrados para la misma
-  idea.
+  It is in tokens and not in a class because what paints it is not always a class:
+  the table's `thead th` and a panel header's `h2` are descendant selectors, and
+  `composes:` cannot reach there. With the values here, the list of properties
+  repeats but cannot DRIFT, which is what had happened: fourteen places, three
+  sizes and four letter-spacings for the same idea.
   */
   /*
-  La fila de cabecera de una tabla mide lo mismo en toda la consola.
+  A table's header row is the same height across the whole console.
 
-  Se declara porque si no la fija el contenido, y entonces cada tabla sale de
-  una altura: la de Zones medía 57 px —su casilla de «seleccionar todo» arrastra
-  un objetivo táctil de 40— y la de DHCP Leases 34 frente a los 33 de las otras
-  cinco, sin que ningún rótulo ocupara dos líneas.
+  It is declared because otherwise the content sets it, and then every table comes
+  out a different height: Zones' measured 57 px —its "select all" checkbox drags a
+  40 px touch target along— and DHCP Leases' 34 against the 33 of the other five,
+  without any label taking two lines.
 
-  En una tabla, `height` sobre una celda es un MÍNIMO: una cabecera que de
-  verdad necesite dos líneas sigue creciendo.
+  In a table, `height` on a cell is a MINIMUM: a header that genuinely needs two
+  lines still grows.
   */
   --fila-cabecera: 33px;
 
@@ -139,18 +139,18 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --rotulo-peso: 600;
   --rotulo-interletrado: 0.05em;
 
-  --t-1: 10.5px;  /* rótulo en versalitas, cabecera de tabla, píldora  (10) */
+  --t-1: 10.5px;  /* small-caps label, table header, pill             (10) */
   --t-2: 11px;    /* metadatos, ayuda bajo un campo                         */
   --t-3: 11.5px;  /* etiqueta de campo, texto secundario                    */
   --t-4: 12.5px;  /* CUERPO                                       (12,13,13.5) */
-  --t-5: 14px;    /* título de bloque, subtítulo de panel             (15) */
+  --t-5: 14px;    /* block title, panel subtitle                      (15) */
   --t-6: 17px;    /* cifra de contador                            (16,17) */
-  --t-7: 22px;    /* título de sección                         (19,21,22) */
+  --t-7: 22px;    /* section title                             (19,21,22) */
 
   /* ── Espaciado ──────────────────────────────────────────────────────── */
   /*
-  Once escalones. 14, 10, 9, 8 y 7 son los que soportan la consola y se
-  conservan; los sueltos convergen: 2,5→2 · 5→6 · 11,13→12 · 15,18→16 ·
+  Eleven steps. 14, 10, 9, 8 and 7 are the ones holding the console up and are
+  kept; the outliers converge: 2.5→2 · 5→6 · 11,13→12 · 15,18→16 ·
   20,22,23,26→24 · 28,34→32.
   */
   --s-1: 2px;
@@ -167,16 +167,16 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --s-12: 32px;
 
   /*
-  EL RITMO VERTICAL DE UNA PANTALLA. Tres huecos, y no más.
+  A SCREEN'S VERTICAL RHYTHM. Three gaps, and no more.
 
-  Medidos los doce, Zones tenía cuatro distintos —16, 14, 9 y 12— sin regla que
-  los explicara: cada bloque se había puesto el suyo. Eso es lo que hace que una
-  pantalla se lea desordenada aunque todos los valores estén en la escala.
+  Measured across all twelve, Zones had four different ones —16, 14, 9 and 12—
+  with no rule to explain them: each block had picked its own. That is what makes
+  a screen read as disordered even when every value is on the scale.
 
-    --hueco-bloque   entre bloques independientes: tras el título de sección,
-                     entre una barra de filtros y lo que filtra
-    --hueco-grupo    entre cosas que se leen juntas: el pie de una tabla
-    --hueco-pegado   entre una cosa y su rótulo: la barra de recuento y su tabla
+    --hueco-bloque   between independent blocks: after the section title, between
+                     a filter bar and what it filters
+    --hueco-grupo    between things read together: the foot of a table
+    --hueco-pegado   between a thing and its label: the count bar and its table
   */
   --hueco-bloque: var(--s-11);
   --hueco-grupo: var(--s-8);
@@ -184,48 +184,48 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
 
   /* ── Radios ─────────────────────────────────────────────────────────── */
   /*
-  Las capas.
+  The layers.
 
-  Había seis `z-index` sueltos —0, 5, 10, 20, 30 y 60— repartidos por cuatro
-  módulos, sin ningún sitio donde constara el orden. Y el diálogo, que es lo
-  único que SIEMPRE tiene que estar encima de todo, no declaraba ninguno: por eso
-  el cabecero pegajoso, con su 5, le pasaba por encima al borde superior cuando el
-  diálogo era alto. Es el mismo patrón que la escala de espaciado o la de tipos:
-  mientras el orden no viva en un sitio, cada módulo se inventa el suyo.
+  There were six loose `z-index` values —0, 5, 10, 20, 30 and 60— scattered across
+  four modules, with nowhere the order was recorded. And the dialog, which is the
+  one thing that ALWAYS has to be above everything, declared none: that is why the
+  sticky header, with its 5, painted over its top edge when the dialog was tall. It
+  is the same pattern as the spacing scale or the type scale: as long as the order
+  does not live in one place, each module invents its own.
 
-  De abajo arriba, y el porqué de cada salto:
+  Bottom to top, and the reason for each jump:
   */
-  --capa-golpe: 0;      /* el pseudo que agranda un objetivo, bajo su propio texto */
-  --capa-pegajosa: 10;  /* el cabecero, que acompaña al scroll */
-  --capa-velo: 20;      /* el velo del cajón lateral, en pantalla estrecha */
-  --capa-cajon: 30;     /* y el cajón, sobre su velo */
-  --capa-flotante: 40;  /* desplegables: menú de fila, Select, menú de usuario */
+  --capa-golpe: 0;      /* the pseudo that enlarges a target, beneath its own text */
+  --capa-pegajosa: 10;  /* the header, which follows the scroll */
+  --capa-velo: 20;      /* the side drawer's veil, on narrow screens */
+  --capa-cajon: 30;     /* and the drawer, over its veil */
+  --capa-flotante: 40;  /* dropdowns: row menu, Select, account menu */
   --capa-dialogo: 50;   /* el modal y su velo, sobre absolutamente todo */
 
   --r-1: 4px;   /* muestra de color, chip diminuto            (4,5) */
-  --r-2: 6px;   /* botón de fila, item de menú                  (6,7) */
+  --r-2: 6px;   /* row button, menu item                        (6,7) */
   --r-3: 8px;   /* campo, aviso, bloque interior                (8,9) */
   --r-4: 10px;  /* panel, tarjeta, tabla                       (10,12) */
   --r-full: 999px;
 
   /* ── Foco ───────────────────────────────────────────────────────────── */
   /*
-  Un solo lenguaje de foco. Antes había dos: anillo ámbar en botones y campos,
-  y el del navegador en la navegación, las acciones de fila, la paginación y las
-  casillas. Todo lo enfocable usa `outline: var(--focus)`.
+  A single focus language. There used to be two: an amber ring on buttons and
+  fields, and the browser's on the navigation, the row actions, the pagination and
+  the checkboxes. Everything focusable uses `outline: var(--focus)`.
   */
   --focus: 2px solid var(--acc);
   --focus-offset: 1px;
 
   /* ── Material ───────────────────────────────────────────────────────── */
   /*
-  La consola no tenía lenguaje de elevación: cero degradados y cuatro sombras,
-  las cuatro en cosas que flotan. Todo eran paneles planos con un borde de 1 px,
-  y por eso se leía sin material.
+  The console had no elevation language: zero gradients and four shadows, all four
+  on things that float. Everything was flat panels with a 1 px border, and that is
+  why it read as having no material.
 
-  Tres alturas y nada más. Cada sombra lleva desplazamiento Y desenfoque —un
-  halo sin desplazamiento es decoración, no profundidad— y va en dos capas: un
-  contacto corto que asienta el elemento y una difusa que lo despega.
+  Three heights and nothing more. Each shadow carries an offset AND a blur —a halo
+  with no offset is decoration, not depth— and goes in two layers: a short contact
+  that settles the element and a diffuse one that lifts it off.
   */
   --e-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.22);
   --e-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 30px rgba(0, 0, 0, 0.45);
@@ -236,35 +236,35 @@ que no sea uno de estos tokens.** Un valor suelto es deriva futura.
   --shadow-modal: var(--e-3);
 
   /*
-  El filo de luz. Una superficie elevada recibe algo de luz por arriba; ese
-  reflejo de 1 px es lo que la separa del fondo sin necesidad de subir la sombra.
-  Va como `inset` para no ocupar sitio en la caja.
+  The light edge. A raised surface catches some light from above; that 1 px
+  reflection is what separates it from the background without having to raise the
+  shadow. It goes as `inset` so it takes no room in the box.
   */
   --filo: inset 0 1px 0 rgba(255, 255, 255, 0.055);
   --filo-fuerte: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 
-  /* Lo hundido: un campo es un hueco en la superficie, no una pegatina. */
+  /* The sunken look: a field is a hole in the surface, not a sticker. */
   --hundido: inset 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(0, 0, 0, 0.2);
 
-  /* El foco de un campo no es sólo un borde: es un halo que lo levanta. */
+  /* A field's focus is not just a border: it is a halo that lifts it. */
   --halo-foco: 0 0 0 3px rgba(245, 165, 36, 0.18);
 
   /* ── Controles ──────────────────────────────────────────────────────── */
-  --ctrl: 18px;          /* lado de la casilla y del radio */
-  --ctrl-track-w: 34px;  /* carril del conmutador */
+  --ctrl: 18px;          /* side of the checkbox and the radio */
+  --ctrl-track-w: 34px;  /* the switch's track */
   --ctrl-track-h: 20px;
-  --campo-alto: 34px;    /* alto mínimo de campo, desplegable y botón */
+  --campo-alto: 34px;    /* minimum height of field, dropdown and button */
 
   /* ── Movimiento ─────────────────────────────────────────────────────── */
-  /* Un solo tiempo y una sola curva. Salida exponencial: arranca deprisa y se
-     posa, que es como se mueve algo que pesa. */
+  /* A single duration and a single curve. Exponential ease-out: it starts fast
+     and settles, which is how something with weight moves. */
   --t-rapido: 120ms cubic-bezier(0.2, 0.9, 0.3, 1);
   --t-medio: 180ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 /*
-Un solo anillo de foco para todo lo enfocable, en vez de las 5 reglas sueltas
-que había. Se usa `:focus-visible` para no molestar al puntero.
+A single focus ring for everything focusable, instead of the 5 loose rules there
+were. `:focus-visible` is used so the pointer is not bothered.
 */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: var(--focus);

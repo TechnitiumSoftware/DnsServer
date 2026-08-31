@@ -1,11 +1,10 @@
 /*
 `Proxy & Forwarders` → `proxy-forwarders`.
 
-Vive suelto y no dentro de `ruta.ts` porque lo necesitan los dos lados: el
-navegador para leer la barra de direcciones, y el `vite.config` para saber qué
-carpetas tiene que emitir el build. `ruta.ts` toca `window` y `document`, y el
-proyecto de TypeScript del config no tiene DOM: una función de cadenas no puede
-arrastrar esa dependencia.
+It lives on its own and not inside `ruta.ts` because both sides need it: the
+browser to read the address bar, and `vite.config` to know which folders the build
+has to emit. `ruta.ts` touches `window` and `document`, and the config's TypeScript
+project has no DOM: a string function cannot drag that dependency along.
 */
 export function aSlug(etiqueta: string): string {
   return etiqueta
