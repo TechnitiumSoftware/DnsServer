@@ -37,8 +37,8 @@ function servidor(overrides: Record<string, unknown> = {}, server = 'ref.technit
 
 const props = { token: 'tok', cluster: null, onAviso: vi.fn() }
 
-describe('Sessions — la tabla', () => {
-  it('pinta cada sesión con su token parcial, su tipo y el total', async () => {
+describe('Sessions — the table', () => {
+  it('it draws each session with its partial token, its type and the total', async () => {
     servidor()
     render(<Sessions {...props} />)
 
@@ -50,7 +50,7 @@ describe('Sessions — la tabla', () => {
     expect(screen.getByText('Total Sessions: 2')).toBeInTheDocument()
   })
 
-  it('un tipo de sesión que no conoce no se calla: sale como «Unknown»', async () => {
+  it('a session type it does not know is not swallowed: it comes out as \"Unknown\"', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(
       ok({
         response: { sessions: [{ ...SESION_ADMIN, type: 'Marciana' }] },
@@ -61,13 +61,13 @@ describe('Sessions — la tabla', () => {
     expect(await screen.findByText('Unknown')).toBeInTheDocument()
   })
 
-  it('sin sesiones la tabla queda vacía y el total dice cero', async () => {
+  it('with no sessions the table is left empty and the total says zero', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: { sessions: [] }, server: 'x' }))
     render(<Sessions {...props} />)
     expect(await screen.findByText('Total Sessions: 0')).toBeInTheDocument()
   })
 
-  it('si el servidor falla avisa con SU mensaje y no revienta', async () => {
+  it('if the server fails it alerts with ITS message and does not blow up', async () => {
     const onAviso = vi.fn()
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
     render(<Sessions {...props} onAviso={onAviso} />)
@@ -81,27 +81,27 @@ describe('Sessions — la tabla', () => {
   })
 })
 
-describe('Sessions — «Create Token»', () => {
-  it('se ve cuando no hay cluster', async () => {
+describe('Sessions — "Create Token"', () => {
+  it('it shows when there is no cluster', async () => {
     servidor()
     render(<Sessions {...props} />)
     expect(await screen.findByRole('button', { name: 'Create Token' })).toBeInTheDocument()
   })
 
-  it('se ve si este servidor ES el nodo primario', async () => {
+  it('it shows if this server IS the primary node', async () => {
     servidor({}, 'ns1.micluster.test')
     render(<Sessions {...props} cluster={CLUSTER_PRIMARIO} />)
     expect(await screen.findByRole('button', { name: 'Create Token' })).toBeInTheDocument()
   })
 
-  it('se esconde si este servidor NO es el nodo primario', async () => {
+  it('it hides if this server is NOT the primary node', async () => {
     servidor({}, 'ns2.micluster.test')
     render(<Sessions {...props} cluster={CLUSTER_PRIMARIO} />)
     await screen.findByText('Total Sessions: 2')
     expect(screen.queryByRole('button', { name: 'Create Token' })).not.toBeInTheDocument()
   })
 
-  it('exige primero el usuario y después el nombre del token', async () => {
+  it('it requires the user first and the token name second', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Sessions {...props} />)
@@ -114,7 +114,7 @@ describe('Sessions — «Create Token»', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sessions/createToken')).toBeUndefined()
   })
 
-  it('crea el token y enseña usuario, nombre y token', async () => {
+  it('it creates the token and shows user, name and token', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Sessions {...props} />)
@@ -131,8 +131,8 @@ describe('Sessions — «Create Token»', () => {
   })
 })
 
-describe('Sessions — borrar una sesión', () => {
-  it('pide confirmación con el token parcial en el texto', async () => {
+describe('Sessions — deleting a session', () => {
+  it('it asks for confirmation with the partial token in the text', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Sessions {...props} />)
@@ -145,7 +145,7 @@ describe('Sessions — borrar una sesión', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sessions/delete')).toBeUndefined()
   })
 
-  it('una sesión normal se borra con el nodo ELEGIDO en la pantalla', async () => {
+  it('an ordinary session is deleted with the node CHOSEN on the screen', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Sessions {...props} cluster={CLUSTER_SIN_INICIAR} />)
@@ -160,7 +160,7 @@ describe('Sessions — borrar una sesión', () => {
     })
   })
 
-  it('un token de API se borra contra el nodo PRIMARIO, no contra el elegido', async () => {
+  it('an API token is deleted against the PRIMARY node, not the chosen one', async () => {
     const spy = servidor({}, 'ns1.micluster.test')
     const user = userEvent.setup()
     render(<Sessions {...props} cluster={CLUSTER_PRIMARIO} />)
@@ -175,7 +175,7 @@ describe('Sessions — borrar una sesión', () => {
     })
   })
 
-  it('al borrar, el aviso de éxito es el literal de upstream y sale en la página', async () => {
+  it('on deleting, the success alert is the upstream literal and comes out on the page', async () => {
     const onAviso = vi.fn()
     servidor()
     const user = userEvent.setup()

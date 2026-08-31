@@ -29,7 +29,7 @@ const cuerpo = (spy: ReturnType<typeof servidor>) =>
   spy.mock.calls.find((c) => c[0] === 'admin/sso/set')?.[1]?.body as Record<string, string>
 
 describe('SSO — carga', () => {
-  it('pinta los scopes que trae el servidor y las dos casillas de alta', async () => {
+  it('it draws the scopes the server brings and the two sign-up checkboxes', async () => {
     servidor()
     render(<Sso {...props} />)
     expect(await screen.findByLabelText('Scope Name 1')).toHaveValue('openid')
@@ -37,14 +37,14 @@ describe('SSO — carga', () => {
     expect(screen.getByLabelText('Allow Sign Up Only For Mapped Users')).toBeChecked()
   })
 
-  it('los campos nulos del servidor se pintan vacíos, no como «null»', async () => {
+  it('the null fields from the server are drawn empty, not as \"null\"', async () => {
     servidor()
     render(<Sso {...props} />)
     expect(await screen.findByLabelText('Authority (Issuer)')).toHaveValue('')
     expect(screen.getByLabelText('Client Secret')).toHaveValue('')
   })
 
-  it('el secreto ya guardado llega enmascarado y se conserva tal cual', async () => {
+  it('the stored secret arrives masked and is kept as it is', async () => {
     const spy = servidor({ ssoClientSecret: '************' })
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -56,7 +56,7 @@ describe('SSO — carga', () => {
 })
 
 describe('SSO — validaciones', () => {
-  it('con el SSO apagado se puede guardar todo vacío', async () => {
+  it('with SSO off everything can be saved empty', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -66,7 +66,7 @@ describe('SSO — validaciones', () => {
     expect(cuerpo(spy).ssoEnabled).toBe('false')
   })
 
-  it('con el SSO encendido el orden es autoridad, cliente y secreto', async () => {
+  it('with SSO on the order is authority, client and secret', async () => {
     const onAviso = vi.fn()
     const spy = servidor()
     const user = userEvent.setup()
@@ -101,7 +101,7 @@ describe('SSO — validaciones', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sso/set')).toBeUndefined()
   })
 
-  it('un scope vacío aborta el guardado con el aviso de la tabla', async () => {
+  it('an empty scope aborts the save with the table alert', async () => {
     const onAviso = vi.fn()
     const spy = servidor()
     const user = userEvent.setup()
@@ -121,7 +121,7 @@ describe('SSO — validaciones', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sso/set')).toBeUndefined()
   })
 
-  it('un `|` en un scope aborta con su propio aviso', async () => {
+  it('a `|` in a scope aborts with its own alert', async () => {
     const onAviso = vi.fn()
     servidor()
     const user = userEvent.setup()
@@ -138,8 +138,8 @@ describe('SSO — validaciones', () => {
   })
 })
 
-describe('SSO — el envío', () => {
-  it('los scopes viajan unidos por `|`', async () => {
+describe('SSO — the send', () => {
+  it('the scopes travel joined by `|`', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -149,7 +149,7 @@ describe('SSO — el envío', () => {
     expect(cuerpo(spy).ssoScopes).toBe('openid|profile|email')
   })
 
-  it('una lista vacía viaja como la cadena «false», no vacía', async () => {
+  it('an empty list travels as the string \"false\", not empty', async () => {
     const spy = servidor({ ssoScopes: [] })
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -160,7 +160,7 @@ describe('SSO — el envío', () => {
     expect(cuerpo(spy).ssoGroupMap).toBe('false')
   })
 
-  it('el mapa de grupos viaja con las dos columnas por fila', async () => {
+  it('the group map travels with both columns per row', async () => {
     const spy = servidor({ ssoGroupMap: [{ remoteGroup: 'dns-admins', localGroup: 'Administrators' }] })
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -170,7 +170,7 @@ describe('SSO — el envío', () => {
     expect(cuerpo(spy).ssoGroupMap).toBe('dns-admins|Administrators')
   })
 
-  it('avisa con el literal de upstream al guardar', async () => {
+  it('it alerts with the upstream literal on saving', async () => {
     const onAviso = vi.fn()
     servidor()
     const user = userEvent.setup()
@@ -186,7 +186,7 @@ describe('SSO — el envío', () => {
     })
   })
 
-  it('la respuesta del guardado NO trae los grupos locales y no se pierden', async () => {
+  it('the save response does NOT bring the local groups and they are not lost', async () => {
     servidor({ ssoGroupMap: [{ remoteGroup: 'g', localGroup: 'Administrators' }] })
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -198,8 +198,8 @@ describe('SSO — el envío', () => {
   })
 })
 
-describe('SSO — las dos confirmaciones de `http:`', () => {
-  it('una autoridad con `http:` pide confirmación antes de guardar', async () => {
+describe('SSO — the two `http:` confirmations', () => {
+  it('an authority with `http:` asks for confirmation before saving', async () => {
     const spy = servidor({ ssoAuthority: 'http://id.test' })
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -218,7 +218,7 @@ describe('SSO — las dos confirmaciones de `http:`', () => {
     expect(cuerpo(spy).ssoAuthority).toBe('http://id.test')
   })
 
-  it('cancelar la confirmación no manda nada', async () => {
+  it('cancelling the confirmation sends nothing', async () => {
     const spy = servidor({ ssoAuthority: 'http://id.test' })
     const user = userEvent.setup()
     render(<Sso {...props} />)
@@ -230,7 +230,7 @@ describe('SSO — las dos confirmaciones de `http:`', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sso/set')).toBeUndefined()
   })
 
-  it('la del Metadata Address es la segunda y tiene su propio texto', async () => {
+  it('the Metadata Address one is the second and has its own text', async () => {
     const spy = servidor({ ssoMetadataAddress: 'http://id.test/.well-known/openid-configuration' })
     const user = userEvent.setup()
     render(<Sso {...props} />)

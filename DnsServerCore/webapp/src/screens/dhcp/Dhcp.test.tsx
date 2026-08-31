@@ -70,7 +70,7 @@ function fila(nombre: string) {
 }
 
 describe('DHCP › Leases', () => {
-  it('pinta una fila por concesión y el total al pie', async () => {
+  it('it draws one row per lease and the total in the footer', async () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVADA] })
     render(<Dhcp token="t" sub="Leases" />)
 
@@ -88,7 +88,7 @@ describe('DHCP › Leases', () => {
   the table's own footer (`dhcp.js:74`) and the rest of the console uses its
   "there is nothing here" row.
   */
-  it('sin concesiones lo dice DENTRO de la tabla, y el pie sigue contando', async () => {
+  it('with no leases it says so INSIDE the table, and the footer keeps counting', async () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Leases" />)
 
@@ -97,7 +97,7 @@ describe('DHCP › Leases', () => {
     expect(screen.getByText('Total Leases: 0')).toBeInTheDocument()
   })
 
-  it('cada fila ofrece sólo la conversión que le toca por su tipo', async () => {
+  it('each row offers only the conversion its type calls for', async () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVADA] })
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
@@ -114,7 +114,7 @@ describe('DHCP › Leases', () => {
     ).toBeInTheDocument()
   })
 
-  it('reservar confirma, llama al endpoint con el clientIdentifier y avisa con el texto literal', async () => {
+  it('reserving confirms, calls the endpoint with the clientIdentifier and alerts with the literal text', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     const spy = vi.spyOn(api, 'convertToReservedLease').mockResolvedValue(OK)
@@ -138,7 +138,7 @@ describe('DHCP › Leases', () => {
     ).toBeInTheDocument()
   })
 
-  it('desreservar avisa con «Unreserved!»', async () => {
+  it('unreserving alerts with \"Unreserved!\"', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [RESERVADA] })
     vi.spyOn(api, 'convertToDynamicLease').mockResolvedValue(OK)
@@ -157,7 +157,7 @@ describe('DHCP › Leases', () => {
     ).toBeInTheDocument()
   })
 
-  it('quitar una concesión abre el modal completo y la borra de la tabla', async () => {
+  it('removing a lease opens the full modal and deletes it from the table', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     const spy = vi.spyOn(api, 'removeLease').mockResolvedValue(OK)
@@ -179,7 +179,7 @@ describe('DHCP › Leases', () => {
     expect(screen.getByText('No Lease Found')).toBeInTheDocument()
   })
 
-  it('si quitar falla, el aviso sale DENTRO del modal y la fila sigue ahí', async () => {
+  it('if removing fails, the alert comes out INSIDE the modal and the row is still there', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     vi.spyOn(api, 'removeLease').mockResolvedValue({ kind: 'error', message: 'DHCP scope does not exists: Default' })
@@ -195,7 +195,7 @@ describe('DHCP › Leases', () => {
     expect(screen.getByText('192.168.1.42')).toBeInTheDocument()
   })
 
-  it('sin permiso de borrado no se ofrece quitar; sin permiso de modificación, ni convertir', async () => {
+  it('without delete permission removing is not offered; without modify permission, neither is converting', async () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA] })
     render(<Dhcp token="t" sub="Leases" canModify={false} canDelete={false} />)
     await screen.findByText('192.168.1.42')
@@ -208,7 +208,7 @@ describe('DHCP › Leases', () => {
 })
 
 describe('DHCP › Scopes', () => {
-  it('pinta el rango, la red y el total al pie', async () => {
+  it('it draws the range, the network and the total in the footer', async () => {
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" />)
 
@@ -218,13 +218,13 @@ describe('DHCP › Scopes', () => {
     expect(screen.getByText('Total Scopes: 1')).toBeInTheDocument()
   })
 
-  it('sin scopes dice «No Scope Found»', async () => {
+  it('with no scopes it says \"No Scope Found\"', async () => {
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Scopes" />)
     expect(await screen.findByText('No Scope Found')).toBeInTheDocument()
   })
 
-  it('habilitar NO pregunta nada: llama al endpoint directamente', async () => {
+  it('enabling asks NOTHING: it calls the endpoint straight away', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [{ ...SCOPE, enabled: false }] })
     const spy = vi.spyOn(api, 'enableScope').mockResolvedValue(OK)
@@ -238,7 +238,7 @@ describe('DHCP › Scopes', () => {
     expect(screen.getByText('DHCP Scope was enabled successfully.')).toBeInTheDocument()
   })
 
-  it('deshabilitar SÍ pregunta, con el nombre del scope en el texto', async () => {
+  it('disabling DOES ask, with the scope name in the text', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'disableScope').mockResolvedValue(OK)
@@ -255,7 +255,7 @@ describe('DHCP › Scopes', () => {
     expect(await screen.findByText('Scope Disabled!')).toBeInTheDocument()
   })
 
-  it('borrar pregunta y quita la fila sin recargar la lista', async () => {
+  it('deleting asks and removes the row without reloading the list', async () => {
     const user = userEvent.setup()
     const lista = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'deleteScope').mockResolvedValue(OK)
@@ -276,7 +276,7 @@ describe('DHCP › Scopes', () => {
     expect(lista.mock.calls).toHaveLength(llamadasIniciales)
   })
 
-  it('sin permisos no salen ni «Add Scope», ni «Enable»/«Disable», ni «Delete»', async () => {
+  it('without permissions neither \"Add Scope\", nor \"Enable\"/\"Disable\", nor \"Delete\" show', async () => {
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" canModify={false} canDelete={false} />)
     await screen.findByText('Default')
@@ -289,8 +289,8 @@ describe('DHCP › Scopes', () => {
   })
 })
 
-describe('DHCP › Scopes — el formulario', () => {
-  it('«Add Scope» abre el formulario vacío con «Use This DNS Server» marcado', async () => {
+describe('DHCP › Scopes — the form', () => {
+  it('\"Add Scope\" opens the empty form with \"Use This DNS Server\" checked', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Scopes" />)
@@ -304,7 +304,7 @@ describe('DHCP › Scopes — el formulario', () => {
     expect(screen.getByLabelText('DNS Servers')).toBeDisabled()
   })
 
-  it('«Edit» carga el scope y rellena el formulario', async () => {
+  it('\"Edit\" loads the scope and fills the form', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'getScope').mockResolvedValue(DETALLE)
@@ -321,7 +321,7 @@ describe('DHCP › Scopes — el formulario', () => {
     expect(screen.getByLabelText('Exclusions 1 Starting Address')).toHaveValue('192.168.1.1')
   })
 
-  it('«Enable DNS Updates» desmarcado deshabilita la casilla de sobrescritura', async () => {
+  it('\"Enable DNS Updates\" unchecked disables the overwrite checkbox', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Scopes" />)
@@ -335,7 +335,7 @@ describe('DHCP › Scopes — el formulario', () => {
     expect(sobrescribir).toBeDisabled()
   })
 
-  it('guardar manda el cuerpo por POST y avisa con el texto literal', async () => {
+  it('saving sends the body by POST and alerts with the literal text', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
@@ -355,7 +355,7 @@ describe('DHCP › Scopes — el formulario', () => {
     expect(screen.getByText('DHCP Scope was saved successfully.')).toBeInTheDocument()
   })
 
-  it('cambiar el nombre de un scope existente manda el viejo en `name` y el nuevo en `newName`', async () => {
+  it('changing the name of an existing scope sends the old one in `name` and the new one in `newName`', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     vi.spyOn(api, 'getScope').mockResolvedValue(DETALLE)
@@ -372,7 +372,7 @@ describe('DHCP › Scopes — el formulario', () => {
     expect(spy.mock.calls[0][1]).toMatchObject({ name: 'Default', newName: 'Casa' })
   })
 
-  it('una celda obligatoria vacía frena el guardado, avisa y enfoca esa celda', async () => {
+  it('an empty required cell stops the save, alerts and focuses that cell', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
@@ -393,7 +393,7 @@ describe('DHCP › Scopes — el formulario', () => {
     expect(screen.getByLabelText('Exclusions 1 Starting Address')).toHaveFocus()
   })
 
-  it('un `|` en una celda da «Invalid Character!» con su texto literal', async () => {
+  it('a `|` in a cell gives \"Invalid Character!\" with its literal text', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [] })
     const spy = vi.spyOn(api, 'setScope').mockResolvedValue(OK)
@@ -414,7 +414,7 @@ describe('DHCP › Scopes — el formulario', () => {
     ).toBeInTheDocument()
   })
 
-  it('«Cancel» vuelve a la tabla y la recarga', async () => {
+  it('\"Cancel\" returns to the table and reloads it', async () => {
     const user = userEvent.setup()
     const lista = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" />)

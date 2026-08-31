@@ -9,12 +9,12 @@ out. What it can answer is the contract, which is what fifty places were writing
 hand —and out of that came four distances for the same thing—.
 */
 describe('Avisador', () => {
-  it('sin aviso no pinta nada', () => {
+  it('with no alert it draws nothing', () => {
     const { container } = render(<Avisador aviso={null} onCerrar={() => {}} />)
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('con aviso pinta título, texto y el botón de cerrar', async () => {
+  it('with an alert it draws title, text and the close button', async () => {
     const cerrar = vi.fn()
     render(
       <Avisador

@@ -36,7 +36,7 @@ function reg(type: string, rData: Record<string, unknown>, extra: Partial<Regist
 }
 
 describe('zones/records — transporte', () => {
-  it('getRecords NO pagina: pide listZone=true y sin parámetros de página', async () => {
+  it('getRecords does NOT paginate: it asks with listZone=true and no page parameters', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(
       env({ zone: { name: 'casa.test' }, records: [] }),
     )
@@ -51,12 +51,12 @@ describe('zones/records — transporte', () => {
     expect(spy.mock.calls[0][1]?.body).not.toHaveProperty('pageNumber')
   })
 
-  it('devuelve null si la llamada falla', async () => {
+  it('it returns null if the call fails', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
     expect(await getRecords('t', 'x')).toBeNull()
   })
 
-  it('add y delete son POST y llevan `node` en la QUERY, no en el cuerpo', async () => {
+  it('add and delete are POST and carry `node` in the QUERY, not in the body', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await addRecord('t', { zone: 'casa.test' })
     expect(spy.mock.calls[0][0]).toBe('zones/records/add?node=')
@@ -68,15 +68,15 @@ describe('zones/records — transporte', () => {
   })
 })
 
-describe('identidad de un registro', () => {
-  it('A manda la IP y la bandera de pistas SVCB', () => {
+describe('identity of a record', () => {
+  it('A sends the IP and the SVCB hints flag', () => {
     expect(identidadRegistro(reg('A', { ipAddress: '10.0.0.1' }), { updateSvcbHints: true })).toEqual({
       ipAddress: '10.0.0.1',
       updateSvcbHints: 'true',
     })
   })
 
-  it('NS lleva el pegamento al deshabilitar y NO al borrar', () => {
+  it('NS carries the glue when disabling and NOT when deleting', () => {
     const r = reg('NS', { nameServer: 'ns1.casa.test' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
     expect(identidadRegistro(r)).toEqual({
       nameServer: 'ns1.casa.test',
@@ -85,7 +85,7 @@ describe('identidad de un registro', () => {
     expect(identidadRegistro(r, { paraBorrado: true })).toEqual({ nameServer: 'ns1.casa.test' })
   })
 
-  it('CNAME, DNAME y APP no aportan nada al borrado (zone.js:6420-6510)', () => {
+  it('CNAME, DNAME and APP contribute nothing to the delete (zone.js:6420-6510)', () => {
     expect(identidadRegistro(reg('CNAME', { cname: 'a.b' }), { paraBorrado: true })).toEqual({})
     expect(identidadRegistro(reg('DNAME', { dname: 'a.b' }), { paraBorrado: true })).toEqual({})
     expect(
@@ -95,12 +95,12 @@ describe('identidad de un registro', () => {
     ).toEqual({})
   })
 
-  it('TXT identifica por las cadenas en base64, unidas por coma', () => {
+  it('TXT identifies by the base64 strings, comma-joined', () => {
     const r = reg('TXT', { text: 'a b', characterStringsBase64: ['YQ==', 'Yg=='] })
     expect(identidadRegistro(r)).toEqual({ characterStringsBase64: 'YQ==,Yg==' })
   })
 
-  it('SVCB aplana svcParams y convierte un target vacío en la raíz', () => {
+  it('SVCB flattens svcParams and turns an empty target into the root', () => {
     const r = reg('SVCB', {
       svcPriority: 1,
       svcTargetName: '',
@@ -117,16 +117,16 @@ describe('identidad de un registro', () => {
     })
   })
 
-  it('svcParams vacío viaja como la cadena «false», no como cadena vacía', () => {
+  it('an empty svcParams travels as the string \"false\", not as an empty string', () => {
     expect(aplanarSvcParams({})).toBe('false')
     expect(aplanarSvcParams(undefined)).toBe('false')
   })
 
-  it('sin pegamento, `glue` es cadena vacía', () => {
+  it('with no glue, `glue` is an empty string', () => {
     expect(aplanarGlue(undefined)).toBe('')
   })
 
-  it('FWD sólo arrastra el proxy cuando el tipo lo tiene', () => {
+  it('FWD only drags the proxy along when the type has one', () => {
     const sinProxy = reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' })
     expect(identidadRegistro(sinProxy)).not.toHaveProperty('proxyAddress')
 
@@ -139,14 +139,14 @@ describe('identidad de un registro', () => {
     })
   })
 
-  it('un tipo desconocido manda `rdata` sólo si el registro lo trae', () => {
+  it('an unknown type sends `rdata` only if the record brings it', () => {
     expect(identidadRegistro(reg('TYPE65280', { value: 'ABCD' }))).toEqual({ rdata: 'ABCD' })
     expect(identidadRegistro(reg('TYPE65280', {}))).toEqual({})
   })
 })
 
 describe('cuerpos completos', () => {
-  it('el borrado manda zone, domain y type, y la raíz va como punto', () => {
+  it('the delete sends zone, domain and type, and the root goes as a dot', () => {
     const r = reg('MX', { preference: 10, exchange: 'mail.casa.test' }, { name: '' })
     expect(cuerpoBorrado('casa.test', r)).toEqual({
       zone: 'casa.test',
@@ -157,7 +157,7 @@ describe('cuerpos completos', () => {
     })
   })
 
-  it('deshabilitar reenvía el registro entero con disable=true', () => {
+  it('disabling resends the whole record with disable=true', () => {
     const r = reg('MX', { preference: 10, exchange: 'mail.casa.test' }, { comments: 'nota', expiryTtl: 60 })
     expect(cuerpoCambioDeEstado('casa.test', r, true, false)).toEqual({
       zone: 'casa.test',
@@ -173,20 +173,20 @@ describe('cuerpos completos', () => {
   })
 })
 
-describe('reglas sueltas de upstream', () => {
-  it('el nombre completo: vacío es @, @ es la zona, y la raíz cierra con punto', () => {
+describe('loose rules of upstream', () => {
+  it('the full name: empty is @, @ is the zone, and the root closes with a dot', () => {
     expect(dominioCompleto('casa.test', '')).toBe('casa.test')
     expect(dominioCompleto('casa.test', '@')).toBe('casa.test')
     expect(dominioCompleto('casa.test', 'www')).toBe('www.casa.test')
     expect(dominioCompleto('.', 'www')).toBe('www.')
   })
 
-  it('sin la lista de registros cargada, las pistas SVCB se piden igual', () => {
+  it('without the record list loaded, the SVCB hints are asked for anyway', () => {
     // zone.js:4690 — the default case is `true`, not `false`.
     expect(zonaTienePistaSvcbAuto(null, true, false)).toBe(true)
   })
 
-  it('sólo pide pistas si algún SVCB/HTTPS tiene la automática de esa familia', () => {
+  it('it only asks for hints if some SVCB/HTTPS has the automatic one of that family', () => {
     const svcb = reg('SVCB', { autoIpv4Hint: true, autoIpv6Hint: false })
     expect(zonaTienePistaSvcbAuto([svcb], true, false)).toBe(true)
     expect(zonaTienePistaSvcbAuto([svcb], false, true)).toBe(false)

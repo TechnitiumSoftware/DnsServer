@@ -22,7 +22,7 @@ const RESPUESTA = {
 }
 
 describe('listarNodo', () => {
-  it('llama al endpoint de cada lista con domain y node, como upstream', async () => {
+  it('it calls the endpoint of each list with domain and node, like upstream', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
 
     await listarNodo('cache', 't', 'casa.test')
@@ -39,7 +39,7 @@ describe('listarNodo', () => {
     expect(spy.mock.calls[0][0]).toBe('blocked/list')
   })
 
-  it('sólo manda direction cuando se navega hacia arriba', async () => {
+  it('it only sends direction when navigating upwards', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
 
     await listarNodo('cache', 't', 'casa.test')
@@ -52,13 +52,13 @@ describe('listarNodo', () => {
 
   /* other-zones.js:105 writes `domain.toLowerCase();` without assigning: in
      JavaScript strings are immutable, so the domain travels EXACTLY as typed. */
-  it('no pasa el dominio a minúsculas: upstream tampoco lo hace', async () => {
+  it('it does not lowercase the domain: upstream does not either', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
     await listarNodo('cache', 't', 'CASA.Test')
     expect(spy.mock.calls[0][1]?.body?.domain).toBe('CASA.Test')
   })
 
-  it('desenvuelve el nodo, que es lo que la pantalla necesita', async () => {
+  it('it unwraps the node, which is what the screen needs', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
     const r = await listarNodo('cache', 't', 'x')
     expect(r.kind).toBe('ok')
@@ -69,7 +69,7 @@ describe('listarNodo', () => {
 
   /* Upstream draws the server's errorMessage when a list fails; with null that
      text would be lost. */
-  it('conserva el mensaje de error del servidor', async () => {
+  it('it keeps the error message from the server', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     const r = await listarNodo('cache', 't', 'x')
     expect(r).toEqual({ kind: 'error', message: 'boom' })
@@ -77,7 +77,7 @@ describe('listarNodo', () => {
 })
 
 describe('dominioPadre', () => {
-  it('replica getParentDomain de other-zones.js', () => {
+  it('it replicates getParentDomain from other-zones.js', () => {
     expect(dominioPadre('a.b.casa.test')).toBe('b.casa.test')
     expect(dominioPadre('casa.test')).toBe('test')
     // A single-label domain has the root as its parent, which is "".
@@ -89,7 +89,7 @@ describe('dominioPadre', () => {
 })
 
 describe('limpiarLista', () => {
-  it('replica cleanTextList de common.js', () => {
+  it('it replicates cleanTextList from common.js', () => {
     expect(limpiarLista('a.test\nb.test')).toBe('a.test,b.test')
     expect(limpiarLista('a.test\n\n\nb.test')).toBe('a.test,b.test')
     expect(limpiarLista('\na.test\n')).toBe('a.test')
@@ -103,14 +103,14 @@ describe('limpiarLista', () => {
 })
 
 describe('cache', () => {
-  it('vaciarCache llama a cache/flush con el nodo del cluster', async () => {
+  it('vaciarCache calls cache/flush with the cluster node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await vaciarCache('t')
     expect(spy.mock.calls[0][0]).toBe('cache/flush')
     expect(spy.mock.calls[0][1]?.body).toEqual({ node: '' })
   })
 
-  it('borrarNodoCache llama a cache/delete con domain y node', async () => {
+  it('borrarNodoCache calls cache/delete with domain and node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await borrarNodoCache('t', 'casa.test')
     expect(spy.mock.calls[0][0]).toBe('cache/delete')
@@ -118,8 +118,8 @@ describe('cache', () => {
   })
 })
 
-describe('allowed y blocked', () => {
-  it('anadirDominio y borrarDominio usan el endpoint de su lista', async () => {
+describe('allowed and blocked', () => {
+  it('anadirDominio and borrarDominio use the endpoint of their list', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
 
     await anadirDominio('allowed', 't', 'casa.test')
@@ -140,7 +140,7 @@ describe('allowed y blocked', () => {
     expect(spy.mock.calls[0][1]?.body).toBeUndefined()
   })
 
-  it('importarDominios va por POST y con el nombre de campo de cada lista', async () => {
+  it('importarDominios goes by POST and with the field name of each list', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
 
     await importarDominios('allowed', 't', 'a.test,b.test')
@@ -154,7 +154,7 @@ describe('allowed y blocked', () => {
   })
 
   /* The export does not go by XHR: it asks for a single-use token and opens a window. */
-  it('exportarDominios pasa por openDownload', async () => {
+  it('exportarDominios goes through openDownload', async () => {
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
     await exportarDominios('allowed', 't')
     expect(spy.mock.calls[0][1]).toBe('allowed/export')

@@ -54,12 +54,12 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('SessionProvider', () => {
-  it('sin token, muestra el login', async () => {
+  it('with no token, it shows the login', async () => {
     montar()
     expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument()
   })
 
-  it('con token válido guardado, entra directo sin pasar por el login', async () => {
+  it('with a valid stored token, it goes straight in without the login', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
@@ -67,21 +67,21 @@ describe('SessionProvider', () => {
     expect(screen.queryByRole('button', { name: 'Login' })).not.toBeInTheDocument()
   })
 
-  it('con token inválido, cae al login', async () => {
+  it('with an invalid token, it falls back to the login', async () => {
     localStorage.setItem('token', 'caducado')
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
     montar()
     expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument()
   })
 
-  it('con #error del SSO, muestra el login y la alerta con ese texto', async () => {
+  it('with an SSO #error, it shows the login and the alert with that text', async () => {
     window.history.replaceState(null, '', '/#error=' + encodeURIComponent('SSO authentication failed. Please try again.'))
     montar()
     expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument()
     expect(screen.getByText('SSO authentication failed. Please try again.')).toBeInTheDocument()
   })
 
-  it('pone el título del documento con el formato de upstream', async () => {
+  it('it sets the document title in the upstream format', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
@@ -91,7 +91,7 @@ describe('SessionProvider', () => {
     )
   })
 
-  it('oculta las secciones sin permiso de lectura', async () => {
+  it('it hides the sections with no read permission', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({}, { DhcpServer: false, Administration: false }))
     montar()
@@ -101,7 +101,7 @@ describe('SessionProvider', () => {
     expect(screen.getByRole('link', { name: 'Zones' })).toBeInTheDocument()
   })
 
-  it('aterriza en la primera sección visible cuando Dashboard no lo es', async () => {
+  it('it lands on the first visible section when Dashboard is not one', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({}, { Dashboard: false }))
     montar()
@@ -121,7 +121,7 @@ describe('SessionProvider', () => {
   destination, all of them reachable with the tab key, and a single
   `aria-current="page"`.
   */
-  it('el panel lateral son enlaces de verdad, no pestañas', async () => {
+  it('the side panel is real links, not tabs', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
@@ -140,7 +140,7 @@ describe('SessionProvider', () => {
     }
   })
 
-  it('la sub-sección activa es la única que dice ser la página actual', async () => {
+  it('the active sub-section is the only one claiming to be the current page', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
@@ -162,7 +162,7 @@ describe('SessionProvider', () => {
     expect(actuales.map((a) => a.textContent)).toEqual(['Query Logs'])
   })
 
-  it('una sección con sub-secciones completa la dirección sin dejar rastro en el historial', async () => {
+  it('a section with sub-sections completes the address without leaving a trace in the history', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     window.history.replaceState(null, '', '/settings/')
@@ -188,7 +188,7 @@ describe('SessionProvider', () => {
     expect(empujar).not.toHaveBeenCalled()
   })
 
-  it('el pie de upstream sigue estando con la consola abierta, no sólo en el login', async () => {
+  it('the upstream footer is still there with the console open, not only on the login', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
@@ -218,7 +218,7 @@ describe('SessionProvider', () => {
   what the server would answer. Mocking `apiRequest` would test nothing, because
   it is the one that emits the notice.
   */
-  it('si el servidor rechaza la sesión, se acaba la sesión y se vuelve al login', async () => {
+  it('if the server rejects the session, the session ends and it returns to the login', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()
@@ -239,7 +239,7 @@ describe('SessionProvider', () => {
     expect(screen.getByText('Session expired. Please login again.')).toBeInTheDocument()
   })
 
-  it('a un usuario de SSO le oculta cambiar contraseña y configurar 2FA', async () => {
+  it('for an SSO user it hides changing the password and configuring 2FA', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({ isSsoUser: true }))
     montar()
@@ -250,7 +250,7 @@ describe('SessionProvider', () => {
     expect(screen.getByText('Logout')).toBeInTheDocument()
   })
 
-  it('a un usuario normal se los muestra', async () => {
+  it('for an ordinary user it shows them', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
     montar()

@@ -7,13 +7,13 @@ afterEach(() => vi.restoreAllMocks())
 const respuesta = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
 
 describe('dashboard', () => {
-  it('los seis rangos son los de upstream, con sus etiquetas literales', () => {
+  it('the six ranges are the upstream ones, with their literal labels', () => {
     expect(RANGOS).toEqual(['LastHour','LastDay','LastWeek','LastMonth','LastYear','Custom'])
     expect(ETIQUETA_RANGO.LastHour).toBe('Last Hour')
     expect(ETIQUETA_RANGO.LastMonth).toBe('Last Month')
   })
 
-  it('pide el rango y desenvuelve response', async () => {
+  it('it asks for the range and unwraps response', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(respuesta({ stats: { totalQueries: 7 } }))
     const r = await getDashboardStats('t', 'LastDay')
     expect(spy.mock.calls[0][0]).toBe('dashboard/stats/get')
@@ -21,7 +21,7 @@ describe('dashboard', () => {
     expect(r.kind === 'ok' && r.data.stats.totalQueries).toBe(7)
   })
 
-  it('sólo manda start y end cuando el rango es Custom', async () => {
+  it('it only sends start and end when the range is Custom', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(respuesta({}))
     await getDashboardStats('t', 'LastHour', { start: 'a', end: 'b' })
     expect(spy.mock.calls[0][1]?.body).toEqual({ type: 'LastHour' })
@@ -35,12 +35,12 @@ describe('dashboard', () => {
   up was the problem: with `null` the Dashboard could not tell a failure apart
   from a server with no traffic, and drew eleven zeros.
   */
-  it('sube el fallo del servidor, para que el Dashboard pueda decirlo', async () => {
+  it('it raises the server failure, so the Dashboard can state it', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     expect(await getDashboardStats('t')).toEqual({ kind: 'error', message: 'boom' })
   })
 
-  it('getTop pide el tipo de lista y el límite', async () => {
+  it('getTop asks for the list type and the limit', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(
       respuesta({ topClients: [{ name: '10.0.1.42', hits: 12 }] }),
     )
@@ -49,12 +49,12 @@ describe('dashboard', () => {
     expect(r[0].name).toBe('10.0.1.42')
   })
 
-  it('getTop devuelve lista vacía si falla', async () => {
+  it('getTop returns an empty list on failure', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'x' })
     expect(await getTop('t', 'LastHour', 'TopDomains')).toEqual([])
   })
 
-  it('deleteAllStats llama al endpoint correcto', async () => {
+  it('deleteAllStats calls the right endpoint', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await deleteAllStats('t')
     expect(spy.mock.calls[0][0]).toBe('dashboard/stats/deleteAll')

@@ -9,7 +9,7 @@ the other thirty —that is, a red box with its title and a blank body. `message
 is optional in `ApiOutcome`, so all three were reachable.
 */
 describe('avisoDeFallo', () => {
-  it('usa el mensaje del servidor cuando lo hay', () => {
+  it('it uses the server message when there is one', () => {
     expect(avisoDeFallo({ kind: 'error', message: 'Zone not found.' })).toEqual({
       type: 'danger',
       title: 'Error!',
@@ -17,11 +17,11 @@ describe('avisoDeFallo', () => {
     })
   })
 
-  it('un error sin mensaje NO deja el aviso en blanco', () => {
+  it('an error with no message does NOT leave the alert blank', () => {
     expect(avisoDeFallo({ kind: 'error' }).text).toBe('Unknown error.')
   })
 
-  it('el token caducado dice lo mismo en toda la consola', () => {
+  it('the expired token says the same thing across the whole console', () => {
     expect(avisoDeFallo({ kind: 'invalid-token' }).text).toBe('Invalid token or session expired.')
   })
 })

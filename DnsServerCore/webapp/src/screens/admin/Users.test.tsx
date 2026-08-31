@@ -159,7 +159,7 @@ describe('Users — enable and disable', () => {
   })
 })
 
-describe('Users — «Add User»', () => {
+describe('Users — "Add User"', () => {
   async function abrir() {
     servidor()
     const user = userEvent.setup()
@@ -205,7 +205,7 @@ describe('Users — «Add User»', () => {
   })
 })
 
-describe('Users — «Reset Password»', () => {
+describe('Users — "Reset Password"', () => {
   it('it validates in order and saves by POST with `newPass`', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const onAviso = vi.fn()

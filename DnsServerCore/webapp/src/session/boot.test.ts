@@ -12,7 +12,7 @@ beforeEach(() => {
 })
 
 describe('readBootIntent', () => {
-  it('devuelve el error del fragmento y limpia la URL', () => {
+  it('it returns the fragment error and cleans the URL', () => {
     setHash('#error=' + encodeURIComponent('SSO authentication failed. Please try again.'))
     expect(readBootIntent()).toEqual({
       kind: 'show-error',
@@ -21,34 +21,34 @@ describe('readBootIntent', () => {
     expect(window.location.hash).toBe('')
   })
 
-  it('el error del fragmento gana a cualquier token guardado', () => {
+  it('the fragment error wins over any stored token', () => {
     localStorage.setItem('token', 'guardado')
     setHash('#error=' + encodeURIComponent('Boom'))
     expect(readBootIntent().kind).toBe('show-error')
   })
 
-  it('toma el token de la cookie y la borra en el acto', () => {
+  it('it takes the token from the cookie and deletes it on the spot', () => {
     document.cookie = 'token=de-sso; path=/'
     expect(readBootIntent()).toEqual({ kind: 'try-token', token: 'de-sso' })
     expect(document.cookie).not.toContain('de-sso')
   })
 
-  it('la cookie gana a localStorage', () => {
+  it('the cookie wins over localStorage', () => {
     localStorage.setItem('token', 'viejo')
     document.cookie = 'token=nuevo; path=/'
     expect(readBootIntent()).toEqual({ kind: 'try-token', token: 'nuevo' })
   })
 
-  it('cae a localStorage cuando no hay cookie', () => {
+  it('it falls back to localStorage when there is no cookie', () => {
     localStorage.setItem('token', 'guardado')
     expect(readBootIntent()).toEqual({ kind: 'try-token', token: 'guardado' })
   })
 
-  it('sin nada, va al login', () => {
+  it('with nothing, it goes to the login', () => {
     expect(readBootIntent()).toEqual({ kind: 'show-login' })
   })
 
-  it('limpia la URL aunque no haya error ni token', () => {
+  it('it cleans the URL even with no error and no token', () => {
     setHash('#loquesea=1')
     readBootIntent()
     expect(window.location.hash).toBe('')

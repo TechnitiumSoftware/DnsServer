@@ -36,28 +36,28 @@ function servidor(grupos = GRUPOS, detalle?: Record<string, unknown>) {
 
 const props = { token: 'tok', onAviso: vi.fn() }
 
-describe('Groups — la tabla', () => {
-  it('pinta nombre, descripción y el total', async () => {
+describe('Groups — the table', () => {
+  it('it draws name, description and the total', async () => {
     servidor()
     render(<Groups {...props} />)
     expect(await screen.findByText('Super administrators')).toBeInTheDocument()
     expect(screen.getByText('Total Groups: 3')).toBeInTheDocument()
   })
 
-  it('una descripción con saltos de línea se pinta en varias líneas', async () => {
+  it('a description with newlines is drawn over several lines', async () => {
     servidor([{ name: 'Ops', description: 'primera\nsegunda' }])
     render(<Groups {...props} />)
     expect(await screen.findByText('primera')).toBeInTheDocument()
     expect(screen.getByText('segunda')).toBeInTheDocument()
   })
 
-  it('sin grupos el total dice cero', async () => {
+  it('with no groups the total says zero', async () => {
     servidor([])
     render(<Groups {...props} />)
     expect(await screen.findByText('Total Groups: 0')).toBeInTheDocument()
   })
 
-  it('si el servidor falla avisa con su mensaje', async () => {
+  it('if the server fails it alerts with its message', async () => {
     const onAviso = vi.fn()
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
     render(<Groups {...props} onAviso={onAviso} />)
@@ -70,8 +70,8 @@ describe('Groups — la tabla', () => {
   })
 })
 
-describe('Groups — «Add Group»', () => {
-  it('exige el nombre y nada más', async () => {
+describe('Groups — "Add Group"', () => {
+  it('it requires the name and nothing else', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Groups {...props} />)
@@ -82,7 +82,7 @@ describe('Groups — «Add Group»', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/groups/create')).toBeUndefined()
   })
 
-  it('crea el grupo con su descripción y lo pone el primero de la lista', async () => {
+  it('it creates the group with its description and puts it first in the list', async () => {
     const spy = servidor()
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -106,8 +106,8 @@ describe('Groups — «Add Group»', () => {
   })
 })
 
-describe('Groups — el modal de detalles', () => {
-  it('guarda miembros limpiados y SIN `newGroup` si el nombre no cambió', async () => {
+describe('Groups — the details modal', () => {
+  it('it saves cleaned members and WITHOUT `newGroup` if the name did not change', async () => {
     const spy = servidor()
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -128,7 +128,7 @@ describe('Groups — el modal de detalles', () => {
     })
   })
 
-  it('`newGroup` viaja cuando el nombre cambia', async () => {
+  it('`newGroup` travels when the name changes', async () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Groups {...props} />)
@@ -144,7 +144,7 @@ describe('Groups — el modal de detalles', () => {
     expect(body.group).toBe('Administrators')
   })
 
-  it('«Add User» añade al final y «None» vacía la lista de miembros', async () => {
+  it('\"Add User\" appends at the end and \"None\" empties the member list', async () => {
     servidor()
     const user = userEvent.setup()
     render(<Groups {...props} />)
@@ -159,7 +159,7 @@ describe('Groups — el modal de detalles', () => {
     expect(screen.getByLabelText('Members')).toHaveValue('')
   })
 
-  it('borrar pide confirmación con el nombre y saca la fila', async () => {
+  it('deleting asks for confirmation with the name and takes the row out', async () => {
     const spy = servidor()
     const onAviso = vi.fn()
     const user = userEvent.setup()

@@ -21,7 +21,7 @@ const sesion = {
 }
 
 describe('Login', () => {
-  it('exige usuario con el texto literal de upstream', async () => {
+  it('it requires a user with the literal text of upstream', async () => {
     render(<Login onSuccess={() => {}} />)
     await userEvent.click(screen.getByRole('button', { name: 'Login' }))
     expect(await screen.findByText('Please enter an username.')).toBeInTheDocument()
@@ -32,7 +32,7 @@ describe('Login', () => {
   they show on its login screen too. Here there were none, and two of them
   —technitium.com and dnsclient.net— appeared on no other screen of the console.
   */
-  it('enseña el pie de upstream, que también sale en su login', async () => {
+  it('it shows the upstream footer, which appears on its login too', async () => {
     render(<Login onSuccess={() => {}} />)
     for (const [nombre, destino] of [
       ['Technitium', 'https://technitium.com/'],
@@ -45,14 +45,14 @@ describe('Login', () => {
     }
   })
 
-  it('exige contraseña con el texto literal de upstream', async () => {
+  it('it requires a password with the literal text of upstream', async () => {
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
     await userEvent.click(screen.getByRole('button', { name: 'Login' }))
     expect(await screen.findByText('Please enter a password.')).toBeInTheDocument()
   })
 
-  it('envía el usuario en minúsculas', async () => {
+  it('it sends the user lowercased', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion)
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'ADMIN')
@@ -61,7 +61,7 @@ describe('Login', () => {
     expect(llamadaLogin(spy)?.[1]?.body?.user).toBe('admin')
   })
 
-  it('envía includeInfo=true y por POST', async () => {
+  it('it sends includeInfo=true and by POST', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion)
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
@@ -73,7 +73,7 @@ describe('Login', () => {
     expect(llamada?.[1]?.body?.includeInfo).toBe('true')
   })
 
-  it('avisa con el mensaje del servidor cuando las credenciales fallan', async () => {
+  it('it alerts with the server message when the credentials fail', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({
       kind: 'error',
       message: 'Invalid username or password for user: admin',
@@ -87,7 +87,7 @@ describe('Login', () => {
     ).toBeInTheDocument()
   })
 
-  it('muestra el panel OTP y deshabilita la contraseña cuando el servidor pide 2FA', async () => {
+  it('it shows the OTP panel and disables the password when the server asks for 2FA', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'two-factor-required' })
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
@@ -97,7 +97,7 @@ describe('Login', () => {
     expect(screen.getByLabelText('Password')).toBeDisabled()
   })
 
-  it('con el panel OTP abierto y menos de 6 dígitos, avisa con el texto literal', async () => {
+  it('with the OTP panel open and fewer than 6 digits, it alerts with the literal text', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'two-factor-required' })
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
@@ -113,7 +113,7 @@ describe('Login', () => {
     ).toBeInTheDocument()
   })
 
-  it('entrega la sesión al terminar', async () => {
+  it('it hands over the session on finishing', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion)
     const onSuccess = vi.fn()
     render(<Login onSuccess={onSuccess} />)
@@ -126,7 +126,7 @@ describe('Login', () => {
     )
   })
 
-  it('fuerza el cambio de contraseña con admin/admin y sin 2FA', async () => {
+  it('it forces the password change with admin/admin and no 2FA', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({
       kind: 'ok',
       data: { status: 'ok', token: 't', displayName: 'Administrator', username: 'admin', totpEnabled: false },
@@ -144,7 +144,7 @@ describe('Login', () => {
 })
 
 describe('Forgot Password?', () => {
-  it('el enlace abre el modal, que explica el único procedimiento que existe', async () => {
+  it('the link opens the modal, which explains the only procedure there is', async () => {
     // It was missing entirely until the phase 10 inventory sweep: it was the only
     // one of upstream's 40 modals with no counterpart.
     const usuario = userEvent.setup()
@@ -160,7 +160,7 @@ describe('Forgot Password?', () => {
     expect(within(dialogo).getByText('resetadmin.config')).toBeTruthy()
   })
 
-  it('no llama a ningún endpoint: es sólo texto', async () => {
+  it('it calls no endpoint: it is only text', async () => {
     const usuario = userEvent.setup()
     vi.spyOn(status, 'getStatus').mockResolvedValue(null as never)
     const spy = vi.spyOn(client, 'apiRequest')

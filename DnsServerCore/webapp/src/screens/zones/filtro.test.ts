@@ -28,8 +28,8 @@ const REGISTROS = [
   reg('a.b.casa.test', 'A'),
 ]
 
-describe('filtro de nombre', () => {
-  it('sin comodín la comparación es EXACTA, no «contiene»', () => {
+describe('name filter', () => {
+  it('without a wildcard the comparison is EXACT, not \"contains\"', () => {
     expect(filtrar(REGISTROS, { nombre: 'www', tipo: '' }, 'casa.test').map((r) => r.name)).toEqual([
       'www.casa.test',
       'www.casa.test',
@@ -38,25 +38,25 @@ describe('filtro de nombre', () => {
     expect(filtrar(REGISTROS, { nombre: 'w', tipo: '' }, 'casa.test')).toEqual([])
   })
 
-  it('`@` es el ápice de la zona', () => {
+  it('`@` is the apex of the zone', () => {
     expect(filtrar(REGISTROS, { nombre: '@', tipo: '' }, 'casa.test').map((r) => r.type)).toEqual([
       'SOA',
       'NS',
     ])
   })
 
-  it('`@` en la raíz es el nombre vacío', () => {
+  it('`@` at the root is the empty name', () => {
     expect(compilarFiltroDeNombre('@', '.').dominio).toBe('')
   })
 
-  it('`*` busca el registro COMODÍN literal, no lista todo', () => {
+  it('`*` looks for the literal WILDCARD record, it does not list everything', () => {
     // The zone.js:3548 line that looks like a bug and is not.
     expect(filtrar(REGISTROS, { nombre: '*', tipo: '' }, 'casa.test').map((r) => r.name)).toEqual([
       '*.casa.test',
     ])
   })
 
-  it('un comodín en medio sí se comporta como glob', () => {
+  it('a wildcard in the middle does behave as a glob', () => {
     expect(filtrar(REGISTROS, { nombre: 'w*', tipo: '' }, 'casa.test').map((r) => r.name)).toEqual([
       'www.casa.test',
       'www.casa.test',
@@ -66,11 +66,11 @@ describe('filtro de nombre', () => {
     ])
   })
 
-  it('`?` sustituye un carácter', () => {
+  it('`?` stands in for one character', () => {
     expect(filtrar(REGISTROS, { nombre: 'ww?', tipo: '' }, 'casa.test')).toHaveLength(2)
   })
 
-  it('lo escrito se pasa a minúsculas; el nombre de la zona NO', () => {
+  it('what is typed is lowercased; the zone name is NOT', () => {
     // `filterName.toLowerCase()` yes, `zone` no (zone.js:3533). With the zone name
     // the server returns it makes no difference, but it is what the original does.
     expect(filtrar(REGISTROS, { nombre: 'WWW', tipo: '' }, 'casa.test')).toHaveLength(2)
@@ -78,17 +78,17 @@ describe('filtro de nombre', () => {
   })
 })
 
-describe('filtro de tipo', () => {
-  it('es exacto y en mayúsculas', () => {
+describe('type filter', () => {
+  it('it is exact and uppercased', () => {
     expect(filtrar(REGISTROS, { nombre: '', tipo: 'a' }, 'casa.test')).toHaveLength(4)
     expect(filtrar(REGISTROS, { nombre: '', tipo: 'AAAA' }, 'casa.test')).toHaveLength(1)
   })
 
-  it('se combina con el de nombre', () => {
+  it('it combines with the name one', () => {
     expect(filtrar(REGISTROS, { nombre: 'www', tipo: 'A' }, 'casa.test')).toHaveLength(1)
   })
 
-  it('sin filtros devuelve la misma lista, sin copiarla', () => {
+  it('with no filters it returns the same list, without copying it', () => {
     expect(filtrar(REGISTROS, { nombre: '', tipo: '' }, 'casa.test')).toBe(REGISTROS)
   })
 })

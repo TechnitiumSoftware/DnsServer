@@ -41,20 +41,20 @@ function textos() {
   return screen.getAllByRole('cell').map((c) => c.textContent)
 }
 
-describe('ordenación de tabla', () => {
-  it('desordenada: la primera pulsación ordena ascendente', async () => {
+describe('table sorting', () => {
+  it('unsorted: the first click sorts ascending', async () => {
     render(<Tabla datos={[{ nombre: 'c' }, { nombre: 'a' }, { nombre: 'b' }]} />)
     await userEvent.click(screen.getByRole('button', { name: /Nombre/ }))
     expect(textos()).toEqual(['a', 'b', 'c'])
   })
 
-  it('ya ascendente: la primera pulsación la da la vuelta, como upstream', async () => {
+  it('already ascending: the first click turns it around, like upstream', async () => {
     render(<Tabla datos={[{ nombre: 'a' }, { nombre: 'b' }, { nombre: 'c' }]} />)
     await userEvent.click(screen.getByRole('button', { name: /Nombre/ }))
     expect(textos()).toEqual(['c', 'b', 'a'])
   })
 
-  it('pulsar dos veces vuelve a subir, y lo anuncia con aria-sort', async () => {
+  it('clicking twice goes back up, and announces it with aria-sort', async () => {
     render(<Tabla datos={[{ nombre: 'c' }, { nombre: 'a' }]} />)
     const th = screen.getByRole('columnheader')
     const boton = screen.getByRole('button', { name: /Nombre/ })
@@ -66,7 +66,7 @@ describe('ordenación de tabla', () => {
     expect(th).toHaveAttribute('aria-sort', 'descending')
   })
 
-  it('ordena por el texto que se ve, sin distinguir mayúsculas', async () => {
+  it('it sorts by the text you see, case-insensitively', async () => {
     render(<Tabla datos={[{ nombre: 'Zeta' }, { nombre: 'alfa' }]} />)
     await userEvent.click(screen.getByRole('button', { name: /Nombre/ }))
     expect(textos()).toEqual(['alfa', 'Zeta'])

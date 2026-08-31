@@ -28,7 +28,7 @@ async function llegarAlPanelOtp() {
 }
 
 describe('panel OTP', () => {
-  it('se envía solo al teclear el sexto dígito, y no antes', async () => {
+  it('it submits itself on typing the sixth digit, and not before', async () => {
     const user = await llegarAlPanelOtp()
     const spy = vi.spyOn(client, 'apiRequest')
     spy.mockClear()
@@ -39,7 +39,7 @@ describe('panel OTP', () => {
     expect(spy.mock.calls[0][1]?.body?.totp).toBe('123456')
   })
 
-  it('vuelve al login a los 30 segundos y devuelve la contraseña', async () => {
+  it('it returns to the login after 30 seconds and gives the password back', async () => {
     await llegarAlPanelOtp()
     await act(async () => { vi.advanceTimersByTime(29_000) })
     expect(screen.queryByLabelText('OTP')).toBeInTheDocument()
@@ -48,7 +48,7 @@ describe('panel OTP', () => {
     expect(screen.getByLabelText('Password')).toBeEnabled()
   })
 
-  it('cancela la expiración cuando el OTP se acepta', async () => {
+  it('it cancels the expiry when the OTP is accepted', async () => {
     const user = await llegarAlPanelOtp()
     vi.spyOn(client, 'apiRequest').mockResolvedValue({
       kind: 'ok',

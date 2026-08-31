@@ -8,7 +8,7 @@ afterEach(() => vi.restoreAllMocks())
 const info = { version: '15.4', uptimestamp: '2026-08-25T13:07:31Z', dnsServerDomain: 'dns.shlab.app' }
 
 describe('About', () => {
-  it('muestra versión, dominio y uptime', async () => {
+  it('it shows version, domain and uptime', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
     render(<About token="t" info={info} />)
     expect(screen.getByText('Version 15.4')).toBeInTheDocument()
@@ -24,7 +24,7 @@ describe('About', () => {
   This case pins them by DESTINATION and not by text: what must not happen again
   is the prose still being there and the destination not.
   */
-  it('conserva los nueve destinos del panel de upstream', async () => {
+  it('it keeps the nine destinations of the upstream panel', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
     render(<About token="t" info={info} />)
     const destinos = new Set(
@@ -46,7 +46,7 @@ describe('About', () => {
     }
   })
 
-  it('los enlaces externos se abren fuera y sin ceder el opener', async () => {
+  it('the external links open outside and without handing over the opener', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
     render(<About token="t" info={info} />)
     for (const a of screen.getAllByRole('link')) {
@@ -55,7 +55,7 @@ describe('About', () => {
     }
   })
 
-  it('respeta el aviso silenciado: no dice que estés al día si no lo ha mirado', async () => {
+  it('it honours the silenced notice: it does not say you are up to date if it never looked', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
     render(<About token="t" info={info} />)
     expect(await screen.findByText('Update notifications are turned off for this server.')).toBeInTheDocument()
@@ -66,7 +66,7 @@ describe('About', () => {
   Saying it when what happened is that the call fell over is not a nuance: it is
   answering on the server's behalf without having spoken to it.
   */
-  it('un fallo al comprobar no se cuenta como «avisos apagados»', async () => {
+  it('a failure while checking is not reported as "notifications off"', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'error', message: 'boom' } as never)
     render(<About token="t" info={info} />)
     expect(await screen.findByText('Unable to check for updates.')).toBeInTheDocument()
@@ -75,7 +75,7 @@ describe('About', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('dice que estás al día cuando el servidor lo confirma', async () => {
+  it('it says you are up to date when the server confirms it', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { updateAvailable: false } },
     } as never)

@@ -19,7 +19,7 @@ function ok(data: unknown) {
 }
 
 describe('api/settings', () => {
-  it('settings/get pide el nodo vacío y devuelve el contenido de `response`', async () => {
+  it('settings/get asks with an empty node and returns the content of `response`', async () => {
     const spy = vi
       .spyOn(client, 'apiRequest')
       .mockResolvedValue(ok({ response: { dnsServerDomain: 'dns.test' } }))
@@ -31,12 +31,12 @@ describe('api/settings', () => {
     expect(s?.dnsServerDomain).toBe('dns.test')
   })
 
-  it('settings/get devuelve null si el servidor falla, en vez de reventar', async () => {
+  it('settings/get returns null if the server fails, instead of blowing up', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     expect(await getSettings('tok')).toBeNull()
   })
 
-  it('settings/set va por POST con el cuerpo tal cual', async () => {
+  it('settings/set goes by POST with the body as it is', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: {} }))
 
     await setSettings('tok', { node: '', dnsServerDomain: 'dns.test' })
@@ -49,20 +49,20 @@ describe('api/settings', () => {
     })
   })
 
-  it('settings/set propaga el errorMessage del servidor', async () => {
+  it('settings/set propagates the errorMessage from the server', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'Invalid port.' })
     const outcome = await setSettings('tok', {})
     expect(outcome).toEqual({ kind: 'error', message: 'Invalid port.' })
   })
 
-  it('settings/forceUpdateBlockLists se llama sin parámetros', async () => {
+  it('settings/forceUpdateBlockLists is called with no parameters', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
     expect(await forceUpdateBlockLists('tok')).toBe(true)
     const llamada = spy.mock.calls.find((c) => c[0] === 'settings/forceUpdateBlockLists')!
     expect(llamada[1]).toEqual({ token: 'tok' })
   })
 
-  it('settings/temporaryDisableBlocking manda los minutos y devuelve hasta cuándo', async () => {
+  it('settings/temporaryDisableBlocking sends the minutes and returns until when', async () => {
     const spy = vi
       .spyOn(client, 'apiRequest')
       .mockResolvedValue(ok({ response: { temporaryDisableBlockingTill: '2026-08-25T14:00:00Z' } }))
@@ -74,21 +74,21 @@ describe('api/settings', () => {
     expect(till).toBe('2026-08-25T14:00:00Z')
   })
 
-  it('cache/flush manda el nodo vacío', async () => {
+  it('cache/flush sends an empty node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
     expect(await flushCache('tok')).toBe(true)
     const llamada = spy.mock.calls.find((c) => c[0] === 'cache/flush')!
     expect(llamada[1]).toMatchObject({ body: { node: '' } })
   })
 
-  it('la selección inicial del backup marca todo menos los logs', () => {
+  it('the initial backup selection checks everything except the logs', () => {
     const s = seleccionInicialBackup()
     expect(Object.keys(s)).toEqual(ELEMENTOS_BACKUP.map((e) => e.key))
     expect(s.logs).toBe(false)
     expect(s.authConfig).toBe(true)
   })
 
-  it('los parámetros de backup mandan los trece elementos como true/false', () => {
+  it('the backup parameters send the thirteen items as true/false', () => {
     const p = parametrosBackup({ ...seleccionInicialBackup(), zones: false })
     expect(p.zones).toBe('false')
     expect(p.stats).toBe('true')
@@ -96,7 +96,7 @@ describe('api/settings', () => {
     expect(Object.keys(p)).toHaveLength(ELEMENTOS_BACKUP.length + 1)
   })
 
-  it('settings/restore manda el fichero por multipart y las opciones en la query', async () => {
+  it('settings/restore sends the file by multipart and the options in the query', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: {} }))
 
     const fichero = new File(['zip'], 'backup.zip')
@@ -127,14 +127,14 @@ const _forma: Partial<DnsSettings> = { temporaryDisableBlockingTill: undefined }
 void _forma
 
 describe('getTsigKeyNames', () => {
-  it('lo consume Zones, no Settings: devuelve la lista de nombres', async () => {
+  it('Zones consumes it, not Settings: it returns the list of names', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { tsigKeyNames: ['transfer-key'] } },
     } as never)
     expect(await getTsigKeyNames('t')).toEqual(['transfer-key'])
   })
 
-  it('devuelve lista vacía si falla, sin romper el modal de opciones de zona', async () => {
+  it('it returns an empty list on failure, without breaking the zone options modal', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
     expect(await getTsigKeyNames('t')).toEqual([])
   })

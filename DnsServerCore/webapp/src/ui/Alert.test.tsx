@@ -6,8 +6,8 @@ import { Alert } from './Alert'
 
 afterEach(() => vi.useRealTimers())
 
-describe('auto-descarte del aviso', () => {
-  it('un éxito se descarta solo a los cinco segundos', () => {
+describe('self-dismissal of the alert', () => {
+  it('a success dismisses itself after five seconds', () => {
     vi.useFakeTimers()
     const cerrar = vi.fn()
     render(<Alert type="success" title="Saved!" onDismiss={cerrar} />)
@@ -18,7 +18,7 @@ describe('auto-descarte del aviso', () => {
     expect(cerrar).toHaveBeenCalledTimes(1)
   })
 
-  it('un error NO se descarta solo: el usuario tiene que leerlo', () => {
+  it('an error does NOT dismiss itself: the user has to read it', () => {
     vi.useFakeTimers()
     const cerrar = vi.fn()
     render(<Alert type="danger" title="Error!" onDismiss={cerrar} />)
@@ -27,14 +27,14 @@ describe('auto-descarte del aviso', () => {
     expect(cerrar).not.toHaveBeenCalled()
   })
 
-  it('un éxito que no se puede cerrar tampoco se va solo', () => {
+  it('a success that cannot be closed does not go away by itself either', () => {
     vi.useFakeTimers()
     render(<Alert type="success" title="Saved!" />)
     vi.advanceTimersByTime(30000)
     expect(screen.getByRole('alert')).toBeInTheDocument()
   })
 
-  it('un aviso nuevo reinicia el reloj', () => {
+  it('a new alert restarts the clock', () => {
     vi.useFakeTimers()
     const cerrar = vi.fn()
     const { rerender } = render(<Alert type="success" title="Saved!" onDismiss={cerrar} />)

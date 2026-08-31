@@ -5,11 +5,11 @@ const t = (valor: string): Celda => ({ tipo: 'texto', valor })
 const c = (valor: boolean): Celda => ({ tipo: 'casilla', valor })
 
 describe('serializarTabla', () => {
-  it('sin filas produce la cadena vacía, no «false»', () => {
+  it('with no rows it produces the empty string, not "false"', () => {
     expect(serializarTabla([])).toEqual({ ok: true, valor: '' })
   })
 
-  it('usa `|` tanto entre columnas como entre filas', () => {
+  it('it uses `|` between columns as well as between rows', () => {
     const r = serializarTabla([
       [t('ana'), c(true), c(false), c(false)],
       [t('luis'), c(true), c(true), c(true)],
@@ -17,11 +17,11 @@ describe('serializarTabla', () => {
     expect(r).toEqual({ ok: true, valor: 'ana|true|false|false|luis|true|true|true' })
   })
 
-  it('una casilla se serializa como «true» o «false», nunca vacía', () => {
+  it('a checkbox serialises as "true" or "false", never empty', () => {
     expect(serializarTabla([[c(false)]])).toEqual({ ok: true, valor: 'false' })
   })
 
-  it('un campo de texto vacío aborta con el aviso literal de upstream', () => {
+  it('an empty text field aborts with the literal alert of upstream', () => {
     const r = serializarTabla([[t('openid')], [t('')]])
     expect(r.ok).toBe(false)
     if (r.ok) return
@@ -30,7 +30,7 @@ describe('serializarTabla', () => {
     expect(r.fallo).toMatchObject({ fila: 1, columna: 0 })
   })
 
-  it('un `|` dentro de un campo aborta con su propio aviso', () => {
+  it('a `|` inside a field aborts with its own alert', () => {
     const r = serializarTabla([[t('remoto'), t('mal|valor')]])
     expect(r.ok).toBe(false)
     if (r.ok) return

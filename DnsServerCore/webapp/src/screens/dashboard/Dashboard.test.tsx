@@ -25,17 +25,17 @@ const datos = {
 
 describe('porcentaje', () => {
   // main.js:2652-2676 — `toFixed(2)`, with a dot, no locale and two decimals.
-  it('dos decimales y punto, como upstream', () => {
+  it('two decimals and a dot, like upstream', () => {
     expect(porcentaje(41008, 48312)).toBe('84.88%')
     expect(porcentaje(36, 48312)).toBe('0.07%')
   })
-  it('sin consultas es «0%» literal, no «0.00%»', () => {
+  it('with no queries it is a literal \"0%\", not \"0.00%\"', () => {
     expect(porcentaje(0, 0)).toBe('0%')
   })
 })
 
 describe('Dashboard', () => {
-  it('pinta las once métricas con sus etiquetas literales', async () => {
+  it('it draws the eleven metrics with their literal labels', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     // "Blocked" and "Cache" also come out as server counters, so the search is
@@ -56,7 +56,7 @@ describe('Dashboard', () => {
   confuses more than it informs: the percentage is the share of the total, and the
   total has no share of itself.
   */
-  it('la baldosa del total no lleva porcentaje, como la de clientes', async () => {
+  it('the total tile carries no percentage, like the clients one', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     const tiles = within(await screen.findByTestId('metricas'))
@@ -66,7 +66,7 @@ describe('Dashboard', () => {
     expect(tiles.getByText('84.88%')).toBeInTheDocument()
   })
 
-  it('pinta los seis contadores del servidor', async () => {
+  it('it draws the six server counters', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     const c = within(await screen.findByTestId('contadores'))
@@ -76,7 +76,7 @@ describe('Dashboard', () => {
     expect(c.getByText((184302).toLocaleString())).toBeInTheDocument()
   })
 
-  it('ofrece los seis rangos con sus etiquetas y arranca en Last Hour', async () => {
+  it('it offers the six ranges with their labels and starts on Last Hour', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     const b = await screen.findByRole('button', { name: 'Last Hour' })
@@ -86,7 +86,7 @@ describe('Dashboard', () => {
     }
   })
 
-  it('cambiar de rango vuelve a pedir los datos con ese tipo', async () => {
+  it('changing range asks for the data again with that type', async () => {
     const spy = vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     await screen.findByText('Total Queries')
@@ -95,7 +95,7 @@ describe('Dashboard', () => {
     expect(spy.mock.calls[0][1]).toBe('LastWeek')
   })
 
-  it('pinta las CUATRO gráficas, no dos', async () => {
+  it('it draws all FOUR charts, not two', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByLabelText('Queries over time')).toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('Dashboard', () => {
     expect(screen.getByLabelText('Protocol Types')).toBeInTheDocument()
   })
 
-  it('una gráfica sin datos dice que no los hay en vez de dejar un lienzo vacío', async () => {
+  it('a chart with no data says there is none instead of leaving an empty canvas', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({
       ...datos, mainChartData: vacia, queryResponseChartData: vacia,
       queryTypeChartData: vacia, protocolTypeChartData: vacia,
@@ -114,7 +114,7 @@ describe('Dashboard', () => {
     expect(screen.queryByLabelText('Query Types')).not.toBeInTheDocument()
   })
 
-  it('una lista Top vacía lo dice en vez de quedarse en blanco', async () => {
+  it('an empty Top list says so instead of staying blank', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByText('No data for this period.')).toBeInTheDocument()
@@ -127,7 +127,7 @@ describe('Dashboard', () => {
   nothing shows. Whoever administers a server and reads that concludes no traffic
   is reaching them.
   */
-  it('si la llamada falla, lo DICE, y no se hace pasar por un servidor tranquilo', async () => {
+  it('if the call fails, it SAYS so, and does not pass itself off as a quiet server', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'error', message: 'boom' })
     render(<Dashboard token="t" />)
     expect(await screen.findByText('boom')).toBeInTheDocument()
@@ -135,7 +135,7 @@ describe('Dashboard', () => {
     expect(within(screen.getByTestId('metricas')).getAllByText('—').length).toBe(11)
   })
 
-  it('una sesión caducada se dice con su propio texto', async () => {
+  it('an expired session is stated with its own text', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'invalid-token' })
     render(<Dashboard token="t" />)
     expect(await screen.findByText('Invalid token or session expired.')).toBeInTheDocument()

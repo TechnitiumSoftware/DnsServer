@@ -6,26 +6,26 @@ import * as statusApi from '../api/status'
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('Login y api/status', () => {
-  it('oculta el botón de SSO cuando el servidor dice que está deshabilitado', async () => {
+describe('Login and api/status', () => {
+  it('it hides the SSO button when the server says it is disabled', async () => {
     vi.spyOn(statusApi, 'getStatus').mockResolvedValue({ hasDefaultCredentials: false, ssoEnabled: false })
     render(<Login onSuccess={() => {}} />)
     await waitFor(() => expect(screen.queryByText('Sign in with SSO')).not.toBeInTheDocument())
   })
 
-  it('muestra el botón de SSO cuando está habilitado', async () => {
+  it('it shows the SSO button when it is enabled', async () => {
     vi.spyOn(statusApi, 'getStatus').mockResolvedValue({ hasDefaultCredentials: false, ssoEnabled: true })
     render(<Login onSuccess={() => {}} />)
     expect(await screen.findByText('Sign in with SSO')).toBeInTheDocument()
   })
 
-  it('si status no responde, no muestra el botón: no se asume que hay SSO', async () => {
+  it('if status does not answer, it shows no button: SSO is not assumed', async () => {
     vi.spyOn(statusApi, 'getStatus').mockResolvedValue(null)
     render(<Login onSuccess={() => {}} />)
     await waitFor(() => expect(screen.queryByText('Sign in with SSO')).not.toBeInTheDocument())
   })
 
-  it('con credenciales de fábrica entra solo con admin/admin', async () => {
+  it('with factory credentials it logs itself in with admin/admin', async () => {
     vi.spyOn(statusApi, 'getStatus').mockResolvedValue({ hasDefaultCredentials: true, ssoEnabled: false })
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({
       kind: 'ok',
@@ -43,7 +43,7 @@ describe('Login y api/status', () => {
     )
   })
 
-  it('sin credenciales de fábrica NO entra solo', async () => {
+  it('without factory credentials it does NOT log itself in', async () => {
     vi.spyOn(statusApi, 'getStatus').mockResolvedValue({ hasDefaultCredentials: false, ssoEnabled: false })
     const spy = vi.spyOn(client, 'apiRequest')
     render(<Login onSuccess={() => {}} />)
@@ -51,7 +51,7 @@ describe('Login y api/status', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('el auto-login que falla no deja una alerta colgada', async () => {
+  it('a failed auto-login leaves no alert hanging', async () => {
     vi.spyOn(statusApi, 'getStatus').mockResolvedValue({ hasDefaultCredentials: true, ssoEnabled: false })
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'Invalid username or password.' })
     render(<Login onSuccess={() => {}} />)

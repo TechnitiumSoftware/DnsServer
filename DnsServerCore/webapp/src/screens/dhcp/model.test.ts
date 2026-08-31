@@ -35,7 +35,7 @@ describe('limpiarLista / listaATexto', () => {
     expect(limpiarLista('\n\n\n')).toBe('')
   })
 
-  it('no deja `\\r` sueltos: el textarea de React ya normaliza a `\\n`', () => {
+  it('it leaves no stray `\\r`: the React textarea already normalises to `\\n`', () => {
     expect(limpiarLista('1.1.1.1\n8.8.8.8')).not.toContain('\r')
   })
 

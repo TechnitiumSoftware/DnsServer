@@ -255,7 +255,7 @@ describe('Apps — config of the app', () => {
   })
 })
 
-describe('Apps — instalar desde fichero', () => {
+describe('Apps — install from file', () => {
   it('it requires the name BEFORE the file, with the literal texts', async () => {
     conApps([])
     conTienda([])
@@ -290,7 +290,7 @@ describe('Apps — instalar desde fichero', () => {
   })
 })
 
-describe('Apps — actualizar desde fichero', () => {
+describe('Apps — update from file', () => {
   it('it comes with the name filled in and unchangeable, and requires the file', async () => {
     conApps([AL_DIA])
     const spy = vi.spyOn(api, 'updateApp')

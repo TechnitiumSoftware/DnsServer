@@ -7,20 +7,20 @@ import * as api from '../../api/dnsclient'
 afterEach(() => vi.restoreAllMocks())
 
 describe('DNS Client', () => {
-  it('exige el dominio con el texto literal de upstream', async () => {
+  it('it requires the domain with the literal text of upstream', async () => {
     render(<DnsClient token="t" />)
     await userEvent.click(screen.getByRole('button', { name: 'Resolve' }))
     expect(await screen.findByText('Please enter a domain name to query.')).toBeInTheDocument()
   })
 
-  it('exige el servidor con el texto literal, y antes que el dominio', async () => {
+  it('it requires the server with the literal text, and before the domain', async () => {
     render(<DnsClient token="t" />)
     await userEvent.clear(screen.getByLabelText('Server'))
     await userEvent.click(screen.getByRole('button', { name: 'Resolve' }))
     expect(await screen.findByText('Please enter a valid Name Server.')).toBeInTheDocument()
   })
 
-  it('Resolve no importa; Import sí', async () => {
+  it('Resolve does not import; Import does', async () => {
     const spy = vi.spyOn(api, 'resolve').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { result: { ok: true } } },
     } as never)
@@ -33,7 +33,7 @@ describe('DNS Client', () => {
     expect(spy.mock.calls[0][1].importar).toBe(true)
   })
 
-  it('al importar confirma con el texto literal', async () => {
+  it('on importing it confirms with the literal text', async () => {
     vi.spyOn(api, 'resolve').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { result: {} } },
     } as never)
@@ -51,7 +51,7 @@ describe('DNS Client', () => {
   `rawResponses` and nobody drew it. It is what lets you see what each server
   answered along the way when a recursive query goes wrong.
   */
-  it('enseña las respuestas en crudo, plegadas y con su recuento', async () => {
+  it('it shows the raw responses, collapsed and with their count', async () => {
     vi.spyOn(api, 'resolve').mockResolvedValue({
       kind: 'ok',
       data: { status: 'ok', response: { result: {}, rawResponses: [{ a: 1 }, { b: 2 }, { c: 3 }] } },
@@ -65,7 +65,7 @@ describe('DNS Client', () => {
     expect(resumen.closest('details')).not.toHaveAttribute('open')
   })
 
-  it('sin respuestas en crudo no hay panel que abrir', async () => {
+  it('with no raw responses there is no panel to open', async () => {
     vi.spyOn(api, 'resolve').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { result: {}, rawResponses: [] } },
     } as never)
@@ -76,7 +76,7 @@ describe('DNS Client', () => {
     expect(screen.queryByText(/Raw Responses/)).not.toBeInTheDocument()
   })
 
-  it('un warningMessage del servidor se muestra como aviso y gana al de importado', async () => {
+  it('a warningMessage from the server is shown as an alert and beats the imported one', async () => {
     vi.spyOn(api, 'resolve').mockResolvedValue({
       kind: 'ok', data: { status: 'ok', response: { result: {}, warningMessage: 'Ojo con esto' } },
     } as never)

@@ -6,7 +6,7 @@ beforeEach(() => localStorage.clear())
 afterEach(() => vi.restoreAllMocks())
 
 describe('deleteSession', () => {
-  it('manda el partialToken', async () => {
+  it('it sends the partialToken', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await deleteSession('t', 'abc123')
     expect(spy.mock.calls[0][0]).toBe('user/session/delete')
@@ -15,21 +15,21 @@ describe('deleteSession', () => {
 })
 
 describe('checkForUpdate', () => {
-  it('no llama al servidor si el aviso está silenciado', async () => {
+  it('it does not call the server if the notice is silenced', async () => {
     localStorage.setItem(DISABLE_UPDATE_NOTIFICATION_KEY, 'true')
     const spy = vi.spyOn(client, 'apiRequest')
     expect(await checkForUpdate('t')).toEqual({ kind: 'skipped' })
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('un force explícito se salta el silencio', async () => {
+  it('an explicit force skips the silence', async () => {
     localStorage.setItem(DISABLE_UPDATE_NOTIFICATION_KEY, 'true')
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await checkForUpdate('t', true)
     expect(spy).toHaveBeenCalledOnce()
   })
 
-  it('llama al servidor cuando no está silenciado', async () => {
+  it('it calls the server when it is not silenced', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await checkForUpdate('t')
     expect(spy.mock.calls[0][0]).toBe('user/checkForUpdate')
@@ -37,7 +37,7 @@ describe('checkForUpdate', () => {
 })
 
 describe('openDownload', () => {
-  it('pide un token de un solo uso y lo pone en la query', async () => {
+  it('it asks for a single-use token and puts it in the query', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({
       kind: 'ok',
       data: { status: 'ok', response: { token: 'unico' } },
@@ -53,7 +53,7 @@ describe('openDownload', () => {
     vi.unstubAllGlobals()
   })
 
-  it('no abre nada si no consigue el token', async () => {
+  it('it opens nothing if it cannot get the token', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
     const abrir = vi.fn()
     vi.stubGlobal('open', abrir)

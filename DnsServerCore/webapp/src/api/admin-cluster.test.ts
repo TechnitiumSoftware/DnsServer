@@ -26,13 +26,13 @@ function espia() {
 }
 
 describe('cluster — estado', () => {
-  it('sin opciones no manda ningún parámetro', async () => {
+  it('with no options it sends no parameter', async () => {
     const spy = espia()
     await getClusterState('tok')
     expect(spy).toHaveBeenCalledWith('admin/cluster/state', { token: 'tok', body: {} })
   })
 
-  it('pide las IP del servidor sólo cuando se le dice', async () => {
+  it('it asks for the server IPs only when told to', async () => {
     const spy = espia()
     await getClusterState('tok', { node: 'ns1', includeServerIpAddresses: true })
     expect(spy.mock.calls[0][1]).toEqual({
@@ -42,8 +42,8 @@ describe('cluster — estado', () => {
   })
 })
 
-describe('cluster — inicialización', () => {
-  it('`init` no manda `node`: el cluster se crea en este servidor', async () => {
+describe('cluster — initialisation', () => {
+  it('`init` sends no `node`: the cluster is created on this server', async () => {
     const spy = espia()
     await initCluster('tok', 'micluster.tld', '10.0.0.1,10.0.0.2')
     expect(spy).toHaveBeenCalledWith('admin/cluster/init', {
@@ -52,7 +52,7 @@ describe('cluster — inicialización', () => {
     })
   })
 
-  it('`initJoin` va por POST con los siete campos', async () => {
+  it('`initJoin` goes by POST with the seven fields', async () => {
     const spy = espia()
     await initJoinCluster('tok', {
       secondaryNodeIpAddresses: '10.0.0.3',
@@ -69,8 +69,8 @@ describe('cluster — inicialización', () => {
   })
 })
 
-describe('cluster — acciones sobre nodos', () => {
-  it('cada acción va a su endpoint con su nodo', async () => {
+describe('cluster — actions on nodes', () => {
+  it('each action goes to its endpoint with its node', async () => {
     const spy = espia()
     await updateIpAddress('tok', '10.0.0.9', 'ns1')
     await updatePrimaryNode('tok', 'https://p.test', '10.0.0.1', 'ns2')
@@ -104,7 +104,7 @@ describe('cluster — acciones sobre nodos', () => {
     ])
   })
 
-  it('las banderas viajan como cadena `true` / `false`', async () => {
+  it('the flags travel as the strings `true` / `false`', async () => {
     const spy = espia()
     await promoteToPrimary('tok', true, 'ns2')
     await leaveCluster('tok', false, 'ns2')
@@ -118,7 +118,7 @@ describe('cluster — acciones sobre nodos', () => {
     })
   })
 
-  it('`setOptions` manda los cuatro intervalos más el nodo', async () => {
+  it('`setOptions` sends the four intervals plus the node', async () => {
     const spy = espia()
     await setClusterOptions(
       'tok',
@@ -150,11 +150,11 @@ describe('primaryNodeName', () => {
     state: 'Connected',
   })
 
-  it('sin estado devuelve cadena vacía', () => {
+  it('with no state it returns an empty string', () => {
     expect(primaryNodeName(null)).toBe('')
   })
 
-  it('sin cluster inicializado devuelve cadena vacía aunque haya nodos', () => {
+  it('with the cluster uninitialised it returns an empty string even if there are nodes', () => {
     const s = {
       version: '15.4',
       dnsServerDomain: 'x',
@@ -164,7 +164,7 @@ describe('primaryNodeName', () => {
     expect(primaryNodeName(s)).toBe('')
   })
 
-  it('devuelve el nombre del nodo primario', () => {
+  it('it returns the name of the primary node', () => {
     const s = {
       version: '15.4',
       dnsServerDomain: 'x',

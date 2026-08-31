@@ -16,7 +16,7 @@ const abrir = async () =>
   await userEvent.click(await screen.findByRole('button', { name: 'Blocking options' }))
 
 describe('MenuBloqueo', () => {
-  it('pregunta el estado AL ABRIR, no al pintar', async () => {
+  it('it asks for the state ON OPENING, not when drawing', async () => {
     const spy = vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     render(<MenuBloqueo token="t" onAviso={() => {}} />)
     // Between drawing and opening, the setting may have changed in another tab.
@@ -25,7 +25,7 @@ describe('MenuBloqueo', () => {
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
-  it('con el bloqueo encendido ofrece apagarlo, y nunca las dos cosas', async () => {
+  it('with blocking on it offers to switch it off, and never both', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     render(<MenuBloqueo token="t" onAviso={() => {}} />)
     await abrir()
@@ -33,7 +33,7 @@ describe('MenuBloqueo', () => {
     expect(screen.queryByRole('menuitem', { name: 'Enable Blocking' })).not.toBeInTheDocument()
   })
 
-  it('con el bloqueo apagado ofrece encenderlo', async () => {
+  it('with blocking off it offers to switch it on', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: false } as never)
     render(<MenuBloqueo token="t" onAviso={() => {}} />)
     await abrir()
@@ -41,7 +41,7 @@ describe('MenuBloqueo', () => {
     expect(screen.queryByRole('menuitem', { name: 'Disable Blocking' })).not.toBeInTheDocument()
   })
 
-  it('ofrece los ocho plazos de upstream, con sus rótulos', async () => {
+  it('it offers the eight upstream durations, with their labels', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     render(<MenuBloqueo token="t" onAviso={() => {}} />)
     await abrir()
@@ -59,7 +59,7 @@ describe('MenuBloqueo', () => {
     }
   })
 
-  it('apagar un rato confirma primero y manda los minutos', async () => {
+  it('switching off for a while confirms first and sends the minutes', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     const spy = vi.spyOn(api, 'temporaryDisableBlocking').mockResolvedValue('2026-08-31T08:00:00Z')
     const avisos: { title: string; text: string }[] = []
@@ -84,7 +84,7 @@ describe('MenuBloqueo', () => {
     ])
   })
 
-  it('cancelar no toca nada', async () => {
+  it('cancelling touches nothing', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     const spy = vi.spyOn(api, 'temporaryDisableBlocking').mockResolvedValue('x')
     render(<MenuBloqueo token="t" onAviso={() => {}} />)
@@ -94,7 +94,7 @@ describe('MenuBloqueo', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('encender manda enableBlocking=true y avisa con el texto de upstream', async () => {
+  it('switching on sends enableBlocking=true and alerts with the upstream text', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: false } as never)
     const spy = vi
       .spyOn(api, 'setSettings')

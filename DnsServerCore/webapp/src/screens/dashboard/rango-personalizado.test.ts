@@ -8,20 +8,20 @@ describe('instantesDelRango', () => {
   the clock of whoever is looking— and beyond that, in UTC, which is how it groups
   the days.
   */
-  it('a partir de siete días interpreta las fechas en UTC', () => {
+  it('beyond seven days it reads the dates in UTC', () => {
     const r = instantesDelRango('2026-08-01', '2026-08-20')
     expect(r.start).toBe('2026-08-01T00:00:00.000Z')
     expect(r.end).toBe('2026-08-20T00:00:00.000Z')
   })
 
-  it('hasta siete días las interpreta en la zona local', () => {
+  it('up to seven days it reads them in the local zone', () => {
     const r = instantesDelRango('2026-08-01', '2026-08-05')
     // No zone is pinned: it asserts that it matches LOCAL midnight.
     expect(r.start).toBe(new Date('2026-08-01T00:00:00').toISOString())
     expect(r.end).toBe(new Date('2026-08-05T00:00:00').toISOString())
   })
 
-  it('el séptimo día cae todavía del lado local, y el octavo ya no', () => {
+  it('the seventh day still falls on the local side, and the eighth no longer does', () => {
     const siete = instantesDelRango('2026-08-01', '2026-08-07')
     const ocho = instantesDelRango('2026-08-01', '2026-08-08')
     expect(siete.start).toBe(new Date('2026-08-01T00:00:00').toISOString())
@@ -30,16 +30,16 @@ describe('instantesDelRango', () => {
 })
 
 describe('loQueFalta', () => {
-  it('pide primero el inicio, con el texto de upstream', () => {
+  it('it asks for the start first, with the upstream text', () => {
     expect(loQueFalta('', '')).toBe('Please select a start date.')
     expect(loQueFalta('', '2026-08-05')).toBe('Please select a start date.')
   })
 
-  it('y después el fin', () => {
+  it('and the end second', () => {
     expect(loQueFalta('2026-08-01', '')).toBe('Please select an end date.')
   })
 
-  it('con las dos puestas no falta nada', () => {
+  it('with both filled in nothing is missing', () => {
     expect(loQueFalta('2026-08-01', '2026-08-05')).toBeNull()
   })
 })

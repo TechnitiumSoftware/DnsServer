@@ -41,8 +41,8 @@ function servidor(secciones = PERMISOS, detalle: Record<string, unknown> = DETAL
 
 const props = { token: 'tok', cluster: null, onAviso: vi.fn() }
 
-describe('Permissions — la lista', () => {
-  it('pinta una tarjeta por sección con sus dos tablas y el total', async () => {
+describe('Permissions — the list', () => {
+  it('it draws one card per section with its two tables and the total', async () => {
     servidor()
     render(<Permissions {...props} />)
 
@@ -57,33 +57,33 @@ describe('Permissions — la lista', () => {
     expect(screen.getAllByText('Group Permissions')).toHaveLength(2)
   })
 
-  it('sin permisos por usuario sale el literal de upstream', async () => {
+  it('with no per-user permissions the upstream literal comes out', async () => {
     servidor()
     render(<Permissions {...props} />)
     expect(await screen.findByText('No user permissions')).toBeInTheDocument()
   })
 
-  it('sin permisos por grupo sale su propio literal', async () => {
+  it('with no per-group permissions its own literal comes out', async () => {
     servidor([{ section: 'Logs', userPermissions: [], groupPermissions: [] }])
     render(<Permissions {...props} />)
     expect(await screen.findByText('No group permissions')).toBeInTheDocument()
   })
 
-  it('la lista es de sólo lectura: sus casillas están deshabilitadas', async () => {
+  it('the list is read-only: its checkboxes are disabled', async () => {
     servidor()
     render(<Permissions {...props} />)
     expect(await screen.findByLabelText('Dashboard Administrators View')).toBeDisabled()
     expect(screen.getByLabelText('Dashboard Everyone Modify')).not.toBeChecked()
   })
 
-  it('sin secciones el total dice cero', async () => {
+  it('with no sections the total says zero', async () => {
     servidor([])
     render(<Permissions {...props} />)
     expect(await screen.findByText('Total Sections: 0')).toBeInTheDocument()
   })
 })
 
-describe('Permissions — el modal de edición', () => {
+describe('Permissions — the editing modal', () => {
   async function abrir(cluster = null as never) {
     const spy = servidor()
     const user = userEvent.setup()
@@ -96,7 +96,7 @@ describe('Permissions — el modal de edición', () => {
     return { user, spy }
   }
 
-  it('pide la sección con usuarios y grupos', async () => {
+  it('it asks for the section with users and groups', async () => {
     const { spy } = await abrir()
     expect(spy.mock.calls.find((c) => c[0] === 'admin/permissions/get')?.[1]).toEqual({
       token: 'tok',
@@ -104,7 +104,7 @@ describe('Permissions — el modal de edición', () => {
     })
   })
 
-  it('serializa las dos tablas con `|` y manda el nodo primario del cluster', async () => {
+  it('it serialises both tables with `|` and sends the primary node of the cluster', async () => {
     const { user, spy } = await abrir(CLUSTER_PRIMARIO as never)
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -120,14 +120,14 @@ describe('Permissions — el modal de edición', () => {
     })
   })
 
-  it('sin cluster el nodo viaja como cadena vacía', async () => {
+  it('with no cluster the node travels as an empty string', async () => {
     const { user, spy } = await abrir()
     await user.click(screen.getByRole('button', { name: 'Save' }))
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>
     expect(body.node).toBe('')
   })
 
-  it('«Add User» añade la fila con los tres permisos a falso', async () => {
+  it('\"Add User\" adds the row with the three permissions false', async () => {
     const { user, spy } = await abrir()
     await elegir(user, screen.getByLabelText('Add User'), 'testuser')
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -136,7 +136,7 @@ describe('Permissions — el modal de edición', () => {
     expect(body.userPermissions).toBe('testuser|false|false|false')
   })
 
-  it('«None» vacía la tabla entera', async () => {
+  it('\"None\" empties the whole table', async () => {
     const { user, spy } = await abrir()
     await elegir(user, screen.getByLabelText('Add Group'), 'None')
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -145,7 +145,7 @@ describe('Permissions — el modal de edición', () => {
     expect(body.groupPermissions).toBe('')
   })
 
-  it('«Remove» quita una fila y marcar una casilla se refleja en el envío', async () => {
+  it('\"Remove\" takes a row out and checking a box shows up in the send', async () => {
     const { user, spy } = await abrir()
     const dialogo = screen.getByRole('dialog')
 
@@ -157,7 +157,7 @@ describe('Permissions — el modal de edición', () => {
     expect(body.groupPermissions).toBe('Everyone|true|true|false')
   })
 
-  it('al guardar avisa con el literal de upstream y repinta la sección', async () => {
+  it('on saving it alerts with the upstream literal and redraws the section', async () => {
     const onAviso = vi.fn()
     servidor()
     const user = userEvent.setup()

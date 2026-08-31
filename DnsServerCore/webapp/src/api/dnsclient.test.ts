@@ -5,14 +5,14 @@ import * as client from './client'
 afterEach(() => vi.restoreAllMocks())
 
 describe('dnsClient', () => {
-  it('ofrece los 28 tipos y los 5 protocolos de upstream', () => {
+  it('it offers the 28 types and the 5 protocols of upstream', () => {
     expect(TIPOS).toHaveLength(28)
     expect(TIPOS[0]).toBe('A')
     expect(TIPOS).toContain('AXFR')
     expect(PROTOCOLOS).toEqual(['UDP','TCP','TLS','HTTPS','QUIC'])
   })
 
-  it('manda los parámetros con los nombres de upstream', async () => {
+  it('it sends the parameters under the upstream names', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await resolve('t', { server: 'this-server', domain: 'casa.test', type: 'A', protocol: 'UDP', dnssec: true })
     expect(spy.mock.calls[0][0]).toBe('dnsClient/resolve')
@@ -22,7 +22,7 @@ describe('dnsClient', () => {
     })
   })
 
-  it('sólo añade import=true cuando se pide importar', async () => {
+  it('it only adds import=true when importing is asked for', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await resolve('t', { server: 's', domain: 'd', type: 'A', protocol: 'UDP', dnssec: false })
     expect(spy.mock.calls[0][1]?.body?.import).toBeUndefined()
@@ -33,25 +33,25 @@ describe('dnsClient', () => {
 })
 
 describe('prepararServidor', () => {
-  it('extrae lo que hay entre llaves: eso es lo que se envía', () => {
+  it('it extracts what sits between braces: that is what gets sent', () => {
     expect(prepararServidor('This Server {this-server}', 'UDP').server).toBe('this-server')
     expect(prepararServidor('Cloudflare {1.1.1.1} (DNS-over-TLS)', 'TLS').server).toBe('1.1.1.1')
   })
 
-  it('sin llaves, manda el texto tal cual', () => {
+  it('with no braces, it sends the text as it is', () => {
     expect(prepararServidor('8.8.8.8', 'UDP').server).toBe('8.8.8.8')
   })
 
-  it('fuerza UDP para recursive-resolver y system-dns', () => {
+  it('it forces UDP for recursive-resolver and system-dns', () => {
     expect(prepararServidor('Recursive Resolver {recursive-resolver}', 'TLS').protocol).toBe('UDP')
     expect(prepararServidor('System DNS {system-dns}', 'HTTPS').protocol).toBe('UDP')
   })
 
-  it('respeta el protocolo elegido para cualquier otro servidor', () => {
+  it('it honours the chosen protocol for any other server', () => {
     expect(prepararServidor('{1.1.1.1}', 'TLS').protocol).toBe('TLS')
   })
 
-  it('unas llaves vacías son un servidor vacío, aunque el campo tenga texto', () => {
+  it('empty braces are an empty server, even though the field has text', () => {
     expect(prepararServidor('Servidor {}', 'UDP').server).toBe('')
   })
 })

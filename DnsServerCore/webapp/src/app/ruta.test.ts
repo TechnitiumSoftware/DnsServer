@@ -20,7 +20,7 @@ afterEach(() => {
 })
 
 describe('aSlug', () => {
-  it('convierte la etiqueta de upstream en algo que cabe en una URL', () => {
+  it('it turns the upstream label into something that fits in a URL', () => {
     expect(aSlug('Leases')).toBe('leases')
     expect(aSlug('Web Service')).toBe('web-service')
     expect(aSlug('View Logs')).toBe('view-logs')
@@ -29,7 +29,7 @@ describe('aSlug', () => {
     expect(aSlug('Optional Protocols')).toBe('optional-protocols')
   })
 
-  it('todas las sub-secciones dan un slug distinto dentro de su sección', () => {
+  it('every sub-section yields a distinct slug within its section', () => {
     for (const s of SECTIONS) {
       if (s.subs == null) continue
       const slugs = s.subs.map(aSlug)
@@ -44,94 +44,94 @@ mounting a `PathBase`. The root is deduced by subtracting from the `pathname` th
 segments the document itself declares in its `<meta>`.
 */
 describe('raizDeLaApp', () => {
-  it('en la portada, la raíz es la portada', () => {
+  it('on the front page, the root is the front page', () => {
     servidoEn('/')
     expect(raizDeLaApp()).toBe('/')
   })
 
-  it('en una ruta de un nivel', () => {
+  it('on a one-level path', () => {
     servidoEn('/zones/', 'zones')
     expect(raizDeLaApp()).toBe('/')
   })
 
-  it('en una ruta de dos niveles', () => {
+  it('on a two-level path', () => {
     servidoEn('/settings/logging/', 'settings/logging')
     expect(raizDeLaApp()).toBe('/')
   })
 
-  it('y detrás de un proxy con prefijo, que es de lo que va todo esto', () => {
+  it('and behind a proxy with a prefix, which is what all this is about', () => {
     servidoEn('/dns/settings/logging/', 'settings/logging')
     expect(raizDeLaApp()).toBe('/dns/')
   })
 
-  it('con prefijo de dos segmentos', () => {
+  it('with a two-segment prefix', () => {
     servidoEn('/casa/dns/zones/', 'zones')
     expect(raizDeLaApp()).toBe('/casa/dns/')
   })
 })
 
 describe('leerRuta', () => {
-  it('en la portada no hay ruta, y se arranca por lo que diga el Shell', () => {
+  it('on the front page there is no route, and it starts from whatever the Shell says', () => {
     servidoEn('/')
     expect(leerRuta(SECTIONS)).toBeNull()
   })
 
-  it('lee sección y sub-sección', () => {
+  it('it reads section and sub-section', () => {
     servidoEn('/admin/cluster/', 'admin/cluster')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'admin', sub: 'Cluster' })
   })
 
-  it('devuelve la etiqueta original, no el slug', () => {
+  it('it returns the original label, not the slug', () => {
     servidoEn('/settings/proxy-forwarders/', 'settings/proxy-forwarders')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'settings', sub: 'Proxy & Forwarders' })
   })
 
-  it('la lee igual detrás de un prefijo', () => {
+  it('it reads it the same behind a prefix', () => {
     servidoEn('/dns/admin/cluster/', 'admin/cluster')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'admin', sub: 'Cluster' })
   })
 
-  it('una sección desconocida no resuelve', () => {
+  it('an unknown section does not resolve', () => {
     servidoEn('/noexiste/', 'noexiste')
     expect(leerRuta(SECTIONS)).toBeNull()
   })
 
-  it('una sub desconocida NO tumba la sección: cae a la primera', () => {
+  it('an unknown sub does NOT bring the section down: it falls to the first', () => {
     servidoEn('/settings/tampoco-existe/', 'settings/tampoco-existe')
     expect(leerRuta(SECTIONS)).toEqual({ seccion: 'settings', sub: null })
   })
 
-  it('una sección oculta por permisos no resuelve, aunque exista', () => {
+  it('a section hidden by permissions does not resolve, even though it exists', () => {
     servidoEn('/admin/cluster/', 'admin/cluster')
     expect(leerRuta(SECTIONS.filter((s) => s.id !== 'admin'))).toBeNull()
   })
 })
 
 describe('aCamino', () => {
-  it('omite la sub cuando no la hay, y siempre termina en barra', () => {
+  it('it omits the sub when there is none, and always ends in a slash', () => {
     servidoEn('/')
     expect(aCamino({ seccion: 'zones', sub: null })).toBe('/zones/')
   })
 
-  it('y la pone en slug cuando la hay', () => {
+  it('and it slugs it when there is one', () => {
     servidoEn('/')
     expect(aCamino({ seccion: 'logs', sub: 'Query Logs' })).toBe('/logs/query-logs/')
   })
 
-  it('respeta el prefijo del proxy', () => {
+  it('it honours the proxy prefix', () => {
     servidoEn('/dns/zones/', 'zones')
     expect(aCamino({ seccion: 'settings', sub: 'TSIG' })).toBe('/dns/settings/tsig/')
   })
 })
 
 describe('escribirRuta', () => {
-  it('deja la barra de direcciones en la ruta pedida', () => {
+  it('it leaves the address bar on the requested path', () => {
     servidoEn('/')
     escribirRuta({ seccion: 'dhcp', sub: 'Leases' }, true)
     expect(window.location.pathname).toBe('/dhcp/leases/')
   })
 
-  it('no toca el historial si la ruta ya es la que está', () => {
+  it('it does not touch the history if the path is already the current one', () => {
     servidoEn('/zones/', 'zones')
     const antes = window.history.length
     escribirRuta({ seccion: 'zones', sub: null })
@@ -139,7 +139,7 @@ describe('escribirRuta', () => {
     expect(window.history.length).toBe(antes)
   })
 
-  it('lo que se escribe se vuelve a leer igual, en las 31 rutas', () => {
+  it('what gets written reads back the same, across all 31 routes', () => {
     servidoEn('/')
     for (const s of SECTIONS) {
       for (const sub of s.subs ?? [null]) {

@@ -29,20 +29,20 @@ function servidor() {
   })
 }
 
-describe('Admin — la sub-navegación es del Shell', () => {
-  it('sin `sub` arranca en Sessions, igual que upstream', async () => {
+describe('Admin — the sub-navigation belongs to the Shell', () => {
+  it('with no `sub` it starts on Sessions, just like upstream', async () => {
     servidor()
     render(<Admin token="tok" />)
     expect(await screen.findByRole('heading', { name: 'Sessions' })).toBeInTheDocument()
   })
 
-  it('una sub-pestaña que no existe cae en Sessions en vez de quedarse en blanco', async () => {
+  it('a sub-tab that does not exist falls to Sessions instead of going blank', async () => {
     servidor()
     render(<Admin token="tok" sub="Inventada" />)
     expect(await screen.findByRole('heading', { name: 'Sessions' })).toBeInTheDocument()
   })
 
-  it('las seis sub-pestañas pintan sin romperse y sólo una a la vez', async () => {
+  it('the six sub-tabs draw without breaking and only one at a time', async () => {
     const marcas: Record<string, string> = {
       Sessions: 'Total Sessions: 1',
       Users: 'Total Users: 1',
@@ -60,14 +60,14 @@ describe('Admin — la sub-navegación es del Shell', () => {
     }
   })
 
-  it('el estado del cluster se pide UNA vez y lo comparten las sub-pestañas', async () => {
+  it('the cluster state is asked for ONCE and the sub-tabs share it', async () => {
     const spy = servidor()
     render(<Admin token="tok" sub="Users" />)
     await screen.findByText('Total Users: 1')
     expect(spy.mock.calls.filter((c) => c[0] === 'admin/cluster/state')).toHaveLength(1)
   })
 
-  it('si el estado del cluster falla, la sección sigue funcionando', async () => {
+  it('if the cluster state fails, the section keeps working', async () => {
     vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
       if (path === 'admin/cluster/state') return { kind: 'error' as const, message: 'boom' }
       if (path === 'admin/groups/list') return ok({ response: { groups: GRUPOS }, server: 'x' })

@@ -21,19 +21,19 @@ function servidorTop(respuesta: Record<string, unknown>) {
 }
 
 describe('modal Top Stats', () => {
-  it('cerrado no pide nada al servidor', () => {
+  it('closed it asks the server for nothing', () => {
     const spy = servidorTop({ topClients: [] })
     render(<TopStats tipo={null} rango="LastHour" token="t" onCerrar={() => {}} />)
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('el título lleva el límite dentro, como en upstream', async () => {
+  it('the title carries the limit inside it, as in upstream', async () => {
     servidorTop({ topClients: CLIENTES })
     render(<TopStats tipo="TopClients" rango="LastHour" token="t" onCerrar={() => {}} />)
     expect(await screen.findByText('Top 1000 Clients')).toBeTruthy()
   })
 
-  it('pide getTop con el rango, el tipo y el límite de 1000', async () => {
+  it('it asks getTop with the range, the type and the limit of 1000', async () => {
     const spy = servidorTop({ topDomains: [] })
     render(<TopStats tipo="TopDomains" rango="LastWeek" token="t" onCerrar={() => {}} />)
     await waitFor(() => {
@@ -46,33 +46,33 @@ describe('modal Top Stats', () => {
     })
   })
 
-  it('un cliente enseña su dominio debajo del nombre', async () => {
+  it('a client shows its domain under the name', async () => {
     servidorTop({ topClients: CLIENTES })
     render(<TopStats tipo="TopClients" rango="LastHour" token="t" onCerrar={() => {}} />)
     expect(await screen.findByText('pc.casa.test')).toBeTruthy()
   })
 
-  it('un cliente sin dominio se pinta como la raíz', async () => {
+  it('a client with no domain is drawn as the root', async () => {
     servidorTop({ topClients: CLIENTES })
     render(<TopStats tipo="TopClients" rango="LastHour" token="t" onCerrar={() => {}} />)
     await screen.findByText('pc.casa.test')
     expect(screen.getByText('.')).toBeTruthy()
   })
 
-  it('un cliente limitado lo dice detrás del nombre', async () => {
+  it('a rate-limited client says so after the name', async () => {
     servidorTop({ topClients: CLIENTES })
     render(<TopStats tipo="TopClients" rango="LastHour" token="t" onCerrar={() => {}} />)
     expect(await screen.findByText(/10\.0\.0\.9 \(rate limited\)/)).toBeTruthy()
   })
 
-  it('un dominio NO enseña la línea del dominio: ese campo es sólo de clientes', async () => {
+  it('a domain does NOT show the domain line: that field belongs to clients only', async () => {
     servidorTop({ topDomains: [{ name: 'github.com', hits: 7 }] })
     render(<TopStats tipo="TopDomains" rango="LastHour" token="t" onCerrar={() => {}} />)
     await screen.findByText('github.com')
     expect(screen.queryByText('.')).toBeNull()
   })
 
-  it('la cabecera cambia entre Client/Queries y Domain/Hits', async () => {
+  it('the header switches between Client/Queries and Domain/Hits', async () => {
     servidorTop({ topClients: CLIENTES })
     const { unmount } = render(
       <TopStats tipo="TopClients" rango="LastHour" token="t" onCerrar={() => {}} />,
@@ -87,14 +87,14 @@ describe('modal Top Stats', () => {
     expect(screen.getByText('Hits')).toBeTruthy()
   })
 
-  it('sin datos dice «No Data», con el texto de upstream', async () => {
+  it('with no data it says \"No Data\", with the upstream text', async () => {
     servidorTop({ topClients: [] })
     render(<TopStats tipo="TopClients" rango="LastHour" token="t" onCerrar={() => {}} />)
     expect(await screen.findByText('No Data')).toBeTruthy()
   })
 })
 
-describe('los tres botones «More» del Dashboard', () => {
+describe('the three \"More\" buttons of the Dashboard', () => {
   const grafica = { labels: ['a', 'b'], datasets: [{ label: 'Total', data: [1, 2] }] }
   const DATOS = {
     stats: {
@@ -113,7 +113,7 @@ describe('los tres botones «More» del Dashboard', () => {
     topBlockedDomains: [],
   }
 
-  it('«More» de Top Clients abre el modal y pide TopClients', async () => {
+  it('\"More\" on Top Clients opens the modal and asks for TopClients', async () => {
     // Before phase 10 the three buttons were in place and did nothing.
     const usuario = userEvent.setup()
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: DATOS } as never)
@@ -127,7 +127,7 @@ describe('los tres botones «More» del Dashboard', () => {
     await waitFor(() => expect(top).toHaveBeenCalledWith('t', 'LastHour', 'TopClients', 1000))
   })
 
-  it('la lista corta de clientes ya enseña el dominio y el marcado de limitado', async () => {
+  it('the short client list already shows the domain and the rate-limited marking', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: DATOS } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByText('pc.casa.test')).toBeTruthy()

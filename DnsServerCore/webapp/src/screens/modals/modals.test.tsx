@@ -17,20 +17,20 @@ describe('Change Password', () => {
       <ChangePassword open onOpenChange={() => {}} totpEnabled={totpEnabled} token="t" />,
     )
 
-  it('exige la contraseña actual, con el texto literal', async () => {
+  it('it requires the current password, with the literal text', async () => {
     abrir()
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter the current password.')).toBeInTheDocument()
   })
 
-  it('exige la nueva antes que la confirmación: el orden es contrato', async () => {
+  it('it requires the new one before the confirmation: the order is contract', async () => {
     abrir()
     await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter new password.')).toBeInTheDocument()
   })
 
-  it('exige la confirmación', async () => {
+  it('it requires the confirmation', async () => {
     abrir()
     await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
@@ -38,7 +38,7 @@ describe('Change Password', () => {
     expect(await screen.findByText('Please enter confirm password.')).toBeInTheDocument()
   })
 
-  it('avisa de que no coinciden con el título Mismatch!', async () => {
+  it('it warns that they do not match under the Mismatch! title', async () => {
     abrir()
     await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
@@ -48,7 +48,7 @@ describe('Change Password', () => {
     expect(screen.getByText('Mismatch!')).toBeInTheDocument()
   })
 
-  it('sin 2FA activo no pide OTP', async () => {
+  it('with 2FA off it asks for no OTP', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok())
     abrir(false)
     expect(screen.queryByLabelText('OTP')).not.toBeInTheDocument()
@@ -60,7 +60,7 @@ describe('Change Password', () => {
     expect(spy.mock.calls[0][1]?.body).toEqual({ pass: 'vieja', newPass: 'nueva', totp: '' })
   })
 
-  it('con 2FA activo exige los 6 dígitos', async () => {
+  it('with 2FA on it requires the 6 digits', async () => {
     abrir(true)
     await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
@@ -71,7 +71,7 @@ describe('Change Password', () => {
     ).toBeInTheDocument()
   })
 
-  it('confirma el cambio con el texto literal', async () => {
+  it('it confirms the change with the literal text', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(ok())
     abrir()
     await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
@@ -84,13 +84,13 @@ describe('Change Password', () => {
 })
 
 describe('Create API Token', () => {
-  it('exige el nombre con el texto literal', async () => {
+  it('it requires the name with the literal text', async () => {
     render(<CreateApiToken open onOpenChange={() => {}} username="admin" token="t" />)
     await userEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect(await screen.findByText('Please enter a token name.')).toBeInTheDocument()
   })
 
-  it('crea el token y muestra el mensaje literal', async () => {
+  it('it creates the token and shows the literal message', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ status: 'ok', token: 'abc' }))
     render(<CreateApiToken open onOpenChange={() => {}} username="admin" token="t" />)
     await userEvent.type(screen.getByLabelText('Token Name'), 'orbiter')
@@ -102,7 +102,7 @@ describe('Create API Token', () => {
 })
 
 describe('Configure 2FA', () => {
-  it('pinta el QR como data: URI, que la CSP sí admite para imágenes', async () => {
+  it('it draws the QR as a data: URI, which the CSP does allow for images', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(
       ok({ status: 'ok', response: { totpEnabled: false, qrCodePngImage: 'iVBORw0K', secret: 'ABC' } }),
     )
@@ -112,7 +112,7 @@ describe('Configure 2FA', () => {
     expect(screen.getByLabelText('Secret')).toHaveValue('ABC')
   })
 
-  it('exige los 6 dígitos con el texto literal', async () => {
+  it('it requires the 6 digits with the literal text', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(
       ok({ status: 'ok', response: { totpEnabled: false, qrCodePngImage: 'x', secret: 'ABC' } }),
     )
@@ -124,7 +124,7 @@ describe('Configure 2FA', () => {
     ).toBeInTheDocument()
   })
 
-  it('con 2FA ya activo ofrece desactivarlo y usa el texto literal', async () => {
+  it('with 2FA already on it offers to disable it and uses the literal text', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(
       ok({ status: 'ok', response: { totpEnabled: true, qrCodePngImage: '', secret: '' } }),
     )
@@ -151,7 +151,7 @@ describe('My Profile', () => {
       },
     })
 
-  it('a un usuario local le deja editar el nombre y lo manda', async () => {
+  it('it lets a local user edit the name and sends it', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(perfil(false))
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByDisplayValue('Administrator')
@@ -166,7 +166,7 @@ describe('My Profile', () => {
     expect(llamada?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800', displayName: 'Administrator' })
   })
 
-  it('a un usuario de SSO le deshabilita el nombre y NO lo manda', async () => {
+  it('it disables the name for an SSO user and does NOT send it', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(perfil(true))
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByDisplayValue('Administrator')
@@ -196,7 +196,7 @@ describe('My Profile — sesiones activas', () => {
     },
   })
 
-  it('lista las sesiones y su total', async () => {
+  it('it lists the sessions and their total', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     expect(await screen.findByText('Total Sessions: 2')).toBeInTheDocument()
@@ -219,7 +219,7 @@ describe('My Profile — sesiones activas', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Delete Session' }))
   }
 
-  it('pide confirmación con el texto literal antes de borrar', async () => {
+  it('it asks for confirmation with the literal text before deleting', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
@@ -229,7 +229,7 @@ describe('My Profile — sesiones activas', () => {
     ).toBeInTheDocument()
   })
 
-  it('si se confirma, borra y avisa con el texto literal', async () => {
+  it('on confirming it deletes and alerts with the literal text', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')

@@ -26,7 +26,7 @@ function Ejemplo({ comoFila = false }: { comoFila?: boolean } = {}) {
 }
 
 describe('Menu', () => {
-  it('cambiar el tamaño de la ventana con el menú abierto lo cierra, y no revienta', async () => {
+  it('resizing the window with the menu open closes it, and does not blow up', async () => {
     render(<Ejemplo />)
     await userEvent.click(screen.getByRole('button', { name: 'Opciones' }))
     expect(screen.getByRole('menu')).toBeInTheDocument()
@@ -35,7 +35,7 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('avisa al abrir, para quien necesita mirar el estado justo antes', async () => {
+  it('it reports on opening, for whoever needs to check the state just before', async () => {
     const abiertas: number[] = []
     render(
       <Menu etiqueta="Opciones" rotulo="Opciones" onAbrir={() => abiertas.push(1)}>
@@ -49,7 +49,7 @@ describe('Menu', () => {
     expect(abiertas).toHaveLength(2)
   })
 
-  it('Escape lo cierra y devuelve el foco al disparador', async () => {
+  it('Escape closes it and returns the focus to the trigger', async () => {
     render(<Ejemplo />)
     const b = screen.getByRole('button', { name: 'Opciones' })
     await userEvent.click(b)
@@ -65,7 +65,7 @@ describe('Menu', () => {
   on Escape, nor on scroll. Now it is this same menu, so it inherits them; this
   test is what stops it being written on its own again.
   */
-  it('el disparador de fila cierra al pulsar fuera, igual que el de botón', async () => {
+  it('the row trigger closes on an outside click, just like the button one', async () => {
     render(
       <>
         <Ejemplo comoFila />

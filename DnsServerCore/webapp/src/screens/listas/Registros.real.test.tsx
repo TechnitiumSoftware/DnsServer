@@ -49,7 +49,7 @@ async function pintarTodo(nodo: NodoLista, conDnssec: boolean) {
   return container
 }
 
-describe('la tabla no pierde nada del JSON real', () => {
+describe('the table loses nothing from the real JSON', () => {
   for (const [nombre, nodo] of Object.entries(NODOS)) {
     const conDnssec = nombre.startsWith('cache')
 
@@ -102,8 +102,8 @@ The only three fields that do NOT come out with their literal value, and why.
 They are written here on purpose: if some day someone changes the criterion, this
 test reminds them.
 */
-describe('los tres campos que se dicen de otra forma', () => {
-  it('la marca de tiempo completa se recorta a minutos, pero se conserva entera en el title', async () => {
+describe('the three fields that are stated differently', () => {
+  it('the full timestamp is trimmed to minutes, but kept whole in the title', async () => {
     const nodo = NODOS.cacheTechnitium
     const c = await pintarTodo(nodo, true)
     const completa = (nodo.records[0] as RegistroDns).lastUsedOn!
@@ -111,14 +111,14 @@ describe('los tres campos que se dicen de otra forma', () => {
     expect(c.querySelector(`[title="${completa}"]`)).not.toBeNull()
   })
 
-  it('`expiryTtl: 0` se dice «no expiry», que es lo que significa', async () => {
+  it('`expiryTtl: 0` is stated as "no expiry", which is what it means', async () => {
     const nodo = NODOS.allowed
     expect((nodo.records[0] as RegistroDns).expiryTtl).toBe(0)
     const c = await pintarTodo(nodo, false)
     expect(c.textContent).toContain('no expiry')
   })
 
-  it('`disabled: false` no se dice: sólo se marca cuando es cierto', async () => {
+  it('`disabled: false` is not stated: it is only marked when true', async () => {
     const nodo = NODOS.allowed
     expect((nodo.records[0] as RegistroDns).disabled).toBe(false)
     const c = await pintarTodo(nodo, false)
@@ -131,8 +131,8 @@ The real safety net: it is not enough for the fields we know today to come out,
 ANY field has to. If the server adds one tomorrow, `extras` draws it on its own
 and this test proves it over a real record.
 */
-describe('un campo que el servidor añada mañana', () => {
-  it('aparece sin tocar nada', async () => {
+describe('a field the server adds tomorrow', () => {
+  it('it appears without touching anything', async () => {
     const base = NODOS.cacheExample.records[0] as RegistroDns
     const nodo: NodoLista = {
       domain: 'example.com',
