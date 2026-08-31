@@ -1,18 +1,18 @@
 /*
-`moment(x).local().format("YYYY-MM-DD HH:mm:ss")`, que es como escribe upstream
-la marca de tiempo de una entrada de query log (logs.js:512). Sin moment.
+`moment(x).local().format("YYYY-MM-DD HH:mm:ss")`, which is how upstream writes
+the timestamp of a query log entry (logs.js:512). Without moment.
 
-Y la conversión inversa: el `<input type="datetime-local">` de los filtros «From»
-y «To» entrega una cadena SIN zona (`2026-08-25T00:00`), que upstream pasa por
-`moment(...).toISOString()`. Tanto moment como el `Date` del navegador
-interpretan esa forma en hora LOCAL, así que el resultado es el mismo.
+And the inverse conversion: the `<input type="datetime-local">` of the "From" and
+"To" filters hands over a string with NO zone (`2026-08-25T00:00`), which
+upstream passes through `moment(...).toISOString()`. Both moment and the
+browser's `Date` read that form in LOCAL time, so the result is the same.
 */
 
-/* `fechaHora` se unificó en `src/lib/fechas.ts` al integrar las fases 4, 8 y 9. */
+/* `fechaHora` was unified into `src/lib/fechas.ts` when integrating phases 4, 8 and 9. */
 export { fechaHora } from '../../lib/fechas'
 
-/** `moment(valor).toISOString()` (logs.js:411). Cadena vacía si no hay valor,
- *  que es lo que upstream manda cuando el campo está en blanco. */
+/** `moment(valor).toISOString()` (logs.js:411). An empty string if there is no
+ *  value, which is what upstream sends when the field is blank. */
 export function aIso(valor: string): string {
   if (valor === '') return ''
   const d = new Date(valor)

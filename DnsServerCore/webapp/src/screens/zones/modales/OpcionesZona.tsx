@@ -32,17 +32,17 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalZoneOptions` (zone.js:1524 y 2380). Cinco pestañas y una matriz de
-visibilidad que decide `opciones.ts`.
+`modalZoneOptions` (zone.js:1524 and 2380). Five tabs and a visibility matrix
+that `opciones.ts` decides.
 
-**El formulario es UNO SOLO**: «Save» manda los campos de las cinco pestañas
-estés donde estés, igual que en Settings. Trocearlo por pestaña cambiaría lo
-que se guarda.
+**The form is A SINGLE ONE**: "Save" sends the fields of all five tabs wherever
+you are, just as in Settings. Chopping it up per tab would change what gets
+saved.
 
-Y por eso mismo, si la validación falla en una pestaña que no está delante, se
-salta a ella: es la misma desviación deliberada que se decidió en Settings, y
-por la misma razón — con un panel montado a la vez, sin el salto el aviso sería
-imposible de resolver.
+And for that very reason, if the validation fails on a tab that is not in front,
+it jumps to it: it is the same deliberate deviation decided in Settings, and for
+the same reason — with one panel mounted at a time, without the jump the alert
+would be impossible to resolve.
 */
 
 export function OpcionesZona({
@@ -134,8 +134,8 @@ export function OpcionesZona({
         <Loading>Loading zone options…</Loading>
       ) : (
         <>
-          {/* Un control segmentado, no la clase del botón de paginación: una
-              pestaña y un número de página no son lo mismo. */}
+          {/* A segmented control, not the pagination button's class: a tab
+              and a page number are not the same thing. */}
           <Segmentado
             comoPestanas
             etiqueta="Zone options"
@@ -331,7 +331,7 @@ export function OpcionesZona({
                     />
                   )}
                 </Field>
-                {/* «Quick Add» sólo añade a la lista de arriba: no manda nada. */}
+                {/* "Quick Add" only adds to the list above: it sends nothing. */}
                 <Field label="Quick Add">
                   {(id) => (
                     <Select
@@ -502,8 +502,8 @@ export function OpcionesZona({
 }
 
 /**
- * Las cuatro secciones tienen la misma forma: una lista de criterios y una
- * lista de texto que sólo se puede tocar con algunos de ellos.
+ * All four sections have the same shape: a list of criteria and a text list that
+ * can only be touched with some of them.
  */
 function Criterio({
   nombre,

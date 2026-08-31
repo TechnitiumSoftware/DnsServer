@@ -80,13 +80,13 @@ describe('DHCP › Leases', () => {
   })
 
   /*
-  El mensaje va DENTRO de la tabla y el pie sigue siendo el recuento.
+  The message goes INSIDE the table and the footer stays the count.
 
-  Antes el pie hacía de las dos cosas: con filas ponía el total y sin ellas el
-  «No Lease Found», así que una tabla vacía dejaba el cuerpo en blanco bajo la
-  banda de cabecera y el mensaje flotando fuera del panel. Upstream lo mete
-  centrado en el pie de la propia tabla (`dhcp.js:74`) y el resto de la consola
-  usa su fila de «no hay nada».
+  Before, the footer did both jobs: with rows it put the total and without them
+  the "No Lease Found", so an empty table left the body blank under the header
+  band and the message floating outside the panel. Upstream puts it centred in
+  the table's own footer (`dhcp.js:74`) and the rest of the console uses its
+  "there is nothing here" row.
   */
   it('sin concesiones lo dice DENTRO de la tabla, y el pie sigue contando', async () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [] })
@@ -132,7 +132,7 @@ describe('DHCP › Leases', () => {
     expect(
       screen.getByText('The dynamic lease was converted to reserved lease successfully.'),
     ).toBeInTheDocument()
-    // La fila cambia de tipo sin recargar: ahora ofrece la conversión inversa.
+    // The row changes type without reloading: it now offers the inverse conversion.
     expect(
       screen.getByRole('button', { name: 'Convert To Dynamic Lease' }),
     ).toBeInTheDocument()
@@ -284,7 +284,7 @@ describe('DHCP › Scopes', () => {
     expect(screen.queryByRole('button', { name: 'Add Scope' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Disable Scope' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Actions for / })).not.toBeInTheDocument()
-    // «Edit» sigue: sólo pide permiso de lectura.
+    // "Edit" stays: it only asks for read permission.
     expect(screen.getByRole('button', { name: 'Edit Scope' })).toBeInTheDocument()
   })
 })
@@ -380,7 +380,7 @@ describe('DHCP › Scopes — el formulario', () => {
     await screen.findByText('No Scope Found')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
 
-    // Una exclusión nueva nace con las dos celdas vacías.
+    // A new exclusion is born with both cells empty.
     const anadir = screen.getAllByRole('button', { name: 'Add' })
     await user.click(anadir[3])
     await user.click(screen.getByRole('button', { name: 'Save' }))

@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { Login } from './Login'
 import * as client from '../api/client'
 
-// shouldAdvanceTime deja que los temporizadores corran con el reloj real, que
-// es lo que necesita userEvent para no bloquearse, sin perder la capacidad de
-// dar saltos grandes con advanceTimersByTime.
+// shouldAdvanceTime lets the timers run with the real clock, which is what
+// userEvent needs so as not to block, without losing the ability to make big
+// jumps with advanceTimersByTime.
 beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
 afterEach(() => {
   vi.useRealTimers()
@@ -20,8 +20,8 @@ async function llegarAlPanelOtp() {
   await user.type(screen.getByLabelText('Username'), 'admin')
   await user.type(screen.getByLabelText('Password'), 'secreto')
   await user.click(screen.getByRole('button', { name: 'Login' }))
-  // Con relojes falsos no se puede usar findBy*: espera con temporizadores que
-  // nunca avanzan. Se vacía la cola de microtareas y se consulta en síncrono.
+  // With fake clocks findBy* cannot be used: it waits on timers that never
+  // advance. The microtask queue is drained and the query is made synchronously.
   await act(async () => { await Promise.resolve() })
   expect(screen.getByLabelText('OTP')).toBeInTheDocument()
   return user
@@ -56,10 +56,10 @@ describe('panel OTP', () => {
     })
     await user.type(screen.getByLabelText('OTP'), '123456')
     await act(async () => { vi.advanceTimersByTime(31_000) })
-    // Tras el éxito el componente sigue montado —lo sustituye el padre—, así que
-    // lo que se comprueba es que el temporizador NO disparó: el panel sigue
-    // abierto con su valor y la contraseña sigue deshabilitada. Si el
-    // temporizador hubiera saltado, ambas cosas se habrían revertido.
+    // After success the component stays mounted —the parent replaces it— so what
+    // gets checked is that the timer did NOT fire: the panel is still open with
+    // its value and the password is still disabled. Had the timer gone off,
+    // both would have been reverted.
     expect(screen.getByLabelText('OTP')).toHaveValue('123456')
     expect(screen.getByLabelText('Password')).toBeDisabled()
   })

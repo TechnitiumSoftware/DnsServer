@@ -1,7 +1,7 @@
 /*
-La barra de consulta. `align-items: flex-end` es lo que alinea los botones con
-el borde inferior de los campos; antes se conseguía con un `marginBottom: 1`
-puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
+The query bar. `align-items: flex-end` is what lines the buttons up with the
+bottom edge of the fields; before it was achieved with a `marginBottom: 1` put by
+hand on each button, which is the symptom of a row that does not align.
 */
 .filt {
   display: flex;
@@ -22,8 +22,8 @@ puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
 .corto { width: 120px; }
 .ecs { width: 176px; }
 
-/* La casilla se alinea con la LÍNEA BASE de los campos, no con su etiqueta: por
-   eso lleva el alto del campo y no un margen inventado. */
+/* The checkbox lines up with the fields' BASELINE, not with their label: hence
+   it carries the field's height and not an invented margin. */
 .chk {
   display: flex;
   align-items: center;
@@ -38,9 +38,9 @@ puesto a mano en cada botón, que es el síntoma de que la fila no alineaba.
 .out { margin: 0; padding: var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font-family:var(--font-mono); font-size: var(--t-3); color:var(--ink); overflow:auto; line-height:1.55; max-height:460px; white-space:pre-wrap; word-break:break-word; }
 
 /*
-«Raw Responses (N)»: el segundo panel del acordeón de upstream, plegado. El
-triángulo del `<details>` lo pinta cada navegador el suyo, así que se sustituye
-por el chevron del juego de iconos —mismo tratamiento que en Apps—.
+"Raw Responses (N)": the second panel of upstream's accordion, collapsed. Each
+browser draws its own `<details>` triangle, so it is replaced with the icon set's
+chevron —the same treatment as in Apps.
 */
 .crudas { margin-top: var(--s-8); border-top: 1px solid var(--line); padding-top: var(--s-8); }
 .crudas pre { margin-top: var(--s-7); }

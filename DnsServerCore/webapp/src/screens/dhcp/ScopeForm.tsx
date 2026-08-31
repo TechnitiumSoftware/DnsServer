@@ -23,20 +23,20 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import styles from './Dhcp.module.css'
 
 /*
-El formulario de un scope (index.html:2560-2930). En upstream NO es un modal:
-sustituye a la tabla dentro de la propia sub-pestaña Scopes, con el título
-«Add Scope» o «Edit Scope» según el caso. Se conserva así.
+A scope's form (index.html:2560-2930). In upstream it is NOT a modal: it replaces
+the table inside the Scopes sub-tab itself, with the title "Add Scope" or "Edit
+Scope" as the case may be. It is kept that way.
 
-Las etiquetas, los textos de ayuda, los marcadores de posición y el orden de los
-trece grupos son literales de upstream. Los avisos «Warning!» y «Note!» son
-párrafos en negrita allí; aquí son bloques de color, que es la única diferencia.
+The labels, the help texts, the placeholders and the order of the thirteen groups
+are upstream literals. The "Warning!" and "Note!" alerts are bold paragraphs
+there; here they are coloured blocks, which is the only difference.
 
-Dos dependencias entre campos que upstream implementa con `onclick` y que aquí
-son estado, con el mismo efecto:
+Two dependencies between fields that upstream implements with `onclick` and that
+here are state, to the same effect:
 
-  · «Enable DNS Updates» desmarcado deshabilita «Enable DNS Overwrite For
-    Dynamic Lease» (dhcp.js:21-25).
-  · «Use This DNS Server» marcado deshabilita el área de servidores DNS
+  · "Enable DNS Updates" unchecked disables "Enable DNS Overwrite For Dynamic
+    Lease" (dhcp.js:21-25).
+  · "Use This DNS Server" checked disables the DNS servers area
     (index.html:2713).
 */
 
@@ -249,8 +249,8 @@ export function ScopeForm({
           onChange={(v) => set({ routerAddress: v })}
           help="The default gateway IP address to be used by the clients. (Option 3)"
         />
-        {/* index.html:2708-2722 — una sola etiqueta «DNS Servers» para la fila
-            entera: gobierna el área de texto, y la casilla lleva la suya. */}
+        {/* index.html:2708-2722 — a single "DNS Servers" label for the whole
+            row: it governs the text area, and the checkbox carries its own. */}
         <Row label="DNS Servers" help="The DNS Server IP addresses to be used by the clients. (Option 6)">
           {(id) => (
             <>

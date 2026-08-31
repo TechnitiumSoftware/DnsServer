@@ -24,7 +24,7 @@ const datos = {
 }
 
 describe('porcentaje', () => {
-  // main.js:2652-2676 — `toFixed(2)`, con punto, sin locale y con dos decimales.
+  // main.js:2652-2676 — `toFixed(2)`, with a dot, no locale and two decimals.
   it('dos decimales y punto, como upstream', () => {
     expect(porcentaje(41008, 48312)).toBe('84.88%')
     expect(porcentaje(36, 48312)).toBe('0.07%')
@@ -38,23 +38,23 @@ describe('Dashboard', () => {
   it('pinta las once métricas con sus etiquetas literales', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
     render(<Dashboard token="t" />)
-    // «Blocked» y «Cache» salen también como contador del servidor, así que se
-    // busca dentro de las tarjetas de métrica, no en toda la pantalla.
+    // "Blocked" and "Cache" also come out as server counters, so the search is
+    // done inside the metric cards, not across the whole screen.
     const tiles = within(await screen.findByTestId('metricas'))
     for (const l of ['Total Queries','No Error','Server Failure','NX Domain','Refused','Authoritative','Recursive','Cached','Blocked','Dropped','Clients']) {
       expect(tiles.getByText(l)).toBeInTheDocument()
     }
-    // Los números van con la locale del navegador porque upstream tampoco fija
-    // ninguna (main.js:2632). Se afirma así para no clavar la prueba a una.
+    // The numbers go with the browser's locale because upstream does not pin one
+    // either (main.js:2632). It is asserted this way so as not to nail the test to one.
     expect(tiles.getByText((48312).toLocaleString())).toBeInTheDocument()
     expect(tiles.getByText('84.88%')).toBeInTheDocument()
   })
 
   /*
-  Upstream escribe un «100%» fijo bajo «Total Queries» que su JavaScript nunca
-  actualiza. Calculado de verdad daba «0%» con el servidor recién arrancado, que
-  confunde más de lo que informa: el porcentaje es la parte del total, y el total
-  no tiene parte de sí mismo.
+  Upstream writes a fixed "100%" under "Total Queries" that its JavaScript never
+  updates. Really calculated it gave "0%" with the server freshly started, which
+  confuses more than it informs: the percentage is the share of the total, and the
+  total has no share of itself.
   */
   it('la baldosa del total no lleva porcentaje, como la de clientes', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
@@ -62,7 +62,7 @@ describe('Dashboard', () => {
     const tiles = within(await screen.findByTestId('metricas'))
     expect(tiles.queryByText('100.00%')).not.toBeInTheDocument()
     expect(tiles.queryByText('100%')).not.toBeInTheDocument()
-    // y las que sí lo llevan siguen llevándolo
+    // and the ones that do carry it still carry it
     expect(tiles.getByText('84.88%')).toBeInTheDocument()
   })
 
@@ -121,16 +121,17 @@ describe('Dashboard', () => {
   })
 
   /*
-  Esta prueba se conformaba con «no revienta», y no reventar era justo el
-  problema: con la llamada caída la pantalla enseñaba once ceros y «No queries
-  for this period.», que es lo mismo que enseña un DNS que no ha recibido nada.
-  Quien administra un servidor y lee eso concluye que no le llega tráfico.
+  This test settled for "it does not blow up", and not blowing up was exactly the
+  problem: with the call fallen over the screen showed eleven zeros and "No
+  queries for this period.", which is the same thing a DNS that has received
+  nothing shows. Whoever administers a server and reads that concludes no traffic
+  is reaching them.
   */
   it('si la llamada falla, lo DICE, y no se hace pasar por un servidor tranquilo', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'error', message: 'boom' })
     render(<Dashboard token="t" />)
     expect(await screen.findByText('boom')).toBeInTheDocument()
-    // y los valores salen como raya, que es lo honesto: no se saben
+    // and the values come out as a dash, which is the honest thing: they are unknown
     expect(within(screen.getByTestId('metricas')).getAllByText('—').length).toBe(11)
   })
 

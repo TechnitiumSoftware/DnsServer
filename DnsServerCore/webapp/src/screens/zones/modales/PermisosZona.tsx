@@ -11,15 +11,15 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalEditPermissions` para una zona (zone.js:2544 y 2616).
+`modalEditPermissions` for a zone (zone.js:2544 and 2616).
 
-Dos tablas idénticas en aspecto —usuarios y grupos— con la trampa de que **el
-nombre del sujeto se llama distinto en cada una**: `username` en usuarios y
-`name` en grupos. Aquí se normalizan a `nombre` al entrar y se vuelven a
-serializar igual al salir, que es lo único que ve el servidor.
+Two tables identical in appearance —users and groups— with the catch that **the
+subject's name is called something different in each**: `username` in users and
+`name` in groups. Here they are normalised to `nombre` on the way in and
+serialised back the same on the way out, which is all the server sees.
 
-El desplegable de «añadir» lleva dos entradas fantasma de upstream —una vacía y
-otra que dice «None»— que no añaden a nadie. Se conservan.
+The "add" dropdown carries two phantom entries from upstream —an empty one and
+one that says "None"— that add nobody. They are kept.
 */
 
 interface Fila {
@@ -46,10 +46,11 @@ export function PermisosZona({
   onCerrar: () => void
   onHecho: (a: Aviso) => void
 }) {
-  /* Upstream titula `Edit Permissions - <span>` (`index.html:6856`) y rellena ese
-     span con `"Zones / " + zone` (`zone.js:2549`). Sin el prefijo, el diálogo no
-     dice qué hace: es el único de los diez de Zones cuyo título no nombra la
-     acción, y el mismo diálogo abierto desde Administration sí lo lleva. */
+  /* Upstream titles it `Edit Permissions - <span>` (`index.html:6856`) and fills
+     that span with `"Zones / " + zone` (`zone.js:2549`). Without the prefix, the
+     dialog does not say what it does: it is the only one of Zones' ten whose title
+     does not name the action, and the same dialog opened from Administration does
+     carry it. */
   const [titulo, setTitulo] = useState(
     `Edit Permissions - Zones / ${zone === '.' ? '<root>' : zone}`,
   )
@@ -225,7 +226,7 @@ function TablaPermisos({
             value=""
             onChange={(e) => {
               const v = e.target.value
-              // Las dos entradas fantasma de upstream no añaden a nadie.
+              // Upstream's two phantom entries add nobody.
               if (v === '' || v === 'none') return
               onCambiar([...filas, { nombre: v, canView: true, canModify: false, canDelete: false }])
             }}

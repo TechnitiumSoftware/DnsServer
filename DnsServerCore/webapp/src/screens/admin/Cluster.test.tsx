@@ -10,10 +10,10 @@ import { elegir, opcionesDe } from '../../test/desplegable'
 afterEach(() => vi.restoreAllMocks())
 
 /*
-AVISO DE VERIFICACIÓN: el entorno de desarrollo es una sola instancia, así que el
-cluster nunca llega a inicializarse y estas pruebas son la única cobertura que
-tienen ocho de los doce endpoints. Las respuestas están construidas contra
-`WebServiceClusterApi.cs`, no observadas en vivo.
+VERIFICATION NOTICE: the development environment is a single instance, so the
+cluster never gets initialised and these tests are the only coverage eight of the
+twelve endpoints have. The responses are built against `WebServiceClusterApi.cs`,
+not observed live.
 */
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
@@ -92,9 +92,9 @@ describe('Cluster — inicializar uno nuevo', () => {
     const { user } = await abrir()
     const area = screen.getByLabelText('Primary Node IP Addresses')
     await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.10')
-    // Con `10.0.0.10` ya en la lista, `indexOf('10.0.0.1')` la encuentra dentro
-    // y upstream da la IP por añadida: `10.0.0.1` NO entra. Se replica el
-    // comportamiento, no la intención.
+    // With `10.0.0.10` already in the list, `indexOf('10.0.0.1')` finds it inside
+    // and upstream takes the IP as added: `10.0.0.1` does NOT go in. The behaviour
+    // is replicated, not the intent.
     await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
     expect(area).toHaveValue('10.0.0.10\n')
   })
@@ -115,7 +115,7 @@ describe('Cluster — inicializar uno nuevo', () => {
     servidor(CLUSTER_PRIMARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
-    // Con el cluster ya montado el botón ni siquiera se ofrece.
+    // With the cluster already up the button is not even offered.
     expect(screen.queryByRole('button', { name: 'New Cluster' })).not.toBeInTheDocument()
   })
 })
@@ -200,7 +200,7 @@ describe('Cluster — unirse a uno existente', () => {
     expect(await screen.findByLabelText('Primary Node OTP')).toBeInTheDocument()
     expect(screen.getByLabelText('Primary Node Password')).toBeDisabled()
 
-    // Y a partir de ahí el OTP sí es obligatorio.
+    // And from there on the OTP is indeed required.
     await user.click(screen.getByRole('button', { name: 'Join' }))
     expect(screen.getByText("Please enter the Primary node admin user's OTP.")).toBeInTheDocument()
   })
@@ -477,11 +477,11 @@ describe('Cluster — la tabla de nodos', () => {
     await screen.findByText('Total Nodes: 2')
 
     const filas = screen.getAllByRole('row')
-    // La fila del nodo propio (el secundario) es la última.
+    // The row of the node itself (the secondary) is the last one.
     const propia = filas[filas.length - 1]
     expect(propia).toHaveTextContent('Self')
-    // Sin «Last Seen» (es el nodo propio) pero CON «Last Synced», que sólo
-    // existe para un secundario que se mira a sí mismo.
+    // Without "Last Seen" (it is the node itself) but WITH "Last Synced", which
+    // only exists for a secondary looking at itself.
     expect(within(propia).getAllByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)).toHaveLength(2)
   })
 

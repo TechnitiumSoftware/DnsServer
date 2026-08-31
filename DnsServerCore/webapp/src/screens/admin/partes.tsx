@@ -5,7 +5,7 @@ import { Select } from '../../ui/Select'
 import { Row } from '../../ui/Form'
 export { Check } from '../../ui/Check'
 
-/* Las piezas que comparten las seis sub-pestañas de Administration. */
+/* The pieces Administration's six sub-tabs share. */
 
 export type { Aviso } from '../../lib/aviso'
 export { avisoDeFallo } from '../../lib/aviso'
@@ -13,16 +13,16 @@ export { avisoDeFallo } from '../../lib/aviso'
 
 
 /*
-`MRow` es la fila de `ui/Form` en su variante de modal. Era una tercera copia
-—las otras dos vivían en las partes de Settings y de DHCP— y encima tenía un
-fallo propio: usaba `frm.rowCtl` en vez de `frm.mrowCtl`, así que el control de
-un modal de Administration se maquetaba con las reglas de una fila de página.
+`MRow` is `ui/Form`'s row in its modal variant. It was a third copy —the other
+two lived in the Settings and DHCP parts— and on top of that it had a bug of its
+own: it used `frm.rowCtl` instead of `frm.mrowCtl`, so an Administration modal's
+control was laid out with the rules of a page row.
 */
 export function MRow(props: Omit<Parameters<typeof Row>[0], 'modal'>) {
   return <Row {...props} modal />
 }
 
-/** Fila de sólo lectura: «Type» y «2FA Status» del modal de detalles. */
+/** Read-only row: the "Type" and "2FA Status" of the details modal. */
 export function MValue({ label, value }: { label: string; value: string }) {
   return (
     <div className={frm.mrow}>
@@ -34,9 +34,9 @@ export function MValue({ label, value }: { label: string; value: string }) {
 
 
 /*
-`updateClusterNodeDropDown` (cluster.js:1026): el desplegable de nodos SÓLO
-existe si el cluster está inicializado; si no, se oculta y su valor es la cadena
-vacía. Cada opción se rotula «nombre (tipo en minúsculas)».
+`updateClusterNodeDropDown` (cluster.js:1026): the node dropdown ONLY exists if
+the cluster is initialised; if not, it hides and its value is the empty string.
+Each option is labelled "name (type lowercased)".
 */
 export function SelectorNodo({
   cluster,

@@ -42,7 +42,7 @@ function nodo(p: Partial<NodoLista> = {}): NodoLista {
   return { domain: '', zones: [], records: [], ...p }
 }
 
-/** Deja `listarNodo` devolviendo el nodo que se le pase, sea cual sea la lista. */
+/** Leaves `listarNodo` returning whatever node it is given, whichever list it is. */
 function conNodo(...nodos: NodoLista[]) {
   const spy = vi.spyOn(api, 'listarNodo')
   for (const n of nodos) spy.mockResolvedValueOnce({ kind: 'ok', data: n })
@@ -71,8 +71,8 @@ describe('navegación del árbol', () => {
     expect(spy.mock.calls[0][0]).toBe('blocked')
   })
 
-  /* El servidor baja solo por la cadena cuando el nodo tiene un único hijo y
-     ningún registro: hay que pintar el dominio QUE DEVUELVE, no el que se pidió. */
+  /* The server walks down the chain on its own when the node has a single child
+     and no records: the domain to draw is the one it RETURNS, not the one asked for. */
   it('obedece al dominio que devuelve el servidor, no al que se pidió', async () => {
     conNodo(nodo(), nodo({ domain: 'example.org', zones: ['foo.example.org'], records: [REG_AUTH] }))
     render(<Allowed token="t" />)
@@ -139,7 +139,7 @@ describe('tabla de registros', () => {
     render(<Allowed token="t" />)
     await screen.findByText('Name Server')
     expect(screen.queryByRole('columnheader', { name: 'DNSSEC' })).not.toBeInTheDocument()
-    // Pero el estado DNSSEC no se pierde: baja a la línea gris.
+    // But the DNSSEC state is not lost: it drops down to the grey line.
     expect(screen.getByText(/DNSSEC Unknown/)).toBeInTheDocument()
   })
 
@@ -173,8 +173,8 @@ describe('Cache', () => {
     expect(lista.mock.calls[lista.mock.calls.length - 1][2]).toBe('')
   })
 
-  /* En cache el botón Delete depende del NODO, no de que tenga registros
-     (other-zones.js:143-152). En allowed y blocked es al revés. */
+  /* In cache the Delete button depends on the NODE, not on it having records
+     (other-zones.js:143-152). In allowed and blocked it is the other way round. */
   it('Delete no está en <ROOT> y sí en un nodo, aunque el nodo no tenga registros', async () => {
     conNodo(nodo({ zones: ['com'] }))
     const { unmount } = render(<Cache token="t" />)
@@ -228,7 +228,7 @@ describe('Allowed', () => {
     expect(campo).toHaveValue('')
   })
 
-  /* Delete aquí depende de que el nodo TENGA registros (other-zones.js:319-327). */
+  /* Delete here depends on the node HAVING records (other-zones.js:319-327). */
   it('Delete sólo aparece cuando el nodo tiene registros', async () => {
     conNodo(nodo({ domain: 'casa.test', zones: ['a.casa.test'], records: [] }))
     const { unmount } = render(<Allowed token="t" />)
@@ -322,9 +322,9 @@ describe('Blocked', () => {
     ).toBeInTheDocument()
   })
 
-  /* La asimetría de upstream: Allowed dice «Domain 'x' was deleted from Allowed
-     Zone successfully.» y Blocked dice «Blocked zone 'x' was deleted
-     successfully.». Son dos frases distintas y las dos son contrato. */
+  /* Upstream's asymmetry: Allowed says "Domain 'x' was deleted from Allowed
+     Zone successfully." and Blocked says "Blocked zone 'x' was deleted
+     successfully.". They are two different sentences and both are contract. */
   it('borrar avisa con «Blocked zone ... was deleted successfully»', async () => {
     vi.spyOn(api, 'borrarDominio').mockResolvedValue(OK)
     conNodo(nodo({ domain: 'ads.test', records: [REG_AUTH] }))

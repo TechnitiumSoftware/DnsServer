@@ -22,12 +22,12 @@ import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
 
 /*
-`modalDnssecSignZone` (zone.js:6539 y 6578).
+`modalDnssecSignZone` (zone.js:6539 and 6578).
 
-Los valores iniciales NO son los de un formulario vacío: ECDSA con P256, KSK y
-ZSK automáticas, NSEC, TTL 3600 y rollover del ZSK cada 30 días. Y los tamaños
-por defecto de RSA son **distintos entre KSK y ZSK** —2048 y 1280—, que es la
-clase de detalle que se pierde al «limpiar» un formulario.
+The initial values are NOT those of an empty form: ECDSA with P256, automatic KSK
+and ZSK, NSEC, TTL 3600 and a ZSK rollover every 30 days. And RSA's default sizes
+are **different between KSK and ZSK** —2048 and 1280— which is the kind of detail
+that gets lost when "cleaning up" a form.
 */
 
 interface Formulario {
@@ -109,8 +109,8 @@ export function FirmarZona({
         kskKeySize: f.kskKeySize,
         zskKeySize: f.zskKeySize,
         curve: f.curve,
-        // Los PEM sólo tienen sentido con «Use Specified Private Key», pero
-        // upstream los manda siempre: si están vacíos, viajan vacíos.
+        // The PEMs only make sense with "Use Specified Private Key", but upstream
+        // always sends them: if they are empty, they travel empty.
         pemKskPrivateKey: f.kskGeneration === 'UseSpecified' ? f.pemKskPrivateKey : '',
         pemZskPrivateKey: f.zskGeneration === 'UseSpecified' ? f.pemZskPrivateKey : '',
         dnsKeyTtl: f.dnsKeyTtl,
@@ -326,14 +326,14 @@ export function FirmarZona({
           (ZSK).
         </div>
 
-        {/* El enlace con el que upstream cierra `modalDnssecSignZone`. */}
+        {/* The link upstream closes `modalDnssecSignZone` with. */}
         <Ayuda href={AYUDA_DNSSEC}>Help: How To Secure Your Domain Name With DNSSEC</Ayuda>
       </div>
     </Dialog>
   )
 }
 
-/** KSK y ZSK son el mismo bloque con distintos rótulos y valores por defecto. */
+/** KSK and ZSK are the same block with different labels and defaults. */
 function ClaveDeFirma({
   titulo,
   nombre,
@@ -376,7 +376,7 @@ function ClaveDeFirma({
         </label>
       ))}
 
-      {/* El tamaño sólo aplica a RSA y sólo con generación automática. */}
+      {/* The size only applies to RSA and only with automatic generation. */}
       {esRsa && generacion === 'Automatic' && (
         <Field label={etiquetaTamano}>
           {(id) => (

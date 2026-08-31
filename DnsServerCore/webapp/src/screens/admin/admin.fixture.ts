@@ -9,11 +9,11 @@ import type {
 import type { ClusterState } from '../../api/admin-cluster'
 
 /*
-Respuestas reales copiadas de una instancia v15.4 (la `ref` de `dev/`), no
-inventadas. Las formas raras que traen son el objeto de varias pruebas:
-`tokenName: null`, `0001-01-01T00:00:00` como «nunca», `0.0.0.0` como dirección
-de una sesión que no existió, y un `clusterState` SIN `clusterNodes` porque el
-cluster no está inicializado.
+Real responses copied from a v15.4 instance (the `ref` one in `dev/`), not
+invented. The odd shapes they bring are the subject of several tests:
+`tokenName: null`, `0001-01-01T00:00:00` as "never", `0.0.0.0` as the address of
+a session that never existed, and a `clusterState` WITHOUT `clusterNodes` because
+the cluster is not initialised.
 */
 
 export const SESION_ADMIN: AdminSession = {
@@ -50,7 +50,7 @@ export const USUARIO_ADMIN: AdminUser = {
   recentSessionRemoteAddress: '172.23.0.1',
 }
 
-/** Un usuario recién creado: nunca ha entrado. */
+/** A freshly created user: they have never logged in. */
 export const USUARIO_NUEVO: AdminUser = {
   displayName: 'Test User',
   username: 'testuser',
@@ -117,16 +117,16 @@ export const SSO: SsoConfig = {
   localGroups: ['Administrators', 'DHCP Administrators', 'DNS Administrators'],
 }
 
-/** Un servidor suelto: `clusterDomain`, los intervalos y `clusterNodes` NO
- *  vienen. Es la respuesta literal de la instancia de referencia. */
+/** A standalone server: `clusterDomain`, the intervals and `clusterNodes` do NOT
+ *  come. It is the literal response of the reference instance. */
 export const CLUSTER_SIN_INICIAR: ClusterState = {
   version: '15.4',
   dnsServerDomain: 'ref.technitium-ui.test',
   clusterInitialized: false,
 }
 
-/** Un cluster de dos nodos, montado a partir del contrato de
- *  `WebServiceClusterApi.cs`: NO se ha podido observar en vivo. */
+/** A two-node cluster, built from the contract in `WebServiceClusterApi.cs`: it
+ *  could NOT be observed live. */
 export const CLUSTER_PRIMARIO: ClusterState = {
   version: '15.4',
   dnsServerDomain: 'ns1.micluster.test',
@@ -159,7 +159,7 @@ export const CLUSTER_PRIMARIO: ClusterState = {
   ],
 }
 
-/** El mismo cluster visto DESDE el secundario. */
+/** The same cluster seen FROM the secondary. */
 export const CLUSTER_SECUNDARIO: ClusterState = {
   ...CLUSTER_PRIMARIO,
   dnsServerDomain: 'ns2.micluster.test',

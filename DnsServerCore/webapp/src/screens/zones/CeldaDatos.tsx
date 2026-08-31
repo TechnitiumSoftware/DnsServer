@@ -6,16 +6,16 @@ import { Tabla } from '../../ui/Table'
 import styles from './Zones.module.css'
 
 /*
-La celda «Data» de un registro. El contenido lo decide `registro-vista.ts`;
-aquí sólo se pinta.
+A record's "Data" cell. The content is decided by `registro-vista.ts`; here it is
+only drawn.
 
-**Las claves públicas se truncan** (decisión de Adrián, 2026-08-25): un DNSKEY
-son 400 caracteres en base64 y enteros hacen que cada registro ocupe seis líneas
-de tabla, con el nodo raíz ilegible. Se enseña el principio y un enlace «ver
-completa». No se pierde nada: el valor sigue estando a un clic.
+**Public keys are truncated** (Adrián's decision, 2026-08-25): a DNSKEY is 400
+base64 characters and in full they make each record take up six table lines, with
+the root node unreadable. The beginning is shown plus a "see full" link. Nothing
+is lost: the value is still one click away.
 */
 
-/** Los rótulos cuyo valor es largo de verdad y merece truncarse. */
+/** The labels whose value is genuinely long and worth truncating. */
 const LARGOS = [
   'Public Key:',
   'Signature:',
@@ -103,13 +103,13 @@ export function CeldaDatos({
   notifyFailedFor,
 }: {
   registro: Registro
-  /** Los servidores de nombres a los que falló la notificación. */
+  /** The name servers the notify failed for. */
   notifyFailedFor?: string[]
 }) {
   const celdas = celdasDeRegistro(registro)
   const pie = pieDeRegistro(registro)
 
-  // Sólo en NS, y sólo si ESE servidor está en la lista de fallos de la zona.
+  // Only on NS, and only if THAT server is in the zone's failure list.
   const notifyFallido =
     registro.type === 'NS' &&
     (notifyFailedFor ?? []).includes(String(registro.rData.nameServer ?? ''))

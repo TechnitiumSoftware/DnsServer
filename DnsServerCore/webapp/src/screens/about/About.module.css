@@ -1,13 +1,13 @@
 /*
-El panel lo pinta `ui/Panel`. Aquí sólo quedan los ajustes propios de esta
-pantalla, si los hay: replicar su marcado con `composes:` era lo que había, y
-así fue como una cabecera acabó midiendo 21 px menos que su tarjeta.
+The panel is drawn by `ui/Panel`. What is left here is only this screen's own
+adjustments, if any: replicating its markup with `composes:` was what there was,
+and that is how a header ended up 21 px shorter than its card.
 */
 .grid { display:grid; grid-template-columns:1fr 300px; gap: var(--s-10); align-items:start; }
 .col { display:flex; flex-direction:column; gap: var(--s-9); }
 
 .head { display:flex; align-items:center; gap: var(--s-8); margin-bottom: var(--s-9); }
-/* El logo se enseña tal cual: ni recuadro de color ni recorte. */
+/* The logo is shown as it is: no colour box, no crop. */
 .mark { width:38px; height:38px; flex:none; }
 .h1 { margin: 0; font-size: var(--t-7); font-weight: 600; letter-spacing:-.02em; color:var(--ink); }
 .ver { font-family:var(--font-mono); font-size: var(--t-4); color:var(--mute); margin-top: var(--s-1); }
@@ -16,11 +16,11 @@ así fue como una cabecera acabó midiendo 21 px menos que su tarjeta.
 .prose h4 { margin: var(--s-10) 0 var(--s-2); font-size: var(--t-4); color:var(--ink); }
 .prose a { color:var(--acc); }
 /*
-Un enlace DENTRO de una frase queda exento del tamaño mínimo de objetivo (WCAG
-2.2, «inline»), pero estos cinco no lo están: los cuatro títulos y el «Donate
-Now!» son destinos sueltos, y medían 14 px de alto. Se les da caja propia hasta
-los 24 px sin tocar el ritmo del texto —el relleno va dentro del renglón que ya
-ocupaban—.
+A link INSIDE a sentence is exempt from the minimum target size (WCAG 2.2,
+"inline"), but these five are not: the four titles and the "Donate Now!" are
+standalone destinations, and they were 14 px tall. They are given a box of their
+own up to 24 px without touching the text's rhythm —the padding goes inside the
+line they already occupied.
 */
 .prose h4 a,
 .prose .destino { display:inline-block; padding: var(--s-4) 0; }

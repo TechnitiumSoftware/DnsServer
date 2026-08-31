@@ -8,15 +8,15 @@ import { Tabla } from '../../ui/Table'
 import styles from './Listas.module.css'
 
 /*
-La tabla que sustituye al `<pre>` con el JSON en crudo.
+The table that replaces the `<pre>` with the raw JSON.
 
-Sólo cambia CÓMO se lee: no hay ni un control nuevo. Los dos botones de fila
-—«RRSIG» y «Glue»— no llaman a ningún endpoint: despliegan campos que ya venían
-en el mismo JSON (`dnssecRecords` y `glueRecords`) y que en el volcado de
-upstream se leían igual de mal que el resto.
+Only HOW it reads changes: there is not one new control. The two row buttons
+—"RRSIG" and "Glue"— call no endpoint: they expand fields that already came in
+the same JSON (`dnssecRecords` and `glueRecords`) and that in upstream's dump read
+just as badly as the rest.
 */
 
-// El mismo corte que en Zones: era 48 aquí y 64 allí, para el mismo control.
+// The same cut-off as in Zones: it was 48 here and 64 there, for the same control.
 const CORTE = 64
 
 function Valor({ e }: { e: Entrada }) {
@@ -56,7 +56,7 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
 
   const ttl = ttlPartido(r)
   const nombre = r.nameIdn ?? r.name
-  // El nombre coincide siempre con el nodo abierto; sólo se dice si NO coincide.
+  // The name always matches the open node; it is only said when it does NOT.
   const nombreDistinto = r.name !== nodo && nombre !== nodo
 
   return (
@@ -117,7 +117,7 @@ export function Registros({
   nodo,
 }: {
   records: RegistroDns[]
-  /** La columna DNSSEC es sólo de Cache; en el resto baja a la línea gris. */
+  /** The DNSSEC column belongs to Cache only; elsewhere it drops to the grey line. */
   conDnssec: boolean
   nodo: string
 }) {

@@ -2,18 +2,18 @@ import styles from './Listas.module.css'
 import { Icono } from '../../ui/Icono'
 
 /*
-El árbol de dominios.
+The domain tree.
 
-Upstream pinta una LISTA PLANA: `[refresh]`, `[up]` y los hijos del nodo
-(other-zones.js:120-137). Aquí se pinta como árbol, que es lo mismo dicho de
-otra forma: la raíz, la cadena de antepasados del nodo actual —cada uno de ellos
-es el `[up]` de su hijo— y debajo los hijos que devuelve el servidor.
+Upstream draws a FLAT LIST: `[refresh]`, `[up]` and the node's children
+(other-zones.js:120-137). Here it is drawn as a tree, which is the same thing put
+another way: the root, the current node's chain of ancestors —each of them being
+its child's `[up]`— and below them the children the server returns.
 
-`zones` ya trae nombres de dominio COMPLETOS, así que las etiquetas se imprimen
-tal cual y navegar es pasarle al servidor la cadena que se ve.
+`zones` already brings FULL domain names, so the labels are printed as they come
+and navigating is handing the server the string you can see.
 */
 
-/** Todos los antepasados del dominio, de la raíz hacia abajo y sin incluirlo. */
+/** Every ancestor of the domain, from the root down and not including it. */
 export function antepasados(domain: string): string[] {
   const salida: string[] = []
   let d = domain
@@ -35,13 +35,13 @@ export function Arbol({
   domain: string
   domainIdn?: string
   zones: string[]
-  /** `arriba` marca la navegación como el enlace [up] de upstream. */
+  /** `arriba` marks the navigation as upstream's [up] link. */
   onNavegar: (domain: string, arriba?: boolean) => void
 }) {
   const cadena = antepasados(domain)
   const enRaiz = domain === ''
 
-  // Cada antepasado anida un nivel más; los hijos cuelgan del nodo actual.
+  // Each ancestor nests one level more; the children hang off the current node.
   let arbol = (
     <div className={styles.lvl}>
       {zones.map((z) => (

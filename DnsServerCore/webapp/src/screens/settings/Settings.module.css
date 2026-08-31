@@ -1,20 +1,20 @@
-/* Settings. La pantalla más grande de la consola: en upstream, la sub-pestaña
-   General mide 5.452 px de alto.
+/* Settings. The console's biggest screen: in upstream, the General sub-tab is
+   5,452 px tall.
 
-   Casi todo lo que dibuja esta pantalla vive en `ui/Ajustes.module.css`: el
-   bloque, la fila, el área, los avisos, la lista editable y la barra de
-   guardar. Los comparte con DHCP, que es el otro formulario grande. Aquí queda
-   sólo lo que es de Settings y de nadie más. */
+   Almost everything this screen draws lives in `ui/Ajustes.module.css`: the
+   block, the row, the area, the alerts, the editable list and the save bar. It
+   shares them with DHCP, which is the other big form. What is left here is only
+   what belongs to Settings and to nobody else. */
 
 .wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 .group { composes: grupo from '../../ui/Form.module.css'; }
 
-/* El resumen de listas de bloqueo: «N allowed, M blocked», con las cifras en
-   monoespaciado para que no bailen al recargar. */
+/* The block-lists summary: "N allowed, M blocked", with the figures in monospace
+   so they do not dance about on reload. */
 .stack { composes: grupo from '../../ui/Form.module.css'; }
 .inline { display: flex; align-items: center; gap: var(--s-7); flex-wrap: wrap; }
 .val { composes: mono from '../../ui/texto.module.css'; font-size: var(--t-4); color: var(--ink); }
 
-/* Dos avisos seguidos dentro de un modal: se agrupan más juntos que el resto
-   del cuerpo, porque dicen lo mismo sobre lo mismo. */
+/* Two consecutive alerts inside a modal: they group closer together than the
+   rest of the body, because they say the same thing about the same thing. */
 .notas { display: flex; flex-direction: column; gap: var(--s-5); }

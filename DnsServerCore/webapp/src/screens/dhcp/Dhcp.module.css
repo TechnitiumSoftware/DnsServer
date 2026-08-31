@@ -1,33 +1,33 @@
-/* DHCP. Dos sub-pantallas: una tabla de concesiones y una de scopes con su
-   formulario de edición, que es el segundo formulario más grande de la consola
-   después de Settings. Las clases de tabla son las mismas que usan Cache,
-   Allowed y Blocked; las de formulario, las mismas que Settings. */
+/* DHCP. Two sub-screens: a table of leases and one of scopes with its editing
+   form, which is the console's second largest form after Settings. The table
+   classes are the same ones Cache, Allowed and Blocked use; the form ones, the
+   same as Settings. */
 
 /*
-El hueco bajo el título de sección es `--hueco-bloque` en toda la consola. Aquí
-se llevaba 38 px en vez de 24 porque este contenedor es `flex` con `gap` y en
-flex el hueco SE SUMA al margen del hijo: la cabecera aportaba sus 24 y el
-contenedor otros 14.
+The gap under a section title is `--hueco-bloque` throughout the console. Here it
+was taking 38 px instead of 24 because this container is `flex` with `gap`, and
+in flex the gap is ADDED to the child's margin: the header contributed its 24 and
+the container another 14.
 
-Se resta, y la resta se escribe una sola vez: el hueco del contenedor vive en
-`--hueco` y las dos reglas lo leen de ahí, así que cambiarlo no vuelve a
-descuadrar el título.
+It is subtracted, and the subtraction is written once: the container's gap lives
+in `--hueco` and both rules read it from there, so changing it does not throw the
+title out again.
 */
 .wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
 
 .mono { composes: mono from '../../ui/texto.module.css'; }
 .nombre { font-weight: 550; color: var(--ink); white-space: nowrap; }
 .fecha { white-space: nowrap; font-family: var(--font-mono); font-size: var(--t-3); }
-/* El recuento es el de `ui/recuento.module.css`: ver allí por qué. */
+/* The count is `ui/recuento.module.css`'s: see there for why. */
 .total { composes: recuento debajo from '../../ui/recuento.module.css'; }
 .kv { composes: kv from '../../ui/kv.module.css'; }
 
 .parrafo { composes: parrafo from '../../ui/texto.module.css'; }
 .lista { margin: 0 0 var(--s-7); padding-left: var(--s-10); font-size: var(--t-4); color: var(--mute); line-height: 1.6; }
 
-/* ---- Formulario de scope ----
+/* ---- Scope form ----
 
-   El bloque, la fila, el área, los avisos y la lista editable son los de
-   `ui/Ajustes.module.css`, compartidos con Settings. */
+   The block, the row, the area, the alerts and the editable list are
+   `ui/Ajustes.module.css`'s, shared with Settings. */
 
 .bar { composes: bar from '../../ui/Ajustes.module.css'; }

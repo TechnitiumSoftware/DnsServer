@@ -1,24 +1,24 @@
 /*
-Los ayudantes de las tablas editables de Administration: el desplegable «Add
-…» que empuja a una lista o a una tabla.
+The helpers of Administration's editable tables: the "Add …" dropdown that
+pushes into a list or into a table.
 
-La serialización en sí NO está aquí: es `serializeTableData` de upstream
-(`common.js:282`) y la usan las cinco pantallas con tabla editable, así que vive
-en `lib/tabla-serie`. Se re-exporta para que las cuatro sub-pestañas de
-Administration la sigan pidiendo por esta puerta.
+The serialisation itself is NOT here: it is upstream's `serializeTableData`
+(`common.js:282`) and the five screens with an editable table use it, so it lives
+in `lib/tabla-serie`. It is re-exported so Administration's four sub-tabs keep
+asking for it through this door.
 */
 export { serializarTabla, type Celda, type FalloTabla, type ResultadoTabla } from '../../lib/tabla-serie'
 
 /*
-Los cuatro desplegables «Add User» / «Add Group» de Administration. Los cuatro
-se comportan igual (auth.js:78-200): `blank` no hace nada, `none` VACÍA la
-lista, y cualquier otro valor lo añade al final SÓLO si no estaba ya.
+Administration's four "Add User" / "Add Group" dropdowns. All four behave the
+same (auth.js:78-200): `blank` does nothing, `none` EMPTIES the list, and any
+other value is appended at the end ONLY if it was not there already.
 */
 export const OPCION_BLANK = 'blank'
 export const OPCION_NONE = 'none'
 
-/** Variante sobre un textarea: «Member Of» y «Members». Upstream compara línea
- *  a línea y garantiza el salto final. */
+/** Variant over a textarea: "Member Of" and "Members". Upstream compares line by
+ *  line and guarantees the trailing newline. */
 export function anadirALaLista(texto: string, seleccion: string): string {
   if (seleccion === OPCION_BLANK) return texto
   if (seleccion === OPCION_NONE) return ''
@@ -30,8 +30,8 @@ export function anadirALaLista(texto: string, seleccion: string): string {
   return `${salida}${seleccion}\n`
 }
 
-/** Variante sobre una tabla de permisos: añade la fila con los tres permisos a
- *  falso, o vacía la tabla con `none`. */
+/** Variant over a permissions table: it adds the row with the three permissions
+ *  false, or empties the table with `none`. */
 export function anadirALaTabla<T extends { nombre: string }>(
   filas: readonly T[],
   seleccion: string,

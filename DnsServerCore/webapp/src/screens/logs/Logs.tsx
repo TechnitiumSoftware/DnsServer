@@ -2,17 +2,17 @@ import { QueryLogs } from './QueryLogs'
 import { ViewLogs } from './ViewLogs'
 
 /*
-Logs. Dos sub-pestañas, con las etiquetas literales de upstream
-(index.html:3243-3244): «View Logs» y «Query Logs».
+Logs. Two sub-tabs, with upstream's literal labels (index.html:3243-3244): "View
+Logs" and "Query Logs".
 
-Como en DHCP, la sub-navegación vive en el panel lateral del Shell y llega por
-la prop `sub`. Las dos sub-pestañas son pantallas independientes: en upstream
-son `refreshLogFilesList` y `refreshQueryLogsTab`, sin estado compartido.
+As in DHCP, the sub-navigation lives in the Shell's side panel and arrives
+through the `sub` prop. The two sub-tabs are independent screens: in upstream
+they are `refreshLogFilesList` and `refreshQueryLogsTab`, with no shared state.
 
-Los permisos de la sección NO son uno solo. La pestaña entera se ve con
-`Logs.canView`, pero dentro hay tres acciones de borrado y una de ellas es de
-otra sección: «delete all stats» borra las estadísticas del Dashboard y pide
-`Dashboard.canDelete` (`WebServiceLogsApi.cs:135`).
+The section's permissions are NOT a single one. The whole tab shows with
+`Logs.canView`, but inside there are three delete actions and one of them belongs
+to another section: "delete all stats" deletes the Dashboard's statistics and
+asks for `Dashboard.canDelete` (`WebServiceLogsApi.cs:135`).
 */
 
 export const SUBPESTANAS = ['View Logs', 'Query Logs'] as const
@@ -20,15 +20,15 @@ export type Subpestana = (typeof SUBPESTANAS)[number]
 
 export interface LogsProps {
   token: string | null
-  /** Sub-pestaña activa, la que marca el panel lateral del Shell. */
+  /** The active sub-tab, the one the Shell's side panel marks. */
   sub?: string | null
-  /** Existe por simetría con Settings; esta pantalla nunca fuerza un cambio. */
+  /** It exists for symmetry with Settings; this screen never forces a change. */
   onSubChange?: (sub: Subpestana) => void
   /** `Logs.canDelete`: borrar un fichero de log y borrarlos todos. */
   canDeleteLogs?: boolean
-  /** `Dashboard.canDelete`: borrar todas las estadísticas. */
+  /** `Dashboard.canDelete`: deleting all the statistics. */
   canDeleteStats?: boolean
-  /** Nodo del clúster. Vacío significa «este servidor». */
+  /** The cluster node. Empty means "this server". */
   node?: string
 }
 

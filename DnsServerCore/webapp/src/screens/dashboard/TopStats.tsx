@@ -6,19 +6,21 @@ import { Loading } from '../../ui/Empty'
 import styles from './Dashboard.module.css'
 
 /*
-`modalTopStats` (main.js:2879). Es lo que hay detrás de los tres botones «More»
-del Dashboard: la lista larga —1000 entradas— del top que se estaba viendo
-recortado a cinco.
+`modalTopStats` (main.js:2879). It is what sits behind the Dashboard's three
+"More" buttons: the long list —1000 entries— of the top that was being seen
+trimmed to five.
 
-Faltaba entero: los tres botones estaban puestos y no hacían nada. Lo destapó
-el barrido de inventario de la fase 10.
+It was missing entirely: the three buttons were in place and did nothing. The
+phase 10 inventory sweep uncovered it.
 
-El título lleva el límite dentro —«Top 1000 Clients»— y no es decorativo: dice
-cuántas se han pedido, que es distinto de cuántas hay.
+The title carries the limit inside it —"Top 1000 Clients"— and that is not
+decorative: it says how many were asked for, which is different from how many
+there are.
 
-**Un cliente se pinta con más cosas que un dominio**: debajo del nombre va el
-dominio que resolvió, y si el servidor lo estaba limitando la fila se marca y el
-nombre lleva «(rate limited)» detrás. Los dos campos sólo vienen en `TopClients`.
+**A client is drawn with more things than a domain**: under the name goes the
+domain it resolved, and if the server was rate-limiting it the row is marked and
+the name carries "(rate limited)" after it. Both fields only come in
+`TopClients`.
 */
 
 const LIMITE = 1000
@@ -47,7 +49,7 @@ export function TopStats({
   token,
   onCerrar,
 }: {
-  /** `null` con el modal cerrado. */
+  /** `null` with the modal closed. */
   tipo: TipoTop | null
   rango: Rango
   token: string | null
@@ -72,9 +74,9 @@ export function TopStats({
     <Dialog
       open={tipo !== null}
       onOpenChange={(o) => !o && onCerrar()}
-      /* Upstream le da 600 px (`modalTopStats`), no los 940 de las tablas anchas, y
-         la medida le da la razón: la columna del dominio ocupaba 736 px para un
-         texto de 148. Es una lista de dos columnas, no una tabla ancha. */
+      /* Upstream gives it 600 px (`modalTopStats`), not the 940 of the wide
+         tables, and the measurement proves it right: the domain column took 736 px
+         for a text of 148. It is a two-column list, not a wide table. */
       tamano="formulario"
       title={tipo == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[tipo]}`}
     >

@@ -16,13 +16,13 @@ describe('About', () => {
   })
 
   /*
-  Los enlaces de esta pantalla son de upstream y se habían perdido: de los nueve
-  del panel original sobrevivía uno. Faltaban «Help Topics», «Support» y
-  «Donate» enteras, y el texto seguía diciendo «read the change log» sin que
-  «change log» llevara a ningún sitio.
+  This screen's links are upstream's and they had been lost: of the original
+  panel's nine, one survived. "Help Topics", "Support" and "Donate" were missing
+  entirely, and the text still said "read the change log" without "change log"
+  leading anywhere.
 
-  Este caso los fija por DESTINO y no por texto: lo que no puede volver a pasar
-  es que la prosa siga ahí y el destino no.
+  This case pins them by DESTINATION and not by text: what must not happen again
+  is the prose still being there and the destination not.
   */
   it('conserva los nueve destinos del panel de upstream', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'skipped' })
@@ -62,9 +62,9 @@ describe('About', () => {
   })
 
   /*
-  «Los avisos están apagados» es una afirmación sobre la configuración del
-  servidor. Decirla cuando lo que ha pasado es que la llamada se cayó no es un
-  matiz: es contestar por el servidor sin haber hablado con él.
+  "Notifications are switched off" is a claim about the server's configuration.
+  Saying it when what happened is that the call fell over is not a nuance: it is
+  answering on the server's behalf without having spoken to it.
   */
   it('un fallo al comprobar no se cuenta como «avisos apagados»', async () => {
     vi.spyOn(userApi, 'checkForUpdate').mockResolvedValue({ kind: 'error', message: 'boom' } as never)
