@@ -45,8 +45,8 @@ function error(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
   return r.error
 }
 
-describe('los 23 tipos del desplegable', () => {
-  it('están en el orden de upstream', () => {
+describe('the 23 types of the dropdown', () => {
+  it('they are in the order of upstream', () => {
     expect(TIPOS_REGISTRO).toHaveLength(23)
     expect(TIPOS_REGISTRO[0]).toBe('A')
     expect(TIPOS_REGISTRO[2]).toBe('SOA')
@@ -54,26 +54,26 @@ describe('los 23 tipos del desplegable', () => {
   })
 })
 
-describe('alta — textos de aviso literales', () => {
-  it('A sin dirección', () => {
+describe('add — literal alert texts', () => {
+  it('A with no address', () => {
     expect(error(form({ type: 'A', name: 'www' })).text).toBe(
       'Please enter an IP address to add the record.',
     )
   })
 
-  it('CNAME en el ápice explica lo del ANAME', () => {
+  it('CNAME at the apex explains the ANAME business', () => {
     expect(error(form({ type: 'CNAME', name: '@' })).text).toBe(
       "Please enter a name for the CNAME record since DNS protocol does not allow CNAME at zone's apex. If you need CNAME like function at the zone's apex then use ANAME record instead.",
     )
   })
 
-  it('SRV pide un nombre con servicio y protocolo antes que nada', () => {
+  it('SRV asks for a name with service and protocol before anything else', () => {
     const e = error(form({ type: 'SRV', name: '' }))
     expect(e.text).toBe('Please enter a name that includes service and protocol labels.')
     expect(e.campo).toBe('name')
   })
 
-  it('el orden de validación de SRV es prioridad, peso, puerto y destino', () => {
+  it('the validation order of SRV is priority, weight, port and target', () => {
     const base = { type: 'SRV', name: '_s._tcp' }
     expect(error(form(base)).campo).toBe('srvPriority')
     expect(error(form({ ...base, srvPriority: '1' })).campo).toBe('srvWeight')
@@ -83,39 +83,39 @@ describe('alta — textos de aviso literales', () => {
     )
   })
 
-  it('un tipo desconocido dice «to add record», sin artículo', () => {
+  it('an unknown type says \"to add record\", with no article', () => {
     expect(error(form({ type: 'Unknown', unknownType: 'TYPE65280' })).text).toBe(
       'Please enter a hex value as the RDATA to add record.',
     )
   })
 
-  it('la errata «resoure» de upstream se conserva', () => {
+  it('the \"resoure\" typo of upstream is kept', () => {
     expect(error(form({ type: 'Unknown' })).text).toBe(
       'Please enter a resoure record name or number to add record.',
     )
   })
 })
 
-describe('alta — valores que caen a un defecto en vez de dar error', () => {
-  it('MX sin preferencia manda 1', () => {
+describe('add — values that fall to a default instead of erroring', () => {
+  it('MX with no preference sends 1', () => {
     expect(cuerpo(form({ type: 'MX', name: 'x', mxExchange: 'mail.casa.test' })).preference).toBe('1')
   })
 
-  it('CAA sin flags ni tag manda 0 e «issue»', () => {
+  it('CAA with no flags and no tag sends 0 and \"issue\"', () => {
     const b = cuerpo(form({ type: 'CAA', name: 'x', caaValue: 'letsencrypt.org' }))
     expect(b.flags).toBe('0')
     expect(b.tag).toBe('issue')
   })
 
-  it('RP con los dos campos vacíos manda la raíz', () => {
+  it('RP with both fields empty sends the root', () => {
     const b = cuerpo(form({ type: 'RP', name: 'x' }))
     expect(b.mailbox).toBe('.')
     expect(b.txtDomain).toBe('.')
   })
 })
 
-describe('alta — el cuerpo', () => {
-  it('lleva zone, domain, type, ttl, overwrite, comments y expiryTtl', () => {
+describe('add — the body', () => {
+  it('carries zone, domain, type, ttl, overwrite, comments and expiryTtl', () => {
     const b = cuerpo(form({ type: 'A', name: 'www', valor: '10.0.0.1', ttl: '600', overwrite: true }))
     expect(b).toMatchObject({
       zone: 'casa.test',
@@ -130,11 +130,11 @@ describe('alta — el cuerpo', () => {
     expect(b).not.toHaveProperty('newDomain')
   })
 
-  it('un nombre vacío es el ápice', () => {
+  it('an empty name is the apex', () => {
     expect(cuerpo(form({ type: 'A', name: '', valor: '10.0.0.1' })).domain).toBe('casa.test')
   })
 
-  it('TLSA con «Full» exige un PEM completo — sólo al dar de alta', () => {
+  it('TLSA with \"Full\" requires a complete PEM — only when adding', () => {
     const f = form({
       type: 'TLSA',
       name: '_443._tcp',
@@ -158,14 +158,14 @@ describe('alta — el cuerpo', () => {
     expect(cuerpo(f, ctx)).toMatchObject({ newTlsaCertificateAssociationData: 'ABCD' })
   })
 
-  it('APP exige nombre y clase al dar de alta', () => {
+  it('APP requires name and class when adding', () => {
     expect(error(form({ type: 'APP', name: 'x' })).text).toBe(
       'Please select an application name to add record.',
     )
   })
 })
 
-describe('edición — manda el valor viejo Y el nuevo', () => {
+describe('edit — sends the old value AND the new one', () => {
   const ctxDe = (original: Registro): ContextoRegistro => ({
     zone: 'casa.test',
     modo: 'update',
@@ -173,7 +173,7 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
     updateSvcbHints: false,
   })
 
-  it('A: ipAddress viejo y newIpAddress nuevo', () => {
+  it('A: old ipAddress and new newIpAddress', () => {
     const original = reg('A', { ipAddress: '10.0.0.1' })
     const b = cuerpo(form({ type: 'A', name: 'www', valor: '10.0.0.2' }), ctxDe(original))
     expect(b).toMatchObject({
@@ -185,14 +185,14 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
     })
   })
 
-  it('CNAME y DNAME NO mandan el viejo: sólo el valor nuevo', () => {
+  it('CNAME and DNAME do NOT send the old one: only the new value', () => {
     const original = reg('CNAME', { cname: 'viejo.casa.test' })
     const b = cuerpo(form({ type: 'CNAME', name: 'ali', valor: 'nuevo.casa.test' }), ctxDe(original))
     expect(b.cname).toBe('nuevo.casa.test')
     expect(b).not.toHaveProperty('newCname')
   })
 
-  it('TXT identifica por las cadenas en base64, no por el texto', () => {
+  it('TXT identifies by the base64 strings, not by the text', () => {
     const original = reg('TXT', { text: 'viejo', characterStringsBase64: ['dmllam8='] })
     const b = cuerpo(form({ type: 'TXT', name: 'x', txt: 'nuevo' }), ctxDe(original))
     expect(b).toMatchObject({
@@ -202,7 +202,7 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
     })
   })
 
-  it('NAPTR: un reemplazo vacío cae a la raíz SÓLO al editar', () => {
+  it('NAPTR: an empty replacement falls to the root ONLY when editing', () => {
     const original = reg('NAPTR', {
       order: 1, preference: 2, flags: 'U', services: 'x', regexp: 'y', replacement: '.',
     })
@@ -212,20 +212,20 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
     expect(cuerpo(f).naptrReplacement).toBe('')
   })
 
-  it('la edición reenvía el estado que tenía el registro, no lo cambia', () => {
+  it('the edit resends the state the record had, it does not change it', () => {
     const original = reg('A', { ipAddress: '10.0.0.1' }, { disabled: true })
     expect(cuerpo(form({ type: 'A', name: 'www', valor: '10.0.0.2' }), ctxDe(original)).disable).toBe(
       'true',
     )
   })
 
-  it('APP editando no valida y toma el app y la clase del registro', () => {
+  it('APP when editing does not validate and takes the app and class from the record', () => {
     const original = reg('APP', { appName: 'Split Horizon', classPath: 'X.App', data: 'viejo' })
     const b = cuerpo(form({ type: 'APP', name: 'x', recordData: 'nuevo' }), ctxDe(original))
     expect(b).toMatchObject({ appName: 'Split Horizon', classPath: 'X.App', recordData: 'nuevo' })
   })
 
-  it('FWD editando: sin «this-server» manda el proxy; con él, no', () => {
+  it('FWD when editing: without \"this-server\" it sends the proxy; with it, no', () => {
     const original = reg('FWD', {
       protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'DefaultProxy',
     })
@@ -239,14 +239,14 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
     expect(esteServidor).not.toHaveProperty('proxyType')
   })
 
-  it('el aviso dice «to update the record»', () => {
+  it('the alert says \"to update the record\"', () => {
     const original = reg('A', { ipAddress: '10.0.0.1' })
     expect(error(form({ type: 'A', name: 'www' }), ctxDe(original)).text).toBe(
       'Please enter an IP address to update the record.',
     )
   })
 
-  it('el aviso de un tipo desconocido SÍ lleva artículo al editar', () => {
+  it('the alert of an unknown type DOES carry the article when editing', () => {
     const original = reg('TYPE65280', { value: 'ABCD' })
     expect(error(form({ type: 'Unknown', unknownType: 'TYPE65280' }), ctxDe(original)).text).toBe(
       'Please enter a hex value as the RDATA to update the record.',
@@ -254,11 +254,11 @@ describe('edición — manda el valor viejo Y el nuevo', () => {
   })
 })
 
-describe('SOA — sólo se edita, y valida siete campos en orden', () => {
+describe('SOA — it is only edited, and validates seven fields in order', () => {
   const original = reg('SOA', {})
   const ctx: ContextoRegistro = { zone: 'casa.test', modo: 'update', original, updateSvcbHints: false }
 
-  it('el orden es primary, responsible, serial, refresh, retry, expire y minimum', () => {
+  it('the order is primary, responsible, serial, refresh, retry, expire and minimum', () => {
     const campos = [
       'soaPrimaryNameServer',
       'soaResponsiblePerson',
@@ -277,8 +277,8 @@ describe('SOA — sólo se edita, y valida siete campos en orden', () => {
   })
 })
 
-describe('parámetros de un SVCB', () => {
-  it('se aplanan como clave|valor', () => {
+describe('parameters of an SVCB', () => {
+  it('they flatten as key|value', () => {
     const r = serializarSvcParams([
       { clave: 'alpn', valor: 'h2' },
       { clave: 'port', valor: '443' },
@@ -286,11 +286,11 @@ describe('parámetros de un SVCB', () => {
     expect(r).toEqual({ valor: 'alpn|h2|port|443' })
   })
 
-  it('una lista vacía viaja como la cadena «false»', () => {
+  it('an empty list travels as the string \"false\"', () => {
     expect(serializarSvcParams([])).toEqual({ valor: 'false' })
   })
 
-  it('una celda vacía es un aviso, no una fila que se ignora', () => {
+  it('an empty cell is an alert, not a row that gets ignored', () => {
     const r = serializarSvcParams([{ clave: 'alpn', valor: '' }])
     expect(r).toEqual({
       error: expect.objectContaining({
@@ -299,7 +299,7 @@ describe('parámetros de un SVCB', () => {
     })
   })
 
-  it('una barra vertical dentro de una celda también', () => {
+  it('a vertical bar inside a cell too', () => {
     const r = serializarSvcParams([{ clave: 'alpn', valor: 'h2|h3' }])
     expect(r).toEqual({
       error: expect.objectContaining({
@@ -309,24 +309,24 @@ describe('parámetros de un SVCB', () => {
   })
 })
 
-describe('rellenar el formulario desde un registro', () => {
-  it('el nombre se enseña relativo a la zona', () => {
+describe('filling the form from a record', () => {
+  it('the name is shown relative to the zone', () => {
     expect(formularioDesdeRegistro(reg('A', { ipAddress: '1.1.1.1' }), 'casa.test').name).toBe('www')
   })
 
-  it('el ápice se enseña como @', () => {
+  it('the apex is shown as @', () => {
     const r = reg('SOA', {}, { name: 'casa.test' })
     expect(formularioDesdeRegistro(r, 'casa.test').name).toBe('@')
   })
 
-  it('un SVCB con target vacío se enseña como raíz', () => {
+  it('an SVCB with an empty target is shown as the root', () => {
     const r = reg('SVCB', { svcPriority: 1, svcTargetName: '', svcParams: { alpn: 'h2' } })
     const f = formularioDesdeRegistro(r, 'casa.test')
     expect(f.svcbTargetName).toBe('.')
     expect(f.svcbParams).toEqual([{ clave: 'alpn', valor: 'h2' }])
   })
 
-  it('el pegamento de un NS se enseña una dirección por línea', () => {
+  it('the glue of an NS is shown one address per line', () => {
     const r = reg('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] })
     expect(formularioDesdeRegistro(r, 'casa.test').nsGlue).toBe('10.0.0.1\n10.0.0.2')
   })

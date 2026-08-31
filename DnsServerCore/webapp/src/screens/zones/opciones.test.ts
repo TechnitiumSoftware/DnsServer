@@ -31,39 +31,39 @@ function opciones(cambios: Partial<OpcionesZona> = {}): OpcionesZona {
   }
 }
 
-describe('qué pestañas se ven', () => {
-  it('una Primary suelta sin catálogos disponibles no enseña «General»', () => {
+describe('which tabs are visible', () => {
+  it('a standalone Primary with no catalogs available does not show \"General\"', () => {
     const e = estadoOpciones(opciones())
     expect(e.pestanas).toEqual(['Query Access', 'Zone Transfer', 'Notify', 'Dynamic Updates'])
     expect(e.pestanaInicial).toBe('Query Access')
   })
 
-  it('con catálogos disponibles aparece «General» y es la que sale abierta', () => {
+  it('with catalogs available \"General\" appears and is the one that comes up open', () => {
     const e = estadoOpciones(opciones({ availableCatalogZoneNames: ['cat.test'] }))
     expect(e.pestanas[0]).toBe('General')
     expect(e.pestanaInicial).toBe('General')
   })
 
-  it('una Catalog abre «Query Access» aunque haya más pestañas', () => {
+  it('a Catalog opens on \"Query Access\" even when there are more tabs', () => {
     const e = estadoOpciones(opciones({ type: 'Catalog' }))
     expect(e.pestanaInicial).toBe('Query Access')
     // A Catalog has no dynamic updates.
     expect(e.pestanas).not.toContain('Dynamic Updates')
   })
 
-  it('las secundarias y la stub abren siempre «General»', () => {
+  it('the secondaries and the stub always open on \"General\"', () => {
     for (const type of ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']) {
       expect(estadoOpciones(opciones({ type })).pestanaInicial).toBe('General')
     }
   })
 
-  it('un Stub no tiene transferencia ni notificación', () => {
+  it('a Stub has neither transfer nor notify', () => {
     const e = estadoOpciones(opciones({ type: 'Stub' }))
     expect(e.pestanas).not.toContain('Zone Transfer')
     expect(e.pestanas).not.toContain('Notify')
   })
 
-  it('una zona de catálogo que NO deja sobrescribir esconde la pestaña entera', () => {
+  it('a catalog zone that does NOT allow overriding hides the whole tab', () => {
     const e = estadoOpciones(
       opciones({ catalog: 'cat.test', overrideCatalogQueryAccess: false, overrideCatalogZoneTransfer: false, overrideCatalogNotify: false }),
     )
@@ -72,19 +72,19 @@ describe('qué pestañas se ven', () => {
     expect(e.pestanas).not.toContain('Notify')
   })
 
-  it('si la deja, la pestaña vuelve y es editable', () => {
+  it('if it does allow it, the tab comes back and is editable', () => {
     const e = estadoOpciones(opciones({ catalog: 'cat.test', overrideCatalogQueryAccess: true }))
     expect(e.pestanas).toContain('Query Access')
     expect(e.queryAccessBloqueado).toBe(false)
   })
 
-  it('una SecondaryCatalog enseña Query Access y Zone Transfer, pero BLOQUEADAS', () => {
+  it('a SecondaryCatalog shows Query Access and Zone Transfer, but LOCKED', () => {
     const e = estadoOpciones(opciones({ type: 'SecondaryCatalog' }))
     expect(e.queryAccessBloqueado).toBe(true)
     expect(e.zoneTransferBloqueado).toBe(true)
   })
 
-  it('una Secondary miembro de un catálogo secundario no puede tocar su primario', () => {
+  it('a Secondary that is a member of a secondary catalog cannot touch its primary', () => {
     const e = estadoOpciones(
       opciones({ type: 'Secondary', catalog: 'cat.test', isSecondaryCatalogMember: true, overrideCatalogPrimaryNameServers: true }),
     )
@@ -93,34 +93,34 @@ describe('qué pestañas se ven', () => {
   })
 })
 
-describe('qué criterios se ofrecen', () => {
-  it('los de «Name Servers In Zone» desaparecen en cinco tipos', () => {
+describe('which criteria are offered', () => {
+  it('the \"Name Servers In Zone\" ones disappear on five types', () => {
     for (const type of ['Stub', 'Forwarder', 'SecondaryForwarder', 'Catalog', 'SecondaryCatalog']) {
       expect(estadoOpciones(opciones({ type })).queryAccessConNameServers).toBe(false)
     }
     expect(estadoOpciones(opciones({ type: 'Primary' })).queryAccessConNameServers).toBe(true)
   })
 
-  it('las políticas de actualización sólo existen en Primary y Forwarder', () => {
+  it('the update policies only exist on Primary and Forwarder', () => {
     expect(estadoOpciones(opciones({ type: 'Primary' })).politicasDeSeguridad).toBe(true)
     expect(estadoOpciones(opciones({ type: 'Secondary' })).politicasDeSeguridad).toBe(false)
   })
 
-  it('la notificación separada de catálogos sólo existe en una Catalog', () => {
+  it('the separate catalog notify only exists on a Catalog', () => {
     expect(estadoOpciones(opciones({ type: 'Catalog' })).notifySeparados).toBe(true)
     expect(estadoOpciones(opciones({ type: 'Primary' })).notifySeparados).toBe(false)
   })
 })
 
-describe('las listas se habilitan con unos criterios y no con otros', () => {
-  it('la ACL sólo con los dos «UseSpecifiedNetworkACL»', () => {
+describe('the lists are enabled by some criteria and not by others', () => {
+  it('the ACL only with the two \"UseSpecifiedNetworkACL\"', () => {
     expect(aclEditable('UseSpecifiedNetworkACL')).toBe(true)
     expect(aclEditable('AllowZoneNameServersAndUseSpecifiedNetworkACL')).toBe(true)
     expect(aclEditable('Allow')).toBe(false)
     expect(aclEditable('Deny')).toBe(false)
   })
 
-  it('la lista de notificación con tres de los cinco criterios', () => {
+  it('the notify list with three of the five criteria', () => {
     expect(notificacionConLista('SpecifiedNameServers')).toBe(true)
     expect(notificacionConLista('BothZoneAndSpecifiedNameServers')).toBe(true)
     expect(notificacionConLista('SeparateNameServersForCatalogAndMemberZones')).toBe(true)
@@ -129,10 +129,10 @@ describe('las listas se habilitan con unos criterios y no con otros', () => {
   })
 })
 
-describe('el cuerpo de options/set', () => {
+describe('the body of options/set', () => {
   const f = () => formularioDesdeOpciones(opciones())
 
-  it('las listas vacías NO viajan todas igual', () => {
+  it('the empty lists do NOT all travel the same', () => {
     const r = construirCuerpoOpciones(f(), 'Primary')
     if ('error' in r) throw new Error('esperaba cuerpo')
 
@@ -147,21 +147,21 @@ describe('el cuerpo de options/set', () => {
     expect(r.body.queryAccessNetworkACL).toBe('')
   })
 
-  it('las listas con contenido se limpian y van separadas por coma', () => {
+  it('the lists with content are cleaned and go comma-separated', () => {
     const form = { ...f(), notifyNameServers: '10.0.0.1\n\n10.0.0.2\n' }
     const r = construirCuerpoOpciones(form, 'Primary')
     if ('error' in r) throw new Error('esperaba cuerpo')
     expect(r.body.notifyNameServers).toBe('10.0.0.1,10.0.0.2')
   })
 
-  it('una SecondaryForwarder sin servidores primarios da aviso', () => {
+  it('a SecondaryForwarder with no primary servers gives an alert', () => {
     const r = construirCuerpoOpciones(f(), 'SecondaryForwarder')
     if ('body' in r) throw new Error('esperaba aviso')
     expect(r.error.text).toBe('Please enter at least one primary name server address to proceed.')
     expect(r.error.tab).toBe('General')
   })
 
-  it('las políticas se serializan como tsig|dominio|tipos', () => {
+  it('the policies serialise as tsig|domain|types', () => {
     const form = {
       ...f(),
       updateSecurityPolicies: [
@@ -174,7 +174,7 @@ describe('el cuerpo de options/set', () => {
     expect(r.body.updateSecurityPolicies).toBe('k1|casa.test|A, AAAA|k2|sub.casa.test|TXT')
   })
 
-  it('una política con un hueco da el aviso de campo obligatorio', () => {
+  it('a policy with a gap gives the required-field alert', () => {
     const form = {
       ...f(),
       updateSecurityPolicies: [{ tsigKeyName: '', domain: 'casa.test', allowedTypes: 'A' }],
@@ -186,8 +186,8 @@ describe('el cuerpo de options/set', () => {
   })
 })
 
-describe('rellenar el formulario', () => {
-  it('un protocolo de transferencia desconocido cae a TCP', () => {
+describe('filling the form', () => {
+  it('an unknown transfer protocol falls to TCP', () => {
     expect(
       formularioDesdeOpciones(opciones({ primaryZoneTransferProtocol: 'Loquesea' })).primaryZoneTransferProtocol,
     ).toBe('Tcp')
@@ -196,12 +196,12 @@ describe('rellenar el formulario', () => {
     ).toBe('Quic')
   })
 
-  it('las casillas de sobrescritura son falsas si la zona no está en un catálogo', () => {
+  it('the override checkboxes are false if the zone is not in a catalog', () => {
     const f = formularioDesdeOpciones(opciones({ overrideCatalogQueryAccess: true, catalog: null }))
     expect(f.overrideCatalogQueryAccess).toBe(false)
   })
 
-  it('las listas se enseñan una por línea', () => {
+  it('the lists are shown one per line', () => {
     const f = formularioDesdeOpciones(opciones({ queryAccessNetworkACL: ['10.0.0.0/8', '192.168.0.0/16'] }))
     expect(f.queryAccessNetworkACL).toBe('10.0.0.0/8\n192.168.0.0/16')
   })

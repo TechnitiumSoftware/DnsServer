@@ -11,13 +11,13 @@ function cuerpo(parcial: Partial<ReturnType<typeof base>> = {}) {
 }
 
 describe('listaATexto / limpiarLista', () => {
-  it('una entrada por línea, con CRLF, igual que getArrayAsString', () => {
+  it('one entry per line, with CRLF, just like getArrayAsString', () => {
     expect(listaATexto(['a', 'b'])).toBe('a\nb\n')
     expect(listaATexto(null)).toBe('')
     expect(listaATexto([])).toBe('')
   })
 
-  it('cleanTextList colapsa comas y quita las de los extremos', () => {
+  it('cleanTextList collapses commas and strips the ones at the ends', () => {
     expect(limpiarLista('\na\n\n\nb\n')).toBe('a,b')
     expect(limpiarLista('\n\n')).toBe('')
     expect(limpiarLista('a')).toBe('a')
@@ -25,7 +25,7 @@ describe('listaATexto / limpiarLista', () => {
 })
 
 describe('formularioDesdeAjustes', () => {
-  it('vuelca la respuesta real de v15.4 sin perder nada', () => {
+  it('it pours in the real v15.4 response without losing anything', () => {
     const f = base()
     expect(f.dnsServerDomain).toBe('ref.technitium-ui.test')
     expect(f.dnsServerLocalEndPoints).toBe('0.0.0.0:53\n[::]:53\n')
@@ -35,21 +35,21 @@ describe('formularioDesdeAjustes', () => {
     expect(f.recursion).toBe('AllowOnlyForPrivateNetworks')
   })
 
-  it('los nulos se pintan como cadena vacía, no como «null»', () => {
+  it('the nulls are drawn as an empty string, not as \"null\"', () => {
     const f = base()
     expect(f.defaultResponsiblePerson).toBe('')
     expect(f.blockListUrls).toBe('')
     expect(f.webServiceTlsCertificatePath).toBe('')
   })
 
-  it('sin proxy, el tipo es None y los campos quedan vacíos', () => {
+  it('with no proxy, the type is None and the fields are left empty', () => {
     const f = base()
     expect(f.proxyType).toBe('None')
     expect(f.proxyPort).toBe('')
     expect(f.proxyBypassList).toBe('')
   })
 
-  it('el tipo de proxy se normaliza sin importar mayúsculas', () => {
+  it('the proxy type is normalised regardless of case', () => {
     const f = formularioDesdeAjustes({
       ...AJUSTES,
       proxy: { type: 'SOCKS5', address: 'p', port: 1080, username: '', password: '', bypass: [] },
@@ -58,47 +58,47 @@ describe('formularioDesdeAjustes', () => {
     expect(f.proxyPort).toBe('1080')
   })
 
-  it('el campo de minutos del bloqueo temporal se vacía en cada carga', () => {
+  it('the minutes field of the temporary blocking empties on every load', () => {
     expect(base().temporaryDisableBlockingMinutes).toBe('')
   })
 })
 
 describe('habilitado', () => {
-  it('sin bloqueo, se apaga toda la sub-pestaña Blocking', () => {
+  it('with no blocking, the whole Blocking sub-tab goes off', () => {
     const en = habilitado({ ...base(), enableBlocking: false })
     expect(en.blocking).toBe(false)
     expect(en.customBlockingAddresses).toBe(false)
     expect(en.actualizarListasAhora).toBe(false)
   })
 
-  it('«Update Now» sigue apagado con bloqueo activo pero sin listas', () => {
+  it('\"Update Now\" stays off with blocking on but no lists', () => {
     expect(habilitado({ ...base(), enableBlocking: true, blockListUrls: '' }).actualizarListasAhora).toBe(false)
     expect(habilitado({ ...base(), enableBlocking: true, blockListUrls: 'http://x\n' }).actualizarListasAhora).toBe(true)
   })
 
-  it('la ACL de recursión sólo se edita con la cuarta opción', () => {
+  it('the recursion ACL is only edited with the fourth option', () => {
     expect(habilitado({ ...base(), recursion: 'Allow' }).recursionNetworkACL).toBe(false)
     expect(habilitado({ ...base(), recursion: 'UseSpecifiedNetworkACL' }).recursionNetworkACL).toBe(true)
   })
 
-  it('el certificado del Web Service se habilita con HTTPS o con su UDS', () => {
+  it('the Web Service certificate is enabled by HTTPS or by its UDS', () => {
     expect(habilitado({ ...base(), webServiceEnableTls: false, webServiceEnableTlsUnixSocket: false }).webServiceTlsCert).toBe(false)
     expect(habilitado({ ...base(), webServiceEnableTls: false, webServiceEnableTlsUnixSocket: true }).webServiceTlsCert).toBe(true)
   })
 
-  it('la ACL del proxy inverso de DNS se habilita con cualquiera de los cinco', () => {
+  it('the reverse DNS proxy ACL is enabled by any of the five', () => {
     const f = base()
     expect(habilitado(f).dnsReverseProxyNetworkACL).toBe(false)
     expect(habilitado({ ...f, enableDnsOverHttp: true }).dnsReverseProxyNetworkACL).toBe(true)
   })
 
-  it('sin registro, se apagan sus cuatro opciones y la carpeta', () => {
+  it('with no logging, its four options and the folder go off', () => {
     expect(habilitado({ ...base(), loggingType: 'None' }).logging).toBe(false)
     expect(habilitado({ ...base(), loggingType: 'FileAndConsole' }).logging).toBe(true)
   })
 })
 
-describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
+describe('construirCuerpo — validation order of saveDnsSettings', () => {
   const casos: [string, Record<string, unknown>, string][] = [
     ['dnsServerDomain', { dnsServerDomain: '' }, 'Please enter server domain name.'],
     ['ECS IPv4', { eDnsClientSubnetIPv4PrefixLength: '' }, 'Please enter EDNS Client Subnet IPv4 prefix length.'],
@@ -145,7 +145,7 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
     expect(r.body).toBeUndefined()
   })
 
-  it('el dominio se comprueba ANTES que el prefijo ECS', () => {
+  it('the domain is checked BEFORE the ECS prefix', () => {
     const r = construirCuerpo({
       ...base(),
       dnsServerDomain: '',
@@ -154,7 +154,7 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
     expect(r.error?.text).toBe('Please enter server domain name.')
   })
 
-  it('el prefijo ECS se comprueba ANTES que la tabla QPM', () => {
+  it('the ECS prefix is checked BEFORE the QPM table', () => {
     const r = construirCuerpo({
       ...base(),
       eDnsClientSubnetIPv4PrefixLength: '',
@@ -163,7 +163,7 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
     expect(r.error?.text).toBe('Please enter EDNS Client Subnet IPv4 prefix length.')
   })
 
-  it('una celda vacía en la tabla QPM da el aviso de serializeTableData', () => {
+  it('an empty cell in the QPM table gives the serializeTableData alert', () => {
     const r = construirCuerpo({
       ...base(),
       qpmPrefixLimitsIPv4: [{ prefix: '32', udpLimit: '', tcpLimit: '600' }],
@@ -176,7 +176,7 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
     })
   })
 
-  it('un «|» en una celda da el aviso de carácter inválido', () => {
+  it('a \"|\" in a cell gives the invalid-character alert', () => {
     const r = construirCuerpo({
       ...base(),
       tsigKeys: [{ keyName: 'a|b', sharedSecret: '', algorithmName: 'hmac-sha256' }],
@@ -189,12 +189,12 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
     })
   })
 
-  it('el secreto TSIG vacío SÍ se admite: es el único data-optional', () => {
+  it('an empty TSIG secret IS allowed: it is the only data-optional', () => {
     const b = cuerpo({ tsigKeys: [{ keyName: 'k1', sharedSecret: '', algorithmName: 'hmac-sha256' }] })
     expect(b.tsigKeys).toBe('k1||hmac-sha256')
   })
 
-  it('con proxy distinto de None, faltan dirección y puerto en ese orden', () => {
+  it('with a proxy other than None, address and port are missing in that order', () => {
     expect(construirCuerpo({ ...base(), proxyType: 'Http' }).error?.text).toBe(
       'Please enter proxy server address.',
     )
@@ -203,7 +203,7 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
     )
   })
 
-  it('la sub-pestaña del error acompaña al aviso para poder saltar a ella', () => {
+  it('the sub-tab of the error travels with the alert so it can be jumped to', () => {
     expect(construirCuerpo({ ...base(), resolverRetries: '' }).error?.tab).toBe('Recursion')
     expect(construirCuerpo({ ...base(), cacheMaximumEntries: '' }).error?.tab).toBe('Cache')
     expect(construirCuerpo({ ...base(), dnsOverTlsPort: '' }).error?.tab).toBe('Optional Protocols')
@@ -211,8 +211,8 @@ describe('construirCuerpo — orden de validación de saveDnsSettings', () => {
   })
 })
 
-describe('construirCuerpo — cuerpo de settings/set', () => {
-  it('las listas vacías viajan como la cadena «false»', () => {
+describe('construirCuerpo — body of settings/set', () => {
+  it('empty lists travel as the string \"false\"', () => {
     const b = cuerpo()
     expect(b.zoneTransferAllowedNetworks).toBe('false')
     expect(b.notifyAllowedNetworks).toBe('false')
@@ -221,48 +221,48 @@ describe('construirCuerpo — cuerpo de settings/set', () => {
     expect(b.qpmLimitBypassList).toBe('false')
   })
 
-  it('los End Points vacíos caen a su valor por defecto, no a «false»', () => {
+  it('empty End Points fall to their default value, not to \"false\"', () => {
     expect(cuerpo({ dnsServerLocalEndPoints: '' }).dnsServerLocalEndPoints).toBe('0.0.0.0:53,[::]:53')
     expect(cuerpo({ webServiceLocalAddresses: '' }).webServiceLocalAddresses).toBe('0.0.0.0,[::]')
     expect(cuerpo({ webServiceHttpPort: '' }).webServiceHttpPort).toBe('5380')
   })
 
-  it('los textareas se mandan con comas, una entrada por coma', () => {
+  it('the textareas are sent with commas, one entry per comma', () => {
     const b = cuerpo({ forwarders: '1.1.1.1\n8.8.8.8\n' })
     expect(b.forwarders).toBe('1.1.1.1,8.8.8.8')
   })
 
-  it('las tablas se serializan con «|» entre TODAS las celdas', () => {
+  it('the tables serialise with \"|\" between ALL the cells', () => {
     const b = cuerpo()
     expect(b.qpmPrefixLimitsIPv4).toBe('32|600|600|24|6000|6000')
   })
 
-  it('las tablas vacías viajan como «false»', () => {
+  it('empty tables travel as \"false\"', () => {
     const b = cuerpo({ qpmPrefixLimitsIPv4: [], qpmPrefixLimitsIPv6: [], tsigKeys: [] })
     expect(b.qpmPrefixLimitsIPv4).toBe('false')
     expect(b.tsigKeys).toBe('false')
   })
 
-  it('con «No Proxy» NO se manda ningún otro campo de proxy', () => {
+  it('with \"No Proxy\" NO other proxy field is sent', () => {
     const b = cuerpo()
     expect(b.proxyType).toBe('none')
     expect(b.proxyAddress).toBeUndefined()
     expect(b.proxyBypass).toBeUndefined()
   })
 
-  it('con proxy configurado, el bypass vacío es cadena vacía y no «false»', () => {
+  it('with a proxy configured, an empty bypass is an empty string and not \"false\"', () => {
     const b = cuerpo({ proxyType: 'Socks5', proxyAddress: 'p', proxyPort: '1080' })
     expect(b.proxyType).toBe('socks5')
     expect(b.proxyBypass).toBe('')
   })
 
-  it('los booleanos viajan como «true»/«false» en minúsculas', () => {
+  it('the booleans travel as lowercase \"true\"/\"false\"', () => {
     const b = cuerpo()
     expect(b.dnssecValidation).toBe('true')
     expect(b.enableUdpSocketPool).toBe('false')
   })
 
-  it('manda los campos de LAS NUEVE sub-pestañas, no sólo la visible', () => {
+  it('it sends the fields of ALL NINE sub-tabs, not just the visible one', () => {
     const b = cuerpo()
     for (const clave of [
       'dnsServerDomain',
@@ -279,7 +279,7 @@ describe('construirCuerpo — cuerpo de settings/set', () => {
     }
   })
 
-  it('devuelve el saneado que upstream reescribe en los textareas', () => {
+  it('it returns the sanitised text upstream rewrites into the textareas', () => {
     const r = construirCuerpo({ ...base(), blockingBypassList: '10.0.0.1\n\n10.0.0.2\n' })
     // Blocking adds a trailing newline; the forwarders do not. Upstream's asymmetry.
     expect(r.saneado?.blockingBypassList).toBe('10.0.0.1\n10.0.0.2\n')

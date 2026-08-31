@@ -38,8 +38,8 @@ const FILTROS: QueryLogsParams = {
   qclass: '',
 }
 
-describe('api/logs — ficheros', () => {
-  it('logs/list pide el nodo y devuelve los ficheros', async () => {
+describe('api/logs — files', () => {
+  it('logs/list asks for the node and returns the files', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(
       ok({ response: { logFiles: [{ fileName: '2026-08-26', size: '2.96 KB' }] } }),
     )
@@ -57,12 +57,12 @@ describe('api/logs — ficheros', () => {
   that there was no response. Now the failure rises as it is, with its message,
   and it is the screen that decides what to show.
   */
-  it('logs/list sube el fallo del servidor, no una lista vacía', async () => {
+  it('logs/list raises the failure from the server, not an empty list', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     expect(await listLogFiles('tok')).toEqual({ kind: 'error', message: 'boom' })
   })
 
-  it('logs/delete manda el fichero en `log`, NO en `fileName`', async () => {
+  it('logs/delete sends the file in `log`, NOT in `fileName`', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
     await deleteLog('tok', '2026-08-26')
     expect(spy.mock.calls.find((c) => c[0] === 'logs/delete')![1]?.body).toEqual({
@@ -71,15 +71,15 @@ describe('api/logs — ficheros', () => {
     })
   })
 
-  it('logs/deleteAll sólo manda el nodo', async () => {
+  it('logs/deleteAll only sends the node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
     await deleteAllLogs('tok')
     expect(spy.mock.calls.find((c) => c[0] === 'logs/deleteAll')![1]?.body).toEqual({ node: '' })
   })
 })
 
-describe('api/logs — descarga del visor', () => {
-  it('pide los 2 primeros MB con el token en la cabecera y devuelve el texto', async () => {
+describe('api/logs — download for the viewer', () => {
+  it('asks for the first 2 MB with the token in the header and returns the text', async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ text: () => Promise.resolve('[2026] ok\n') })
     vi.stubGlobal('fetch', fetchSpy)
 
@@ -91,7 +91,7 @@ describe('api/logs — descarga del visor', () => {
     expect(texto).toBe('[2026] ok\n')
   })
 
-  it('si el servidor responde un error JSON lo devuelve FORMATEADO, para pintarlo en el visor', async () => {
+  it('if the server answers a JSON error it returns it FORMATTED, to draw in the viewer', async () => {
     const cuerpo = JSON.stringify({ status: 'error', errorMessage: "Could not find file 'x'." })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ text: () => Promise.resolve(cuerpo) }))
 
@@ -101,12 +101,12 @@ describe('api/logs — descarga del visor', () => {
     expect(texto).toContain('"status": "error"')
   })
 
-  it('devuelve null si la petición ni siquiera sale', async () => {
+  it('returns null if the request does not even go out', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
     expect(await downloadLogText('tok', '2026-08-26')).toBeNull()
   })
 
-  it('el botón Download pide el fichero ENTERO, con `ts` y sin `limit`', async () => {
+  it('the Download button asks for the WHOLE file, with `ts` and without `limit`', async () => {
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
 
     await openLogDownload('tok', '2026-08-26', 'nodo-1')
@@ -120,8 +120,8 @@ describe('api/logs — descarga del visor', () => {
   })
 })
 
-describe('api/logs — consulta y exportación', () => {
-  it('logs/query manda los catorce filtros más el nodo', async () => {
+describe('api/logs — query and export', () => {
+  it('logs/query sends the fourteen filters plus the node', async () => {
     const spy = vi
       .spyOn(client, 'apiRequest')
       .mockResolvedValue(ok({ response: { pageNumber: 1, totalPages: 1, totalEntries: 0, entries: [] } }))
@@ -134,7 +134,7 @@ describe('api/logs — consulta y exportación', () => {
     })
   })
 
-  it('logs/export NO manda los tres parámetros de paginación ni `ts`', async () => {
+  it('logs/export does NOT send the three paging parameters nor `ts`', async () => {
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
 
     await exportLogsCsv('tok', { ...FILTROS, qname: 'casa.test' })

@@ -30,8 +30,8 @@ function servidor(usuarios = [USUARIO_ADMIN, USUARIO_NUEVO], detalle = DETALLE_U
 
 const props = { token: 'tok', cluster: null, onAviso: vi.fn() }
 
-describe('Users — la tabla', () => {
-  it('pinta tipo, 2FA, estado y los dos accesos, con el total', async () => {
+describe('Users — the table', () => {
+  it('it draws type, 2FA, state and the two logins, with the total', async () => {
     servidor()
     render(<Users {...props} />)
 
@@ -45,14 +45,14 @@ describe('Users — la tabla', () => {
     expect(screen.queryByText(/from 0\.0\.0\.0/)).toBeNull()
   })
 
-  it('un usuario de SSO sale como Remote/SSO y con el 2FA gestionado fuera', async () => {
+  it('an SSO user comes out as Remote/SSO and with the 2FA managed elsewhere', async () => {
     servidor([USUARIO_SSO])
     render(<Users {...props} />)
     expect(await screen.findByText('Remote/SSO')).toBeInTheDocument()
     expect(screen.getByText('SSO Managed')).toBeInTheDocument()
   })
 
-  it('a un usuario de SSO no se le ofrece ni resetear la contraseña ni quitarle el 2FA', async () => {
+  it('an SSO user is offered neither a password reset nor clearing the 2FA', async () => {
     servidor([USUARIO_SSO])
     render(<Users {...props} />)
     await screen.findByText('Remote/SSO')
@@ -61,22 +61,22 @@ describe('Users — la tabla', () => {
     expect(screen.queryByRole('button', { name: 'Disable 2FA' })).not.toBeInTheDocument()
   })
 
-  it('«Disable 2FA» sólo aparece si el usuario lo tiene puesto', async () => {
+  it('\"Disable 2FA\" only appears if the user has it on', async () => {
     servidor([{ ...USUARIO_NUEVO, totpEnabled: true }])
     render(<Users {...props} />)
     await userEvent.click((await screen.findAllByRole('button', { name: /^Actions for / }))[0])
     expect(await screen.findByRole('button', { name: 'Disable 2FA' })).toBeInTheDocument()
   })
 
-  it('sin usuarios el total dice cero', async () => {
+  it('with no users the total says zero', async () => {
     servidor([])
     render(<Users {...props} />)
     expect(await screen.findByText('Total Users: 0')).toBeInTheDocument()
   })
 })
 
-describe('Users — activar y desactivar', () => {
-  it('ACTIVAR no pide confirmación: sale directo', async () => {
+describe('Users — enable and disable', () => {
+  it('ENABLING asks for no confirmation: it goes straight out', async () => {
     const spy = servidor([{ ...USUARIO_NUEVO, disabled: true }])
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -95,7 +95,7 @@ describe('Users — activar y desactivar', () => {
     })
   })
 
-  it('DESACTIVAR sí pide confirmación, con el nombre en el texto', async () => {
+  it('DISABLING does ask for confirmation, with the name in the text', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const user = userEvent.setup()
     render(<Users {...props} />)
@@ -107,7 +107,7 @@ describe('Users — activar y desactivar', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/users/set')).toBeUndefined()
   })
 
-  it('quitar el 2FA manda `totpEnabled=false` y avisa con el literal de upstream', async () => {
+  it('clearing the 2FA sends `totpEnabled=false` and alerts with the upstream literal', async () => {
     const spy = servidor([{ ...USUARIO_NUEVO, totpEnabled: true }])
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -133,7 +133,7 @@ describe('Users — activar y desactivar', () => {
     })
   })
 
-  it('borrar pide confirmación y saca la fila de la tabla', async () => {
+  it('deleting asks for confirmation and takes the row out of the table', async () => {
     const spy = servidor([USUARIO_ADMIN, USUARIO_NUEVO])
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -169,7 +169,7 @@ describe('Users — «Add User»', () => {
     return user
   }
 
-  it('el orden de las cuatro validaciones es el de upstream', async () => {
+  it('the order of the four validations is the one of upstream', async () => {
     const user = await abrir()
     const anadir = screen.getByRole('button', { name: 'Add' })
 
@@ -189,7 +189,7 @@ describe('Users — «Add User»', () => {
     expect(screen.getByText('Passwords do not match. Please try again.')).toBeInTheDocument()
   })
 
-  it('el nombre visible es opcional: no se valida', async () => {
+  it('the display name is optional: it is not validated', async () => {
     const user = await abrir()
     await user.type(screen.getByLabelText('Username'), 'nuevo')
     await user.type(screen.getByLabelText('Password'), 'x')
@@ -206,7 +206,7 @@ describe('Users — «Add User»', () => {
 })
 
 describe('Users — «Reset Password»', () => {
-  it('valida en orden y guarda por POST con `newPass`', async () => {
+  it('it validates in order and saves by POST with `newPass`', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -244,8 +244,8 @@ describe('Users — «Reset Password»', () => {
   })
 })
 
-describe('Users — el modal de detalles', () => {
-  it('manda usuario, estado y tiempo de sesión, y el nombre visible si no es de SSO', async () => {
+describe('Users — the details modal', () => {
+  it('it sends user, state and session timeout, and the display name if not SSO', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const onAviso = vi.fn()
     const user = userEvent.setup()
@@ -272,7 +272,7 @@ describe('Users — el modal de detalles', () => {
     })
   })
 
-  it('un tiempo de sesión vacío cae al 1800 por omisión, no viaja vacío', async () => {
+  it('an empty session timeout falls to the 1800 default, it does not travel empty', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const user = userEvent.setup()
     render(<Users {...props} />)
@@ -285,7 +285,7 @@ describe('Users — el modal de detalles', () => {
     expect(body.sessionTimeoutSeconds).toBe('1800')
   })
 
-  it('«Add Group» añade el grupo a la lista y «None» la vacía', async () => {
+  it('\"Add Group\" adds the group to the list and \"None\" empties it', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const user = userEvent.setup()
     render(<Users {...props} />)
@@ -305,7 +305,7 @@ describe('Users — el modal de detalles', () => {
     expect(body.memberOfGroups).toBe('Administrators,DNS Administrators')
   })
 
-  it('un usuario de SSO tiene bloqueados nombre y nombre visible, y no los envía', async () => {
+  it('an SSO user has name and display name locked, and does not send them', async () => {
     const spy = servidor([USUARIO_SSO], {
       ...DETALLE_USUARIO,
       ...USUARIO_SSO,
@@ -328,7 +328,7 @@ describe('Users — el modal de detalles', () => {
     expect(body.memberOfGroups).toBe('')
   })
 
-  it('con `ssoManagedGroups` los grupos también quedan bloqueados y fuera del envío', async () => {
+  it('with `ssoManagedGroups` the groups are locked too and left out of the send', async () => {
     const spy = servidor([USUARIO_SSO], {
       ...DETALLE_USUARIO,
       ...USUARIO_SSO,
@@ -345,7 +345,7 @@ describe('Users — el modal de detalles', () => {
     expect(body.memberOfGroups).toBeUndefined()
   })
 
-  it('`newUser` sólo viaja cuando el nombre cambia', async () => {
+  it('`newUser` only travels when the name changes', async () => {
     const spy = servidor([USUARIO_NUEVO])
     const user = userEvent.setup()
     render(<Users {...props} />)
@@ -360,7 +360,7 @@ describe('Users — el modal de detalles', () => {
     expect(body.newUser).toBe('otro')
   })
 
-  it('las sesiones del usuario salen dentro del modal con su propio total', async () => {
+  it('the sessions of the user come out inside the modal with their own total', async () => {
     servidor([USUARIO_NUEVO], {
       ...DETALLE_USUARIO,
       sessions: [

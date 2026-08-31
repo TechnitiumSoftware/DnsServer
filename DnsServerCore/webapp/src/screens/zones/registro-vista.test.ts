@@ -36,14 +36,14 @@ function pares(r: Registro): Record<string, string> {
   return out
 }
 
-describe('la celda Data por tipo', () => {
-  it('A y AAAA son sólo la dirección', () => {
+describe('the Data cell by type', () => {
+  it('A and AAAA are just the address', () => {
     expect(celdasDeRegistro(reg('A', { ipAddress: '10.0.0.1' }))).toEqual([
       { clase: 'valor', texto: '10.0.0.1' },
     ])
   })
 
-  it('SOA compone valor y cadena legible en cuatro campos', () => {
+  it('SOA composes value and readable string on four fields', () => {
     const p = pares(
       reg('SOA', {
         primaryNameServer: 'ns1',
@@ -61,30 +61,30 @@ describe('la celda Data por tipo', () => {
     expect(p['Use Serial Date Scheme:']).toBe('false')
   })
 
-  it('DS y RRSIG componen «algoritmo (número)»', () => {
+  it('DS and RRSIG compose \"algorithm (number)\"', () => {
     const p = pares(reg('DS', { keyTag: 1, algorithm: 'ECDSAP256SHA256', algorithmNumber: 13, digestType: 'SHA256', digestTypeNumber: '2', digest: 'AB' }))
     expect(p['Algorithm:']).toBe('ECDSAP256SHA256 (13)')
     expect(p['Digest Type:']).toBe('SHA256 (2)')
   })
 
-  it('NS enseña el pegamento sólo si lo trae', () => {
+  it('NS shows the glue only if it brings it', () => {
     expect(pares(reg('NS', { nameServer: 'ns1' }))).not.toHaveProperty('Glue Addresses:')
     const conGlue = pares(reg('NS', { nameServer: 'ns1' }, { glueRecords: ['10.0.0.1', '10.0.0.2'] }))
     expect(conGlue['Glue Addresses:']).toBe('10.0.0.1, 10.0.0.2')
   })
 
-  it('un TXT partido enseña cada cadena entre comillas y en su línea', () => {
+  it('a split TXT shows each string in quotes and on its own line', () => {
     const celdas = celdasDeRegistro(
       reg('TXT', { splitText: true, characterStrings: ['uno', 'dos'], text: 'uno dos' }),
     )
     expect(celdas[0]).toEqual({ clase: 'lineas', lineas: ['"uno"', '"dos"'] })
   })
 
-  it('escapa barras, retornos, saltos y comillas de un TXT', () => {
+  it('escapes backslashes, carriage returns, newlines and quotes of a TXT', () => {
     expect(escaparTxt('a\\b"c\nd')).toBe('a\\\\b\\"c\\nd')
   })
 
-  it('SVCB dice el modo según la prioridad', () => {
+  it('SVCB states the mode according to the priority', () => {
     expect(pares(reg('SVCB', { svcPriority: 0, svcTargetName: 'x', svcParams: {} }))['Priority:']).toBe(
       '0 (alias mode)',
     )
@@ -93,7 +93,7 @@ describe('la celda Data por tipo', () => {
     )
   })
 
-  it('SVCB esconde las pistas cuyo valor pone el servidor', () => {
+  it('SVCB hides the hints whose value the server sets', () => {
     const celdas = celdasDeRegistro(
       reg('SVCB', {
         svcPriority: 1,
@@ -109,91 +109,91 @@ describe('la celda Data por tipo', () => {
     expect(claves).toEqual(['alpn', 'ipv6hint'])
   })
 
-  it('un DNSKEY sin estado no enseña la fila «Key State»', () => {
+  it('a DNSKEY with no state does not show the \"Key State\" row', () => {
     expect(pares(reg('DNSKEY', { flags: 257, protocol: 3, algorithm: 'X', algorithmNumber: 13, publicKey: 'AA', computedKeyTag: 1 }))).not.toHaveProperty(
       'Key State:',
     )
   })
 
-  it('FWD sólo enseña el proxy cuando el tipo lo tiene', () => {
+  it('FWD only shows the proxy when the type has one', () => {
     const sin = pares(reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'DefaultProxy' }))
     expect(sin).not.toHaveProperty('Proxy Address:')
     const con = pares(reg('FWD', { protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: true, proxyType: 'Socks5', proxyAddress: '10.0.0.9', proxyPort: 1080 }))
     expect(con['Proxy Address:']).toBe('10.0.0.9')
   })
 
-  it('un tipo desconocido enseña su RDATA', () => {
+  it('an unknown type shows its RDATA', () => {
     expect(pares(reg('TYPE65280', { value: 'ABCD' }))['RDATA:']).toBe('ABCD')
   })
 })
 
-describe('el pie de la celda', () => {
+describe('the footer of the cell', () => {
   const AHORA = Date.parse('2026-08-26T10:04:00Z')
 
-  it('«nunca» no lleva antigüedad detrás', () => {
+  it('\"never\" carries no age after it', () => {
     const p = pieDeRegistro(reg('A', {}), AHORA)
     expect(p.find((x) => x.etiqueta === 'Last Used:')?.valor).toContain('(never)')
   })
 
-  it('la última modificación sí la lleva', () => {
+  it('the last modification does carry it', () => {
     const p = pieDeRegistro(reg('A', {}), AHORA)
     expect(p.find((x) => x.etiqueta === 'Last Modified:')?.valor).toContain('4 minutes ago')
   })
 
-  it('una fecha de modificación mínima NO se enseña', () => {
+  it('a minimum modification date is NOT shown', () => {
     const p = pieDeRegistro(reg('A', {}, { lastModified: '0001-01-01T00:00:00' }), AHORA)
     expect(p.find((x) => x.etiqueta === 'Last Modified:')).toBeUndefined()
   })
 
-  it('la expiración sólo aparece con expiryTtl > 0', () => {
+  it('the expiry only appears with expiryTtl > 0', () => {
     expect(pieDeRegistro(reg('A', {}), AHORA).find((x) => x.etiqueta === 'Expiry TTL:')).toBeUndefined()
     const con = pieDeRegistro(reg('A', {}, { expiryTtl: 3600, expiryTtlString: '1h' }), AHORA)
     expect(con.find((x) => x.etiqueta === 'Expiry TTL:')?.valor).toBe('3600 (1h)')
   })
 })
 
-describe('el nombre relativo a la zona', () => {
-  it('el ápice es @', () => {
+describe('the name relative to the zone', () => {
+  it('the apex is @', () => {
     expect(nombreRelativo('casa.test', 'casa.test')).toBe('@')
   })
-  it('un sub-dominio pierde el sufijo', () => {
+  it('a sub-domain loses the suffix', () => {
     expect(nombreRelativo('www.casa.test', 'casa.test')).toBe('www')
     expect(nombreRelativo('a.b.casa.test', 'casa.test')).toBe('a.b')
   })
-  it('el nombre vacío es la raíz', () => {
+  it('the empty name is the root', () => {
     expect(nombreRelativo('', '.')).toBe('@')
   })
 })
 
-describe('qué botones ofrece una fila', () => {
-  it('en una secundaria no hay ninguno', () => {
+describe('which buttons a row offers', () => {
+  it('on a secondary there are none', () => {
     for (const t of ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']) {
       expect(accionesDeFila(t, 'A').ocultas).toBe(true)
     }
   })
 
-  it('en una Catalog sólo el SOA se puede editar; el resto no ofrece nada', () => {
+  it('on a Catalog only the SOA can be edited; the rest offer nothing', () => {
     expect(accionesDeFila('Catalog', 'SOA')).toEqual({ ocultas: false, soloEdicion: true })
     expect(accionesDeFila('Catalog', 'A').ocultas).toBe(true)
   })
 
-  it('en una Primary el SOA se edita pero no se borra ni se deshabilita', () => {
+  it('on a Primary the SOA is edited but neither deleted nor disabled', () => {
     expect(accionesDeFila('Primary', 'SOA')).toEqual({ ocultas: false, soloEdicion: true })
   })
 
-  it('los seis registros que genera DNSSEC no ofrecen botones', () => {
+  it('the six records DNSSEC generates offer no buttons', () => {
     for (const t of ['DNSKEY', 'RRSIG', 'NSEC', 'NSEC3', 'NSEC3PARAM', 'ZONEMD']) {
       expect(accionesDeFila('Primary', t).ocultas).toBe(true)
     }
   })
 
-  it('un registro normal los ofrece todos', () => {
+  it('an ordinary record offers them all', () => {
     expect(accionesDeFila('Primary', 'A')).toEqual({ ocultas: false, soloEdicion: false })
   })
 })
 
-describe('esconder los registros DNSSEC', () => {
-  it('quita los cinco tipos, no seis', () => {
+describe('hiding the DNSSEC records', () => {
+  it('removes the five types, not six', () => {
     const lista = ['A', 'RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].map((t) =>
       reg(t, {}),
     )
@@ -203,8 +203,8 @@ describe('esconder los registros DNSSEC', () => {
   })
 })
 
-describe('la cabecera de una zona abierta', () => {
-  it('una Primary sin firmar ofrece firmar y nada más de DNSSEC', () => {
+describe('the header of an open zone', () => {
+  it('an unsigned Primary offers signing and nothing else of DNSSEC', () => {
     const c = cabeceraDeZona('Primary', 'Unsigned')
     expect(c.dnssec).toBe(true)
     expect(c.firmar).toBe(true)
@@ -212,7 +212,7 @@ describe('la cabecera de una zona abierta', () => {
     expect(c.verDs).toBe(false)
   })
 
-  it('una Primary firmada ofrece todo menos firmar', () => {
+  it('a signed Primary offers everything except signing', () => {
     const c = cabeceraDeZona('Primary', 'SignedWithNSEC')
     expect(c.firmar).toBe(false)
     expect(c.desfirmar).toBe(true)
@@ -220,7 +220,7 @@ describe('la cabecera de una zona abierta', () => {
     expect(c.propiedades).toBe(true)
   })
 
-  it('una Secondary firmada enseña el menú pero SÓLO para ocultar registros', () => {
+  it('a signed Secondary shows the menu but ONLY to hide records', () => {
     const c = cabeceraDeZona('Secondary', 'SignedWithNSEC3')
     expect(c.dnssec).toBe(true)
     expect(c.alternarRegistrosDnssec).toBe(true)
@@ -229,33 +229,33 @@ describe('la cabecera de una zona abierta', () => {
     expect(c.propiedades).toBe(false)
   })
 
-  it('una Secondary sin firmar no enseña el menú DNSSEC', () => {
+  it('an unsigned Secondary does not show the DNSSEC menu', () => {
     expect(cabeceraDeZona('Secondary', 'Unsigned').dnssec).toBe(false)
   })
 
-  it('sólo Primary y Forwarder dejan añadir registros a mano', () => {
+  it('only Primary and Forwarder allow adding records by hand', () => {
     expect(cabeceraDeZona('Primary', 'Unsigned').anadirRegistro).toBe(true)
     expect(cabeceraDeZona('Forwarder', 'Unsigned').anadirRegistro).toBe(true)
     expect(cabeceraDeZona('Secondary', 'Unsigned').anadirRegistro).toBe(false)
     expect(cabeceraDeZona('Catalog', 'Unsigned').anadirRegistro).toBe(false)
   })
 
-  it('exportar cubre más tipos que importar', () => {
+  it('exporting covers more types than importing', () => {
     expect(cabeceraDeZona('Secondary', 'Unsigned').exportar).toBe(true)
     expect(cabeceraDeZona('Secondary', 'Unsigned').importar).toBe(false)
   })
 })
 
-describe('qué tipos ofrece «Add Record»', () => {
-  it('una Forwarder esconde los tres de DNSSEC', () => {
+describe('which types \"Add Record\" offers', () => {
+  it('a Forwarder hides the three DNSSEC ones', () => {
     expect(tiposOcultosAlAnadir('Forwarder', 'Unsigned')).toEqual(['DS', 'SSHFP', 'TLSA'])
   })
 
-  it('una Primary sin firmar esconde FWD y los tres de DNSSEC', () => {
+  it('an unsigned Primary hides FWD and the three DNSSEC ones', () => {
     expect(tiposOcultosAlAnadir('Primary', 'Unsigned')).toEqual(['FWD', 'DS', 'SSHFP', 'TLSA'])
   })
 
-  it('una Primary FIRMADA cambia qué esconde: aparecen DS/SSHFP/TLSA y se van ANAME y APP', () => {
+  it('a SIGNED Primary changes what it hides: DS/SSHFP/TLSA appear and ANAME and APP go', () => {
     expect(tiposOcultosAlAnadir('Primary', 'SignedWithNSEC')).toEqual(['FWD', 'ANAME', 'APP'])
   })
 })

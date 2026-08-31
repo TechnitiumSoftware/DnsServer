@@ -60,8 +60,8 @@ function pintar(extra: Partial<Parameters<typeof Zones>[0]> = {}) {
   return render(<Zones token="t" canModify canDelete {...extra} />)
 }
 
-describe('lista de zonas', () => {
-  it('pide la primera página y pinta la zona', async () => {
+describe('zone list', () => {
+  it('it asks for the first page and draws the zone', async () => {
     const spy = servidor()
     pintar()
 
@@ -70,7 +70,7 @@ describe('lista de zonas', () => {
     expect(call![1]?.body).toMatchObject({ pageNumber: '1', zonesPerPage: '10', node: '' })
   })
 
-  it('sin zonas dice «No Zone Found»', async () => {
+  it('with no zones it says \"No Zone Found\"', async () => {
     servidor({ 'zones/list': { zones: [], pageNumber: 1, totalPages: 1, totalZones: 0 } })
     pintar()
     expect(await screen.findByText('No Zone Found')).toBeTruthy()
@@ -78,7 +78,7 @@ describe('lista de zonas', () => {
     expect(screen.getAllByText('0 zones')).toHaveLength(2)
   })
 
-  it('los filtros NO recargan solos: hace falta pulsar «Go»', async () => {
+  it('the filters do NOT reload on their own: \"Go\" has to be pressed', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
@@ -93,7 +93,7 @@ describe('lista de zonas', () => {
     expect(ultima![1]?.body).toMatchObject({ filterName: 'ca' })
   })
 
-  it('«Delete Zones» sin marcar nada avisa en vez de llamar al servidor', async () => {
+  it('\"Delete Zones\" with nothing checked alerts instead of calling the server', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
@@ -104,7 +104,7 @@ describe('lista de zonas', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'zones/delete')).toBeUndefined()
   })
 
-  it('deshabilitar una zona pregunta antes, con el texto de upstream', async () => {
+  it('disabling a zone asks first, with the upstream text', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
@@ -121,7 +121,7 @@ describe('lista de zonas', () => {
     expect(await screen.findByText("Zone 'casa.test' was disabled successfully.")).toBeTruthy()
   })
 
-  it('borrar vive en el menú de la fila, no suelto al lado de «Disable»', async () => {
+  it('delete lives in the row menu, not loose next to \"Disable\"', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
@@ -141,7 +141,7 @@ describe('lista de zonas', () => {
     expect(spy.mock.calls.find((c) => String(c[0]).startsWith('zones/delete'))).toBeUndefined()
   })
 
-  it('el borrado en bloque manda `zones` en plural, separadas por coma', async () => {
+  it('the bulk delete sends `zones` in plural, comma-separated', async () => {
     const usuario = userEvent.setup()
     const spy = servidor({ 'zones/delete': { deleted: ['casa.test'], failed: {} } })
     pintar()
@@ -158,7 +158,7 @@ describe('lista de zonas', () => {
     expect(await screen.findByText('All selected zones were deleted successfully.')).toBeTruthy()
   })
 
-  it('si alguna falla, el aviso es un warning con el recuento', async () => {
+  it('if some fail, the alert is a warning with the count', async () => {
     const usuario = userEvent.setup()
     servidor({ 'zones/delete': { deleted: ['a.test'], failed: { 'b.test': 'nope' } } })
     pintar()
@@ -175,7 +175,7 @@ describe('lista de zonas', () => {
     ).toBeTruthy()
   })
 
-  it('sin permiso de modificación no se puede añadir ni deshabilitar', async () => {
+  it('without modify permission you can neither add nor disable', async () => {
     servidor()
     pintar({ canModify: false })
     await screen.findByRole('button', { name: 'casa.test' })
@@ -185,7 +185,7 @@ describe('lista de zonas', () => {
   })
 })
 
-describe('registros de una zona', () => {
+describe('records of a zone', () => {
   async function abrirZona() {
     const usuario = userEvent.setup()
     const spy = servidor()
@@ -195,21 +195,21 @@ describe('registros de una zona', () => {
     return { usuario, spy }
   }
 
-  it('pide la zona entera con listZone=true, sin paginar en el servidor', async () => {
+  it('it asks for the whole zone with listZone=true, without paginating on the server', async () => {
     const { spy } = await abrirZona()
     const call = spy.mock.calls.find((c) => c[0] === 'zones/records/get')
     expect(call![1]?.body).toMatchObject({ listZone: 'true' })
     expect(call![1]?.body).not.toHaveProperty('recordsPerPage')
   })
 
-  it('enseña el registro con su nombre relativo y su TTL', async () => {
+  it('it shows the record with its relative name and its TTL', async () => {
     await abrirZona()
     expect(screen.getByText('www')).toBeTruthy()
     expect(screen.getByText('10.0.0.1')).toBeTruthy()
     expect(screen.getByText('(1h)')).toBeTruthy()
   })
 
-  it('el filtro de nombre es exacto: «w» no encuentra «www»', async () => {
+  it('the name filter is exact: \"w\" does not find \"www\"', async () => {
     const { usuario } = await abrirZona()
     await usuario.type(screen.getByLabelText('Name'), 'w')
     expect(await screen.findByText('No Record Found')).toBeTruthy()
@@ -218,7 +218,7 @@ describe('registros de una zona', () => {
     await waitFor(() => expect(screen.queryByText('No Record Found')).toBeNull())
   })
 
-  it('borrar un registro pregunta y manda su identidad', async () => {
+  it('deleting a record asks and sends its identity', async () => {
     const { usuario, spy } = await abrirZona()
 
     await usuario.click(screen.getByRole('button', { name: 'Actions for www A' }))
@@ -238,7 +238,7 @@ describe('registros de una zona', () => {
     expect(await screen.findByText('Resource record was deleted successfully.')).toBeTruthy()
   })
 
-  it('deshabilitar un registro es un records/update con disable=true', async () => {
+  it('disabling a record is a records/update with disable=true', async () => {
     const { usuario, spy } = await abrirZona()
 
     await usuario.click(screen.getByRole('button', { name: 'Disable Record' }))
@@ -251,7 +251,7 @@ describe('registros de una zona', () => {
     expect(await screen.findByText('Resource record was disabled successfully.')).toBeTruthy()
   })
 
-  it('una Primary sin firmar SÍ tiene menú DNSSEC, pero dentro sólo «Sign Zone»', async () => {
+  it('an unsigned Primary DOES have a DNSSEC menu, but inside only \"Sign Zone\"', async () => {
     // `divZoneDnssecOptions` is shown for every Primary; what changes is what is
     // inside it (zone.js:3374). An unsigned Secondary does not show it.
     const { usuario } = await abrirZona()
@@ -263,7 +263,7 @@ describe('registros de una zona', () => {
     expect(screen.queryByRole('button', { name: 'DNSSEC Properties' })).toBeNull()
   })
 
-  it('el camino de vuelta lleva a la lista', async () => {
+  it('the path back leads to the list', async () => {
     const { usuario } = await abrirZona()
     // The "Zones" segment of the path IS the back button: before there was also a
     // «← Zones» suelto encima diciendo lo mismo.
@@ -273,7 +273,7 @@ describe('registros de una zona', () => {
 })
 
 describe('modales', () => {
-  it('«Add Zone» valida el nombre antes de llamar al servidor', async () => {
+  it('\"Add Zone\" validates the name before calling the server', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
@@ -286,7 +286,7 @@ describe('modales', () => {
     expect(spy.mock.calls.find((c) => String(c[0]).startsWith('zones/create'))).toBeUndefined()
   })
 
-  it('crear una zona Primary manda catalog y useSoaSerialDateScheme en la QUERY', async () => {
+  it('creating a Primary zone sends catalog and useSoaSerialDateScheme in the QUERY', async () => {
     const usuario = userEvent.setup()
     const spy = servidor({ 'zones/create': { domain: 'nueva.test' } })
     pintar()
@@ -307,7 +307,7 @@ describe('modales', () => {
     expect(await screen.findByRole('heading', { name: 'nueva.test' })).toBeTruthy()
   })
 
-  it('«Convert Zone» de una Primary sólo deja convertir a Forwarder', async () => {
+  it('\"Convert Zone\" on a Primary only allows converting to Forwarder', async () => {
     const usuario = userEvent.setup()
     servidor()
     pintar()
@@ -322,7 +322,7 @@ describe('modales', () => {
     expect(within(dialogo).getByLabelText('Catalog Zone')).toHaveProperty('disabled', true)
   })
 
-  it('«Import Zone» avisa si no se elige fichero', async () => {
+  it('\"Import Zone\" alerts if no file is chosen', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()
@@ -336,7 +336,7 @@ describe('modales', () => {
     expect(spy.mock.calls.find((c) => String(c[0]).startsWith('zones/import'))).toBeUndefined()
   })
 
-  it('«Clone Zone» exige el nombre nuevo y manda zone y sourceZone', async () => {
+  it('\"Clone Zone\" requires the new name and sends zone and sourceZone', async () => {
     const usuario = userEvent.setup()
     const spy = servidor()
     pintar()

@@ -56,8 +56,8 @@ function tarjeta(nombre: string) {
   return within(screen.getByRole('listitem', { name: nombre }))
 }
 
-describe('Apps — lista de instaladas', () => {
-  it('pinta una tarjeta por app, con nombre, versión y descripción', async () => {
+describe('Apps — installed list', () => {
+  it('it draws one card per app, with name, version and description', async () => {
     conApps([AL_DIA, CON_UPDATE])
     render(<Apps token="t" />)
 
@@ -68,7 +68,7 @@ describe('Apps — lista de instaladas', () => {
     ).toBeInTheDocument()
   })
 
-  it('anuncia en la cabecera cuántas apps tienen actualización', async () => {
+  it('it announces in the header how many apps have an update', async () => {
     conApps([AL_DIA, CON_UPDATE])
     render(<Apps token="t" />)
 
@@ -78,7 +78,7 @@ describe('Apps — lista de instaladas', () => {
     expect(screen.queryByText(/^\d+ instaladas?$/)).not.toBeInTheDocument()
   })
 
-  it('sin actualizaciones no enseña la píldora', async () => {
+  it('with no updates it does not show the pill', async () => {
     conApps([AL_DIA])
     render(<Apps token="t" />)
 
@@ -86,7 +86,7 @@ describe('Apps — lista de instaladas', () => {
     expect(screen.queryByText(/update available/)).not.toBeInTheDocument()
   })
 
-  it('anuncia la versión nueva y ofrece «Store Update» sólo si la hay', async () => {
+  it('it announces the new version and offers \"Store Update\" only if there is one', async () => {
     conApps([AL_DIA, CON_UPDATE])
     render(<Apps token="t" />)
 
@@ -100,7 +100,7 @@ describe('Apps — lista de instaladas', () => {
 
   /* apps.js:129-132 — "Update" (your own zip) and "Store Update" are two
      different actions, not two names for the same one. */
-  it('cada tarjeta ofrece Config, Update y Uninstall', async () => {
+  it('each card offers Config, Update and Uninstall', async () => {
     conApps([AL_DIA])
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
@@ -110,7 +110,7 @@ describe('Apps — lista de instaladas', () => {
     }
   })
 
-  it('el detalle enseña la clase, sus etiquetas y la plantilla de datos', async () => {
+  it('the detail shows the class, its labels and the data template', async () => {
     conApps([AL_DIA])
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'What Is My Dns' })
@@ -121,7 +121,7 @@ describe('Apps — lista de instaladas', () => {
     expect(tarjeta('What Is My Dns').getByText(/blockedTypes/)).toBeInTheDocument()
   })
 
-  it('sin apps instaladas explica qué son y ofrece abrir la tienda', async () => {
+  it('with no apps installed it explains what they are and offers to open the store', async () => {
     conApps([])
     conTienda([])
     render(<Apps token="t" />)
@@ -131,7 +131,7 @@ describe('Apps — lista de instaladas', () => {
     expect(screen.queryByText('0 instaladas')).not.toBeInTheDocument()
   })
 
-  it('si el servidor falla, lo dice y no revienta', async () => {
+  it('if the server fails, it says so and does not blow up', async () => {
     vi.spyOn(api, 'listApps').mockResolvedValue({ kind: 'error', message: 'Boom' })
     render(<Apps token="t" />)
 
@@ -145,7 +145,7 @@ describe('Apps — desinstalar', () => {
   `confirm()`: uninstalling an app was one of the three steps that still opened
   the operating system's. The text is still upstream's literal (`apps.js:425`).
   */
-  it('pide confirmación con el texto literal de upstream', async () => {
+  it('it asks for confirmation with the literal text of upstream', async () => {
     conApps([AL_DIA])
     const spy = vi.spyOn(api, 'uninstallApp')
     render(<Apps token="t" />)
@@ -160,7 +160,7 @@ describe('Apps — desinstalar', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('al confirmar desinstala y avisa con el texto literal', async () => {
+  it('on confirming it uninstalls and alerts with the literal text', async () => {
     conApps([AL_DIA])
     const spy = vi
       .spyOn(api, 'uninstallApp')
@@ -179,8 +179,8 @@ describe('Apps — desinstalar', () => {
   })
 })
 
-describe('Apps — Store Update desde la tarjeta', () => {
-  it('actualiza con el nombre y la url del app y avisa con el texto literal', async () => {
+describe('Apps — Store Update from the card', () => {
+  it('it updates with the name and url of the app and alerts with the literal text', async () => {
     conApps([CON_UPDATE])
     const spy = vi
       .spyOn(api, 'downloadAndUpdate')
@@ -199,8 +199,8 @@ describe('Apps — Store Update desde la tarjeta', () => {
   })
 })
 
-describe('Apps — config de la app', () => {
-  it('lee la config del nodo primario y la abre en un editor de texto', async () => {
+describe('Apps — config of the app', () => {
+  it('it reads the config from the primary node and opens it in a text editor', async () => {
     conApps([AL_DIA])
     const spy = vi.spyOn(api, 'getAppConfig').mockResolvedValue({
       kind: 'ok',
@@ -216,7 +216,7 @@ describe('Apps — config de la app', () => {
   })
 
   /* The server returns `config: null` as soon as someone saves an empty one. */
-  it('una config nula abre el editor vacío, no con «null»', async () => {
+  it('a null config opens the editor empty, not with \"null\"', async () => {
     conApps([AL_DIA])
     vi.spyOn(api, 'getAppConfig').mockResolvedValue({
       kind: 'ok',
@@ -229,7 +229,7 @@ describe('Apps — config de la app', () => {
     expect(await screen.findByLabelText('Config File')).toHaveValue('')
   })
 
-  it('guarda lo escrito y avisa con el texto literal', async () => {
+  it('it saves what was typed and alerts with the literal text', async () => {
     conApps([AL_DIA])
     vi.spyOn(api, 'getAppConfig').mockResolvedValue({
       kind: 'ok',
@@ -256,7 +256,7 @@ describe('Apps — config de la app', () => {
 })
 
 describe('Apps — instalar desde fichero', () => {
-  it('exige el nombre ANTES que el fichero, con los textos literales', async () => {
+  it('it requires the name BEFORE the file, with the literal texts', async () => {
     conApps([])
     conTienda([])
     render(<Apps token="t" />)
@@ -273,7 +273,7 @@ describe('Apps — instalar desde fichero', () => {
     ).toBeInTheDocument()
   })
 
-  it('con nombre y fichero llama a installApp', async () => {
+  it('with a name and a file it calls installApp', async () => {
     conApps([])
     conTienda([])
     const spy = vi.spyOn(api, 'installApp')
@@ -291,7 +291,7 @@ describe('Apps — instalar desde fichero', () => {
 })
 
 describe('Apps — actualizar desde fichero', () => {
-  it('trae el nombre puesto y sin poder cambiarlo, y exige el fichero', async () => {
+  it('it comes with the name filled in and unchangeable, and requires the file', async () => {
     conApps([AL_DIA])
     const spy = vi.spyOn(api, 'updateApp')
     render(<Apps token="t" />)
@@ -337,7 +337,7 @@ async function abrirTienda() {
 }
 
 describe('Apps — tienda', () => {
-  it('lista lo disponible con versión, zip y tamaño', async () => {
+  it('it lists what is available with version, zip and size', async () => {
     conApps([CON_UPDATE])
     conTienda(TIENDA)
     render(<Apps token="t" />)
@@ -351,7 +351,7 @@ describe('Apps — tienda', () => {
     expect(screen.getByText('Total Apps: 2')).toBeInTheDocument()
   })
 
-  it('una instalada enseña su versión instalada, la nueva, Update y Uninstall', async () => {
+  it('an installed one shows its installed version, the new one, Update and Uninstall', async () => {
     conApps([CON_UPDATE])
     conTienda(TIENDA)
     render(<Apps token="t" />)
@@ -368,7 +368,7 @@ describe('Apps — tienda', () => {
     expect(fila.getByRole('button', { name: 'Uninstall' })).toBeInTheDocument()
   })
 
-  it('instalar llama a downloadAndInstall y avisa con el texto literal', async () => {
+  it('installing calls downloadAndInstall and alerts with the literal text', async () => {
     conApps([])
     conTienda(TIENDA)
     const spy = vi
@@ -389,7 +389,7 @@ describe('Apps — tienda', () => {
     ).toBeInTheDocument()
   })
 
-  it('desinstalar desde la tienda confirma con el literal y avisa con el suyo propio', async () => {
+  it('uninstalling from the store confirms with the literal and alerts with its own', async () => {
     conApps([CON_UPDATE])
     conTienda(TIENDA)
     vi.spyOn(api, 'uninstallApp').mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
@@ -410,7 +410,7 @@ describe('Apps — tienda', () => {
     ).toBeInTheDocument()
   })
 
-  it('una tienda vacía lo dice con el texto de upstream', async () => {
+  it('an empty store says so with the upstream text', async () => {
     conApps([])
     conTienda([])
     render(<Apps token="t" />)

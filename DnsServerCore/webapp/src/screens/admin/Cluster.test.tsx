@@ -32,8 +32,8 @@ function servidor(estado: ClusterState = CLUSTER_SIN_INICIAR) {
 
 const props = { token: 'tok', cluster: null, onCluster: vi.fn(), onAviso: vi.fn() }
 
-describe('Cluster — sin inicializar', () => {
-  it('sólo ofrece inicializar: ni Resync, ni Options, ni Leave, ni Delete', async () => {
+describe('Cluster — not initialised', () => {
+  it('it only offers initialising: no Resync, no Options, no Leave, no Delete', async () => {
     servidor()
     render(<Cluster {...props} />)
 
@@ -45,14 +45,14 @@ describe('Cluster — sin inicializar', () => {
     }
   })
 
-  it('no pinta el selector de nodo', async () => {
+  it('it does not draw the node selector', async () => {
     servidor()
     render(<Cluster {...props} />)
     await screen.findByText('Cluster Not Initialized')
     expect(screen.queryByLabelText('Cluster Node')).not.toBeInTheDocument()
   })
 
-  it('una respuesta sin `clusterNodes` no rompe la pantalla', async () => {
+  it('a response without `clusterNodes` does not break the screen', async () => {
     servidor({ version: '15.4', dnsServerDomain: 'x', clusterInitialized: false })
     render(<Cluster {...props} />)
     expect(await screen.findByText('Cluster Not Initialized')).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('Cluster — inicializar uno nuevo', () => {
     return { user, spy }
   }
 
-  it('exige primero el dominio y después alguna IP', async () => {
+  it('it requires the domain first and then some IP', async () => {
     const { user, spy } = await abrir()
     const boton = screen.getByRole('button', { name: 'Initialize' })
 
@@ -82,13 +82,13 @@ describe('Cluster — inicializar uno nuevo', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/init')).toBeUndefined()
   })
 
-  it('«Quick Add» añade la IP elegida al final de la lista', async () => {
+  it('\"Quick Add\" appends the chosen IP to the end of the list', async () => {
     const { user } = await abrir()
     await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
     expect(screen.getByLabelText('Primary Node IP Addresses')).toHaveValue('10.0.0.1\n')
   })
 
-  it('«Quick Add» compara por SUBCADENA, que es el bug de upstream que se replica', async () => {
+  it('\"Quick Add\" compares by SUBSTRING, which is the upstream bug being replicated', async () => {
     const { user } = await abrir()
     const area = screen.getByLabelText('Primary Node IP Addresses')
     await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.10')
@@ -99,7 +99,7 @@ describe('Cluster — inicializar uno nuevo', () => {
     expect(area).toHaveValue('10.0.0.10\n')
   })
 
-  it('manda dominio e IP ya limpiadas, y sin `node`', async () => {
+  it('it sends domain and IP already cleaned, and without `node`', async () => {
     const { user, spy } = await abrir()
     await user.type(screen.getByLabelText('Cluster Domain'), 'micluster.test')
     await user.type(screen.getByLabelText('Primary Node IP Addresses'), '10.0.0.1\n10.0.0.2\n')
@@ -111,7 +111,7 @@ describe('Cluster — inicializar uno nuevo', () => {
     })
   })
 
-  it('con el cluster ya montado no se ofrece inicializar otro', async () => {
+  it('with the cluster already up, initialising another is not offered', async () => {
     servidor(CLUSTER_PRIMARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
@@ -130,14 +130,14 @@ describe('Cluster — unirse a uno existente', () => {
     return { user, spy }
   }
 
-  it('el usuario viene relleno con «admin» y el OTP no se ve todavía', async () => {
+  it('the user comes filled in with \"admin\" and the OTP is not visible yet', async () => {
     const { user } = await abrir()
     expect(screen.getByLabelText('Primary Node Username')).toHaveValue('admin')
     expect(screen.queryByLabelText('Primary Node OTP')).not.toBeInTheDocument()
     expect(user).toBeTruthy()
   })
 
-  it('el orden de las validaciones es IP, URL, usuario y contraseña', async () => {
+  it('the validation order is IP, URL, user and password', async () => {
     const { user, spy } = await abrir()
     const boton = screen.getByRole('button', { name: 'Join' })
 
@@ -159,7 +159,7 @@ describe('Cluster — unirse a uno existente', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/initJoin')).toBeUndefined()
   })
 
-  it('manda los siete campos por POST', async () => {
+  it('it sends the seven fields by POST', async () => {
     const { user, spy } = await abrir()
     await user.type(screen.getByLabelText('Secondary Node IP Addresses'), '10.0.0.3\n')
     await user.type(screen.getByLabelText('Primary Node URL'), 'https://ns1.test')
@@ -181,7 +181,7 @@ describe('Cluster — unirse a uno existente', () => {
     })
   })
 
-  it('si el primario pide segundo factor, aparece el OTP y se bloquea la contraseña', async () => {
+  it('if the primary asks for the second factor, the OTP appears and the password locks', async () => {
     vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
       if (path === 'admin/cluster/state') {
         return ok({ response: { ...CLUSTER_SIN_INICIAR, serverIpAddresses: [] }, server: 'x' })
@@ -206,8 +206,8 @@ describe('Cluster — unirse a uno existente', () => {
   })
 })
 
-describe('Cluster — visto desde el nodo PRIMARIO', () => {
-  it('ofrece Options y Delete Cluster, pero no Resync ni Leave', async () => {
+describe('Cluster — seen from the PRIMARY node', () => {
+  it('it offers Options and Delete Cluster, but neither Resync nor Leave', async () => {
     servidor(CLUSTER_PRIMARIO)
     render(<Cluster {...props} />)
 
@@ -218,7 +218,7 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     expect(screen.queryByRole('button', { name: 'Leave Cluster' })).not.toBeInTheDocument()
   })
 
-  it('pinta el selector de nodos con el tipo en minúsculas', async () => {
+  it('it draws the node selector with the type lowercased', async () => {
     servidor(CLUSTER_PRIMARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
@@ -229,7 +229,7 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     ])
   })
 
-  it('puede editarse a sí mismo y quitar el secundario, y nada más', async () => {
+  it('it can edit itself and remove the secondary, and nothing else', async () => {
     servidor(CLUSTER_PRIMARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
@@ -240,7 +240,7 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     expect(screen.queryByRole('button', { name: 'Promote To Primary' })).not.toBeInTheDocument()
   })
 
-  it('«Force Remove Node» cambia de ENDPOINT, no de parámetro', async () => {
+  it('\"Force Remove Node\" changes the ENDPOINT, not a parameter', async () => {
     const spy = servidor(CLUSTER_PRIMARIO)
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -262,7 +262,7 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     )
   })
 
-  it('borrar el cluster manda la bandera y avisa con el literal de upstream', async () => {
+  it('deleting the cluster sends the flag and alerts with the upstream literal', async () => {
     const onAviso = vi.fn()
     const spy = servidor(CLUSTER_PRIMARIO)
     const user = userEvent.setup()
@@ -284,7 +284,7 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
     })
   })
 
-  it('editar el nodo propio exige alguna IP y manda la lista limpiada', async () => {
+  it('editing the node itself requires some IP and sends the cleaned list', async () => {
     const spy = servidor(CLUSTER_PRIMARIO)
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -307,8 +307,8 @@ describe('Cluster — visto desde el nodo PRIMARIO', () => {
   })
 })
 
-describe('Cluster — visto desde un nodo SECUNDARIO', () => {
-  it('ofrece Resync, Options y Leave Cluster, pero no Delete Cluster', async () => {
+describe('Cluster — seen from a SECONDARY node', () => {
+  it('it offers Resync, Options and Leave Cluster, but not Delete Cluster', async () => {
     servidor(CLUSTER_SECUNDARIO)
     render(<Cluster {...props} />)
 
@@ -319,7 +319,7 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     expect(screen.queryByRole('button', { name: 'Delete Cluster' })).not.toBeInTheDocument()
   })
 
-  it('puede promocionarse y editar la ficha del primario', async () => {
+  it('it can promote itself and edit the record of the primary', async () => {
     servidor(CLUSTER_SECUNDARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
@@ -330,7 +330,7 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     expect(screen.queryByRole('button', { name: 'Remove Node' })).not.toBeInTheDocument()
   })
 
-  it('el resync pide confirmación y avisa de que hay que mirar los Logs', async () => {
+  it('the resync asks for confirmation and warns that the Logs must be checked', async () => {
     const onAviso = vi.fn()
     const spy = servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
@@ -355,7 +355,7 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     })
   })
 
-  it('dejar el cluster manda la bandera al endpoint del secundario', async () => {
+  it('leaving the cluster sends the flag to the secondary endpoint', async () => {
     const spy = servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -370,7 +370,7 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     })
   })
 
-  it('promocionar manda `forceDeletePrimary` y avisa con el literal de upstream', async () => {
+  it('promoting sends `forceDeletePrimary` and alerts with the upstream literal', async () => {
     const onAviso = vi.fn()
     const spy = servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
@@ -393,7 +393,7 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
     })
   })
 
-  it('editar la ficha del primario exige la URL y admite lista de IP vacía', async () => {
+  it('editing the record of the primary requires the URL and allows an empty IP list', async () => {
     const spy = servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -423,8 +423,8 @@ describe('Cluster — visto desde un nodo SECUNDARIO', () => {
   })
 })
 
-describe('Cluster — las opciones', () => {
-  it('desde el primario se pueden tocar y guardar, en el orden de upstream', async () => {
+describe('Cluster — the options', () => {
+  it('from the primary they can be touched and saved, in the order of upstream', async () => {
     const spy = servidor(CLUSTER_PRIMARIO)
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -457,7 +457,7 @@ describe('Cluster — las opciones', () => {
     })
   })
 
-  it('desde un secundario los intervalos salen bloqueados y sin botón de guardar', async () => {
+  it('from a secondary the intervals come out locked and with no save button', async () => {
     servidor(CLUSTER_SECUNDARIO)
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -470,8 +470,8 @@ describe('Cluster — las opciones', () => {
   })
 })
 
-describe('Cluster — la tabla de nodos', () => {
-  it('el nodo propio no enseña «Last Seen», y un secundario propio sí «Last Synced»', async () => {
+describe('Cluster — the node table', () => {
+  it('the node itself shows no \"Last Seen\", and a secondary looking at itself does show \"Last Synced\"', async () => {
     servidor(CLUSTER_SECUNDARIO)
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
@@ -485,7 +485,7 @@ describe('Cluster — la tabla de nodos', () => {
     expect(within(propia).getAllByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)).toHaveLength(2)
   })
 
-  it('un tipo o un estado desconocidos salen como «Unknown» en vez de en blanco', async () => {
+  it('an unknown type or state comes out as \"Unknown\" instead of blank', async () => {
     servidor({
       ...CLUSTER_PRIMARIO,
       clusterNodes: [

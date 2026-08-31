@@ -27,7 +27,7 @@ async function montar(props: Record<string, unknown> = {}) {
 }
 
 describe('Settings — carga', () => {
-  it('pinta General por defecto con los valores reales del servidor', async () => {
+  it('it draws General by default with the real values from the server', async () => {
     servidor()
     await montar()
     expect(screen.getByLabelText('DNS Server Domain')).toHaveValue('ref.technitium-ui.test')
@@ -35,20 +35,20 @@ describe('Settings — carga', () => {
     expect(screen.getByText('seconds (default 3600/1h)')).toBeInTheDocument()
   })
 
-  it('si el servidor falla, avisa en vez de reventar', async () => {
+  it('if the server fails, it alerts instead of blowing up', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     render(<Settings token="tok" />)
     expect(await screen.findByText('Unable to load the DNS Server settings.')).toBeInTheDocument()
   })
 
-  it('la sub-pestaña activa llega por prop: la sub-navegación es del Shell', async () => {
+  it('the active sub-tab arrives by prop: the sub-navigation belongs to the Shell', async () => {
     servidor()
     await montar({ sub: 'Logging' })
     expect(screen.getByLabelText('Log Folder Path')).toBeInTheDocument()
     expect(screen.queryByLabelText('DNS Server Domain')).not.toBeInTheDocument()
   })
 
-  it('las nueve sub-pestañas pintan sin romperse', async () => {
+  it('the nine sub-tabs draw without breaking', async () => {
     servidor()
     const subs = [
       ['General', 'DNS Server Domain'],
@@ -70,7 +70,7 @@ describe('Settings — carga', () => {
 })
 
 describe('Settings — guardar', () => {
-  it('manda settings/set por POST con los campos de las nueve sub-pestañas', async () => {
+  it('it sends settings/set by POST with the fields of the nine sub-tabs', async () => {
     const spy = servidor()
     await montar({ sub: 'Logging' })
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
@@ -87,7 +87,7 @@ describe('Settings — guardar', () => {
     expect(body.recursion).toBe('AllowOnlyForPrivateNetworks')
   })
 
-  it('al guardar bien, el aviso es el literal de upstream', async () => {
+  it('on a successful save, the alert is the upstream literal', async () => {
     servidor()
     await montar()
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
@@ -95,7 +95,7 @@ describe('Settings — guardar', () => {
     expect(screen.getByText('DNS Server settings were saved successfully.')).toBeInTheDocument()
   })
 
-  it('un error del servidor sale con su errorMessage bajo el título Error!', async () => {
+  it('a server error comes out with its errorMessage under the Error! title', async () => {
     vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
       if (path === 'settings/get') return ok({ response: AJUSTES })
       return { kind: 'error' as const, message: 'Invalid Web Service HTTPS port.' }
@@ -106,7 +106,7 @@ describe('Settings — guardar', () => {
     expect(screen.getByText('Invalid Web Service HTTPS port.')).toBeInTheDocument()
   })
 
-  it('un campo vacío bloquea el guardado con el aviso literal, y no llama al servidor', async () => {
+  it('an empty field blocks the save with the literal alert, and does not call the server', async () => {
     const spy = servidor()
     await montar()
     await userEvent.clear(screen.getByLabelText('DNS Server Domain'))
@@ -117,7 +117,7 @@ describe('Settings — guardar', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'settings/set')).toBeUndefined()
   })
 
-  it('si el campo que falta está en otra sub-pestaña, la pantalla salta a ella', async () => {
+  it('if the missing field is on another sub-tab, the screen jumps to it', async () => {
     servidor()
     const onSubChange = vi.fn()
     await montar({ sub: 'Recursion', onSubChange })
@@ -129,7 +129,7 @@ describe('Settings — guardar', () => {
     expect(onSubChange).toHaveBeenCalledWith('Recursion')
   })
 
-  it('el salto por validación se deshace en cuanto el Shell pide otra sub-pestaña', async () => {
+  it('the validation jump is undone as soon as the Shell asks for another sub-tab', async () => {
     servidor()
     const { rerender } = await montar({ sub: 'General' })
     await userEvent.clear(screen.getByLabelText('DNS Server Domain'))
@@ -143,20 +143,20 @@ describe('Settings — guardar', () => {
 })
 
 describe('Settings — Blocking', () => {
-  it('sin fecha, las etiquetas son «Not Set» y «Not Scheduled»', async () => {
+  it('with no date, the labels are \"Not Set\" and \"Not Scheduled\"', async () => {
     servidor()
     await montar({ sub: 'Blocking' })
     expect(screen.getByText('Not Set')).toBeInTheDocument()
     expect(screen.getByText('Not Scheduled')).toBeInTheDocument()
   })
 
-  it('«Update Now» está apagado si no hay listas configuradas', async () => {
+  it('\"Update Now\" is off if there are no lists configured', async () => {
     servidor()
     await montar({ sub: 'Blocking' })
     expect(screen.getByRole('button', { name: 'Update Now' })).toBeDisabled()
   })
 
-  it('apagar «Enable Blocking» apaga el resto de la sub-pestaña', async () => {
+  it('switching off \"Enable Blocking\" switches off the rest of the sub-tab', async () => {
     servidor()
     await montar({ sub: 'Blocking' })
     expect(screen.getByLabelText('Allow TXT Blocking Report')).toBeEnabled()
@@ -166,7 +166,7 @@ describe('Settings — Blocking', () => {
     expect(screen.getByRole('button', { name: 'Temporary Disable Now' })).toBeDisabled()
   })
 
-  it('sin minutos, «Temporary Disable Now» avisa con el texto literal', async () => {
+  it('with no minutes, \"Temporary Disable Now\" alerts with the literal text', async () => {
     servidor()
     await montar({ sub: 'Blocking' })
     await userEvent.click(screen.getByRole('button', { name: 'Temporary Disable Now' }))
@@ -175,7 +175,7 @@ describe('Settings — Blocking', () => {
     ).toBeInTheDocument()
   })
 
-  it('con minutos, confirma y llama al endpoint con el aviso de éxito literal', async () => {
+  it('with minutes, it confirms and calls the endpoint with the literal success alert', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
       if (path === 'settings/get') return ok({ response: AJUSTES })
       if (path === 'settings/temporaryDisableBlocking') {
@@ -206,7 +206,7 @@ describe('Settings — Blocking', () => {
     expect(screen.getByLabelText('Enable Blocking')).not.toBeChecked()
   })
 
-  it('«Update Now» confirma y dispara forceUpdateBlockLists', async () => {
+  it('\"Update Now\" confirms and fires forceUpdateBlockLists', async () => {
     const spy = servidor({ blockListUrls: ['https://example.com/list.txt'] })
     await montar({ sub: 'Blocking' })
 
@@ -225,8 +225,8 @@ describe('Settings — Blocking', () => {
   })
 })
 
-describe('Settings — barra de acciones', () => {
-  it('«Flush Cache» confirma y llama a cache/flush con su aviso literal', async () => {
+describe('Settings — action bar', () => {
+  it('\"Flush Cache\" confirms and calls cache/flush with its literal alert', async () => {
     const spy = servidor()
     await montar()
     await userEvent.click(screen.getByRole('button', { name: 'Flush Cache' }))
@@ -238,7 +238,7 @@ describe('Settings — barra de acciones', () => {
     expect(screen.getByText('DNS Server cache was flushed successfully.')).toBeInTheDocument()
   })
 
-  it('los permisos gobiernan cada botón por separado', async () => {
+  it('the permissions govern each button separately', async () => {
     servidor()
     render(<Settings token="tok" canModify={false} canFlushCache={false} canBackup />)
     await screen.findByRole('button', { name: 'Backup Settings' })
@@ -246,7 +246,7 @@ describe('Settings — barra de acciones', () => {
     expect(screen.queryByRole('button', { name: 'Flush Cache' })).not.toBeInTheDocument()
   })
 
-  it('el backup sin nada marcado avisa con el texto literal', async () => {
+  it('a backup with nothing checked alerts with the literal text', async () => {
     servidor()
     await montar()
     await userEvent.click(screen.getByRole('button', { name: 'Backup Settings' }))
@@ -270,7 +270,7 @@ describe('Settings — barra de acciones', () => {
     expect(await screen.findByText('Please select at least one item to backup.')).toBeInTheDocument()
   })
 
-  it('la restauración sin fichero avisa antes de mirar los elementos', async () => {
+  it('a restore with no file alerts before looking at the items', async () => {
     servidor()
     await montar()
     await userEvent.click(screen.getByRole('button', { name: 'Restore Settings' }))
@@ -279,8 +279,8 @@ describe('Settings — barra de acciones', () => {
   })
 })
 
-describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
-  it('la ACL de recursión sólo se puede editar con la cuarta opción', async () => {
+describe('Settings — enablement rules of the remaining sub-tabs', () => {
+  it('the recursion ACL can only be edited with the fourth option', async () => {
     servidor()
     await montar({ sub: 'Recursion' })
     const acl = screen.getByLabelText('Network Access Control List (ACL)')
@@ -289,7 +289,7 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
     expect(acl).toBeEnabled()
   })
 
-  it('los campos del proxy se despiertan al elegir un tipo', async () => {
+  it('the proxy fields wake up on choosing a type', async () => {
     servidor()
     await montar({ sub: 'Proxy & Forwarders' })
     expect(screen.getByLabelText('Proxy Server Address')).toBeDisabled()
@@ -297,7 +297,7 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
     expect(screen.getByLabelText('Proxy Server Address')).toBeEnabled()
   })
 
-  it('«None» en el registro apaga sus cuatro opciones y la carpeta', async () => {
+  it('\"None\" in the logging switches off its four options and the folder', async () => {
     servidor()
     await montar({ sub: 'Logging' })
     expect(screen.getByLabelText('Log All Queries')).toBeEnabled()
@@ -306,7 +306,7 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
     expect(screen.getByLabelText('Log Folder Path')).toBeDisabled()
   })
 
-  it('la tabla TSIG añade y borra filas', async () => {
+  it('the TSIG table adds and deletes rows', async () => {
     servidor()
     await montar({ sub: 'TSIG' })
     expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()
@@ -318,7 +318,7 @@ describe('Settings — reglas de habilitado del resto de sub-pestañas', () => {
     expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()
   })
 
-  it('la tabla QPM llega con las filas reales del servidor', async () => {
+  it('the QPM table arrives with the real rows from the server', async () => {
     servidor()
     await montar()
     expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv4) 1 IPv4 Prefix')).toHaveValue(32)

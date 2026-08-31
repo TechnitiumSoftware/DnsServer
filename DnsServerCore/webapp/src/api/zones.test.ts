@@ -19,11 +19,11 @@ afterEach(() => vi.restoreAllMocks())
 const env = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
 
 describe('zones', () => {
-  it('ofrece los siete tipos de zona de upstream', () => {
+  it('offers the seven zone types of upstream', () => {
     expect(TIPOS_ZONA).toEqual(['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'])
   })
 
-  it('listZones pagina en el SERVIDOR: manda pageNumber y zonesPerPage', async () => {
+  it('listZones paginates on the SERVER: it sends pageNumber and zonesPerPage', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(
       env({ zones: [], pageNumber: 2, totalPages: 5, totalZones: 47 }),
     )
@@ -39,7 +39,7 @@ describe('zones', () => {
     expect(r).toEqual({ kind: 'ok', data: { zones: [], pageNumber: 2, totalPages: 5, totalZones: 47 } })
   })
 
-  it('si el servidor omite la paginación, se rellena sin romper', async () => {
+  it('if the server omits the pagination, it is filled in without breaking', async () => {
     // Checked on v15.4: without pageNumber the response brings only `zones`.
     vi.spyOn(client, 'apiRequest').mockResolvedValue(env({ zones: [{ name: 'a' }, { name: 'b' }] }))
     const r = await listZones('t')
@@ -55,7 +55,7 @@ describe('zones', () => {
   when the server had answered. The other three feed dialogs that already warn on
   their own.
   */
-  it('listZones sube el fallo con su motivo; los demás devuelven null', async () => {
+  it('listZones raises the failure with its reason; the rest return null', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
     expect(await listZones('t')).toEqual({ kind: 'invalid-token' })
     expect(await getZoneOptions('t', 'x')).toBeNull()
@@ -63,13 +63,13 @@ describe('zones', () => {
     expect(await listCatalogs('t')).toBeNull()
   })
 
-  it('reconoce la fecha mínima de .NET como «nunca usado»', () => {
+  it('recognises the .NET minimum date as "never used"', () => {
     expect(nuncaUsado('0001-01-01T00:00:00')).toBe(true)
     expect(nuncaUsado('2026-08-25T13:10:29Z')).toBe(false)
     expect(nuncaUsado('')).toBe(true)
   })
 
-  it('importar por fichero va como multipart, con el campo fileImportZone', async () => {
+  it('importing by file goes as multipart, with the fileImportZone field', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     const archivo = new File(['$ORIGIN casa.test.'], 'casa.zone')
     await importZone('t', 'casa.test', { archivo }, {
@@ -84,7 +84,7 @@ describe('zones', () => {
     expect(spy.mock.calls[0][1]?.file?.campo).toBe('fileImportZone')
   })
 
-  it('importar pegando el texto va como text/plain, no como multipart', async () => {
+  it('importing by pasting the text goes as text/plain, not as multipart', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await importZone('t', 'casa.test', { texto: '@ 3600 IN A 10.0.0.1' }, {
       overwrite: false,
@@ -95,7 +95,7 @@ describe('zones', () => {
     expect(spy.mock.calls[0][1]?.file).toBeUndefined()
   })
 
-  it('exportar una zona pasa por el token de un solo uso y SIN `ts`', async () => {
+  it('exporting a zone goes through the single-use token and WITHOUT `ts`', async () => {
     // zone.js:1322 does not add the cache-buster that the log downloads and the
     // settings backup do carry. The URL has to come out the same.
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
@@ -103,21 +103,21 @@ describe('zones', () => {
     expect(spy).toHaveBeenCalledWith('t', 'zones/export', { zone: 'casa.test', node: '' })
   })
 
-  it('options/get pide los catálogos disponibles en la misma llamada', async () => {
+  it('options/get asks for the available catalogs in the same call', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(env({ name: 'casa.test' }))
     await getZoneOptions('t', 'casa.test')
     expect(spy.mock.calls[0][0]).toBe('zones/options/get')
     expect(spy.mock.calls[0][1]?.body).toMatchObject({ includeAvailableCatalogZoneNames: 'true' })
   })
 
-  it('permissions/get pide usuarios y grupos, y tolera listas ausentes', async () => {
+  it('permissions/get asks for users and groups, and tolerates absent lists', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(env({ section: 'Zones' }))
     const r = await getZonePermissions('t', 'casa.test')
     expect(spy.mock.calls[0][1]?.body).toMatchObject({ includeUsersAndGroups: 'true' })
     expect(r).toMatchObject({ userPermissions: [], groupPermissions: [] })
   })
 
-  it('los permisos se serializan como nombre|ver|modificar|borrar por fila', () => {
+  it('the permissions serialise as name|view|modify|delete per row', () => {
     expect(
       serializarPermisos([
         { nombre: 'admin', canView: true, canModify: true, canDelete: false },
@@ -126,11 +126,11 @@ describe('zones', () => {
     ).toBe('admin|true|true|false|ana|true|false|false')
   })
 
-  it('una tabla de permisos vacía se serializa como cadena vacía', () => {
+  it('an empty permissions table serialises as an empty string', () => {
     expect(serializarPermisos([])).toBe('')
   })
 
-  it('permissions/set manda las dos tablas ya serializadas', async () => {
+  it('permissions/set sends both tables already serialised', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await setZonePermissions('t', 'casa.test', 'a|true|true|true', '')
     expect(spy.mock.calls[0][0]).toBe('zones/permissions/set')
@@ -142,7 +142,7 @@ describe('zones', () => {
     })
   })
 
-  it('todas las llamadas llevan `node`, aunque vaya vacío', async () => {
+  it('every call carries `node`, even when it goes empty', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await convertZone('t', 'casa.test', 'Secondary')
     expect(spy.mock.calls[0][1]?.body).toHaveProperty('node', '')

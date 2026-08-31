@@ -55,8 +55,8 @@ async function confirmar(etiqueta: string) {
   await userEvent.click(within(dialogo).getByRole('button', { name: etiqueta }))
 }
 
-describe('navegación del árbol', () => {
-  it('arranca pidiendo la raíz de su lista', async () => {
+describe('tree navigation', () => {
+  it('it starts by asking for the root of its list', async () => {
     const spy = conNodo(nodo({ zones: ['com'] }))
     render(<Cache token="t" />)
     await screen.findByText('com')
@@ -64,7 +64,7 @@ describe('navegación del árbol', () => {
     expect(llamada?.[2]).toBe('')
   })
 
-  it('cada sección pide su propio endpoint', async () => {
+  it('each section asks for its own endpoint', async () => {
     const spy = conNodo(nodo())
     render(<Blocked token="t" />)
     await screen.findByRole('heading', { name: 'Blocked' })
@@ -73,7 +73,7 @@ describe('navegación del árbol', () => {
 
   /* The server walks down the chain on its own when the node has a single child
      and no records: the domain to draw is the one it RETURNS, not the one asked for. */
-  it('obedece al dominio que devuelve el servidor, no al que se pidió', async () => {
+  it('it obeys the domain the server returns, not the one asked for', async () => {
     conNodo(nodo(), nodo({ domain: 'example.org', zones: ['foo.example.org'], records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.type(await screen.findByLabelText('Domain'), 'org')
@@ -82,7 +82,7 @@ describe('navegación del árbol', () => {
     expect(screen.getByText(/1 records at/)).toBeInTheDocument()
   })
 
-  it('el campo Browse navega al dominio escrito', async () => {
+  it('the Browse field navigates to the typed domain', async () => {
     const spy = conNodo(nodo(), nodo({ domain: 'casa.test' }))
     render(<Cache token="t" />)
     await userEvent.type(await screen.findByLabelText('Domain'), 'casa.test')
@@ -90,7 +90,7 @@ describe('navegación del árbol', () => {
     expect(spy.mock.calls.some((c) => c[2] === 'casa.test')).toBe(true)
   })
 
-  it('subir al padre desde el árbol manda direction=up, como el enlace [up]', async () => {
+  it('going up to the parent from the tree sends direction=up, like the [up] link', async () => {
     const spy = conNodo(nodo({ domain: 'a.casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'casa.test' }))
@@ -98,29 +98,29 @@ describe('navegación del árbol', () => {
     expect(subida?.[3]).toBe('up')
   })
 
-  it('muestra el mensaje de error del servidor si el listado falla', async () => {
+  it('it shows the error message from the server if the listing fails', async () => {
     vi.spyOn(api, 'listarNodo').mockResolvedValue({ kind: 'error', message: 'Access was denied.' })
     render(<Cache token="t" />)
     expect(await screen.findByText('Access was denied.')).toBeInTheDocument()
   })
 })
 
-describe('tabla de registros', () => {
-  it('pinta cada campo de rData en vez de un volcado JSON', async () => {
+describe('records table', () => {
+  it('it draws each rData field instead of a JSON dump', async () => {
     conNodo(nodo({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     expect(await screen.findByText('IP Address')).toBeInTheDocument()
     expect(screen.getByText('172.66.147.243')).toBeInTheDocument()
   })
 
-  it('parte el TTL en número y forma humana', async () => {
+  it('it splits the TTL into a number and a human form', async () => {
     conNodo(nodo({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     expect(await screen.findByText('218')).toBeInTheDocument()
     expect(screen.getByText('(3m38s)')).toBeInTheDocument()
   })
 
-  it('conserva los metadatos de respuesta en la línea gris', async () => {
+  it('it keeps the response metadata on the grey line', async () => {
     conNodo(nodo({ domain: 'example.com', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     const meta = await screen.findByText(/via 8\.8\.8\.8/)
@@ -129,7 +129,7 @@ describe('tabla de registros', () => {
     expect(meta).toHaveTextContent('used 2026-08-25 19:58')
   })
 
-  it('la columna DNSSEC es sólo de Cache', async () => {
+  it('the DNSSEC column belongs to Cache only', async () => {
     conNodo(nodo({ domain: 'example.com', records: [REG_CACHE] }))
     const { unmount } = render(<Cache token="t" />)
     expect(await screen.findByRole('columnheader', { name: 'DNSSEC' })).toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('tabla de registros', () => {
     expect(screen.getByText(/DNSSEC Unknown/)).toBeInTheDocument()
   })
 
-  it('explica el nodo vacío en vez de dejar un [] suelto', async () => {
+  it('it explains the empty node instead of leaving a bare []', async () => {
     conNodo(nodo({ zones: ['com', 'net'] }))
     render(<Blocked token="t" />)
     expect(await screen.findByText('No records at this node')).toBeInTheDocument()
@@ -151,7 +151,7 @@ describe('tabla de registros', () => {
 })
 
 describe('Cache', () => {
-  it('Flush Cache confirma con el texto literal de upstream', async () => {
+  it('Flush Cache confirms with the literal text of upstream', async () => {
     conNodo(nodo())
     render(<Cache token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Flush Cache' }))
@@ -160,7 +160,7 @@ describe('Cache', () => {
     ).toBeInTheDocument()
   })
 
-  it('al vaciar la cache avisa con el texto literal y vuelve a la raíz', async () => {
+  it('flushing the cache alerts with the literal text and returns to the root', async () => {
     const spy = vi.spyOn(api, 'vaciarCache').mockResolvedValue(OK)
     const lista = conNodo(nodo({ domain: 'casa.test', records: [REG_CACHE] }))
     render(<Cache token="t" />)
@@ -175,7 +175,7 @@ describe('Cache', () => {
 
   /* In cache the Delete button depends on the NODE, not on it having records
      (other-zones.js:143-152). In allowed and blocked it is the other way round. */
-  it('Delete no está en <ROOT> y sí en un nodo, aunque el nodo no tenga registros', async () => {
+  it('Delete is absent at <ROOT> and present on a node, even one with no records', async () => {
     conNodo(nodo({ zones: ['com'] }))
     const { unmount } = render(<Cache token="t" />)
     await screen.findByText('com')
@@ -187,7 +187,7 @@ describe('Cache', () => {
     expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
-  it('borrar un nodo confirma y avisa con los textos literales', async () => {
+  it('deleting a node confirms and alerts with the literal texts', async () => {
     const spy = vi.spyOn(api, 'borrarNodoCache').mockResolvedValue(OK)
     conNodo(nodo({ domain: 'casa.test', records: [REG_CACHE] }))
     render(<Cache token="t" />)
@@ -206,14 +206,14 @@ describe('Cache', () => {
 })
 
 describe('Allowed', () => {
-  it('exige el dominio con el texto literal de upstream', async () => {
+  it('it requires the domain with the literal text of upstream', async () => {
     conNodo(nodo())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Allow' }))
     expect(await screen.findByText('Please enter a domain name to allow.')).toBeInTheDocument()
   })
 
-  it('añade el dominio, avisa con el texto literal y vacía el campo', async () => {
+  it('it adds the domain, alerts with the literal text and empties the field', async () => {
     const spy = vi.spyOn(api, 'anadirDominio').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Allowed token="t" />)
@@ -229,7 +229,7 @@ describe('Allowed', () => {
   })
 
   /* Delete here depends on the node HAVING records (other-zones.js:319-327). */
-  it('Delete sólo aparece cuando el nodo tiene registros', async () => {
+  it('Delete only appears when the node has records', async () => {
     conNodo(nodo({ domain: 'casa.test', zones: ['a.casa.test'], records: [] }))
     const { unmount } = render(<Allowed token="t" />)
     await screen.findByText('a.casa.test')
@@ -241,7 +241,7 @@ describe('Allowed', () => {
     expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
-  it('borrar avisa con «deleted from Allowed Zone», que no es el texto de Blocked', async () => {
+  it('deleting alerts with \"deleted from Allowed Zone\", which is not the Blocked text', async () => {
     vi.spyOn(api, 'borrarDominio').mockResolvedValue(OK)
     conNodo(nodo({ domain: 'casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
@@ -255,7 +255,7 @@ describe('Allowed', () => {
     ).toBeInTheDocument()
   })
 
-  it('Flush confirma y avisa con los textos literales', async () => {
+  it('Flush confirms and alerts with the literal texts', async () => {
     const spy = vi.spyOn(api, 'vaciarLista').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Allowed token="t" />)
@@ -268,7 +268,7 @@ describe('Allowed', () => {
     expect(await screen.findByText('Allowed zone was flushed successfully.')).toBeInTheDocument()
   })
 
-  it('Export pasa por el token de un solo uso y avisa', async () => {
+  it('Export goes through the single-use token and alerts', async () => {
     const spy = vi.spyOn(api, 'exportarDominios').mockResolvedValue({ ok: true })
     conNodo(nodo())
     render(<Allowed token="t" />)
@@ -277,7 +277,7 @@ describe('Allowed', () => {
     expect(await screen.findByText('Allowed zones were exported successfully.')).toBeInTheDocument()
   })
 
-  it('Import exige contenido con el texto literal, dentro del propio modal', async () => {
+  it('Import requires content with the literal text, inside the modal itself', async () => {
     conNodo(nodo())
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Import' }))
@@ -288,7 +288,7 @@ describe('Allowed', () => {
     ).toBeInTheDocument()
   })
 
-  it('Import manda la lista limpia y avisa con el texto literal', async () => {
+  it('Import sends the cleaned list and alerts with the literal text', async () => {
     const spy = vi.spyOn(api, 'importarDominios').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Allowed token="t" />)
@@ -304,14 +304,14 @@ describe('Allowed', () => {
 })
 
 describe('Blocked', () => {
-  it('exige el dominio con su propio texto literal', async () => {
+  it('it requires the domain with its own literal text', async () => {
     conNodo(nodo())
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Block' }))
     expect(await screen.findByText('Please enter a domain name to block.')).toBeInTheDocument()
   })
 
-  it('avisa con «added to Blocked Zone»', async () => {
+  it('it alerts with \"added to Blocked Zone\"', async () => {
     vi.spyOn(api, 'anadirDominio').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Blocked token="t" />)
@@ -325,7 +325,7 @@ describe('Blocked', () => {
   /* Upstream's asymmetry: Allowed says "Domain 'x' was deleted from Allowed
      Zone successfully." and Blocked says "Blocked zone 'x' was deleted
      successfully.". They are two different sentences and both are contract. */
-  it('borrar avisa con «Blocked zone ... was deleted successfully»', async () => {
+  it('deleting alerts with \"Blocked zone ... was deleted successfully\"', async () => {
     vi.spyOn(api, 'borrarDominio').mockResolvedValue(OK)
     conNodo(nodo({ domain: 'ads.test', records: [REG_AUTH] }))
     render(<Blocked token="t" />)
@@ -339,7 +339,7 @@ describe('Blocked', () => {
     ).toBeInTheDocument()
   })
 
-  it('Flush y Import usan los textos de Blocked, no los de Allowed', async () => {
+  it('Flush and Import use the Blocked texts, not the Allowed ones', async () => {
     vi.spyOn(api, 'vaciarLista').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Blocked token="t" />)
@@ -351,7 +351,7 @@ describe('Blocked', () => {
     expect(await screen.findByText('Blocked zone was flushed successfully.')).toBeInTheDocument()
   })
 
-  it('el modal de Import es el de Blocked', async () => {
+  it('the Import modal is the Blocked one', async () => {
     vi.spyOn(api, 'importarDominios').mockResolvedValue(OK)
     conNodo(nodo())
     render(<Blocked token="t" />)

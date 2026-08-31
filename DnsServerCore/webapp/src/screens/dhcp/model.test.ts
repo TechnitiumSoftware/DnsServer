@@ -28,7 +28,7 @@ function error(f: ScopeForm) {
 }
 
 describe('limpiarLista / listaATexto', () => {
-  it('replica cleanTextList de common.js', () => {
+  it('it replicates cleanTextList from common.js', () => {
     expect(limpiarLista('1.1.1.1\n8.8.8.8')).toBe('1.1.1.1,8.8.8.8')
     expect(limpiarLista('\n1.1.1.1\n\n\n8.8.8.8\n')).toBe('1.1.1.1,8.8.8.8')
     expect(limpiarLista('')).toBe('')
@@ -39,14 +39,14 @@ describe('limpiarLista / listaATexto', () => {
     expect(limpiarLista('1.1.1.1\n8.8.8.8')).not.toContain('\r')
   })
 
-  it('listaATexto devuelve cadena vacía cuando el servidor omite la clave', () => {
+  it('listaATexto returns an empty string when the server omits the key', () => {
     expect(listaATexto(undefined)).toBe('')
     expect(listaATexto(['a', 'b'])).toBe('a\nb')
   })
 })
 
-describe('valores por defecto', () => {
-  it('son los de clearDhcpScopeForm', () => {
+describe('default values', () => {
+  it('they are the ones from clearDhcpScopeForm', () => {
     const f = formularioVacio()
     expect(f.leaseTimeDays).toBe('1')
     expect(f.leaseTimeHours).toBe('0')
@@ -60,7 +60,7 @@ describe('valores por defecto', () => {
     expect(f.useThisDnsServer).toBe(false)
   })
 
-  it('«Add Scope» parte del vacío pero con «Use This DNS Server» marcado', () => {
+  it('\"Add Scope\" starts from empty but with \"Use This DNS Server\" checked', () => {
     expect(formularioNuevo().useThisDnsServer).toBe(true)
   })
 })
@@ -88,7 +88,7 @@ describe('formularioDesdeScope', () => {
     ignoreClientIdentifierOption: true,
   }
 
-  it('sobrevive a un scope al que le faltan quince claves', () => {
+  it('it survives a scope missing fifteen keys', () => {
     const f = formularioDesdeScope(MINIMO)
     expect(f.domainName).toBe('')
     expect(f.domainSearchList).toBe('')
@@ -98,11 +98,11 @@ describe('formularioDesdeScope', () => {
     expect(f.reservedLeases).toEqual([])
   })
 
-  it('guarda el nombre original en `oldName`, que es lo que decide el renombrado', () => {
+  it('it keeps the original name in `oldName`, which is what decides the rename', () => {
     expect(formularioDesdeScope(MINIMO).oldName).toBe('Default')
   })
 
-  it('un `hostName` o un `comments` nulos de una reserva llegan como cadena vacía', () => {
+  it('a null `hostName` or `comments` of a reservation arrives as an empty string', () => {
     const f = formularioDesdeScope({
       ...MINIMO,
       reservedLeases: [
@@ -118,20 +118,20 @@ describe('formularioDesdeScope', () => {
   })
 })
 
-describe('construirCuerpo — nombre y renombrado', () => {
-  it('un scope nuevo NO manda `newName`', () => {
+describe('construirCuerpo — name and rename', () => {
+  it('a new scope does NOT send `newName`', () => {
     const b = cuerpo(form({ oldName: '', name: 'Nuevo' }))
     expect(b.name).toBe('Nuevo')
     expect(b).not.toHaveProperty('newName')
   })
 
-  it('editar sin tocar el nombre tampoco manda `newName`', () => {
+  it('editing without touching the name does not send `newName` either', () => {
     const b = cuerpo(form({ oldName: 'Default', name: 'Default' }))
     expect(b.name).toBe('Default')
     expect(b).not.toHaveProperty('newName')
   })
 
-  it('renombrar manda el nombre VIEJO en `name` y el nuevo en `newName`', () => {
+  it('renaming sends the OLD name in `name` and the new one in `newName`', () => {
     const b = cuerpo(form({ oldName: 'Default', name: 'Casa' }))
     expect(b.name).toBe('Default')
     expect(b.newName).toBe('Casa')
@@ -139,20 +139,20 @@ describe('construirCuerpo — nombre y renombrado', () => {
 })
 
 describe('construirCuerpo — servidores DNS', () => {
-  it('con «Use This DNS Server» marcado NO se manda `dnsServers`', () => {
+  it('with \"Use This DNS Server\" checked `dnsServers` is NOT sent', () => {
     const b = cuerpo(form({ useThisDnsServer: true, dnsServers: '1.1.1.1' }))
     expect(b.useThisDnsServer).toBe('true')
     expect(b).not.toHaveProperty('dnsServers')
   })
 
-  it('sin marcar, `dnsServers` viaja como lista separada por comas', () => {
+  it('unchecked, `dnsServers` travels as a comma-separated list', () => {
     const b = cuerpo(form({ useThisDnsServer: false, dnsServers: '1.1.1.1\n8.8.8.8' }))
     expect(b.dnsServers).toBe('1.1.1.1,8.8.8.8')
   })
 })
 
-describe('construirCuerpo — las cinco tablas', () => {
-  it('serializa TODAS las celdas unidas por `|`, también entre filas', () => {
+describe('construirCuerpo — the five tables', () => {
+  it('it serialises ALL the cells joined by `|`, between rows as well', () => {
     const b = cuerpo(
       form({
         staticRoutes: [
@@ -166,7 +166,7 @@ describe('construirCuerpo — las cinco tablas', () => {
     )
   })
 
-  it('una tabla vacía viaja como cadena vacía', () => {
+  it('an empty table travels as an empty string', () => {
     const b = cuerpo(form())
     expect(b.staticRoutes).toBe('')
     expect(b.vendorInfo).toBe('')
@@ -175,12 +175,12 @@ describe('construirCuerpo — las cinco tablas', () => {
     expect(b.reservedLeases).toBe('')
   })
 
-  it('el identificador de fabricante SÍ puede quedarse vacío', () => {
+  it('the vendor identifier CAN be left empty', () => {
     const b = cuerpo(form({ vendorInfo: [{ identifier: '', information: '06:01' }] }))
     expect(b.vendorInfo).toBe('|06:01')
   })
 
-  it('el nombre de host y los comentarios de una reserva TAMBIÉN son opcionales', () => {
+  it('the host name and the comments of a reservation are ALSO optional', () => {
     const b = cuerpo(
       form({
         reservedLeases: [
@@ -192,8 +192,8 @@ describe('construirCuerpo — las cinco tablas', () => {
   })
 })
 
-describe('construirCuerpo — avisos de validación, con sus textos literales', () => {
-  it('una celda obligatoria vacía da «Missing!» y señala esa celda', () => {
+describe('construirCuerpo — validation alerts, with their literal texts', () => {
+  it('an empty required cell gives \"Missing!\" and points at that cell', () => {
     const e = error(
       form({ exclusions: [{ startingAddress: '192.168.1.1', endingAddress: '' }] }),
     )
@@ -202,7 +202,7 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
     expect(e.focus).toBe(idCelda('exclusions', 0, 'endingAddress'))
   })
 
-  it('una celda con `|` da «Invalid Character!»', () => {
+  it('a cell with `|` gives \"Invalid Character!\"', () => {
     const e = error(
       form({ exclusions: [{ startingAddress: 'a|b', endingAddress: '192.168.1.10' }] }),
     )
@@ -213,7 +213,7 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
     expect(e.focus).toBe(idCelda('exclusions', 0, 'startingAddress'))
   })
 
-  it('dentro de una celda, primero se mira el vacío y después el `|`', () => {
+  it('inside a cell, empty is checked first and `|` second', () => {
     const e = error(
       form({
         exclusions: [{ startingAddress: '', endingAddress: 'a|b' }],
@@ -222,7 +222,7 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
     expect(e.title).toBe('Missing!')
   })
 
-  it('el orden de las tablas es el de upstream: rutas antes que fabricante', () => {
+  it('the table order is the one of upstream: routes before vendor', () => {
     const e = error(
       form({
         staticRoutes: [{ destination: '', subnetMask: '', router: '' }],
@@ -232,7 +232,7 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
     expect(e.focus).toBe(idCelda('staticRoutes', 0, 'destination'))
   })
 
-  it('…fabricante antes que opciones genéricas, y éstas antes que exclusiones', () => {
+  it('…vendor before generic options, and those before exclusions', () => {
     const conFabricante = error(
       form({
         vendorInfo: [{ identifier: 'x', information: '' }],
@@ -251,7 +251,7 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
     expect(conGenericas.focus).toBe(idCelda('genericOptions', 0, 'code'))
   })
 
-  it('…y exclusiones antes que reservas', () => {
+  it('…and exclusions before reservations', () => {
     const e = error(
       form({
         exclusions: [{ startingAddress: '', endingAddress: '' }],
@@ -263,7 +263,7 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
     expect(e.focus).toBe(idCelda('exclusions', 0, 'startingAddress'))
   })
 
-  it('las filas se recorren en orden: la segunda fila mala se señala como tal', () => {
+  it('the rows are walked in order: the second bad row is pointed at as such', () => {
     const e = error(
       form({
         exclusions: [
@@ -276,8 +276,8 @@ describe('construirCuerpo — avisos de validación, con sus textos literales', 
   })
 })
 
-describe('construirCuerpo — los 36 parámetros', () => {
-  it('manda todo el formulario, con los booleanos como cadenas', () => {
+describe('construirCuerpo — the 36 parameters', () => {
+  it('it sends the whole form, with the booleans as strings', () => {
     const b = cuerpo(
       form({
         oldName: 'Default',

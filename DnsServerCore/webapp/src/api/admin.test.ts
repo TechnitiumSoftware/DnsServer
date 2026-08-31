@@ -31,8 +31,8 @@ function espia() {
     .mockResolvedValue({ kind: 'ok', data: { response: {}, server: 's' } })
 }
 
-describe('admin — sesiones', () => {
-  it('lista mandando el nodo del cluster', async () => {
+describe('admin — sessions', () => {
+  it('lists sending the cluster node', async () => {
     const spy = espia()
     await listSessions('tok', 'ns1.test')
     expect(spy).toHaveBeenCalledWith('admin/sessions/list', {
@@ -41,7 +41,7 @@ describe('admin — sesiones', () => {
     })
   })
 
-  it('sin cluster manda el nodo como cadena vacía, no lo omite', async () => {
+  it('with no cluster it sends the node as an empty string, it does not omit it', async () => {
     const spy = espia()
     await listSessions('tok')
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sessions/list')?.[1]).toEqual({
@@ -50,7 +50,7 @@ describe('admin — sesiones', () => {
     })
   })
 
-  it('crea un token de API con usuario y nombre', async () => {
+  it('creates an API token with a user and a name', async () => {
     const spy = espia()
     await createApiToken('tok', 'adrian', 'orbiter')
     expect(spy).toHaveBeenCalledWith('admin/sessions/createToken', {
@@ -59,7 +59,7 @@ describe('admin — sesiones', () => {
     })
   })
 
-  it('al borrar SIN nodo no manda el parámetro: es lo que hace el modal de detalles', async () => {
+  it('deleting WITHOUT a node does not send the parameter: that is what the details modal does', async () => {
     const spy = espia()
     await deleteAdminSession('tok', 'abcd')
     expect(spy).toHaveBeenCalledWith('admin/sessions/delete', {
@@ -68,7 +68,7 @@ describe('admin — sesiones', () => {
     })
   })
 
-  it('al borrar con nodo vacío SÍ manda el parámetro: es lo que hace la pestaña', async () => {
+  it('deleting with an empty node DOES send the parameter: that is what the tab does', async () => {
     const spy = espia()
     await deleteAdminSession('tok', 'abcd', '')
     expect(spy).toHaveBeenCalledWith('admin/sessions/delete', {
@@ -78,14 +78,14 @@ describe('admin — sesiones', () => {
   })
 })
 
-describe('admin — usuarios', () => {
-  it('lista sin parámetros', async () => {
+describe('admin — users', () => {
+  it('lists with no parameters', async () => {
     const spy = espia()
     await listUsers('tok')
     expect(spy).toHaveBeenCalledWith('admin/users/list', { token: 'tok' })
   })
 
-  it('crea por POST, que es lo que hace upstream por llevar contraseña', async () => {
+  it('creates by POST, which is what upstream does since it carries a password', async () => {
     const spy = espia()
     await createUser('tok', 'Adrián', 'adrian', 's3cr3t')
     expect(spy).toHaveBeenCalledWith('admin/users/create', {
@@ -95,7 +95,7 @@ describe('admin — usuarios', () => {
     })
   })
 
-  it('consulta pidiendo también la lista de grupos', async () => {
+  it('reads asking for the group list as well', async () => {
     const spy = espia()
     await getUser('tok', 'adrian')
     expect(spy).toHaveBeenCalledWith('admin/users/get', {
@@ -104,7 +104,7 @@ describe('admin — usuarios', () => {
     })
   })
 
-  it('el cuerpo de `set` es abierto: sólo viaja lo que se quiere cambiar', async () => {
+  it('the body of `set` is open: only what you want to change travels', async () => {
     const spy = espia()
     await setUser('tok', { user: 'adrian', disabled: 'true' })
     expect(spy).toHaveBeenCalledWith('admin/users/set', {
@@ -113,7 +113,7 @@ describe('admin — usuarios', () => {
     })
   })
 
-  it('resetear la contraseña usa el mismo endpoint pero por POST', async () => {
+  it('resetting the password uses the same endpoint but by POST', async () => {
     const spy = espia()
     await resetUserPassword('tok', 'adrian', 'nueva')
     expect(spy).toHaveBeenCalledWith('admin/users/set', {
@@ -123,15 +123,15 @@ describe('admin — usuarios', () => {
     })
   })
 
-  it('borra por nombre', async () => {
+  it('deletes by name', async () => {
     const spy = espia()
     await deleteUser('tok', 'adrian')
     expect(spy).toHaveBeenCalledWith('admin/users/delete', { token: 'tok', body: { user: 'adrian' } })
   })
 })
 
-describe('admin — grupos', () => {
-  it('lista, crea, consulta y borra', async () => {
+describe('admin — groups', () => {
+  it('lists, creates, reads and deletes', async () => {
     const spy = espia()
     await listGroups('tok')
     await createGroup('tok', 'Ops', 'los de guardia')
@@ -154,7 +154,7 @@ describe('admin — grupos', () => {
     })
   })
 
-  it('`newGroup` NO viaja si el nombre no cambió', async () => {
+  it('`newGroup` does NOT travel if the name did not change', async () => {
     const spy = espia()
     await setGroup('tok', 'Ops', 'desc', 'a,b')
     expect(spy).toHaveBeenCalledWith('admin/groups/set', {
@@ -163,7 +163,7 @@ describe('admin — grupos', () => {
     })
   })
 
-  it('`newGroup` viaja cuando el nombre cambió', async () => {
+  it('`newGroup` travels when the name changed', async () => {
     const spy = espia()
     await setGroup('tok', 'Ops', 'desc', 'a,b', 'Ops2')
     expect(spy.mock.calls[0][1]).toEqual({
@@ -173,8 +173,8 @@ describe('admin — grupos', () => {
   })
 })
 
-describe('admin — permisos', () => {
-  it('consulta pidiendo usuarios y grupos', async () => {
+describe('admin — permissions', () => {
+  it('reads asking for users and groups', async () => {
     const spy = espia()
     await getPermission('tok', 'Zones')
     expect(spy).toHaveBeenCalledWith('admin/permissions/get', {
@@ -183,7 +183,7 @@ describe('admin — permisos', () => {
     })
   })
 
-  it('guarda las dos tablas serializadas y el nodo PRIMARIO del cluster', async () => {
+  it('saves both tables serialised and the PRIMARY node of the cluster', async () => {
     const spy = espia()
     await listPermissions('tok')
     await setPermissions('tok', 'Zones', 'ana|true|false|false', 'Ops|true|true|true', 'ns1.test')
@@ -200,7 +200,7 @@ describe('admin — permisos', () => {
 })
 
 describe('admin — SSO', () => {
-  it('lee pidiendo los grupos locales', async () => {
+  it('reads asking for the local groups', async () => {
     const spy = espia()
     await getSsoConfig('tok')
     expect(spy).toHaveBeenCalledWith('admin/sso/get', {
@@ -209,7 +209,7 @@ describe('admin — SSO', () => {
     })
   })
 
-  it('guarda por POST', async () => {
+  it('saves by POST', async () => {
     const spy = espia()
     await setSsoConfig('tok', { ssoEnabled: 'false' })
     expect(spy).toHaveBeenCalledWith('admin/sso/set', {

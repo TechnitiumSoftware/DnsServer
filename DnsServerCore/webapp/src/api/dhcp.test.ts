@@ -50,8 +50,8 @@ const SCOPE_REAL: DhcpScope = {
   ignoreClientIdentifierOption: true,
 }
 
-describe('api/dhcp — concesiones', () => {
-  it('leases/list pide el nodo y devuelve la lista', async () => {
+describe('api/dhcp — leases', () => {
+  it('leases/list asks for the node and returns the list', async () => {
     const spy = vi
       .spyOn(client, 'apiRequest')
       .mockResolvedValue(ok({ response: { leases: [{ scope: 'Default' }] } }))
@@ -70,17 +70,17 @@ describe('api/dhcp — concesiones', () => {
   there was no response. Now the failure rises as it is, with its message, and it
   is the screen that decides what to show.
   */
-  it('leases/list sube el fallo del servidor, no una lista vacía', async () => {
+  it('leases/list raises the failure from the server, not an empty list', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     expect(await listLeases('tok')).toEqual({ kind: 'error', message: 'boom' })
   })
 
-  it('y una lista vacía de verdad sigue siendo una lista vacía', async () => {
+  it('and a genuinely empty list is still an empty list', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: { leases: [] } }))
     expect(await listLeases('tok')).toEqual({ kind: 'ok', data: [] })
   })
 
-  it('las tres acciones sobre una concesión mandan scope y clientIdentifier', async () => {
+  it('the three actions on a lease send scope and clientIdentifier', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
 
     await removeLease('tok', 'Default', '1-AA')
@@ -99,7 +99,7 @@ describe('api/dhcp — concesiones', () => {
 })
 
 describe('api/dhcp — scopes', () => {
-  it('scopes/list pide el nodo y devuelve la lista', async () => {
+  it('scopes/list asks for the node and returns the list', async () => {
     const spy = vi
       .spyOn(client, 'apiRequest')
       .mockResolvedValue(ok({ response: { scopes: [{ name: 'Default' }] } }))
@@ -117,12 +117,12 @@ describe('api/dhcp — scopes', () => {
   there was no response. Now the failure rises as it is, with its message, and it
   is the screen that decides what to show.
   */
-  it('scopes/list sube el fallo del servidor, no una lista vacía', async () => {
+  it('scopes/list raises the failure from the server, not an empty list', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     expect(await listScopes('tok')).toEqual({ kind: 'error', message: 'boom' })
   })
 
-  it('scopes/get pide el nombre y devuelve el scope sin desenvolver de más', async () => {
+  it('scopes/get asks for the name and returns the scope without over-unwrapping', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({ response: SCOPE_REAL }))
 
     const s = await getScope('tok', 'Default')
@@ -137,12 +137,12 @@ describe('api/dhcp — scopes', () => {
     expect(s?.winsServers).toBeUndefined()
   })
 
-  it('scopes/get devuelve null si el servidor falla', async () => {
+  it('scopes/get returns null if the server fails', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     expect(await getScope('tok', 'Default')).toBeNull()
   })
 
-  it('scopes/set va por POST, con el nodo en la QUERY y el resto en el cuerpo', async () => {
+  it('scopes/set goes by POST, with the node in the QUERY and the rest in the body', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
 
     await setScope('tok', { name: 'Default' }, 'nodo-1')
@@ -154,7 +154,7 @@ describe('api/dhcp — scopes', () => {
     expect(llamada[1]?.body).not.toHaveProperty('node')
   })
 
-  it('enable, disable y delete mandan el nombre y el nodo', async () => {
+  it('enable, disable and delete send the name and the node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok({}))
 
     await enableScope('tok', 'Default')

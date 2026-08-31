@@ -71,7 +71,7 @@ function conApps(lista: InstalledApp[]) {
 }
 
 describe('Logs › View Logs', () => {
-  it('lista los ficheros con su tamaño y ofrece borrarlos todos', async () => {
+  it('it lists the files with their size and offers to delete them all', async () => {
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     render(<Logs token="t" sub="View Logs" />)
 
@@ -81,7 +81,7 @@ describe('Logs › View Logs', () => {
     expect(screen.getByRole('button', { name: 'Delete All Stats' })).toBeInTheDocument()
   })
 
-  it('sin ficheros dice «No Log File Was Found» y desaparece «Delete All Logs», pero NO «Delete All Stats»', async () => {
+  it('with no files it says \"No Log File Was Found\" and \"Delete All Logs\" disappears, but NOT \"Delete All Stats\"', async () => {
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Logs token="t" sub="View Logs" />)
 
@@ -90,7 +90,7 @@ describe('Logs › View Logs', () => {
     expect(screen.getByRole('button', { name: 'Delete All Stats' })).toBeInTheDocument()
   })
 
-  it('abrir un fichero pide sólo los 2 primeros MB y lo pinta', async () => {
+  it('opening a file asks for only the first 2 MB and draws it', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const spy = vi.spyOn(api, 'downloadLogText').mockResolvedValue('[2026-08-26] Logging started.')
@@ -103,7 +103,7 @@ describe('Logs › View Logs', () => {
     expect(await screen.findByText('[2026-08-26] Logging started.')).toBeInTheDocument()
   })
 
-  it('«Download» pide el fichero entero por token de un solo uso', async () => {
+  it('\"Download\" asks for the whole file through a single-use token', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     vi.spyOn(api, 'downloadLogText').mockResolvedValue('x')
@@ -118,7 +118,7 @@ describe('Logs › View Logs', () => {
     expect(spy).toHaveBeenCalledWith('t', '2026-08-26', '')
   })
 
-  it('borrar un fichero confirma con su nombre y avisa con el texto literal', async () => {
+  it('deleting a file confirms with its name and alerts with the literal text', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     vi.spyOn(api, 'downloadLogText').mockResolvedValue('x')
@@ -139,7 +139,7 @@ describe('Logs › View Logs', () => {
     expect(screen.getByText('Log file was deleted successfully.')).toBeInTheDocument()
   })
 
-  it('«Delete All Logs» confirma y avisa con «Logs Deleted!»', async () => {
+  it('\"Delete All Logs\" confirms and alerts with \"Logs Deleted!\"', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const spy = vi.spyOn(api, 'deleteAllLogs').mockResolvedValue(OK)
@@ -159,7 +159,7 @@ describe('Logs › View Logs', () => {
     expect(screen.getByText('All log files were deleted successfully.')).toBeInTheDocument()
   })
 
-  it('«Delete All Stats» llama al endpoint del DASHBOARD, no al de logs', async () => {
+  it('\"Delete All Stats\" calls the DASHBOARD endpoint, not the logs one', async () => {
     const user = userEvent.setup()
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const spy = vi.spyOn(dashboard, 'deleteAllStats').mockResolvedValue(OK)
@@ -179,7 +179,7 @@ describe('Logs › View Logs', () => {
     expect(screen.getByText('All stats files were deleted successfully.')).toBeInTheDocument()
   })
 
-  it('los dos permisos de borrado son distintos y se aplican por separado', async () => {
+  it('the two delete permissions are different and apply separately', async () => {
     vi.spyOn(api, 'listLogFiles').mockResolvedValue({ kind: 'ok', data: FICHEROS })
     const { unmount } = render(
       <Logs token="t" sub="View Logs" canDeleteLogs={false} canDeleteStats />,
@@ -194,8 +194,8 @@ describe('Logs › View Logs', () => {
   })
 })
 
-describe('Logs › Query Logs — el formulario', () => {
-  it('sólo ofrece los apps que declaran `isQueryLogs`', async () => {
+describe('Logs › Query Logs — the form', () => {
+  it('it only offers the apps that declare `isQueryLogs`', async () => {
     conApps([SIN_QUERY_LOGS, APP])
     render(<Logs token="t" sub="Query Logs" />)
 
@@ -206,7 +206,7 @@ describe('Logs › Query Logs — el formulario', () => {
     expect(valorDe(screen.getByLabelText('Class Path'))).toBe('QueryLogsSqlite.App')
   })
 
-  it('los valores por defecto son los del formulario de upstream, no los del servidor', async () => {
+  it('the default values are those of the upstream form, not the server ones', async () => {
     conApps([APP])
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -218,7 +218,7 @@ describe('Logs › Query Logs — el formulario', () => {
     expect(screen.getByLabelText('Domain')).toHaveValue('')
   })
 
-  it('«Logs Per Page» se recuerda en localStorage con la clave de upstream', async () => {
+  it('\"Logs Per Page\" is remembered in localStorage under the upstream key', async () => {
     const user = userEvent.setup()
     conApps([APP])
     render(<Logs token="t" sub="Query Logs" />)
@@ -230,7 +230,7 @@ describe('Logs › Query Logs — el formulario', () => {
     localStorage.removeItem('optQueryLogsEntriesPerPage')
   })
 
-  it('«Query» manda los catorce filtros con los valores del formulario', async () => {
+  it('\"Query\" sends the fourteen filters with the form values', async () => {
     const user = userEvent.setup()
     conApps([APP])
     const spy = vi
@@ -262,7 +262,7 @@ describe('Logs › Query Logs — el formulario', () => {
     })
   })
 
-  it('sin ningún app de query logs, «Query» avisa con el texto que remite a Apps', async () => {
+  it('with no query-logs app, \"Query\" alerts with the text that points at Apps', async () => {
     const user = userEvent.setup()
     conApps([SIN_QUERY_LOGS])
     const spy = vi.spyOn(api, 'queryLogs')
@@ -280,7 +280,7 @@ describe('Logs › Query Logs — el formulario', () => {
     ).toBeInTheDocument()
   })
 
-  it('«Export» avisa con el MISMO título pero SIN «from the Apps section.»', async () => {
+  it('\"Export\" alerts with the SAME title but WITHOUT \"from the Apps section.\"', async () => {
     const user = userEvent.setup()
     conApps([SIN_QUERY_LOGS])
     const spy = vi.spyOn(api, 'exportLogsCsv')
@@ -297,7 +297,7 @@ describe('Logs › Query Logs — el formulario', () => {
     ).toBeInTheDocument()
   })
 
-  it('«Export» con un app válido llama al endpoint de exportación', async () => {
+  it('\"Export\" with a valid app calls the export endpoint', async () => {
     const user = userEvent.setup()
     conApps([APP])
     const spy = vi.spyOn(api, 'exportLogsCsv').mockResolvedValue({ ok: true })
@@ -312,7 +312,7 @@ describe('Logs › Query Logs — el formulario', () => {
     })
   })
 
-  it('«Reset» devuelve el formulario a sus valores por defecto', async () => {
+  it('\"Reset\" returns the form to its default values', async () => {
     const user = userEvent.setup()
     conApps([APP])
     render(<Logs token="t" sub="Query Logs" />)
@@ -326,7 +326,7 @@ describe('Logs › Query Logs — el formulario', () => {
     expect(valorDe(screen.getByLabelText('Order'))).toBe('Descending')
   })
 
-  it('«Live Update» fija página y orden, vacía el rango y deshabilita esos cuatro controles', async () => {
+  it('\"Live Update\" pins page and order, empties the range and disables those four controls', async () => {
     const user = userEvent.setup()
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
@@ -349,7 +349,7 @@ describe('Logs › Query Logs — el formulario', () => {
     expect(screen.getByRole('button', { name: 'Query' })).toBeDisabled()
   })
 
-  it('«Live Update» vuelve a consultar cada 2 s, y parar lo corta', async () => {
+  it('\"Live Update\" queries again every 2 s, and stopping cuts it', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       const user = userEvent.setup({ delay: null })
@@ -376,8 +376,8 @@ describe('Logs › Query Logs — el formulario', () => {
   })
 })
 
-describe('Logs › Query Logs — la tabla', () => {
-  it('pinta una fila por entrada, con el RTT y la marca de tiempo formateada', async () => {
+describe('Logs › Query Logs — the table', () => {
+  it('it draws one row per entry, with the RTT and the formatted timestamp', async () => {
     const user = userEvent.setup()
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
@@ -393,7 +393,7 @@ describe('Logs › Query Logs — la tabla', () => {
     expect(screen.getByText('A 140.82.121.3')).toBeInTheDocument()
   })
 
-  it('una respuesta sin datos deja el contador en «0 logs»', async () => {
+  it('a response with no data leaves the counter at \"0 logs\"', async () => {
     const user = userEvent.setup()
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
@@ -407,7 +407,7 @@ describe('Logs › Query Logs — la tabla', () => {
     expect(await screen.findAllByText('0 logs')).toHaveLength(2)
   })
 
-  it('la raíz se escribe con un punto y los campos nulos quedan en blanco', async () => {
+  it('the root is written with a dot and the null fields are left blank', async () => {
     const user = userEvent.setup()
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
@@ -438,7 +438,7 @@ describe('Logs › Query Logs — la tabla', () => {
     expect(screen.queryByText(/ ms\)/)).not.toBeInTheDocument()
   })
 
-  it('«Last» se pide con pageNumber -1, que es como upstream llega a la última', async () => {
+  it('\"Last\" is asked for with pageNumber -1, which is how upstream reaches the last', async () => {
     const user = userEvent.setup()
     conApps([APP])
     const spy = vi.spyOn(api, 'queryLogs').mockResolvedValue({
@@ -455,7 +455,7 @@ describe('Logs › Query Logs — la tabla', () => {
     expect(spy.mock.calls.at(-1)![1].pageNumber).toBe('-1')
   })
 
-  it('un error del servidor sale como aviso y no borra la tabla anterior', async () => {
+  it('a server error comes out as an alert and does not wipe the previous table', async () => {
     const user = userEvent.setup()
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
@@ -472,7 +472,7 @@ describe('Logs › Query Logs — la tabla', () => {
 })
 
 describe('Query Logs — piezas puras', () => {
-  it('el contador replica el formato de upstream', () => {
+  it('the counter replicates the upstream format', () => {
     expect(
       textoEstado({
         pageNumber: 2,
@@ -489,7 +489,7 @@ describe('Query Logs — piezas puras', () => {
     )
   })
 
-  it('la ventana de páginas es de diez, centrada en la actual', () => {
+  it('the page window is ten wide, centred on the current one', () => {
     expect(rangoPaginas(1, 3)).toEqual([1, 2, 3])
     expect(rangoPaginas(1, 100)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     expect(rangoPaginas(20, 100)).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24])
@@ -497,7 +497,7 @@ describe('Query Logs — piezas puras', () => {
     expect(rangoPaginas(100, 100)).toEqual([91, 92, 93, 94, 95, 96, 97, 98, 99, 100])
   })
 
-  it('el color de fila lo decide el RCODE y, dentro de él, el tipo de respuesta', () => {
+  it('the row colour is decided by the RCODE and, within it, the response type', () => {
     const c = (rcode: string, responseType: string) =>
       claseFila({ ...ENTRADA, rcode, responseType })
 
