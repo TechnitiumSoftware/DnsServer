@@ -20,9 +20,9 @@ just as badly as the rest.
 const CORTE = 64
 
 function Value({ e }: { e: Entry }) {
-  const [abierto, setAbierto] = useState(false)
+  const [open, setAbierto] = useState(false)
 
-  if (!e.long || abierto) return <span className={styles.key}>{e.value}</span>
+  if (!e.long || open) return <span className={styles.key}>{e.value}</span>
 
   return (
     <>

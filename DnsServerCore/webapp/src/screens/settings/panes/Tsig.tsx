@@ -1,5 +1,5 @@
 import { Select } from '../../../ui/Field'
-import { Avisos, Block, EditableTable, Note } from '../parts'
+import { Notices, Block, EditableList, Note } from '../parts'
 import type { PaneProps } from './tipos'
 
 /** The dropdown's eight algorithms, with their literal labels (`addTsigKeyRow`,
@@ -23,7 +23,7 @@ export function Tsig({ f, set }: PaneProps) {
   // No legend: it repeated the panel's title.
   return (
     <Block>
-      <EditableTable
+      <EditableList
         label="TSIG Keys"
         columnas={[
           { key: 'keyName', label: 'Key Name' },
@@ -49,15 +49,15 @@ export function Tsig({ f, set }: PaneProps) {
         ]}
         rows={f.tsigKeys}
         onChange={(rows) => set({ tsigKeys: rows })}
-        nueva={() => ({ keyName: '', sharedSecret: '', algorithmName: 'hmac-sha256' })}
+        blank={() => ({ keyName: '', sharedSecret: '', algorithmName: 'hmac-sha256' })}
         help="The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key."
       />
-      <Avisos>
+      <Notices>
         <Note>
           You will need to configure these TSIG keys names for zone transfer in the zone options and
           in the secondary zone SOA record options separately.
         </Note>
-      </Avisos>
+      </Notices>
     </Block>
   )
 }

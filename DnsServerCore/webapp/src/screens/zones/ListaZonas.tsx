@@ -10,7 +10,7 @@ import {
   listZones,
   nombreDeZona,
   resyncZone,
-  TIPOS_ZONA,
+  ZONE_TYPES,
   ZONAS_POR_PAGINA,
   type Zone,
 } from '../../api/zones'
@@ -24,9 +24,9 @@ import { textoDeEstado, ventanaDePaginas } from '../../lib/paginacion'
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import styles from './Zones.module.css'
-import type { Aviso, Confirmation } from './tipos'
+import type { Notice, Confirmation } from './tipos'
 import { Pagination } from '../../ui/Paginacion'
-import { avisoDeFallo } from '../../lib/aviso'
+import { noticeFromFailure } from '../../lib/aviso'
 
 /*
 The zone list. A replica of `refreshZones` (zone.js:649) and of the six actions
@@ -51,7 +51,7 @@ const EXPORTAR = ['Primary', 'Forwarder', 'Secondary', 'SecondaryForwarder', 'Se
 const CONVERT = ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog']
 const CLONAR = ['Primary', 'Forwarder']
 /** `hideOptionsMenu` is false for the seven known types (zone.js:774-790). */
-const CON_OPCIONES = [...TIPOS_ZONA] as string[]
+const CON_OPCIONES = [...ZONE_TYPES] as string[]
 
 export interface AccionesDeZona {
   onAbrir: (zone: string) => void
@@ -67,7 +67,7 @@ export interface ListaZonasProps extends AccionesDeZona {
   node?: string
   canModify: boolean
   canDelete: boolean
-  onAviso: (a: Aviso) => void
+  onAviso: (a: Notice) => void
   onConfirmar: (c: Confirmation) => void
   onAnadir: () => void
   /** Changes when something from outside (a modal) forces a re-read of the list. */
@@ -106,7 +106,7 @@ export function ListaZonas({
 
   const nombreRef = useRef<HTMLInputElement>(null)
 
-  const cargar = useCallback(
+  const load = useCallback(
     async (page: number) => {
       setBusy(true)
       const r = await listZones(token, {
@@ -120,7 +120,7 @@ export function ListaZonas({
 
       if (r.kind !== 'ok') {
         // The server's message, not a guess about the network.
-        onAviso(avisoDeFallo(r))
+        onAviso(noticeFromFailure(r))
         return
       }
 
@@ -144,37 +144,37 @@ export function ListaZonas({
   ref and not in the dependencies: were it there, typing in the filter would
   reload the list.
   */
-  const cargarRef = useRef(cargar)
+  const loadRef = useRef(load)
   useEffect(() => {
-    cargarRef.current = cargar
-  }, [cargar])
+    loadRef.current = load
+  }, [load])
   useEffect(() => {
-    void cargarRef.current(1)
+    void loadRef.current(1)
   }, [refresco])
 
   function irA(page: number) {
-    void cargar(page)
+    void load(page)
   }
 
   function aplicarFiltros() {
     const n = Number(campoPagina)
-    void cargar(campoPagina === '' || Number.isNaN(n) ? 1 : n)
+    void load(campoPagina === '' || Number.isNaN(n) ? 1 : n)
   }
 
   /** Runs a mutation and refreshes, with upstream's literal alert. */
   async function mutar(
     fn: () => Promise<{ kind: string; message?: string }>,
-    exito: Aviso,
+    exito: Notice,
   ) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
-    await cargar(pageNumber)
+    await load(pageNumber)
     onAviso(exito)
   }
 
@@ -202,7 +202,7 @@ export function ListaZonas({
     })
   }
 
-  function borrar(z: Zone) {
+  function remove(z: Zone) {
     const name = z.name === '' ? '.' : z.name
     onConfirmar({
       titulo: 'Delete Zone',
@@ -246,7 +246,7 @@ export function ListaZonas({
     onAviso({ type: 'success', title: 'Zone Exported!', text: 'Zone file was exported successfully.' })
   }
 
-  function borrarMarcadas() {
+  function deleteChecked() {
     if (marcadas.length === 0) {
       // A plain `alert()` in upstream, not a `showAlert` of the screen.
       onAviso({ type: 'warning', title: 'Missing!', text: 'Please select one or more zones to delete.' })
@@ -268,25 +268,25 @@ export function ListaZonas({
         setBusy(false)
 
         if (outcome.kind !== 'ok') {
-          onAviso(avisoDeFallo(outcome))
+          onAviso(noticeFromFailure(outcome))
           return
         }
 
-        await cargar(pageNumber)
+        await load(pageNumber)
 
-        const fallos = Object.keys(outcome.data.response.failed ?? {}).length
-        if (fallos === 0) {
+        const failures = Object.keys(outcome.data.response.failed ?? {}).length
+        if (failures === 0) {
           onAviso({
             type: 'success',
             title: 'Zones Deleted!',
             text: 'All selected zones were deleted successfully.',
           })
         } else {
-          const total = (outcome.data.response.deleted?.length ?? 0) + fallos
+          const total = (outcome.data.response.deleted?.length ?? 0) + failures
           onAviso({
             type: 'warning',
             title: 'Failed To Deleted!',
-            text: `A total of ${fallos} zone(s) of the selected ${total} zone(s) failed to delete. Please check error logs for more details.`,
+            text: `A total of ${failures} zone(s) of the selected ${total} zone(s) failed to delete. Please check error logs for more details.`,
           })
         }
       },
@@ -296,7 +296,7 @@ export function ListaZonas({
   const primeraFila = (pageNumber - 1) * porPagina + 1
   const state = textoDeEstado(primeraFila, zones.length, totalZones, pageNumber, totalPages, 'zones')
   const pg = ventanaDePaginas(pageNumber, totalPages)
-  const { rows: zonasVisibles, orden, alternar } = useOrden(KEYS, zones)
+  const { rows: zonasVisibles, sort, alternar } = useOrden(KEYS, zones)
 
   const todasMarcadas = zones.length > 0 && marcadas.length === zones.length
 
@@ -310,7 +310,7 @@ export function ListaZonas({
         actions={<><Button variant="primary" disabled={!canModify || busy} onClick={onAnadir}>
             Add Zone
           </Button>
-          <Button variant="danger" disabled={!canDelete || busy} onClick={borrarMarcadas}>
+          <Button variant="danger" disabled={!canDelete || busy} onClick={deleteChecked}>
             Delete Zones
           </Button></>}
       />
@@ -335,7 +335,7 @@ export function ListaZonas({
             {(id) => (
               <Select id={id} value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
                 <option value="" />
-                {TIPOS_ZONA.map((t) => (
+                {ZONE_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -395,20 +395,20 @@ export function ListaZonas({
               </label>
             </th>
             <th style={{ width: 34 }}>#</th>
-            <Th field="zone" orden={orden} onOrdenar={alternar}>Zone</Th>
-            <Th field="type" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Type</Th>
-            <Th field="dnssec" orden={orden} onOrdenar={alternar} style={{ width: 90 }}>DNSSEC</Th>
-            <Th field="status" orden={orden} onOrdenar={alternar} style={{ width: 120 }}>Status</Th>
+            <Th field="zone" sort={sort} onOrdenar={alternar}>Zone</Th>
+            <Th field="type" sort={sort} onOrdenar={alternar} style={{ width: 120 }}>Type</Th>
+            <Th field="dnssec" sort={sort} onOrdenar={alternar} style={{ width: 90 }}>DNSSEC</Th>
+            <Th field="status" sort={sort} onOrdenar={alternar} style={{ width: 120 }}>Status</Th>
             <Th
               field="serial"
-              orden={orden}
+              sort={sort}
               onOrdenar={alternar}
               style={{ width: 110, textAlign: 'right' }}
             >
               Serial
             </Th>
-            <Th field="expiry" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Expiry</Th>
-            <Th field="modified" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+            <Th field="expiry" sort={sort} onOrdenar={alternar} style={{ width: 110 }}>Expiry</Th>
+            <Th field="modified" sort={sort} onOrdenar={alternar} style={{ width: 150 }}>
               Last Modified
             </Th>
             {/* The actions column reserved 230 px with three labels inside;
@@ -440,7 +440,7 @@ export function ListaZonas({
               onAbrir={onAbrir}
               onHabilitar={habilitar}
               onDeshabilitar={deshabilitar}
-              onBorrar={borrar}
+              onBorrar={remove}
               onResync={resincronizar}
               onImportar={onImportar}
               onExportar={exportar}
@@ -592,7 +592,7 @@ function FilaZona(p: FilaProps) {
       <td className={tbl.celdaAcciones}>
         <div className={tbl.actions}>
           <AccionFila
-            icono="settings"
+            icon="settings"
             name="Zone Options"
             disabled={!p.canModify || p.busy || !CON_OPCIONES.includes(z.type)}
             onClick={() => p.onOpciones(name)}
@@ -600,43 +600,43 @@ function FilaZona(p: FilaProps) {
           {/* The same icon for both states: which one applies is said by the
               "Status" column, three columns to the left. */}
           <AccionFila
-            icono="energia"
+            icon="power"
             name={z.disabled ? 'Enable Zone' : 'Disable Zone'}
             disabled={!p.canModify || p.busy}
             onClick={() => (z.disabled ? p.onHabilitar(z) : p.onDeshabilitar(z))}
           />
           <Menu etiqueta={`Actions for ${name}`}>
-            {(cerrar) => (
+            {(close) => (
               <>
-                <button type="button" onClick={() => { cerrar(); p.onAbrir(name) }}>
+                <button type="button" onClick={() => { close(); p.onAbrir(name) }}>
                   Edit Zone
                 </button>
                 {RESYNC.includes(z.type) && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onResync(z) }}>
+                  <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onResync(z) }}>
                     Resync
                   </button>
                 )}
                 {IMPORTAR.includes(z.type) && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onImportar(name) }}>
+                  <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onImportar(name) }}>
                     Import Zone
                   </button>
                 )}
                 {EXPORTAR.includes(z.type) && (
-                  <button type="button" onClick={() => { cerrar(); void p.onExportar(z) }}>
+                  <button type="button" onClick={() => { close(); void p.onExportar(z) }}>
                     Export Zone
                   </button>
                 )}
                 {CONVERT.includes(z.type) && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(name, z.type) }}>
+                  <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onConvertir(name, z.type) }}>
                     Convert Zone
                   </button>
                 )}
                 {CLONAR.includes(z.type) && (
-                  <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onClonar(name) }}>
+                  <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onClonar(name) }}>
                     Clone Zone
                   </button>
                 )}
-                <button type="button" onClick={() => { cerrar(); p.onPermisos(name) }}>
+                <button type="button" onClick={() => { close(); p.onPermisos(name) }}>
                   Permissions
                 </button>
                 {/*
@@ -648,7 +648,7 @@ function FilaZona(p: FilaProps) {
                 in this console.
                 */}
                 <Separador />
-                <button type="button" data-variant="danger" disabled={!p.canDelete} onClick={() => { cerrar(); p.onBorrar(z) }}>
+                <button type="button" data-variant="danger" disabled={!p.canDelete} onClick={() => { close(); p.onBorrar(z) }}>
                   Delete Zone
                 </button>
               </>

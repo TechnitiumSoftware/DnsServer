@@ -17,18 +17,18 @@ import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { UserDetails } from './UserDetails'
 import { desdeAhora, fechaHora } from './fechas'
 import {
-  avisoDeFallo,
+  noticeFromFailure,
   CeldaSesion,
-  Confirmar,
+  Confirm,
   MRow,
   SelectorNodo,
   adminStyles as styles,
-  type Aviso,
+  type Notice,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
-import { Avisador } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 `refreshAdminSessions`, `showCreateApiTokenModal`, `createApiToken` and
@@ -50,7 +50,7 @@ Three things you do not see by looking at the table:
 interface Props {
   token: string | null
   cluster: ClusterState | null
-  onAviso: (a: Aviso) => void
+  onAviso: (a: Notice) => void
 }
 
 /* `sortTable('tbodyAdminSessions', 0..4)`. The "Session" cell is read as it is
@@ -75,14 +75,14 @@ export function Sessions({ token, cluster, onAviso }: Props) {
   const [crear, setCrear] = useState(false)
   const [verUsuario, setVerUsuario] = useState<string | null>(null)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const outcome = await listSessions(token, node)
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setSesiones([])
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
     setSesiones(outcome.data.response.sessions)
@@ -90,21 +90,21 @@ export function Sessions({ token, cluster, onAviso }: Props) {
   }, [token, node, onAviso])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
-  const { rows: sesionesVisibles, orden, alternar } = useOrden(KEYS, sessions)
+  const { rows: sesionesVisibles, sort, alternar } = useOrden(KEYS, sessions)
 
   const primario = primaryNodeName(cluster)
   const puedeCrearToken = primario === '' || primario === servidor
 
-  async function borrar(s: AdminSession) {
+  async function remove(s: AdminSession) {
     setPorBorrar(null)
     const target = s.type === 'ApiToken' ? primario : node
     const outcome = await deleteAdminSession(token, s.partialToken, target)
 
     if (outcome.kind !== 'ok') {
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
     setSesiones((list) => list.filter((x) => x.partialToken !== s.partialToken))
@@ -135,11 +135,11 @@ export function Sessions({ token, cluster, onAviso }: Props) {
           <Table
             header={
               <>
-                <Th field="username" orden={orden} onOrdenar={alternar}>Username</Th>
-                <Th field="session" orden={orden} onOrdenar={alternar}>Session</Th>
-                <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                <Th field="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-                <Th field="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+                <Th field="username" sort={sort} onOrdenar={alternar}>Username</Th>
+                <Th field="session" sort={sort} onOrdenar={alternar}>Session</Th>
+                <Th field="lastSeen" sort={sort} onOrdenar={alternar}>Last Seen</Th>
+                <Th field="address" sort={sort} onOrdenar={alternar}>Remote Address</Th>
+                <Th field="agent" sort={sort} onOrdenar={alternar}>User Agent</Th>
                 <th className={tbl.celdaAcciones} />
               </>
             }
@@ -171,13 +171,13 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                 <td className={tbl.celdaAcciones}>
                   <div className={tbl.actions}>
                     <AccionFila
-                      icono="ficha"
+                      icon="card"
                       name="View Details"
                       onClick={() => setVerUsuario(s.username)}
                     />
                     <Menu etiqueta={`Actions for ${s.partialToken}`}>
-                      {(cerrar) => (
-                        <button type="button" data-variant="danger" onClick={() => { cerrar(); setPorBorrar(s) }}>
+                      {(close) => (
+                        <button type="button" data-variant="danger" onClick={() => { close(); setPorBorrar(s) }}>
                           Delete Session
                         </button>
                       )}
@@ -193,20 +193,20 @@ export function Sessions({ token, cluster, onAviso }: Props) {
         </>
       )}
 
-      <Confirmar
-        abierto={porBorrar !== null}
+      <Confirm
+        open={porBorrar !== null}
         titulo="Delete Session"
         text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
         etiqueta="Delete"
         onCerrar={() => setPorBorrar(null)}
-        onConfirmar={() => porBorrar && void borrar(porBorrar)}
+        onConfirmar={() => porBorrar && void remove(porBorrar)}
       />
 
       <CrearApiToken
-        abierto={crear}
+        open={crear}
         token={token}
         onCerrar={() => setCrear(false)}
-        onCreated={() => void cargar()}
+        onCreated={() => void load()}
       />
 
       {/* It is mounted only when needed so its load starts from scratch every
@@ -214,12 +214,12 @@ export function Sessions({ token, cluster, onAviso }: Props) {
           redraw any row: it reloads the sessions list (auth.js:1467). */}
       {verUsuario != null && (
         <UserDetails
-          abierto
+          open
           username={verUsuario}
           token={token}
           cluster={cluster}
           onCerrar={() => setVerUsuario(null)}
-          alGuardar={() => void cargar()}
+          alGuardar={() => void load()}
           onAviso={onAviso}
         />
       )}
@@ -234,12 +234,12 @@ loaded with `admin/users/list`, and the endpoint is
 `admin/sessions/createToken`, not `user/createToken`.
 */
 function CrearApiToken({
-  abierto,
+  open,
   token,
   onCerrar,
   onCreated,
 }: {
-  abierto: boolean
+  open: boolean
   token: string | null
   onCerrar: () => void
   onCreated: () => void
@@ -249,11 +249,11 @@ function CrearApiToken({
   const [user, setUsuario] = useState('')
   const [name, setNombre] = useState('')
   const [created, setCreated] = useState<CreatedApiToken | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     let vivo = true
     setLoading(true)
     setAviso(null)
@@ -263,7 +263,7 @@ function CrearApiToken({
       if (!vivo) return
       setLoading(false)
       if (outcome.kind !== 'ok') {
-        setAviso(avisoDeFallo(outcome))
+        setAviso(noticeFromFailure(outcome))
         return
       }
       const nombres = outcome.data.response.users.map((u) => u.username)
@@ -273,7 +273,7 @@ function CrearApiToken({
     return () => {
       vivo = false
     }
-  }, [abierto, token])
+  }, [open, token])
 
   async function crear() {
     if (user === '') {
@@ -290,7 +290,7 @@ function CrearApiToken({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -305,7 +305,7 @@ function CrearApiToken({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       title="Create API Token"
       actions={
@@ -318,7 +318,7 @@ function CrearApiToken({
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       {created != null ? (
         <div className={styles.salida}>

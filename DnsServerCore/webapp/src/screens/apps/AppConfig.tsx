@@ -5,7 +5,7 @@ import { Dialog } from '../../ui/Dialog'
 import { Field } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
 import styles from './Apps.module.css'
-import { Avisador } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 A replica of `modalAppConfig` (index.html:6255-6280) and `saveAppConfig`
@@ -45,7 +45,7 @@ export function AppConfig({
     }
   }, [open, initialConfig])
 
-  async function guardar() {
+  async function save() {
     setBusy(true)
     const outcome = await setAppConfig(token, name, config)
     setBusy(false)
@@ -65,13 +65,13 @@ export function AppConfig({
       title={`App Config - ${name}`}
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void save()}>
             Save
           </Button>
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       <p className={styles.nota}>
         Edit the <code>dnsApp.config</code> config file below as required by the DNS application.
       </p>

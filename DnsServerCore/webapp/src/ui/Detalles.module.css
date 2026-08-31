@@ -9,7 +9,7 @@ against the 1.75 of the whole set. In other words, the only icon in the console
 with a different stroke weight, and in duplicate. Now it is the real icon.
 */
 
-.detalles > summary {
+.details > summary {
   display: flex;
   align-items: center;
   gap: var(--s-4);
@@ -22,14 +22,14 @@ with a different stroke weight, and in duplicate. Now it is the real icon.
   list-style: none;
 }
 
-.detalles > summary::-webkit-details-marker { display: none; }
+.details > summary::-webkit-details-marker { display: none; }
 
 .chevron {
   flex: none;
   transition: transform var(--t-rapido);
 }
 
-.detalles[open] > summary .chevron { transform: rotate(90deg); }
+.details[open] > summary .chevron { transform: rotate(90deg); }
 
 @media (prefers-reduced-motion: reduce) {
   .chevron { transition: none; }

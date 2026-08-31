@@ -3,10 +3,10 @@ import { verDs, type InfoDs } from '../../../api/dnssec'
 import { Dialog } from '../../../ui/Dialog'
 import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import { Table } from '../../../ui/Table'
 import styles from '../Zones.module.css'
-import { Avisador } from '../../../ui/Avisador'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalDnssecViewDs` (zone.js:6734). It is a viewer: there is nothing to save.
@@ -37,23 +37,23 @@ function Long({ value }: { value: string }) {
 
 export function VerDs({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   onCerrar,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
 }) {
   const [info, setInfo] = useState<InfoDs | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setAviso(null)
     setLoading(true)
     void verDs(token, zone, node).then((r) => {
@@ -64,16 +64,16 @@ export function VerDs({
       }
       setInfo(r)
     })
-  }, [abierto, token, zone, node])
+  }, [open, token, zone, node])
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       size="wide"
       title={`View DS Info - ${zone === '.' ? '<root>' : zone}`}
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <p className={styles.parrafo}>
         Use the DNS Key data given below to add DS records for your zone. Before adding the DS records, you

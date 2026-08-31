@@ -56,14 +56,14 @@ function servidor(respuestas: Record<string, unknown> = {}) {
   })
 }
 
-function pintar(extra: Partial<Parameters<typeof Zones>[0]> = {}) {
+function draw(extra: Partial<Parameters<typeof Zones>[0]> = {}) {
   return render(<Zones token="t" canModify canDelete {...extra} />)
 }
 
 describe('zone list', () => {
   it('it asks for the first page and draws the zone', async () => {
     const spy = servidor()
-    pintar()
+    draw()
 
     expect(await screen.findByRole('button', { name: 'casa.test' })).toBeTruthy()
     const call = spy.mock.calls.find((c) => c[0] === 'zones/list')
@@ -72,7 +72,7 @@ describe('zone list', () => {
 
   it('with no zones it says \"No Zone Found\"', async () => {
     servidor({ 'zones/list': { zones: [], pageNumber: 1, totalPages: 1, totalZones: 0 } })
-    pintar()
+    draw()
     expect(await screen.findByText('No Zone Found')).toBeTruthy()
     // The status is drawn above AND below the table, as in upstream.
     expect(screen.getAllByText('0 zones')).toHaveLength(2)
@@ -81,7 +81,7 @@ describe('zone list', () => {
   it('the filters do NOT reload on their own: \"Go\" has to be pressed', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     const llamadasIniciales = spy.mock.calls.filter((c) => c[0] === 'zones/list').length
@@ -96,7 +96,7 @@ describe('zone list', () => {
   it('\"Delete Zones\" with nothing checked alerts instead of calling the server', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Delete Zones' }))
@@ -107,7 +107,7 @@ describe('zone list', () => {
   it('disabling a zone asks first, with the upstream text', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Disable Zone' }))
@@ -124,7 +124,7 @@ describe('zone list', () => {
   it('delete lives in the row menu, not loose next to \"Disable\"', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     // In a row —one of two hundred and forty, with "Disable" next to it and no
@@ -144,7 +144,7 @@ describe('zone list', () => {
   it('the bulk delete sends `zones` in plural, comma-separated', async () => {
     const user = userEvent.setup()
     const spy = servidor({ 'zones/delete': { deleted: ['casa.test'], failed: {} } })
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByLabelText('Select casa.test'))
@@ -161,7 +161,7 @@ describe('zone list', () => {
   it('if some fail, the alert is a warning with the count', async () => {
     const user = userEvent.setup()
     servidor({ 'zones/delete': { deleted: ['a.test'], failed: { 'b.test': 'nope' } } })
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByLabelText('Select casa.test'))
@@ -177,7 +177,7 @@ describe('zone list', () => {
 
   it('without modify permission you can neither add nor disable', async () => {
     servidor()
-    pintar({ canModify: false })
+    draw({ canModify: false })
     await screen.findByRole('button', { name: 'casa.test' })
 
     expect(screen.getByRole('button', { name: 'Add Zone' })).toHaveProperty('disabled', true)
@@ -186,31 +186,31 @@ describe('zone list', () => {
 })
 
 describe('records of a zone', () => {
-  async function abrirZona() {
+  async function openZone() {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await user.click(await screen.findByRole('button', { name: 'casa.test' }))
     await screen.findByRole('heading', { name: 'casa.test' })
     return { user, spy }
   }
 
   it('it asks for the whole zone with listZone=true, without paginating on the server', async () => {
-    const { spy } = await abrirZona()
+    const { spy } = await openZone()
     const call = spy.mock.calls.find((c) => c[0] === 'zones/records/get')
     expect(call![1]?.body).toMatchObject({ listZone: 'true' })
     expect(call![1]?.body).not.toHaveProperty('recordsPerPage')
   })
 
   it('it shows the record with its relative name and its TTL', async () => {
-    await abrirZona()
+    await openZone()
     expect(screen.getByText('www')).toBeTruthy()
     expect(screen.getByText('10.0.0.1')).toBeTruthy()
     expect(screen.getByText('(1h)')).toBeTruthy()
   })
 
   it('the name filter is exact: \"w\" does not find \"www\"', async () => {
-    const { user } = await abrirZona()
+    const { user } = await openZone()
     await user.type(screen.getByLabelText('Name'), 'w')
     expect(await screen.findByText('No Record Found')).toBeTruthy()
 
@@ -219,7 +219,7 @@ describe('records of a zone', () => {
   })
 
   it('deleting a record asks and sends its identity', async () => {
-    const { user, spy } = await abrirZona()
+    const { user, spy } = await openZone()
 
     await user.click(screen.getByRole('button', { name: 'Actions for www A' }))
     await user.click(await screen.findByRole('button', { name: 'Delete Record' }))
@@ -239,7 +239,7 @@ describe('records of a zone', () => {
   })
 
   it('disabling a record is a records/update with disable=true', async () => {
-    const { user, spy } = await abrirZona()
+    const { user, spy } = await openZone()
 
     await user.click(screen.getByRole('button', { name: 'Disable Record' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Disable' }))
@@ -254,7 +254,7 @@ describe('records of a zone', () => {
   it('an unsigned Primary DOES have a DNSSEC menu, but inside only \"Sign Zone\"', async () => {
     // `divZoneDnssecOptions` is shown for every Primary; what changes is what is
     // inside it (zone.js:3374). An unsigned Secondary does not show it.
-    const { user } = await abrirZona()
+    const { user } = await openZone()
     await user.click(screen.getByRole('button', { name: 'DNSSEC actions' }))
 
     expect(await screen.findByRole('button', { name: 'Sign Zone' })).toBeTruthy()
@@ -264,7 +264,7 @@ describe('records of a zone', () => {
   })
 
   it('the path back leads to the list', async () => {
-    const { user } = await abrirZona()
+    const { user } = await openZone()
     // The "Zones" segment of the path IS the back button: before there was also a
     // «← Zones» suelto encima diciendo lo mismo.
     await user.click(within(screen.getByLabelText('Breadcrumb')).getByRole('button'))
@@ -276,7 +276,7 @@ describe('modales', () => {
   it('\"Add Zone\" validates the name before calling the server', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Add Zone' }))
@@ -289,7 +289,7 @@ describe('modales', () => {
   it('creating a Primary zone sends catalog and useSoaSerialDateScheme in the QUERY', async () => {
     const user = userEvent.setup()
     const spy = servidor({ 'zones/create': { domain: 'nueva.test' } })
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Add Zone' }))
@@ -310,7 +310,7 @@ describe('modales', () => {
   it('\"Convert Zone\" on a Primary only allows converting to Forwarder', async () => {
     const user = userEvent.setup()
     servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Actions for casa.test' }))
@@ -325,7 +325,7 @@ describe('modales', () => {
   it('\"Import Zone\" alerts if no file is chosen', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Actions for casa.test' }))
@@ -339,7 +339,7 @@ describe('modales', () => {
   it('\"Clone Zone\" requires the new name and sends zone and sourceZone', async () => {
     const user = userEvent.setup()
     const spy = servidor()
-    pintar()
+    draw()
     await screen.findByRole('button', { name: 'casa.test' })
 
     await user.click(screen.getByRole('button', { name: 'Actions for casa.test' }))

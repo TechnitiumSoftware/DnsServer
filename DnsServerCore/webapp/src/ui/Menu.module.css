@@ -3,7 +3,7 @@
 .menu { position:relative; display:inline-block; }
 
 /* The trigger that is a whole row: the account one, at the foot of the sidebar. */
-.menuAncho { position: relative; }
+.menuWidth { position: relative; }
 .row {
   display: flex;
   align-items: center;
@@ -20,9 +20,9 @@
   cursor: pointer;
 }
 .row:hover { background: var(--hover-fuerte); }
-.menuLista { position:fixed; overflow-y:auto; z-index: var(--capa-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
+.menuList { position:fixed; overflow-y:auto; z-index: var(--capa-flotante); min-width:170px; padding: var(--s-3); background:var(--pan); border:1px solid var(--line); border-radius: var(--r-3); box-shadow: var(--e-2), var(--filo); display:flex; flex-direction:column; }
 .sep { height:1px; margin: var(--s-2) var(--s-3); background:var(--line); }
-.menuLista button { text-align:left; border:0; background:transparent; color:var(--mute); /* Longhands and not the `font:` shorthand: `inherit` is not valid as a
+.menuList button { text-align:left; border:0; background:transparent; color:var(--mute); /* Longhands and not the `font:` shorthand: `inherit` is not valid as a
      component of a shorthand —only as the whole value— so the declaration was
      invalid and the browser dropped it. The menu items had always carried the
      browser's default size and weight (13 px) instead of the console's. */
@@ -30,9 +30,9 @@
   font-size: var(--t-4);
   font-weight: 400;
   line-height: 1.2; padding: var(--s-4) var(--s-6); border-radius: var(--r-2); cursor:pointer; }
-.menuLista button:hover,
-.menuLista button:focus-visible { background:var(--hover-fuerte); color:var(--ink); }
-.menuLista button:disabled { opacity:.4; cursor:default; }
+.menuList button:hover,
+.menuList button:focus-visible { background:var(--hover-fuerte); color:var(--ink); }
+.menuList button:disabled { opacity:.4; cursor:default; }
 
 /*
 Destructive things get marked, and here they were not.
@@ -51,10 +51,10 @@ orange option would read as the accent colour, which in this console means "this
 is the recommended action". Exactly the opposite. `--dan` gives 6.19:1 over the
 menu background.
 */
-.menuLista button[data-variant='danger'] { color: var(--dan); }
+.menuList button[data-variant='danger'] { color: var(--dan); }
 
-.menuLista button[data-variant='danger']:hover,
-.menuLista button[data-variant='danger']:focus-visible {
+.menuList button[data-variant='danger']:hover,
+.menuList button[data-variant='danger']:focus-visible {
   background: var(--dan-fill);
   color: var(--on-dan);
 }

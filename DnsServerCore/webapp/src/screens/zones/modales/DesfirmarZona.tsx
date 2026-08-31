@@ -3,10 +3,10 @@ import { unsignZone } from '../../../api/dnssec'
 import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalDnssecUnsignZone` (zone.js:6673 and 6681). It has no form: it is a
@@ -16,25 +16,25 @@ sequence that, done wrong, leaves the zone unresolvable.
 
 export function DesfirmarZona({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   onCerrar,
   onHecho,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
 }) {
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (abierto) setAviso(null)
-  }, [abierto])
+    if (open) setAviso(null)
+  }, [open])
 
   async function desfirmar() {
     setBusy(true)
@@ -42,7 +42,7 @@ export function DesfirmarZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -52,7 +52,7 @@ export function DesfirmarZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Unsign Zone - ${zone === '.' ? '<root>' : zone}`}
       actions={
@@ -63,7 +63,7 @@ export function DesfirmarZona({
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <Alert type="warning" title="Warning!">
         Unsigning the zone without removing all DS records from its parent zone will cause

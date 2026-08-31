@@ -22,7 +22,7 @@ export function Check({
   onChange,
   help,
   disabled,
-  conmutador = false,
+  toggle = false,
 }: {
   label: string
   checked: boolean
@@ -30,10 +30,10 @@ export function Check({
   help?: ReactNode
   disabled?: boolean
   /** A setting that stays put. False for a row selection. */
-  conmutador?: boolean
+  toggle?: boolean
 }) {
   return (
-    <div className={conmutador ? styles.conmutador : undefined}>
+    <div className={toggle ? styles.toggle : undefined}>
       <label className={styles.check}>
         <input
           type="checkbox"

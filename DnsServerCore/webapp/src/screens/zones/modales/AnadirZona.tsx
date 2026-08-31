@@ -4,7 +4,7 @@ import { getTsigKeyNames } from '../../../api/settings'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import {
   admiteFicheroDeZona,
@@ -15,16 +15,16 @@ import {
   PROTOCOLOS_FORWARDER,
   PROTOCOLOS_TRANSFERENCIA,
   seccionesVisibles,
-  TIPOS_ALTA,
-  TIPOS_PROXY,
+  ADD_TYPES,
+  PROXY_TYPES,
   type FormularioAlta,
-  type TipoAlta,
+  type AddZoneKind,
 } from './anadir-zona'
 import { HelpText, Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
 import { GroupRow, Row } from '../../../ui/Form'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalAddZone` (zone.js:2726 and 2911). Eight zone types, each with its own form.
@@ -36,8 +36,8 @@ dropdown with `hasItems` and the `switch`'s branches check it before showing it.
 A server with no catalog zones does not show that field at all.
 */
 
-export function AnadirZona({
-  abierto,
+export function AddZone({
+  open,
   token,
   node = '',
   useSoaSerialDateScheme,
@@ -45,14 +45,14 @@ export function AnadirZona({
   onCerrar,
   onCreated,
 }: {
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   /** Both inherit from Settings' global setting, not from `false`. */
   useSoaSerialDateScheme: boolean
   dnssecValidation: boolean
   onCerrar: () => void
-  onCreated: (domain: string, aviso: Aviso) => void
+  onCreated: (domain: string, notice: Notice) => void
 }) {
   const [f, setF] = useState<FormularioAlta>(() =>
     formularioAltaInicial(useSoaSerialDateScheme, dnssecValidation),
@@ -60,27 +60,27 @@ export function AnadirZona({
   const [catalogos, setCatalogos] = useState<string[]>([])
   const [tsigKeys, setTsigKeys] = useState<string[]>([])
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const zonaRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setF(formularioAltaInicial(useSoaSerialDateScheme, dnssecValidation))
     setArchivo(null)
     setAviso(null)
     void listCatalogs(token, node).then((c) => setCatalogos(c ?? []))
     void getTsigKeyNames(token, node).then(setTsigKeys)
     zonaRef.current?.focus()
-  }, [abierto, token, node, useSoaSerialDateScheme, dnssecValidation])
+  }, [open, token, node, useSoaSerialDateScheme, dnssecValidation])
 
-  const v = seccionesVisibles(f.tipo, f.initializeForwarder)
+  const v = seccionesVisibles(f.type, f.initializeForwarder)
   const set = <K extends keyof FormularioAlta>(k: K, value: FormularioAlta[K]) =>
     setF((prev) => ({ ...prev, [k]: value }))
 
-  function cambiarTipo(tipo: TipoAlta) {
-    const secciones = seccionesVisibles(tipo, f.initializeForwarder)
-    setF((prev) => ({ ...prev, tipo, zone: secciones.zonaFija ?? prev.zone }))
+  function cambiarTipo(type: AddZoneKind) {
+    const secciones = seccionesVisibles(type, f.initializeForwarder)
+    setF((prev) => ({ ...prev, type, zone: secciones.zonaFija ?? prev.zone }))
   }
 
   async function crear() {
@@ -95,13 +95,13 @@ export function AnadirZona({
     const outcome = await createZone(
       token,
       r.parametros,
-      admiteFicheroDeZona(f.tipo) ? archivo : null,
+      admiteFicheroDeZona(f.type) ? archivo : null,
       node,
     )
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -116,7 +116,7 @@ export function AnadirZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       size="medium"
       title="Add Zone"
@@ -128,7 +128,7 @@ export function AnadirZona({
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fields}>
         <Field label="Zone">
@@ -146,12 +146,12 @@ export function AnadirZona({
         </Field>
 
         <GroupRow modal label="Zone Type">
-          {TIPOS_ALTA.map((t) => (
+          {ADD_TYPES.map((t) => (
             <label key={t.value} className={styles.chk}>
               <input
                 type="radio"
                 name="addZoneType"
-                checked={f.tipo === t.value}
+                checked={f.type === t.value}
                 onChange={() => cambiarTipo(t.value)}
               />
               {/*
@@ -376,7 +376,7 @@ export function AnadirZona({
             {/* "this-server" takes no proxy: upstream hides the whole block. */}
             {!f.usarEsteServidor && (
               <GroupRow modal label="Network Proxy">
-                {TIPOS_PROXY.map((p) => (
+                {PROXY_TYPES.map((p) => (
                   <label key={p.value} className={styles.chk}>
                     <input
                       type="radio"

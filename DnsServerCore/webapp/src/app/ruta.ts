@@ -39,7 +39,7 @@ export interface Route {
  * `settings/logging`.
  */
 /** What the address bar says, resolved against the visible sections. */
-export function leerRuta(secciones: Section[]): Route | null {
+export function readRoute(secciones: Section[]): Route | null {
   const base = raizDeLaApp()
   const camino = window.location.pathname
   if (!camino.startsWith(base)) return null
@@ -70,8 +70,8 @@ export function aCamino({ section, sub }: Route): string {
  * bar.
  */
 export function escribirRuta(route: Route, reemplazar = false): void {
-  const nuevo = aCamino(route) + window.location.search
-  if (window.location.pathname + window.location.search === nuevo) return
-  if (reemplazar) window.history.replaceState(null, '', nuevo)
-  else window.history.pushState(null, '', nuevo)
+  const blank = aCamino(route) + window.location.search
+  if (window.location.pathname + window.location.search === blank) return
+  if (reemplazar) window.history.replaceState(null, '', blank)
+  else window.history.pushState(null, '', blank)
 }

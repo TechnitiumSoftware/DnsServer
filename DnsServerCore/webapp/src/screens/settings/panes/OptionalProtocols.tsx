@@ -1,4 +1,4 @@
-import { AreaRow, Avisos, Block, Check, GroupRow, Help, Note, Plain, Pre, TextRow } from '../parts'
+import { AreaRow, Notices, Block, Check, GroupRow, Help, Note, Plain, Pre, TextRow } from '../parts'
 import type { PaneProps } from './tipos'
 
 const PROXY_PROTOCOL = (
@@ -23,7 +23,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
       <Block title="Optional DNS Server Protocols">
         <GroupRow label="Optional DNS Server Protocols">
           <Check
-            conmutador
+            toggle
             label="Enable EDNS Client Subnet (ECS) Source Address"
             checked={f.enableEDnsClientSubnetSourceAddress}
             onChange={(v) => set({ enableEDnsClientSubnetSourceAddress: v })}
@@ -39,7 +39,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-UDP-PROXY"
             checked={f.enableDnsOverUdpProxy}
             onChange={(v) => set({ enableDnsOverUdpProxy: v })}
@@ -53,7 +53,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-TCP-PROXY"
             checked={f.enableDnsOverTcpProxy}
             onChange={(v) => set({ enableDnsOverTcpProxy: v })}
@@ -67,7 +67,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-HTTP"
             checked={f.enableDnsOverHttp}
             onChange={(v) => set({ enableDnsOverHttp: v })}
@@ -83,35 +83,35 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             }
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-HTTP Unix Domain Sockets (UDS)"
             checked={f.enableDnsOverHttpUnixSocket}
             onChange={(v) => set({ enableDnsOverHttpUnixSocket: v })}
             help="Enable this option to accept DNS-over-HTTP requests over Unix Domain Sockets (UDS)."
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-HTTPS Unix Domain Sockets (UDS)"
             checked={f.enableDnsOverHttpsUnixSocket}
             onChange={(v) => set({ enableDnsOverHttpsUnixSocket: v })}
             help="Enable this option to accept DNS-over-HTTPS requests over Unix Domain Sockets (UDS)."
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-TLS"
             checked={f.enableDnsOverTls}
             onChange={(v) => set({ enableDnsOverTls: v })}
             help="Enable this option to accept DNS-over-TLS requests."
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-HTTPS"
             checked={f.enableDnsOverHttps}
             onChange={(v) => set({ enableDnsOverHttps: v })}
             help="Enable this option to accept DNS-over-HTTPS requests."
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-HTTP/3"
             checked={f.enableDnsOverHttp3}
             onChange={(v) => set({ enableDnsOverHttp3: v })}
@@ -119,7 +119,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             help="Enable this option to accept DNS-over-HTTP/3 requests."
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS-over-QUIC"
             checked={f.enableDnsOverQuic}
             onChange={(v) => set({ enableDnsOverQuic: v })}
@@ -129,7 +129,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
 
         <GroupRow label="DNS-over-HTTP(s) Option">
           <Check
-            conmutador
+            toggle
             label="Enable Redirect To Help Page"
             checked={f.enableDnsOverHttpHelpRedirect}
             onChange={(v) => set({ enableDnsOverHttpHelpRedirect: v })}
@@ -283,7 +283,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
           disabled={!en.dnsTlsCert}
           help="Enter the certificate (.pfx) password, if any."
         />
-        <Avisos>
+        <Notices>
           <Note>
             These optional DNS Server protocol changes will be automatically applied and so you do
             not need to manually restart the main service. The TLS certificate too will be
@@ -326,7 +326,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
             Unix Domain Sockets (UDS) are supported only on Linux, Windows 10 (build 17063 and
             later), and Windows Server 2019 (update 1809 and later).
           </Note>
-        </Avisos>
+        </Notices>
         <Plain>
           Use the following openssl command to convert your TLS certificate that is in PEM format to
           PKCS #12 certificate (.pfx) format:

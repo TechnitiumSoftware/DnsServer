@@ -159,7 +159,7 @@ export function vaciarCache(token: string | null, node = ''): Promise<ApiOutcome
 }
 
 /** `deleteCachedZone` (other-zones.js:52): deletes the node and all its records. */
-export function borrarNodoCache(
+export function deleteCacheNode(
   token: string | null,
   domain: string,
   node = '',
@@ -168,7 +168,7 @@ export function borrarNodoCache(
 }
 
 /** `allowZone` / `blockZone`. */
-export function anadirDominio(
+export function addDomain(
   list: ListaDominios,
   token: string | null,
   domain: string,
@@ -177,7 +177,7 @@ export function anadirDominio(
 }
 
 /** `deleteAllowedZone` / `deleteBlockedZone`. */
-export function borrarDominio(
+export function deleteDomain(
   list: ListaDominios,
   token: string | null,
   domain: string,

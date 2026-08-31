@@ -11,7 +11,7 @@ modules and did not exist in DHCP, which used the large button: the same action
 export function Button({
   variant = 'secondary',
   size = 'md',
-  icono = false,
+  icon = false,
   className,
   ref,
   ...rest
@@ -19,14 +19,14 @@ export function Button({
   variant?: ButtonVariant
   size?: 'md' | 'sm'
   /** No label: an icon only. The width comes from the icon, not from text. */
-  icono?: boolean
+  icon?: boolean
   ref?: Ref<HTMLButtonElement>
 }) {
   return (
     <button
       ref={ref}
       data-variant={variant}
-      data-icono={icono || undefined}
+      data-icon={icon || undefined}
       className={[styles.btn, size === 'sm' && styles.sm, variant !== 'secondary' && styles[variant], className]
         .filter(Boolean)
         .join(' ')}

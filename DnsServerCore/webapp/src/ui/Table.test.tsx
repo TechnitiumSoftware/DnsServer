@@ -16,12 +16,12 @@ interface Row {
 const KEYS: Keys<Row> = { name: (f) => f.name }
 
 function Table({ data }: { data: Row[] }) {
-  const { rows, orden, alternar } = useOrden(KEYS, data)
+  const { rows, sort, alternar } = useOrden(KEYS, data)
   return (
     <table>
       <thead>
         <tr>
-          <Th field="name" orden={orden} onOrdenar={alternar}>
+          <Th field="name" sort={sort} onOrdenar={alternar}>
             Name
           </Th>
         </tr>

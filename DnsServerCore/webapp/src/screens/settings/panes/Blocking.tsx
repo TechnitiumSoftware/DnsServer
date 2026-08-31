@@ -3,7 +3,7 @@ import { fechaHora } from '../../../lib/fechas'
 import { Input } from '../../../ui/Field'
 import {
   AreaRow,
-  Avisos,
+  Notices,
   Block,
   Check,
   Coletilla,
@@ -14,7 +14,7 @@ import {
   Row,
   TextRow,
   Warning,
-  ajustesStyles as ajustes,
+  settingsStyles as settings,
   settingsStyles as styles,
 } from '../parts'
 import { HelpText } from '../../../ui/Form'
@@ -51,14 +51,14 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
     <Block>
       <GroupRow label="Blocking">
         <Check
-          conmutador
+          toggle
           label="Enable Blocking"
           checked={f.enableBlocking}
           onChange={(v) => set({ enableBlocking: v })}
           help="Sets the DNS Server to block domain names using Blocked Zone and Block List Zone."
         />
         <Check
-          conmutador
+          toggle
           label="Allow TXT Blocking Report"
           checked={f.allowTxtBlockingReport}
           onChange={(v) => set({ allowTxtBlockingReport: v })}
@@ -75,7 +75,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
                 ? 'Not Set'
                 : fechaHora(extra.temporaryDisableBlockingTill)}
             </div>
-            <div className={ajustes.enLinea}>
+            <div className={settings.enLinea}>
               <Input
                 id={id}
                 type="number"
@@ -213,7 +213,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
         </HelpText>
       </GroupRow>
 
-      <Avisos>
+      <Notices>
         <Note>
           The DNS Server will use the data returned by the block list URLs to update the block list
           zone automatically. The expected file format is standard <code>hosts</code> file format,
@@ -231,7 +231,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
           To customize the Quick Add drop down list, read the instructions given in the{' '}
           <code>www/json/readme.txt</code> file found in the installation folder.
         </Note>
-      </Avisos>
+      </Notices>
       <Help href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html">
         Help: Blocking Internet Ads Using DNS Sinkhole
       </Help>

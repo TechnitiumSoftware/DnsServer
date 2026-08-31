@@ -98,12 +98,12 @@ export async function getDashboardStats(
   return outcome.kind === 'ok' ? { kind: 'ok', data: outcome.data.response } : outcome
 }
 
-export type TipoTop = 'TopClients' | 'TopDomains' | 'TopBlockedDomains'
+export type TopKind = 'TopClients' | 'TopDomains' | 'TopBlockedDomains'
 
 export async function getTop(
   token: string | null,
   statsType: Range,
-  type: TipoTop,
+  type: TopKind,
   limit = 1000,
 ): Promise<TopEntry[]> {
   const outcome = await apiRequest<{ response: Record<string, TopEntry[]> }>('dashboard/stats/getTop', {

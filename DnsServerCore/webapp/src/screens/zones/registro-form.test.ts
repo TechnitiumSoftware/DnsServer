@@ -3,8 +3,8 @@ import {
   construirCuerpoRegistro,
   formularioDesdeRegistro,
   formularioVacio,
-  serializarSvcParams,
-  TIPOS_REGISTRO,
+  serializeSvcParams,
+  RECORD_TYPES,
   type ContextoRegistro,
   type FormularioRegistro,
 } from './registro-form'
@@ -31,7 +31,7 @@ function form(cambios: Partial<FormularioRegistro>): FormularioRegistro {
   return { ...formularioVacio(), ...cambios }
 }
 
-const ALTA: ContextoRegistro = { zone: 'casa.test', modo: 'add', updateSvcbHints: false }
+const ALTA: ContextoRegistro = { zone: 'casa.test', mode: 'add', updateSvcbHints: false }
 
 function body(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
   const r = construirCuerpoRegistro(f, ctx)
@@ -47,10 +47,10 @@ function error(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
 
 describe('the 23 types of the dropdown', () => {
   it('they are in the order of upstream', () => {
-    expect(TIPOS_REGISTRO).toHaveLength(23)
-    expect(TIPOS_REGISTRO[0]).toBe('A')
-    expect(TIPOS_REGISTRO[2]).toBe('SOA')
-    expect(TIPOS_REGISTRO[TIPOS_REGISTRO.length - 1]).toBe('Unknown')
+    expect(RECORD_TYPES).toHaveLength(23)
+    expect(RECORD_TYPES[0]).toBe('A')
+    expect(RECORD_TYPES[2]).toBe('SOA')
+    expect(RECORD_TYPES[RECORD_TYPES.length - 1]).toBe('Unknown')
   })
 })
 
@@ -154,7 +154,7 @@ describe('add — the body', () => {
       matchingType: 'Full',
       certificateAssociationData: 'OLD',
     })
-    const ctx: ContextoRegistro = { zone: 'casa.test', modo: 'update', original, updateSvcbHints: false }
+    const ctx: ContextoRegistro = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
     expect(body(f, ctx)).toMatchObject({ newTlsaCertificateAssociationData: 'ABCD' })
   })
 
@@ -168,7 +168,7 @@ describe('add — the body', () => {
 describe('edit — sends the old value AND the new one', () => {
   const ctxDe = (original: ResourceRecord): ContextoRegistro => ({
     zone: 'casa.test',
-    modo: 'update',
+    mode: 'update',
     original,
     updateSvcbHints: false,
   })
@@ -256,7 +256,7 @@ describe('edit — sends the old value AND the new one', () => {
 
 describe('SOA — it is only edited, and validates seven fields in order', () => {
   const original = reg('SOA', {})
-  const ctx: ContextoRegistro = { zone: 'casa.test', modo: 'update', original, updateSvcbHints: false }
+  const ctx: ContextoRegistro = { zone: 'casa.test', mode: 'update', original, updateSvcbHints: false }
 
   it('the order is primary, responsible, serial, refresh, retry, expire and minimum', () => {
     const fields = [
@@ -279,7 +279,7 @@ describe('SOA — it is only edited, and validates seven fields in order', () =>
 
 describe('parameters of an SVCB', () => {
   it('they flatten as key|value', () => {
-    const r = serializarSvcParams([
+    const r = serializeSvcParams([
       { key: 'alpn', value: 'h2' },
       { key: 'port', value: '443' },
     ])
@@ -287,11 +287,11 @@ describe('parameters of an SVCB', () => {
   })
 
   it('an empty list travels as the string \"false\"', () => {
-    expect(serializarSvcParams([])).toEqual({ value: 'false' })
+    expect(serializeSvcParams([])).toEqual({ value: 'false' })
   })
 
   it('an empty cell is an alert, not a row that gets ignored', () => {
-    const r = serializarSvcParams([{ key: 'alpn', value: '' }])
+    const r = serializeSvcParams([{ key: 'alpn', value: '' }])
     expect(r).toEqual({
       error: expect.objectContaining({
         text: 'Please enter a valid value in the text field in focus.',
@@ -300,7 +300,7 @@ describe('parameters of an SVCB', () => {
   })
 
   it('a vertical bar inside a cell too', () => {
-    const r = serializarSvcParams([{ key: 'alpn', value: 'h2|h3' }])
+    const r = serializeSvcParams([{ key: 'alpn', value: 'h2|h3' }])
     expect(r).toEqual({
       error: expect.objectContaining({
         text: "Please edit the value in the text field in focus to remove '|' character.",

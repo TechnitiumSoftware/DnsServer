@@ -24,19 +24,19 @@ import { Field, Input, Select } from '../../ui/Field'
 import { CeldaDatos } from './CeldaDatos'
 import { fechaMinuto as date } from '../../lib/fechas'
 import { Menu, Separador } from '../../ui/Menu'
-import { filtrar } from './filtro'
+import { filterBy } from './filtro'
 import { textoDeEstado, ventanaDePaginas } from '../../lib/paginacion'
 import { accionesDeFila, celdasDeRegistro, nombreRelativo, ocultarDnssec, type Cell } from './registro-vista'
-import { cabeceraDeZona, isSigned, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
+import { cabeceraDeZona, isSigned, writeHideDnssec, readHideDnssec } from './vista-zona'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import styles from './Zones.module.css'
-import type { Aviso, Confirmation } from './tipos'
+import type { Notice, Confirmation } from './tipos'
 import { Pagination } from '../../ui/Paginacion'
-import { avisoDeFallo } from '../../lib/aviso'
+import { noticeFromFailure } from '../../lib/aviso'
 
 /*
 A zone's records. A replica of `showEditZone` (zone.js:3079) and
@@ -58,7 +58,7 @@ export interface RegistrosZonaProps {
   canModify: boolean
   canDelete: boolean
   onVolver: () => void
-  onAviso: (a: Aviso) => void
+  onAviso: (a: Notice) => void
   onConfirmar: (c: Confirmation) => void
   onAnadirRegistro: (zoneInfo: ZonaDeRegistros, records: ResourceRecord[]) => void
   onEditarRegistro: (zoneInfo: ZonaDeRegistros, record: ResourceRecord, records: ResourceRecord[]) => void
@@ -117,14 +117,14 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   const [records, setRegistros] = useState<ResourceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [ocultarDnssecRegs, setOcultarDnssecRegs] = useState(leerOcultarDnssec)
+  const [ocultarDnssecRegs, setOcultarDnssecRegs] = useState(readHideDnssec)
 
   const [filtroNombre, setFiltroNombre] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [porPagina, setPorPagina] = useState(10)
   const [page, setPagina] = useState(1)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const r = await getRecords(token, zone, node)
     setLoading(false)
@@ -138,37 +138,37 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   }, [token, zone, node, onAviso])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar, p.refresco])
+    void load()
+  }, [load, p.refresco])
 
   // The DNSSEC filtering comes before the name/type filter, just as in
   // upstream: `editZoneRecords` ya llega recortado a `showEditZonePage`.
   const visibles = useMemo(() => {
     const signed = isSigned(zoneInfo?.dnssecStatus)
     const base = ocultarDnssecRegs && signed ? ocultarDnssec(records) : records
-    return filtrar(base, { name: filtroNombre, tipo: filtroTipo }, zone)
+    return filterBy(base, { name: filtroNombre, type: filtroTipo }, zone)
   }, [records, ocultarDnssecRegs, zoneInfo, filtroNombre, filtroTipo, zoneInfo])
 
-  const { rows: ordenadas, orden, alternar } = useOrden(KEYS, visibles)
+  const { rows: sorted, sort, alternar } = useOrden(KEYS, visibles)
 
   const totalPages = Math.max(1, Math.ceil(visibles.length / porPagina))
   const paginaActual = Math.min(Math.max(page, 1), totalPages)
   const inicio = (paginaActual - 1) * porPagina
-  const enPagina = ordenadas.slice(inicio, inicio + porPagina)
+  const enPagina = sorted.slice(inicio, inicio + porPagina)
 
   const cab = zoneInfo ? cabeceraDeZona(zoneInfo.type, zoneInfo.dnssecStatus) : null
 
   /** Runs a mutation on a record and reloads the whole zone. */
-  async function mutarRegistro(fn: () => Promise<{ kind: string; message?: string }>, exito: Aviso) {
+  async function mutarRegistro(fn: () => Promise<{ kind: string; message?: string }>, exito: Notice) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
-    await cargar()
+    await load()
     onAviso(exito)
   }
 
@@ -202,7 +202,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     })
   }
 
-  function borrarRegistro(r: ResourceRecord) {
+  function removeRecord(r: ResourceRecord) {
     const name = r.name === '' ? '.' : r.name
     const pistas = zonaTienePistaSvcbAuto(records, r.type === 'A', r.type === 'AAAA')
     const body = cuerpoBorrado(zone, r)
@@ -224,18 +224,18 @@ export function RegistrosZona(p: RegistrosZonaProps) {
 
   /* ── Actions on the whole zone ─────────────────────────────────────── */
 
-  async function mutarZona(fn: () => Promise<{ kind: string; message?: string }>, exito: Aviso, volver = false) {
+  async function mutarZona(fn: () => Promise<{ kind: string; message?: string }>, exito: Notice, volver = false) {
     setBusy(true)
     const outcome = await fn()
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
     onAviso(exito)
     if (volver) p.onVolver()
-    else await cargar()
+    else await load()
   }
 
   function habilitarZona() {
@@ -260,7 +260,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     })
   }
 
-  function borrarZona() {
+  function removeZone() {
     p.onConfirmar({
       titulo: 'Delete Zone',
       text: `Are you sure you want to permanently delete the zone '${zone}' and all its records?`,
@@ -302,9 +302,9 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   }
 
   function alternarDnssec() {
-    const nuevo = !ocultarDnssecRegs
-    setOcultarDnssecRegs(nuevo)
-    guardarOcultarDnssec(nuevo)
+    const blank = !ocultarDnssecRegs
+    setOcultarDnssecRegs(blank)
+    writeHideDnssec(blank)
   }
 
   if (loading && zoneInfo == null) {
@@ -346,7 +346,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         }
         actions={
           <>
-            {cab?.anadirRegistro && (
+            {cab?.addRecord && (
               <Button
                 variant="primary"
                 disabled={!p.canModify || busy}
@@ -364,45 +364,45 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                 Disable Zone
               </Button>
             )}
-            <Button variant="danger" disabled={!p.canDelete || busy} onClick={borrarZona}>
+            <Button variant="danger" disabled={!p.canDelete || busy} onClick={removeZone}>
               Delete Zone
             </Button>
 
             <Menu etiqueta="Zone actions" rotulo="Options">
-              {(cerrar) => (
+              {(close) => (
                 <>
                   {cab?.resync && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); resincronizar() }}>
+                    <button type="button" disabled={!p.canModify} onClick={() => { close(); resincronizar() }}>
                       Resync
                     </button>
                   )}
                   {cab?.importar && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onImportar(zone) }}>
+                    <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onImportar(zone) }}>
                       Import Zone
                     </button>
                   )}
                   {cab?.exportar && (
-                    <button type="button" onClick={() => { cerrar(); void exportar() }}>
+                    <button type="button" onClick={() => { close(); void exportar() }}>
                       Export Zone
                     </button>
                   )}
-                  {cab?.convertir && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(zone, zoneInfo.type) }}>
+                  {cab?.convert && (
+                    <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onConvertir(zone, zoneInfo.type) }}>
                       Convert Zone
                     </button>
                   )}
                   {cab?.clonar && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onClonar(zone) }}>
+                    <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onClonar(zone) }}>
                       Clone Zone
                     </button>
                   )}
                   {cab?.options && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onOpciones(zone) }}>
+                    <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onOpciones(zone) }}>
                       Zone Options
                     </button>
                   )}
                   {cab?.permissions && (
-                    <button type="button" onClick={() => { cerrar(); p.onPermisos(zone) }}>
+                    <button type="button" onClick={() => { close(); p.onPermisos(zone) }}>
                       Permissions
                     </button>
                   )}
@@ -412,32 +412,32 @@ export function RegistrosZona(p: RegistrosZonaProps) {
 
             {cab?.dnssec && (
               <Menu etiqueta="DNSSEC actions" rotulo="DNSSEC">
-                {(cerrar) => (
+                {(close) => (
                   <>
                     {cab.firmar && (
-                      <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onFirmar(zone) }}>
+                      <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onFirmar(zone) }}>
                         Sign Zone
                       </button>
                     )}
                     {cab.alternarRegistrosDnssec && (
-                      <button type="button" onClick={() => { cerrar(); alternarDnssec() }}>
+                      <button type="button" onClick={() => { close(); alternarDnssec() }}>
                         {ocultarDnssecRegs ? 'Show DNSSEC Records' : 'Hide DNSSEC Records'}
                       </button>
                     )}
                     {cab.verDs && (
-                      <button type="button" onClick={() => { cerrar(); p.onVerDs(zone) }}>
+                      <button type="button" onClick={() => { close(); p.onVerDs(zone) }}>
                         View DS Info
                       </button>
                     )}
                     {cab.propiedades && (
-                      <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onPropiedadesDnssec(zone) }}>
+                      <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onPropiedadesDnssec(zone) }}>
                         DNSSEC Properties
                       </button>
                     )}
                     {cab.desfirmar && (
                       <>
                         <Separador />
-                        <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onDesfirmar(zone) }}>
+                        <button type="button" disabled={!p.canModify} onClick={() => { close(); p.onDesfirmar(zone) }}>
                           Unsign Zone
                         </button>
                       </>
@@ -502,10 +502,10 @@ export function RegistrosZona(p: RegistrosZonaProps) {
         header={
           <>
             <th style={{ width: 34 }}>#</th>
-            <Th field="name" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
-            <Th field="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
-            <Th field="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
-            <Th field="data" orden={orden} onOrdenar={alternar}>Data</Th>
+            <Th field="name" sort={sort} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
+            <Th field="type" sort={sort} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
+            <Th field="ttl" sort={sort} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
+            <Th field="data" sort={sort} onOrdenar={alternar}>Data</Th>
             {/* The actions column reserved 230 px with three labels inside;
                 with icons 120 is enough and the 110 left over go to the data,
                 which is what the table is about. */}
@@ -544,13 +544,13 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                   {!actions.ocultas && (
                     <div className={tbl.actions}>
                       <AccionFila
-                        icono="editar"
+                        icon="edit"
                         name="Edit Record"
                         disabled={!p.canModify || busy}
                         onClick={() => p.onEditarRegistro(zoneInfo, r, records)}
                       />
                       <AccionFila
-                        icono="energia"
+                        icon="power"
                         name={r.disabled ? 'Enable Record' : 'Disable Record'}
                         disabled={actions.editingOnly || !p.canModify || busy}
                         onClick={() => cambiarEstado(r, !r.disabled)}
@@ -558,11 +558,11 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                       {/* Delete, inside the menu: the same rule as in the zone
                           list. */}
                       <Menu etiqueta={`Actions for ${nombreRelativo(r.name, zone)} ${r.type}`}>
-                        {(cerrar) => (
+                        {(close) => (
                           <button
                             type="button"
                             disabled={actions.editingOnly || !p.canDelete || busy}
-                            onClick={() => { cerrar(); borrarRegistro(r) }}
+                            onClick={() => { close(); removeRecord(r) }}
                           >
                             Delete Record
                           </button>

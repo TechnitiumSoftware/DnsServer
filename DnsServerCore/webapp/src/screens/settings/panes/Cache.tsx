@@ -1,4 +1,4 @@
-import { Avisos, Block, Check, GroupRow, Note, Plain, TextRow } from '../parts'
+import { Notices, Block, Check, GroupRow, Note, Plain, TextRow } from '../parts'
 import type { PaneProps } from './tipos'
 
 /* Settings > Cache (index.html:1911-2064). Cuatro bloques. */
@@ -8,27 +8,27 @@ export function Cache({ f, set, en }: PaneProps) {
       <Block title="DNS Cache">
         <GroupRow label="DNS Cache">
           <Check
-            conmutador
+            toggle
             label="Save Cache To Disk"
             checked={f.saveCache}
             onChange={(v) => set({ saveCache: v })}
             help="Enable this option to save DNS cache on disk when the DNS Server stops. The saved cache will be loaded next time the DNS Server starts."
           />
         </GroupRow>
-        <Avisos>
+        <Notices>
           <Note>
             The DNS Server will attempt to save cache to disk when it stops which may take time
             depending on the cache size. If the DNS Server takes a lot of time to stop then it may
             lead to the OS killing the DNS Server process causing an incomplete cache to be stored
             on disk.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Serve Stale">
         <GroupRow label="Serve Stale">
           <Check
-            conmutador
+            toggle
             label="Enable Serve Stale"
             checked={f.serveStale}
             onChange={(v) => set({ serveStale: v })}

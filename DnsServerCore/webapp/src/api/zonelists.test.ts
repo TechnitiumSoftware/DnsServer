@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
-  anadirDominio,
-  borrarDominio,
-  borrarNodoCache,
+  addDomain,
+  deleteDomain,
+  deleteCacheNode,
   dominioPadre,
   exportarDominios,
   importarDominios,
@@ -112,7 +112,7 @@ describe('cache', () => {
 
   it('borrarNodoCache calls cache/delete with domain and node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
-    await borrarNodoCache('t', 'casa.test')
+    await deleteCacheNode('t', 'casa.test')
     expect(spy.mock.calls[0][0]).toBe('cache/delete')
     expect(spy.mock.calls[0][1]?.body).toEqual({ domain: 'casa.test', node: '' })
   })
@@ -122,12 +122,12 @@ describe('allowed and blocked', () => {
   it('anadirDominio and borrarDominio use the endpoint of their list', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
 
-    await anadirDominio('allowed', 't', 'casa.test')
+    await addDomain('allowed', 't', 'casa.test')
     expect(spy.mock.calls[0][0]).toBe('allowed/add')
     expect(spy.mock.calls[0][1]?.body).toEqual({ domain: 'casa.test' })
 
     spy.mockClear()
-    await borrarDominio('blocked', 't', 'ads.test')
+    await deleteDomain('blocked', 't', 'ads.test')
     expect(spy.mock.calls[0][0]).toBe('blocked/delete')
     expect(spy.mock.calls[0][1]?.body).toEqual({ domain: 'ads.test' })
   })

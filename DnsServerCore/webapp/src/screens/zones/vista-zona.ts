@@ -9,11 +9,11 @@ the DNSSEC menu but with only "hide records" inside.
 */
 
 export interface CabeceraDeZona {
-  anadirRegistro: boolean
+  addRecord: boolean
   resync: boolean
   importar: boolean
   exportar: boolean
-  convertir: boolean
+  convert: boolean
   clonar: boolean
   options: boolean
   permissions: boolean
@@ -40,11 +40,11 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
 
   const base: CabeceraDeZona = {
     // Only Primary and Forwarder allow adding records by hand.
-    anadirRegistro: type === 'Primary' || type === 'Forwarder',
+    addRecord: type === 'Primary' || type === 'Forwarder',
     resync: [...SECUNDARIAS, 'Stub'].includes(type),
     importar: type === 'Primary' || type === 'Forwarder',
     exportar: ['Primary', 'Forwarder', ...SECUNDARIAS, 'Catalog'].includes(type),
-    convertir: ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog'].includes(type),
+    convert: ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog'].includes(type),
     clonar: type === 'Primary' || type === 'Forwarder',
     options: CONOCIDOS.includes(type),
     permissions: CONOCIDOS.includes(type),
@@ -87,10 +87,10 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
  *   · `DS`, `SSHFP` and `TLSA` only on a SIGNED Primary.
  *   · `ANAME` and `APP` disappear in exactly that case.
  */
-export function tiposOcultosAlAnadir(tipoZona: string, dnssecStatus: string | undefined): string[] {
-  if (tipoZona === 'Forwarder') return ['DS', 'SSHFP', 'TLSA']
+export function typesHiddenWhenAdding(zoneType: string, dnssecStatus: string | undefined): string[] {
+  if (zoneType === 'Forwarder') return ['DS', 'SSHFP', 'TLSA']
 
-  if (tipoZona === 'Primary') {
+  if (zoneType === 'Primary') {
     return isSigned(dnssecStatus) ? ['FWD', 'ANAME', 'APP'] : ['FWD', 'DS', 'SSHFP', 'TLSA']
   }
 
@@ -100,7 +100,7 @@ export function tiposOcultosAlAnadir(tipoZona: string, dnssecStatus: string | un
 /** The `localStorage` key where upstream stores whether it hides the DNSSEC. */
 export const CLAVE_OCULTAR_DNSSEC = 'zoneHideDnssecRecords'
 
-export function leerOcultarDnssec(): boolean {
+export function readHideDnssec(): boolean {
   try {
     return localStorage.getItem(CLAVE_OCULTAR_DNSSEC) === 'true'
   } catch {
@@ -108,7 +108,7 @@ export function leerOcultarDnssec(): boolean {
   }
 }
 
-export function guardarOcultarDnssec(value: boolean): void {
+export function writeHideDnssec(value: boolean): void {
   try {
     localStorage.setItem(CLAVE_OCULTAR_DNSSEC, String(value))
   } catch {

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   ETIQUETA_RANGO, RANGOS, getDashboardStats,
-  type DashboardStats, type Range, type Stats, type TipoTop, type TopEntry,
+  type DashboardStats, type Range, type Stats, type TopKind, type TopEntry,
 } from '../../api/dashboard'
 import { Chart } from './Chart'
 import { TopStats } from './TopStats'
@@ -12,11 +12,11 @@ import styles from './Dashboard.module.css'
 import { Body, Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
 import { type AlertType } from '../../ui/Alert'
-import { MenuBloqueo } from './MenuBloqueo'
+import { BlockingMenu } from './MenuBloqueo'
 import { instantesDelRango, loQueFalta } from './rango-personalizado'
-import { Segmentado } from '../../ui/Segmentado'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { Segmented } from '../../ui/Segmentado'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 The eleven metrics, in upstream's order and with its literal labels. Each one's
@@ -84,7 +84,7 @@ function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
     <Panel titulo={titulo} className={styles.panel}>
       <Body>
         {tieneDatos(data) ? (
-          <Chart tipo="doughnut" data={data} height={190} aria={titulo} />
+          <Chart type="doughnut" data={data} height={190} aria={titulo} />
         ) : (
           <Empty compacto>No data for this period.</Empty>
         )}
@@ -153,8 +153,8 @@ export function Dashboard({ token }: { token: string | null }) {
   const [range, setRango] = useState<Range>('LastHour')
   const [data, setDatos] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [top, setTop] = useState<TipoTop | null>(null)
-  const [aviso, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
+  const [top, setTop] = useState<TopKind | null>(null)
+  const [notice, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   /*
   The custom range. `inicio`/`fin` are what is typed into the two fields;
   `pedido` is the last thing "Show" was pressed with, which is what triggers the
@@ -188,7 +188,7 @@ export function Dashboard({ token }: { token: string | null }) {
       falsely about the one thing people come here to look at.
       */
       setDatos(null)
-      setAviso(avisoDeFallo(r))
+      setAviso(noticeFromFailure(r))
     })()
     return () => {
       cancelled = true
@@ -196,9 +196,9 @@ export function Dashboard({ token }: { token: string | null }) {
   }, [token, range, pedido])
 
   function mostrarRango() {
-    const falta = loQueFalta(inicio, fin)
-    if (falta != null) {
-      setAviso({ type: 'warning', title: 'Missing!', text: falta })
+    const missing = loQueFalta(inicio, fin)
+    if (missing != null) {
+      setAviso({ type: 'warning', title: 'Missing!', text: missing })
       return
     }
     setAviso(null)
@@ -213,7 +213,7 @@ export function Dashboard({ token }: { token: string | null }) {
       <SectionHeader
         titulo="Dashboard"
         actions={
-          <Segmentado
+          <Segmented
             etiqueta="Period"
             options={RANGOS.map((r) => ({ id: r, etiqueta: ETIQUETA_RANGO[r] }))}
             active={range}
@@ -241,7 +241,7 @@ export function Dashboard({ token }: { token: string | null }) {
         </div>
       )}
 
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.tiles} data-testid="metricas">
         {METRICAS.map((m) => (
@@ -259,7 +259,7 @@ export function Dashboard({ token }: { token: string | null }) {
             <Body>
               {loading && <Loading compacto />}
               {!loading && data && tieneDatos(data.mainChartData) && (
-                <Chart tipo="line" data={data.mainChartData} aria="Queries over time" />
+                <Chart type="line" data={data.mainChartData} aria="Queries over time" />
               )}
               {!loading && (!data || !tieneDatos(data.mainChartData)) && (
                 <Empty compacto>No queries for this period.</Empty>
@@ -276,7 +276,7 @@ export function Dashboard({ token }: { token: string | null }) {
               titulo="Top Blocked Domains"
               rows={data?.topBlockedDomains ?? []}
               onMore={() => setTop('TopBlockedDomains')}
-              antesDeMore={<MenuBloqueo token={token} onAviso={setAviso} />}
+              antesDeMore={<BlockingMenu token={token} onAviso={setAviso} />}
             />
           </div>
         </div>
@@ -310,7 +310,7 @@ export function Dashboard({ token }: { token: string | null }) {
         </div>
       </div>
 
-      <TopStats tipo={top} range={range} token={token} onCerrar={() => setTop(null)} />
+      <TopStats type={top} range={range} token={token} onCerrar={() => setTop(null)} />
     </>
   )
 }

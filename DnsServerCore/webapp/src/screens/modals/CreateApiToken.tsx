@@ -4,8 +4,8 @@ import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /* A replica of `createMyApiToken()` (auth.js:337-381). */
 export function CreateApiToken({
@@ -46,7 +46,7 @@ export function CreateApiToken({
       })
       return
     }
-    setAlert(avisoDeFallo(outcome))
+    setAlert(noticeFromFailure(outcome))
   }
 
   return (
@@ -63,7 +63,7 @@ export function CreateApiToken({
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="Username" value={username} readOnly />
       <LabeledInput label="Token Name" placeholder="token name" value={name} onChange={(e) => setName(e.target.value)} />
       {created && <LabeledInput label="Token" mono value={created} readOnly />}

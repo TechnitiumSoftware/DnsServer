@@ -17,7 +17,7 @@ import {
   type ClavePrivada,
   type NxProof,
   type PropiedadesDnssec as Propiedades,
-  type TipoClave,
+  type KeyKind,
 } from '../../../api/dnssec'
 import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
@@ -33,18 +33,18 @@ import {
   HASHES_RSA,
   PRUEBAS_NX,
   TAMANOS_RSA,
-  TIPOS_CLAVE,
+  KEY_TYPES,
   curvaPorDefecto,
 } from './dnssec-opciones'
-import type { Aviso, Confirmation } from '../tipos'
+import type { Notice, Confirmation } from '../tipos'
 import tbl from '../../../ui/Table.module.css'
 import styles from '../Zones.module.css'
 import { Externo } from '../../../ui/Externo'
 import { RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { Th, useOrden, type Keys, Table } from '../../../ui/Table'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalDnssecProperties` (zone.js:6799-7400). It is the project's liveliest
@@ -75,7 +75,7 @@ const KEYS: Keys<ClavePrivada> = {
 
 export function PropiedadesDnssec({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   onCerrar,
@@ -83,7 +83,7 @@ export function PropiedadesDnssec({
   onCambio,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
@@ -92,7 +92,7 @@ export function PropiedadesDnssec({
   onCambio: () => void
 }) {
   const [props, setProps] = useState<Propiedades | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -103,9 +103,9 @@ export function PropiedadesDnssec({
   const [rollovers, setRollovers] = useState<Record<number, string>>({})
 
   const [anadiendo, setAnadiendo] = useState(false)
-  const [nuevaClave, setNuevaClave] = useState(claveNuevaInicial)
+  const [newKey, setNuevaClave] = useState(claveNuevaInicial)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const r = await getPropiedades(token, zone, node)
     setLoading(false)
@@ -131,17 +131,17 @@ export function PropiedadesDnssec({
   }, [token, zone, node])
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setAviso(null)
     setAnadiendo(false)
     setNuevaClave(claveNuevaInicial())
-    void cargar()
-  }, [abierto, cargar])
+    void load()
+  }, [open, load])
 
   /** Runs it, draws the literal alert and reloads if needed. */
   async function action(
     fn: () => Promise<{ kind: string; message?: string }>,
-    exito: Aviso,
+    exito: Notice,
     options: { recargar?: boolean; recargarZona?: boolean } = {},
   ) {
     setBusy(true)
@@ -149,16 +149,16 @@ export function PropiedadesDnssec({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
-    if (options.recargar !== false) await cargar()
+    if (options.recargar !== false) await load()
     if (options.recargarZona) onCambio()
     setAviso(exito)
   }
 
-  function guardarRollover(k: ClavePrivada) {
+  function saveRollover(k: ClavePrivada) {
     void action(
       () => updatePrivateKey(token, zone, k.keyTag, rollovers[k.keyTag] ?? '0', node),
       {
@@ -171,7 +171,7 @@ export function PropiedadesDnssec({
     )
   }
 
-  function borrarClave(k: ClavePrivada) {
+  function deleteKey(k: ClavePrivada) {
     onConfirmar({
       titulo: 'Delete Private Key',
       text: `Are you sure to permanently delete the private key (${k.keyTag})?`,
@@ -242,20 +242,20 @@ export function PropiedadesDnssec({
     })
   }
 
-  function anadirClave() {
+  function addKey() {
     void action(
       () =>
         addPrivateKey(
           token,
           zone,
           {
-            keyType: nuevaClave.keyType,
-            algorithm: nuevaClave.algorithm,
-            hashAlgorithm: nuevaClave.hashAlgorithm,
-            keySize: nuevaClave.keySize,
-            curve: nuevaClave.curve,
-            pemPrivateKey: nuevaClave.generation === 'UseSpecified' ? nuevaClave.pem : '',
-            rolloverDays: nuevaClave.rolloverDays,
+            keyType: newKey.keyType,
+            algorithm: newKey.algorithm,
+            hashAlgorithm: newKey.hashAlgorithm,
+            keySize: newKey.keySize,
+            curve: newKey.curve,
+            pemPrivateKey: newKey.generation === 'UseSpecified' ? newKey.pem : '',
+            rolloverDays: newKey.rolloverDays,
           },
           node,
         ),
@@ -277,7 +277,7 @@ export function PropiedadesDnssec({
       { iterations, saltLength },
     )
 
-    const exito: Aviso = {
+    const exito: Notice = {
       type: 'success',
       title: 'Proof Changed!',
       text: 'The proof of non-existence was changed successfully.',
@@ -308,7 +308,7 @@ export function PropiedadesDnssec({
     })
   }
 
-  function guardarTtl() {
+  function saveTtl() {
     void action(
       () => updateDnsKeyTtl(token, zone, dnsKeyTtl, node),
       { type: 'success', title: 'TTL Updated!', text: 'The DNSKEY TTL was updated successfully.' },
@@ -317,18 +317,18 @@ export function PropiedadesDnssec({
   }
 
   const keys = props?.dnssecPrivateKeys ?? []
-  const { rows: clavesVisibles, orden, alternar } = useOrden(KEYS, keys)
+  const { rows: clavesVisibles, sort, alternar } = useOrden(KEYS, keys)
   const hayGeneradas = keys.some((k) => k.state === 'Generated')
   const notas = notasDeEstado(keys)
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       size="wide"
       title={`DNSSEC Properties - ${zone === '.' ? '<root>' : zone}`}
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       {loading && props == null ? (
         <Loading>Loading DNSSEC properties…</Loading>
@@ -337,14 +337,14 @@ export function PropiedadesDnssec({
           <Table
             header={
               <>
-                <Th field="keyTag" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Key Tag</Th>
-                <Th field="keyType" orden={orden} onOrdenar={alternar} style={{ width: 130 }}>Key Type</Th>
-                <Th field="algorithm" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>Algorithm</Th>
-                <Th field="state" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>State</Th>
-                <Th field="changed" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                <Th field="keyTag" sort={sort} onOrdenar={alternar} style={{ width: 80 }}>Key Tag</Th>
+                <Th field="keyType" sort={sort} onOrdenar={alternar} style={{ width: 130 }}>Key Type</Th>
+                <Th field="algorithm" sort={sort} onOrdenar={alternar} style={{ width: 150 }}>Algorithm</Th>
+                <Th field="state" sort={sort} onOrdenar={alternar} style={{ width: 110 }}>State</Th>
+                <Th field="changed" sort={sort} onOrdenar={alternar} style={{ width: 150 }}>
                   State Changed
                 </Th>
-                <Th field="rollover" orden={orden} onOrdenar={alternar} style={{ width: 150 }}>
+                <Th field="rollover" sort={sort} onOrdenar={alternar} style={{ width: 150 }}>
                   Rollover (days)
                 </Th>
                 <th style={{ width: 190 }} />
@@ -365,8 +365,8 @@ export function PropiedadesDnssec({
                   busy={busy}
                   rollover={rollovers[k.keyTag] ?? String(k.rolloverDays)}
                   onRollover={(v) => setRollovers((r) => ({ ...r, [k.keyTag]: v }))}
-                  onGuardarRollover={() => guardarRollover(k)}
-                  onBorrar={() => borrarClave(k)}
+                  onGuardarRollover={() => saveRollover(k)}
+                  onBorrar={() => deleteKey(k)}
                   onActivar={() => activar(k)}
                   onRolloverAhora={() => rollover(k)}
                   onRetirar={() => retirar(k)}
@@ -396,12 +396,12 @@ export function PropiedadesDnssec({
                 {(id) => (
                   <Select
                     id={id}
-                    value={nuevaClave.keyType}
+                    value={newKey.keyType}
                     onChange={(e) =>
-                      setNuevaClave((k) => ({ ...k, keyType: e.target.value as TipoClave }))
+                      setNuevaClave((k) => ({ ...k, keyType: e.target.value as KeyKind }))
                     }
                   >
-                    {TIPOS_CLAVE.map((t) => (
+                    {KEY_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>
                         {t.etiqueta}
                       </option>
@@ -414,7 +414,7 @@ export function PropiedadesDnssec({
                 {(id) => (
                   <Select
                     id={id}
-                    value={nuevaClave.algorithm}
+                    value={newKey.algorithm}
                     onChange={(e) => {
                       const algorithm = e.target.value as Algoritmo
                       setNuevaClave((k) => ({ ...k, algorithm, curve: curvaPorDefecto(algorithm) }))
@@ -429,12 +429,12 @@ export function PropiedadesDnssec({
                 )}
               </Field>
 
-              {nuevaClave.algorithm === 'RSA' ? (
+              {newKey.algorithm === 'RSA' ? (
                 <Field label="Hash Algorithm">
                   {(id) => (
                     <Select
                       id={id}
-                      value={nuevaClave.hashAlgorithm}
+                      value={newKey.hashAlgorithm}
                       onChange={(e) => setNuevaClave((k) => ({ ...k, hashAlgorithm: e.target.value }))}
                     >
                       {HASHES_RSA.map((h) => (
@@ -446,14 +446,14 @@ export function PropiedadesDnssec({
                   )}
                 </Field>
               ) : (
-                <Field label={nuevaClave.algorithm === 'EDDSA' ? 'EdDSA Curve' : 'ECDSA Curve'}>
+                <Field label={newKey.algorithm === 'EDDSA' ? 'EdDSA Curve' : 'ECDSA Curve'}>
                   {(id) => (
                     <Select
                       id={id}
-                      value={nuevaClave.curve}
+                      value={newKey.curve}
                       onChange={(e) => setNuevaClave((k) => ({ ...k, curve: e.target.value }))}
                     >
-                      {(nuevaClave.algorithm === 'EDDSA' ? CURVAS_EDDSA : CURVAS_ECDSA).map((c) => (
+                      {(newKey.algorithm === 'EDDSA' ? CURVAS_EDDSA : CURVAS_ECDSA).map((c) => (
                         <option key={c.value} value={c.value}>
                           {c.etiqueta}
                         </option>
@@ -469,7 +469,7 @@ export function PropiedadesDnssec({
                     <input
                       type="radio"
                       name="addKeyGeneration"
-                      checked={nuevaClave.generation === g.value}
+                      checked={newKey.generation === g.value}
                       onChange={() => setNuevaClave((k) => ({ ...k, generation: g.value }))}
                     />
                     {g.etiqueta}
@@ -477,14 +477,14 @@ export function PropiedadesDnssec({
                 ))}
               </div>
 
-              {nuevaClave.algorithm === 'RSA' && nuevaClave.generation === 'Automatic' && (
+              {newKey.algorithm === 'RSA' && newKey.generation === 'Automatic' && (
                 <Field label="Key Size">
                   {(id) => (
                     <div className={styles.enLinea}>
                       <Select
                         id={id}
                         className={styles.short}
-                        value={nuevaClave.keySize}
+                        value={newKey.keySize}
                         onChange={(e) => setNuevaClave((k) => ({ ...k, keySize: e.target.value }))}
                       >
                         {TAMANOS_RSA.map((t) => (
@@ -499,7 +499,7 @@ export function PropiedadesDnssec({
                 </Field>
               )}
 
-              {nuevaClave.generation === 'UseSpecified' && (
+              {newKey.generation === 'UseSpecified' && (
                 <>
                   <Field label="Private Key">
                     {(id) => (
@@ -511,7 +511,7 @@ MII...
                         mono
                         className={styles.area}
                         spellCheck={false}
-                        value={nuevaClave.pem}
+                        value={newKey.pem}
                         onChange={(e) => setNuevaClave((k) => ({ ...k, pem: e.target.value }))}
                       />
                     )}
@@ -528,7 +528,7 @@ MII...
                       id={id}
                       mono
                       className={styles.short}
-                      value={nuevaClave.rolloverDays}
+                      value={newKey.rolloverDays}
                       onChange={(e) => setNuevaClave((k) => ({ ...k, rolloverDays: e.target.value }))}
                     />
                     <span className={styles.sufijo}>
@@ -542,7 +542,7 @@ MII...
               </div>
 
               <div>
-                <Button variant="primary" disabled={busy} onClick={anadirClave}>
+                <Button variant="primary" disabled={busy} onClick={addKey}>
                   Add Key
                 </Button>
               </div>
@@ -623,7 +623,7 @@ MII...
                     onChange={(e) => setDnsKeyTtl(e.target.value)}
                   />
                   <span className={styles.sufijo}>seconds</span>
-                  <Button disabled={busy} onClick={guardarTtl}>
+                  <Button disabled={busy} onClick={saveTtl}>
                     Save
                   </Button>
                 </div>
@@ -642,7 +642,7 @@ MII...
 }
 
 interface ClaveNueva {
-  keyType: TipoClave
+  keyType: KeyKind
   algorithm: Algoritmo
   hashAlgorithm: string
   curve: string
@@ -670,7 +670,7 @@ function claveNuevaInicial(): ClaveNueva {
  * that is already retiring takes no action at all (zone.js:6906-6930).
  */
 export function accionesDeClave(k: ClavePrivada): {
-  borrar: boolean
+  remove: boolean
   activar: boolean
   rollover: boolean
   retirar: boolean
@@ -680,7 +680,7 @@ export function accionesDeClave(k: ClavePrivada): {
   const enCurso = ['Generated', 'Published', 'Ready', 'Active'].includes(k.state)
 
   return {
-    borrar: k.state === 'Generated',
+    remove: k.state === 'Generated',
     activar: k.state === 'Ready' && !k.isRetiring,
     rollover: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
     retirar: (k.state === 'Ready' || k.state === 'Active') && !k.isRetiring,
@@ -772,7 +772,7 @@ function FilaClave({
       </td>
       <td className={tbl.celdaAcciones}>
         <div className={tbl.actions}>
-          {a.borrar && (
+          {a.remove && (
             <Button size="sm" disabled={busy} onClick={onBorrar}>
               Delete
             </Button>

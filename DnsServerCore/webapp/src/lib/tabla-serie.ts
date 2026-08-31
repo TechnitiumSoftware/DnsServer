@@ -28,10 +28,10 @@ it.
 
 export type Cell =
   /** `data-optional` in upstream: the cell that is allowed to be empty. */
-  | { tipo: 'text'; value: string; opcional?: boolean }
-  | { tipo: 'casilla'; value: boolean }
+  | { type: 'text'; value: string; opcional?: boolean }
+  | { type: 'casilla'; value: boolean }
 
-export interface FalloTabla {
+export interface TableFailure {
   title: string
   text: string
   /** Index of the row and of the column of the field that has to be focused. */
@@ -39,16 +39,16 @@ export interface FalloTabla {
   columna: number
 }
 
-export type ResultadoTabla = { ok: true; value: string } | { ok: false; fallo: FalloTabla }
+export type ResultadoTabla = { ok: true; value: string } | { ok: false; failure: TableFailure }
 
-export function serializarTabla(rows: readonly (readonly Cell[])[]): ResultadoTabla {
+export function serializeTable(rows: readonly (readonly Cell[])[]): ResultadoTabla {
   const salida: string[] = []
 
   for (let i = 0; i < rows.length; i++) {
     for (let j = 0; j < rows[i].length; j++) {
       const cell = rows[i][j]
 
-      if (cell.tipo === 'casilla') {
+      if (cell.type === 'casilla') {
         salida.push(cell.value ? 'true' : 'false')
         continue
       }
@@ -56,7 +56,7 @@ export function serializarTabla(rows: readonly (readonly Cell[])[]): ResultadoTa
       if (cell.value === '' && cell.opcional !== true) {
         return {
           ok: false,
-          fallo: {
+          failure: {
             title: 'Missing!',
             text: 'Please enter a valid value in the text field in focus.',
             row: i,
@@ -68,7 +68,7 @@ export function serializarTabla(rows: readonly (readonly Cell[])[]): ResultadoTa
       if (cell.value.includes('|')) {
         return {
           ok: false,
-          fallo: {
+          failure: {
             title: 'Invalid Character!',
             text: "Please edit the value in the text field in focus to remove '|' character.",
             row: i,

@@ -5,10 +5,10 @@ Settings uses. They were written twice —see the comment in
 */
 export {
   AreaRow,
-  Avisos,
+  Notices,
   Block,
   Check,
-  EditableTable,
+  EditableList,
   GroupRow,
   Note,
   Row,

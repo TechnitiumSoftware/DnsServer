@@ -91,7 +91,7 @@ export interface ListaZonas {
   totalZones: number
 }
 
-export const TIPOS_ZONA = ['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'] as const
+export const ZONE_TYPES = ['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'] as const
 
 /** Page sizes of upstream's dropdown (index.html, `optZonesPerPage`). */
 export const ZONAS_POR_PAGINA = [10, 25, 50, 100, 250, 500] as const
@@ -355,7 +355,7 @@ export async function getZonePermissions(
  * `serializeTableData` with 4 columns (common.js:282): the name and the three
  * booleans of each row, all joined by `|` into a single string.
  */
-export function serializarPermisos(
+export function serializePermissions(
   rows: { name: string; canView: boolean; canModify: boolean; canDelete: boolean }[],
 ): string {
   const salida: string[] = []

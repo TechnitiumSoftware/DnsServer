@@ -4,7 +4,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
-import { Avisador } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 A replica of `showUpdateAppModal` / `updateApp` (apps.js:211-218 and 381-423).
@@ -72,7 +72,7 @@ export function UpdateApp({
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="App Name" value={name} disabled readOnly />
       <LabeledInput label="App Zip File" type="file" ref={fileRef} />
     </Dialog>

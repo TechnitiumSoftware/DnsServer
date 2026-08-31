@@ -100,7 +100,7 @@ looking at it from a phone when something has stopped resolving.
     box-shadow: var(--shadow-modal);
   }
 
-  .side[data-abierto='true'] { transform: none; }
+  .side[data-open='true'] { transform: none; }
 
   .velo {
     position: fixed;

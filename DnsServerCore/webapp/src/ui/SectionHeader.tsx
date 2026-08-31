@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Icono } from './Icono'
+import { Icon } from './Icono'
 import styles from './SectionHeader.module.css'
 
 /*
@@ -71,7 +71,7 @@ export function SectionHeader({
             ) : (
               <span className={styles.ctx}>{section}</span>
             )}
-            <Icono name="chevronDerecha" tam={12} className={styles.sep} />
+            <Icon name="chevronRight" tam={12} className={styles.sep} />
           </nav>
         )}
         <h1 className={styles.titulo}>{titulo}</h1>

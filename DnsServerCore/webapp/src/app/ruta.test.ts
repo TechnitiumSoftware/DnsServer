@@ -1,6 +1,6 @@
 import { describe, expect, it, afterEach } from 'vitest'
 import { SECTIONS } from './sections'
-import { aCamino, aSlug, escribirRuta, leerRuta, olvidarRaiz, raizDeLaApp } from './ruta'
+import { aCamino, aSlug, escribirRuta, readRoute, olvidarRaiz, raizDeLaApp } from './ruta'
 
 /** Serves the document as the server would: in its folder and with its meta. */
 function servidoEn(camino: string, route: string | null = null) {
@@ -70,40 +70,40 @@ describe('raizDeLaApp', () => {
   })
 })
 
-describe('leerRuta', () => {
+describe('readRoute', () => {
   it('on the front page there is no route, and it starts from whatever the Shell says', () => {
     servidoEn('/')
-    expect(leerRuta(SECTIONS)).toBeNull()
+    expect(readRoute(SECTIONS)).toBeNull()
   })
 
   it('it reads section and sub-section', () => {
     servidoEn('/admin/cluster/', 'admin/cluster')
-    expect(leerRuta(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
+    expect(readRoute(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
   })
 
   it('it returns the original label, not the slug', () => {
     servidoEn('/settings/proxy-forwarders/', 'settings/proxy-forwarders')
-    expect(leerRuta(SECTIONS)).toEqual({ section: 'settings', sub: 'Proxy & Forwarders' })
+    expect(readRoute(SECTIONS)).toEqual({ section: 'settings', sub: 'Proxy & Forwarders' })
   })
 
   it('it reads it the same behind a prefix', () => {
     servidoEn('/dns/admin/cluster/', 'admin/cluster')
-    expect(leerRuta(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
+    expect(readRoute(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
   })
 
   it('an unknown section does not resolve', () => {
     servidoEn('/noexiste/', 'noexiste')
-    expect(leerRuta(SECTIONS)).toBeNull()
+    expect(readRoute(SECTIONS)).toBeNull()
   })
 
   it('an unknown sub does NOT bring the section down: it falls to the first', () => {
     servidoEn('/settings/tampoco-existe/', 'settings/tampoco-existe')
-    expect(leerRuta(SECTIONS)).toEqual({ section: 'settings', sub: null })
+    expect(readRoute(SECTIONS)).toEqual({ section: 'settings', sub: null })
   })
 
   it('a section hidden by permissions does not resolve, even though it exists', () => {
     servidoEn('/admin/cluster/', 'admin/cluster')
-    expect(leerRuta(SECTIONS.filter((s) => s.id !== 'admin'))).toBeNull()
+    expect(readRoute(SECTIONS.filter((s) => s.id !== 'admin'))).toBeNull()
   })
 })
 
@@ -144,7 +144,7 @@ describe('escribirRuta', () => {
     for (const s of SECTIONS) {
       for (const sub of s.subs ?? [null]) {
         escribirRuta({ section: s.id, sub }, true)
-        expect(leerRuta(SECTIONS)).toEqual({ section: s.id, sub })
+        expect(readRoute(SECTIONS)).toEqual({ section: s.id, sub })
       }
     }
   })

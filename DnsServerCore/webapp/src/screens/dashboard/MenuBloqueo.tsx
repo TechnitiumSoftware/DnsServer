@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { getSettings, setSettings, temporaryDisableBlocking } from '../../api/settings'
-import { Confirmar } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirmar'
 import { Menu } from '../../ui/Menu'
 import type { AlertType } from '../../ui/Alert'
-import { avisoDeFallo } from '../../lib/aviso'
+import { noticeFromFailure } from '../../lib/aviso'
 
 /*
 The Dashboard's "Blocking" menu.
@@ -48,7 +48,7 @@ interface Pendiente {
   hacer: () => Promise<void>
 }
 
-export function MenuBloqueo({
+export function BlockingMenu({
   token,
   onAviso,
 }: {
@@ -75,7 +75,7 @@ export function MenuBloqueo({
         const r = await setSettings(token, { enableBlocking: String(encender) })
         // The same text as the other thirty-six: it was the only one that said
         // a bare "Session expired." for this very condition.
-        if (r.kind !== 'ok') throw new Error(avisoDeFallo(r).text)
+        if (r.kind !== 'ok') throw new Error(noticeFromFailure(r).text)
         setActivo(encender)
         onAviso({
           type: 'success',
@@ -105,7 +105,7 @@ export function MenuBloqueo({
     }
   }
 
-  async function confirmar() {
+  async function confirm() {
     if (pendiente == null) return
     setBusy(true)
     try {
@@ -122,15 +122,15 @@ export function MenuBloqueo({
   return (
     <>
       <Menu etiqueta="Blocking options" rotulo="Blocking" onAbrir={() => void mirarEstado()}>
-        {(cerrar) => (
+        {(close) => (
           <>
             {active === false && (
-              <button role="menuitem" onClick={() => { cerrar(); setPendiente(conmutar(true)) }}>
+              <button role="menuitem" onClick={() => { close(); setPendiente(conmutar(true)) }}>
                 Enable Blocking
               </button>
             )}
             {active === true && (
-              <button role="menuitem" onClick={() => { cerrar(); setPendiente(conmutar(false)) }}>
+              <button role="menuitem" onClick={() => { close(); setPendiente(conmutar(false)) }}>
                 Disable Blocking
               </button>
             )}
@@ -138,7 +138,7 @@ export function MenuBloqueo({
               <button
                 key={p.minutos}
                 role="menuitem"
-                onClick={() => { cerrar(); setPendiente(porUnRato(p.minutos)) }}
+                onClick={() => { close(); setPendiente(porUnRato(p.minutos)) }}
               >
                 {p.rotulo}
               </button>
@@ -147,15 +147,15 @@ export function MenuBloqueo({
         )}
       </Menu>
 
-      <Confirmar
-        abierto={pendiente != null}
+      <Confirm
+        open={pendiente != null}
         titulo={pendiente?.titulo ?? ''}
         text={pendiente?.text ?? ''}
         etiqueta={pendiente?.etiqueta ?? ''}
         variante={pendiente?.variante}
         busy={busy}
         onCerrar={() => setPendiente(null)}
-        onConfirmar={() => void confirmar()}
+        onConfirmar={() => void confirm()}
       />
     </>
   )

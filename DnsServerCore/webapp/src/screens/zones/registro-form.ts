@@ -1,6 +1,6 @@
 import { dominioCompleto, identidadRegistro, type ResourceRecord } from '../../api/registros'
 import { limpiarLista } from '../../api/zonelists'
-import { serializarTabla } from '../../lib/tabla-serie'
+import { serializeTable } from '../../lib/tabla-serie'
 
 /*
 The "Add / Edit Record" form and its validation: a replica of `addRecord`
@@ -22,10 +22,10 @@ doubled the places to get it wrong. What changes between add and edit is:
      editing, that same value goes through untouched.
 */
 
-export type ModoRegistro = 'add' | 'update'
+export type RecordMode = 'add' | 'update'
 
 /** The 23 types of the dropdown, in upstream's order (index.html). */
-export const TIPOS_REGISTRO = [
+export const RECORD_TYPES = [
   'A', 'NS', 'SOA', 'CNAME', 'PTR', 'MX', 'TXT', 'RP', 'AAAA', 'SRV', 'NAPTR',
   'DNAME', 'DS', 'SSHFP', 'TLSA', 'SVCB', 'HTTPS', 'URI', 'CAA', 'ANAME',
   'FWD', 'APP', 'Unknown',
@@ -297,7 +297,7 @@ function nombreRelativo(nombreCompleto: string, zone: string): string {
   return i > -1 ? name.substring(0, i) : name
 }
 
-export interface ErrorRegistro {
+export interface RecordError {
   title: string
   text: string
   /** Which field receives the focus, just as upstream does. */
@@ -305,12 +305,12 @@ export interface ErrorRegistro {
 }
 
 export type ResultadoRegistro =
-  | { error: ErrorRegistro }
+  | { error: RecordError }
   | { body: Record<string, string> }
 
 export interface ContextoRegistro {
   zone: string
-  modo: ModoRegistro
+  mode: RecordMode
   /** Only on edit: the record being touched. */
   original?: ResourceRecord
   /** `zoneHasSvcbAutoHint`: whether some SVCB's hints have to be redone. */
@@ -325,16 +325,16 @@ An empty list travels as the string "false", not as an empty string, and that
 part does belong here: the shared function returns the empty one and the caller
 decides.
 */
-export function serializarSvcParams(
+export function serializeSvcParams(
   rows: ParametroSvcb[],
-): { value: string } | { error: ErrorRegistro } {
-  const r = serializarTabla(
+): { value: string } | { error: RecordError } {
+  const r = serializeTable(
     rows.map((row) =>
-      [row.key, row.value].map((value) => ({ tipo: 'text' as const, value })),
+      [row.key, row.value].map((value) => ({ type: 'text' as const, value })),
     ),
   )
   if (!r.ok) {
-    return { error: { title: r.fallo.title, text: r.fallo.text, field: 'svcbParams' } }
+    return { error: { title: r.failure.title, text: r.failure.text, field: 'svcbParams' } }
   }
   return { value: r.value.length === 0 ? 'false' : r.value }
 }
@@ -343,9 +343,9 @@ export function construirCuerpoRegistro(
   f: FormularioRegistro,
   ctx: ContextoRegistro,
 ): ResultadoRegistro {
-  const alta = ctx.modo === 'add'
+  const alta = ctx.mode === 'add'
   const verbo = alta ? 'add' : 'update'
-  const falta = (text: string, field: keyof FormularioRegistro): ResultadoRegistro => ({
+  const missing = (text: string, field: keyof FormularioRegistro): ResultadoRegistro => ({
     error: { title: 'Missing!', text, field },
   })
 
@@ -360,7 +360,7 @@ export function construirCuerpoRegistro(
   switch (f.type.toUpperCase()) {
     case 'A':
     case 'AAAA': {
-      if (f.value === '') return falta(`Please enter an IP address to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter an IP address to ${verbo} the record.`, 'value')
       if (alta) p.ipAddress = f.value
       else {
         p.ipAddress = old.ipAddress ?? ''
@@ -374,7 +374,7 @@ export function construirCuerpoRegistro(
 
     case 'NS': {
       if (f.nsNameServer === '') {
-        return falta(`Please enter a name server to ${verbo} the record.`, 'nsNameServer')
+        return missing(`Please enter a name server to ${verbo} the record.`, 'nsNameServer')
       }
       if (alta) p.nameServer = f.nsNameServer
       else {
@@ -389,12 +389,12 @@ export function construirCuerpoRegistro(
       // The name alert is identical on add and edit, with that enormous
       // explanation about ANAME that is copied whole.
       if (f.name === '' || f.name === '@') {
-        return falta(
+        return missing(
           "Please enter a name for the CNAME record since DNS protocol does not allow CNAME at zone's apex. If you need CNAME like function at the zone's apex then use ANAME record instead.",
           'name',
         )
       }
-      if (f.value === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a domain name to ${verbo} the record.`, 'value')
       p.cname = f.value
       break
     }
@@ -402,16 +402,16 @@ export function construirCuerpoRegistro(
     case 'SOA': {
       // It only exists on edit: there is no add branch for SOA.
       if (f.soaPrimaryNameServer === '') {
-        return falta('Please enter a value for primary name server.', 'soaPrimaryNameServer')
+        return missing('Please enter a value for primary name server.', 'soaPrimaryNameServer')
       }
       if (f.soaResponsiblePerson === '') {
-        return falta('Please enter a value for responsible person.', 'soaResponsiblePerson')
+        return missing('Please enter a value for responsible person.', 'soaResponsiblePerson')
       }
-      if (f.soaSerial === '') return falta('Please enter a value for serial.', 'soaSerial')
-      if (f.soaRefresh === '') return falta('Please enter a value for refresh.', 'soaRefresh')
-      if (f.soaRetry === '') return falta('Please enter a value for retry.', 'soaRetry')
-      if (f.soaExpire === '') return falta('Please enter a value for expire.', 'soaExpire')
-      if (f.soaMinimum === '') return falta('Please enter a value for minimum.', 'soaMinimum')
+      if (f.soaSerial === '') return missing('Please enter a value for serial.', 'soaSerial')
+      if (f.soaRefresh === '') return missing('Please enter a value for refresh.', 'soaRefresh')
+      if (f.soaRetry === '') return missing('Please enter a value for retry.', 'soaRetry')
+      if (f.soaExpire === '') return missing('Please enter a value for expire.', 'soaExpire')
+      if (f.soaMinimum === '') return missing('Please enter a value for minimum.', 'soaMinimum')
 
       p.primaryNameServer = f.soaPrimaryNameServer
       p.responsiblePerson = f.soaResponsiblePerson
@@ -425,7 +425,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'PTR': {
-      if (f.value === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a suitable value to ${verbo} the record.`, 'value')
       if (alta) p.ptrName = f.value
       else {
         p.ptrName = old.ptrName ?? ''
@@ -438,7 +438,7 @@ export function construirCuerpoRegistro(
       // An empty preference falls to 1, it does not error.
       const preferencia = f.mxPreference === '' ? '1' : f.mxPreference
       if (f.mxExchange === '') {
-        return falta(`Please enter a mail exchange domain name to ${verbo} the record.`, 'mxExchange')
+        return missing(`Please enter a mail exchange domain name to ${verbo} the record.`, 'mxExchange')
       }
       if (alta) {
         p.preference = preferencia
@@ -453,7 +453,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'TXT': {
-      if (f.txt === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'txt')
+      if (f.txt === '') return missing(`Please enter a suitable value to ${verbo} the record.`, 'txt')
       if (alta) {
         p.text = f.txt
         p.splitText = String(f.txtSplitText)
@@ -483,13 +483,13 @@ export function construirCuerpoRegistro(
 
     case 'SRV': {
       if (f.name === '') {
-        return falta('Please enter a name that includes service and protocol labels.', 'name')
+        return missing('Please enter a name that includes service and protocol labels.', 'name')
       }
-      if (f.srvPriority === '') return falta('Please enter a suitable priority.', 'srvPriority')
-      if (f.srvWeight === '') return falta('Please enter a suitable weight.', 'srvWeight')
-      if (f.srvPort === '') return falta('Please enter a suitable port number.', 'srvPort')
+      if (f.srvPriority === '') return missing('Please enter a suitable priority.', 'srvPriority')
+      if (f.srvWeight === '') return missing('Please enter a suitable weight.', 'srvWeight')
+      if (f.srvPort === '') return missing('Please enter a suitable port number.', 'srvPort')
       if (f.srvTarget === '') {
-        return falta('Please enter a suitable value into the target field.', 'srvTarget')
+        return missing('Please enter a suitable value into the target field.', 'srvTarget')
       }
 
       if (alta) {
@@ -511,8 +511,8 @@ export function construirCuerpoRegistro(
     }
 
     case 'NAPTR': {
-      if (f.naptrOrder === '') return falta('Please enter a suitable order.', 'naptrOrder')
-      if (f.naptrPreference === '') return falta('Please enter a suitable preference.', 'naptrPreference')
+      if (f.naptrOrder === '') return missing('Please enter a suitable order.', 'naptrOrder')
+      if (f.naptrPreference === '') return missing('Please enter a suitable preference.', 'naptrPreference')
 
       if (alta) {
         p.naptrOrder = f.naptrOrder
@@ -540,26 +540,26 @@ export function construirCuerpoRegistro(
     }
 
     case 'DNAME': {
-      if (f.value === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a domain name to ${verbo} the record.`, 'value')
       p.dname = f.value
       break
     }
 
     case 'DS': {
       if (f.name === '' || f.name === '@') {
-        return falta('Please enter a name for the DS record.', 'name')
+        return missing('Please enter a name for the DS record.', 'name')
       }
       if (f.dsKeyTag === '') {
-        return falta(`Please enter the Key Tag value to ${verbo} the record.`, 'dsKeyTag')
+        return missing(`Please enter the Key Tag value to ${verbo} the record.`, 'dsKeyTag')
       }
       if (f.dsAlgorithm === '') {
-        return falta(`Please select an DNSSEC algorithm to ${verbo} the record.`, 'dsAlgorithm')
+        return missing(`Please select an DNSSEC algorithm to ${verbo} the record.`, 'dsAlgorithm')
       }
       if (f.dsDigestType === '') {
-        return falta(`Please select a Digest Type to ${verbo} the record.`, 'dsDigestType')
+        return missing(`Please select a Digest Type to ${verbo} the record.`, 'dsDigestType')
       }
       if (f.dsDigest === '') {
-        return falta(
+        return missing(
           `Please enter the Digest hash in hex string format to ${verbo} the record.`,
           'dsDigest',
         )
@@ -585,13 +585,13 @@ export function construirCuerpoRegistro(
 
     case 'SSHFP': {
       if (f.sshfpAlgorithm === '') {
-        return falta(`Please select an Algorithm to ${verbo} the record.`, 'sshfpAlgorithm')
+        return missing(`Please select an Algorithm to ${verbo} the record.`, 'sshfpAlgorithm')
       }
       if (f.sshfpFingerprintType === '') {
-        return falta(`Please select a Fingerprint Type to ${verbo} the record.`, 'sshfpFingerprintType')
+        return missing(`Please select a Fingerprint Type to ${verbo} the record.`, 'sshfpFingerprintType')
       }
       if (f.sshfpFingerprint === '') {
-        return falta(
+        return missing(
           `Please enter the Fingerprint hash in hex string format to ${verbo} the record.`,
           'sshfpFingerprint',
         )
@@ -614,16 +614,16 @@ export function construirCuerpoRegistro(
 
     case 'TLSA': {
       if (f.tlsaCertificateUsage === '') {
-        return falta(`Please select a Certificate Usage to ${verbo} the record.`, 'tlsaCertificateUsage')
+        return missing(`Please select a Certificate Usage to ${verbo} the record.`, 'tlsaCertificateUsage')
       }
       if (f.tlsaSelector === '') {
-        return falta(`Please select a Selector to ${verbo} the record.`, 'tlsaSelector')
+        return missing(`Please select a Selector to ${verbo} the record.`, 'tlsaSelector')
       }
       if (f.tlsaMatchingType === '') {
-        return falta(`Please select a Matching Type to ${verbo} the record.`, 'tlsaMatchingType')
+        return missing(`Please select a Matching Type to ${verbo} the record.`, 'tlsaMatchingType')
       }
       if (f.tlsaCertificateAssociationData === '') {
-        return falta(
+        return missing(
           `Please enter the Certificate Association Data to ${verbo} the record.`,
           'tlsaCertificateAssociationData',
         )
@@ -634,7 +634,7 @@ export function construirCuerpoRegistro(
         f.tlsaMatchingType === 'Full' &&
         !f.tlsaCertificateAssociationData.startsWith('-')
       ) {
-        return falta(
+        return missing(
           'Please enter a complete certificate in PEM format as the Certificate Association Data to add the record.',
           'tlsaCertificateAssociationData',
         )
@@ -661,13 +661,13 @@ export function construirCuerpoRegistro(
     case 'SVCB':
     case 'HTTPS': {
       if (f.svcbPriority === '') {
-        return falta(`Please enter a Priority value to ${verbo} the record.`, 'svcbPriority')
+        return missing(`Please enter a Priority value to ${verbo} the record.`, 'svcbPriority')
       }
       if (f.svcbTargetName === '') {
-        return falta(`Please enter a Target Name to ${verbo} the record.`, 'svcbTargetName')
+        return missing(`Please enter a Target Name to ${verbo} the record.`, 'svcbTargetName')
       }
 
-      const params = serializarSvcParams(f.svcbParams)
+      const params = serializeSvcParams(f.svcbParams)
       if ('error' in params) return params
 
       if (alta) {
@@ -688,9 +688,9 @@ export function construirCuerpoRegistro(
     }
 
     case 'URI': {
-      if (f.uriPriority === '') return falta('Please enter a suitable priority.', 'uriPriority')
-      if (f.uriWeight === '') return falta('Please enter a suitable weight.', 'uriWeight')
-      if (f.uri === '') return falta('Please enter a suitable value into the URI field.', 'uri')
+      if (f.uriPriority === '') return missing('Please enter a suitable priority.', 'uriPriority')
+      if (f.uriWeight === '') return missing('Please enter a suitable weight.', 'uriWeight')
+      if (f.uri === '') return missing('Please enter a suitable value into the URI field.', 'uri')
 
       if (alta) {
         p.uriPriority = f.uriPriority
@@ -712,7 +712,7 @@ export function construirCuerpoRegistro(
       const flags = f.caaFlags === '' ? '0' : f.caaFlags
       const tag = f.caaTag === '' ? 'issue' : f.caaTag
       if (f.caaValue === '') {
-        return falta('Please enter a suitable value into the authority field.', 'caaValue')
+        return missing('Please enter a suitable value into the authority field.', 'caaValue')
       }
 
       if (alta) {
@@ -731,7 +731,7 @@ export function construirCuerpoRegistro(
     }
 
     case 'ANAME': {
-      if (f.value === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'value')
+      if (f.value === '') return missing(`Please enter a suitable value to ${verbo} the record.`, 'value')
       if (alta) p.aname = f.value
       else {
         p.aname = old.aname ?? ''
@@ -743,7 +743,7 @@ export function construirCuerpoRegistro(
     case 'FWD': {
       const reenviador = f.forwarder
       if (reenviador === '') {
-        return falta(
+        return missing(
           `Please enter a domain name or IP address or URL as a forwarder to ${verbo} the record.`,
           'forwarder',
         )
@@ -771,13 +771,13 @@ export function construirCuerpoRegistro(
         p.proxyType = f.proxyType
         if (f.proxyType === 'Http' || f.proxyType === 'Socks5') {
           if (f.proxyAddress === '') {
-            return falta(
+            return missing(
               `Please enter a domain name or IP address for Proxy Server Address to ${verbo} the record.`,
               'proxyAddress',
             )
           }
           if (f.proxyPort === '') {
-            return falta(
+            return missing(
               `Please enter a port number for Proxy Server Port to ${verbo} the record.`,
               'proxyPort',
             )
@@ -794,10 +794,10 @@ export function construirCuerpoRegistro(
     case 'APP': {
       if (alta) {
         if (f.appName === '') {
-          return falta('Please select an application name to add record.', 'appName')
+          return missing('Please select an application name to add record.', 'appName')
         }
         if (f.classPath === '') {
-          return falta('Please select a class path to add record.', 'classPath')
+          return missing('Please select a class path to add record.', 'classPath')
         }
         p.appName = f.appName
         p.classPath = f.classPath
@@ -815,7 +815,7 @@ export function construirCuerpoRegistro(
       // "Unknown": the type is typed by the user. Only the add requires it.
       type = f.unknownType
       if (alta && type === '') {
-        return falta('Please enter a resoure record name or number to add record.', 'unknownType')
+        return missing('Please enter a resoure record name or number to add record.', 'unknownType')
       }
       /*
       The two texts are NOT the same sentence with the verb swapped: the add
@@ -824,7 +824,7 @@ export function construirCuerpoRegistro(
       contract, not prose of ours.
       */
       if (f.value === '') {
-        return falta(
+        return missing(
           alta
             ? 'Please enter a hex value as the RDATA to add record.'
             : 'Please enter a hex value as the RDATA to update the record.',

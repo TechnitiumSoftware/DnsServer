@@ -7,7 +7,7 @@ The serialisation itself is NOT here: it is upstream's `serializeTableData`
 in `lib/tabla-serie`. It is re-exported so Administration's four sub-tabs keep
 asking for it through this door.
 */
-export { serializarTabla, type Cell, type FalloTabla, type ResultadoTabla } from '../../lib/tabla-serie'
+export { serializeTable, type Cell, type TableFailure, type ResultadoTabla } from '../../lib/tabla-serie'
 
 /*
 Administration's four "Add User" / "Add Group" dropdowns. All four behave the
@@ -19,7 +19,7 @@ export const OPCION_NONE = 'none'
 
 /** Variant over a textarea: "Member Of" and "Members". Upstream compares line by
  *  line and guarantees the trailing newline. */
-export function anadirALaLista(text: string, selection: string): string {
+export function addToList(text: string, selection: string): string {
   if (selection === OPCION_BLANK) return text
   if (selection === OPCION_NONE) return ''
 
@@ -32,13 +32,13 @@ export function anadirALaLista(text: string, selection: string): string {
 
 /** Variant over a permissions table: it adds the row with the three permissions
  *  false, or empties the table with `none`. */
-export function anadirALaTabla<T extends { name: string }>(
+export function addToTable<T extends { name: string }>(
   rows: readonly T[],
   selection: string,
-  nueva: (name: string) => T,
+  blank: (name: string) => T,
 ): readonly T[] {
   if (selection === OPCION_BLANK) return rows
   if (selection === OPCION_NONE) return []
   if (rows.some((f) => f.name === selection)) return rows
-  return [...rows, nueva(selection)]
+  return [...rows, blank(selection)]
 }

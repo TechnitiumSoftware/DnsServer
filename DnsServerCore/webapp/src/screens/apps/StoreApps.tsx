@@ -6,8 +6,8 @@ import { error, type AlertState } from './Apps'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
-import { Avisador } from '../../ui/Avisador'
-import { Confirmar } from '../../ui/Confirmar'
+import { Notifier } from '../../ui/Avisador'
+import { Confirm } from '../../ui/Confirmar'
 
 /*
 A replica of `modalStoreApps` (index.html:6148-6183) and of the three actions
@@ -39,7 +39,7 @@ export function StoreApps({
   const [busy, setBusy] = useState<string | null>(null)
   const [porDesinstalar, setPorDesinstalar] = useState<StoreApp | null>(null)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     const outcome = await listStoreApps(token)
     if (outcome.kind === 'ok') {
       setStoreApps(outcome.data.response.storeApps)
@@ -53,8 +53,8 @@ export function StoreApps({
     if (!open) return
     setAlert(null)
     setStoreApps(null)
-    void cargar()
-  }, [open, cargar])
+    void load()
+  }, [open, load])
 
   async function tras(app: StoreApp, ok: AlertState, call: Promise<{ kind: string; message?: string }>) {
     setBusy(app.name)
@@ -67,7 +67,7 @@ export function StoreApps({
     }
     setAlert(ok)
     onChanged()
-    await cargar()
+    await load()
   }
 
   function instalar(app: StoreApp) {
@@ -120,10 +120,10 @@ export function StoreApps({
       size="medium"
       title="DNS App Store"
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
 
-      <Confirmar
-        abierto={porDesinstalar !== null}
+      <Confirm
+        open={porDesinstalar !== null}
         titulo="Uninstall App"
         text={`Are you sure you want to uninstall the DNS application '${porDesinstalar?.name ?? ''}'?`}
         etiqueta="Uninstall"

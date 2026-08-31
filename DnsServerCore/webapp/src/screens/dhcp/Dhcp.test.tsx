@@ -381,8 +381,8 @@ describe('DHCP › Scopes — the form', () => {
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
 
     // A new exclusion is born with both cells empty.
-    const anadir = screen.getAllByRole('button', { name: 'Add' })
-    await user.click(anadir[3])
+    const add = screen.getAllByRole('button', { name: 'Add' })
+    await user.click(add[3])
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(spy).not.toHaveBeenCalled()
@@ -401,8 +401,8 @@ describe('DHCP › Scopes — the form', () => {
     await screen.findByText('No Scope Found')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
 
-    const anadir = screen.getAllByRole('button', { name: 'Add' })
-    await user.click(anadir[3])
+    const add = screen.getAllByRole('button', { name: 'Add' })
+    await user.click(add[3])
     await user.type(screen.getByLabelText('Exclusions 1 Starting Address'), 'a|b')
     await user.type(screen.getByLabelText('Exclusions 1 Ending Address'), '10.0.1.9')
     await user.click(screen.getByRole('button', { name: 'Save' }))

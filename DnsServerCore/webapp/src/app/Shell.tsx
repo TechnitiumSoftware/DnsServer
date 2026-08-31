@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { visibleSections, type Permission } from './sections'
-import { aCamino, escribirRuta, leerRuta } from './ruta'
+import { aCamino, escribirRuta, readRoute } from './ruta'
 import { ChangePassword } from '../screens/modals/ChangePassword'
 import { Configure2FA } from '../screens/modals/Configure2FA'
 import { CreateApiToken } from '../screens/modals/CreateApiToken'
@@ -16,7 +16,7 @@ import { Dhcp } from '../screens/dhcp/Dhcp'
 import { Logs } from '../screens/logs/Logs'
 import { Admin } from '../screens/admin/Admin'
 import styles from './Shell.module.css'
-import { Icono, type NombreIcono } from '../ui/Icono'
+import { Icon, type IconName } from '../ui/Icono'
 import { urlPublica } from './base'
 import { Menu } from '../ui/Menu'
 import { PieDeEnlaces } from '../ui/PieDeEnlaces'
@@ -38,7 +38,7 @@ const GROUPS: string[][] = [
   ['logs', 'about'],
 ]
 
-const ICONOS: Record<string, NombreIcono> = {
+const ICONS: Record<string, IconName> = {
   dashboard: 'dashboard', zones: 'zones', cache: 'cache', allowed: 'allowed',
   blocked: 'blocked', apps: 'apps', dnsclient: 'dnsclient', settings: 'settings',
   dhcp: 'dhcp', admin: 'admin', logs: 'logs', about: 'about',
@@ -73,7 +73,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const sections = useMemo(() => visibleSections(permissions), [permissions])
   /* The starting section comes from the address bar if it carries one, and only
      if not, from the first visible one. See `app/ruta.ts` for the reasoning. */
-  const rutaInicial = leerRuta(sections)
+  const rutaInicial = readRoute(sections)
   const [active, setActive] = useState(() => rutaInicial?.section ?? sections[0]?.id ?? 'about')
   const [cajon, setCajon] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
@@ -81,7 +81,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   const [displayName, setDisplayName] = useState(session.displayName)
   const [totpEnabled, setTotpEnabled] = useState(session.totpEnabled ?? false)
 
-  function abrir(id: ModalId) {
+  function open(id: ModalId) {
     setModal(id)
   }
 
@@ -125,7 +125,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
 
   useEffect(() => {
     function alCambiar() {
-      const r = leerRuta(sections)
+      const r = readRoute(sections)
       if (r == null) {
         // A route that does not resolve left the bar and the screen saying different
         // distintas. La pantalla manda: se corrige la URL.
@@ -163,7 +163,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         />
       )}
 
-      <aside className={styles.side} data-abierto={cajon}>
+      <aside className={styles.side} data-open={cajon}>
         <div className={styles.sbrand}>
           <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium
         </div>
@@ -208,7 +208,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                       }}
                     >
                       <span className={styles.ico}>
-                        <Icono name={ICONOS[sec.id] ?? 'about'} tam={16} />
+                        <Icon name={ICONS[sec.id] ?? 'about'} tam={16} />
                       </span>
                       {sec.label}
                     </a>
@@ -258,26 +258,26 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           <PieDeEnlaces className={styles.pieEnlaces} />
           {session.info && <span className={styles.host}>{session.info.dnsServerDomain}</span>}
           <Menu etiqueta={displayName} rotulo={displayName} ancla="izquierda" comoFila>
-            {(cerrar) => (
+            {(close) => (
               <>
-                <button type="button" onClick={() => { cerrar(); abrir('profile') }}>
+                <button type="button" onClick={() => { close(); open('profile') }}>
                   My Profile
                 </button>
                 {/* main.js:71-78 — a un usuario de SSO se le ocultan estas dos. */}
                 {!session.isSsoUser && (
-                  <button type="button" onClick={() => { cerrar(); abrir('password') }}>
+                  <button type="button" onClick={() => { close(); open('password') }}>
                     Change Password
                   </button>
                 )}
                 {!session.isSsoUser && (
-                  <button type="button" onClick={() => { cerrar(); abrir('twofa') }}>
+                  <button type="button" onClick={() => { close(); open('twofa') }}>
                     Configure 2FA
                   </button>
                 )}
-                <button type="button" onClick={() => { cerrar(); abrir('token') }}>
+                <button type="button" onClick={() => { close(); open('token') }}>
                   Create API Token
                 </button>
-                <button type="button" onClick={() => { cerrar(); onLogout() }}>
+                <button type="button" onClick={() => { close(); onLogout() }}>
                   Logout
                 </button>
               </>
@@ -305,7 +305,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             aria-expanded={cajon}
             onClick={() => setCajon((v) => !v)}
           >
-            <Icono name="menu" tam={18} />
+            <Icon name="menu" tam={18} />
           </button>
           <span className={styles.marcaTop}>
             <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium

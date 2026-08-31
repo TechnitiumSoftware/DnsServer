@@ -7,7 +7,7 @@ included: `temporaryDisableBlockingTill`, `blockListNextUpdatedOn` and
 `clusterNodes` do NOT come when they are null, and that is exactly the case that
 has to be drawn correctly ("Not Set", "Not Scheduled").
 */
-export const AJUSTES: DnsSettings = {
+export const SETTINGS: DnsSettings = {
   "version": "15.4",
   "uptimestamp": "2026-08-25T13:07:31.1734662Z",
   "clusterInitialized": false,

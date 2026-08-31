@@ -1,5 +1,5 @@
 import type { DhcpScope } from '../../api/dhcp'
-import { serializarTabla } from '../../lib/tabla-serie'
+import { serializeTable } from '../../lib/tabla-serie'
 
 /*
 The form of a DHCP scope: 36 fields, five of them editable tables.
@@ -219,7 +219,7 @@ export function formularioDesdeScope(s: DhcpScope): ScopeForm {
   }
 }
 
-export interface ErrorScope {
+export interface ScopeError {
   title: string
   text: string
   /** `id` of the control upstream focuses. The alert's text talks about "the text
@@ -236,11 +236,11 @@ export function idCelda(table: string, row: number, columna: string): string {
 `serializeTableData` (common.js:282). Returns the cells of every row joined by
 `|`, or the alert of the first cell that is not valid.
 */
-function serializar(
+function serialize(
   table: string,
   rows: Record<string, string>[],
   columnas: { key: string; optional?: boolean }[],
-): { value: string } | { error: ErrorScope } {
+): { value: string } | { error: ScopeError } {
   /*
   The algorithm is upstream's `serializeTableData` and it lives in
   `lib/tabla-serie`, shared by the five screens with an editable table. All that
@@ -248,10 +248,10 @@ function serializar(
   deterministic `id`, because the alert literally says "the text field in focus"
   and without being able to focus it there is no resolving it.
   */
-  const r = serializarTabla(
+  const r = serializeTable(
     rows.map((row) =>
       columnas.map((col) => ({
-        tipo: 'text' as const,
+        type: 'text' as const,
         value: row[col.key] ?? '',
         opcional: col.optional,
       })),
@@ -260,9 +260,9 @@ function serializar(
   if (r.ok) return { value: r.value }
   return {
     error: {
-      title: r.fallo.title,
-      text: r.fallo.text,
-      focus: idCelda(table, r.fallo.row, columnas[r.fallo.columna].key),
+      title: r.failure.title,
+      text: r.failure.text,
+      focus: idCelda(table, r.failure.row, columnas[r.failure.columna].key),
     },
   }
 }
@@ -279,7 +279,7 @@ the same rules:
 */
 export function construirCuerpo(
   f: ScopeForm,
-): { body: Record<string, string> } | { error: ErrorScope } {
+): { body: Record<string, string> } | { error: ScopeError } {
   let name = f.name
   let newName: string | null = null
 
@@ -288,33 +288,33 @@ export function construirCuerpo(
     name = f.oldName
   }
 
-  const staticRoutes = serializar('staticRoutes', f.staticRoutes as unknown as Record<string, string>[], [
+  const staticRoutes = serialize('staticRoutes', f.staticRoutes as unknown as Record<string, string>[], [
     { key: 'destination' },
     { key: 'subnetMask' },
     { key: 'router' },
   ])
   if ('error' in staticRoutes) return staticRoutes
 
-  const vendorInfo = serializar('vendorInfo', f.vendorInfo as unknown as Record<string, string>[], [
+  const vendorInfo = serialize('vendorInfo', f.vendorInfo as unknown as Record<string, string>[], [
     { key: 'identifier', optional: true },
     { key: 'information' },
   ])
   if ('error' in vendorInfo) return vendorInfo
 
-  const genericOptions = serializar(
+  const genericOptions = serialize(
     'genericOptions',
     f.genericOptions as unknown as Record<string, string>[],
     [{ key: 'code' }, { key: 'value' }],
   )
   if ('error' in genericOptions) return genericOptions
 
-  const exclusions = serializar('exclusions', f.exclusions as unknown as Record<string, string>[], [
+  const exclusions = serialize('exclusions', f.exclusions as unknown as Record<string, string>[], [
     { key: 'startingAddress' },
     { key: 'endingAddress' },
   ])
   if ('error' in exclusions) return exclusions
 
-  const reservedLeases = serializar(
+  const reservedLeases = serialize(
     'reservedLeases',
     f.reservedLeases as unknown as Record<string, string>[],
     [

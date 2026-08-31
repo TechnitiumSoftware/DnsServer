@@ -22,8 +22,8 @@ import { Table } from '../../ui/Table'
 import styles from './Logs.module.css'
 import { ventanaDePaginas } from '../../lib/paginacion'
 import { Pagination } from '../../ui/Paginacion'
-import { avisoDeFallo, type Aviso } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure, type Notice } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 Logs › Query Logs (logs.js:20-101 and 270-710).
@@ -116,20 +116,20 @@ export function appsConQueryLogs(apps: InstalledApp[]): { name: string; classPat
  *  response type. It is the table's only colour signal. */
 export function claseFila(entry: QueryLogEntry): string {
   const locked = ['blocked', 'upstreamblocked', 'upstreamblockedcached']
-  const tipo = entry.responseType.toLowerCase()
+  const type = entry.responseType.toLowerCase()
 
   switch (entry.rcode.toLowerCase()) {
     case 'serverfailure':
       return styles.rServerFailure
     case 'nxdomain':
-      return locked.includes(tipo) ? styles.rBlocked : styles.rNxDomain
+      return locked.includes(type) ? styles.rBlocked : styles.rNxDomain
     case 'refused':
       return styles.rRefused
     default:
-      if (tipo === 'authoritative') return styles.rAuthoritative
-      if (tipo === 'recursive') return styles.rRecursive
-      if (tipo === 'cached') return styles.rCached
-      if (locked.includes(tipo)) return styles.rBlocked
+      if (type === 'authoritative') return styles.rAuthoritative
+      if (type === 'recursive') return styles.rRecursive
+      if (type === 'cached') return styles.rCached
+      if (locked.includes(type)) return styles.rBlocked
       return ''
   }
 }
@@ -161,7 +161,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   const [apps, setApps] = useState<{ name: string; classPaths: string[] }[] | null>(null)
   const [f, setF] = useState<Filtros>(() => filtrosPorDefecto('', ''))
   const [page, setPagina] = useState<QueryLogPage | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState(false)
 
@@ -191,7 +191,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         run, so the screen sat dead without saying why.
         */
         setApps([])
-        setAviso(avisoDeFallo(outcome))
+        setAviso(noticeFromFailure(outcome))
         return
       }
       const list = appsConQueryLogs(outcome.data.response.apps ?? [])
@@ -281,7 +281,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
 
       if (outcome.kind !== 'ok') {
         if (!enVivo) {
-          setAviso(avisoDeFallo(outcome))
+          setAviso(noticeFromFailure(outcome))
         }
         return
       }
@@ -368,7 +368,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
     setBusy(false)
   }
 
-  function guardarEntradasPorPagina(value: string) {
+  function saveEntriesPerPage(value: string) {
     set({ entriesPerPage: value })
     try {
       localStorage.setItem(CLAVE_ENTRIES_PER_PAGE, value)
@@ -409,7 +409,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         </>}
       />
 
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fs}>
         <h3 className={styles.fsTitle}>Filters</h3>
@@ -598,7 +598,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 <Select
                   id="ql-entriesPerPage"
                   value={f.entriesPerPage}
-                  onChange={(e) => guardarEntradasPorPagina(e.target.value)}
+                  onChange={(e) => saveEntriesPerPage(e.target.value)}
                 >
                   {ENTRIES_PER_PAGE.map((n) => (
                     <option key={n} value={n}>

@@ -25,14 +25,14 @@ Three things that are contract and not our preference:
 
 export type Algoritmo = 'RSA' | 'ECDSA' | 'EDDSA'
 export type NxProof = 'NSEC' | 'NSEC3'
-export type TipoClave = 'KeySigningKey' | 'ZoneSigningKey'
+export type KeyKind = 'KeySigningKey' | 'ZoneSigningKey'
 
 /** States of a private key, in the order of upstream's life cycle. */
 export type EstadoClave = 'Generated' | 'Published' | 'Ready' | 'Active' | 'Retired' | 'Revoked'
 
 export interface ClavePrivada {
   keyTag: number
-  keyType: TipoClave
+  keyType: KeyKind
   algorithm: string
   algorithmNumber: number
   state: EstadoClave
@@ -182,7 +182,7 @@ export async function getPropiedades(
 
 /** Parameters of `addPrivateKey`. See `addDnssecPrivateKey` (zone.js:7191). */
 export interface OpcionesClaveNueva {
-  keyType: TipoClave
+  keyType: KeyKind
   algorithm: Algoritmo
   pemPrivateKey?: string
   rolloverDays: string
@@ -357,17 +357,17 @@ export function planNxProof(
   current: NxProof,
   elegido: NxProof,
   actuales: { iterations: string; saltLength: string },
-  nuevos: { iterations: string; saltLength: string },
+  blanks: { iterations: string; saltLength: string },
 ): PlanNxProof {
   if (current === 'NSEC') {
     if (elegido === 'NSEC') return { action: 'ninguna' }
-    return { action: 'convertToNSEC3', ...nuevos }
+    return { action: 'convertToNSEC3', ...blanks }
   }
 
   if (elegido === 'NSEC') return { action: 'convertToNSEC' }
 
-  if (actuales.iterations === nuevos.iterations && actuales.saltLength === nuevos.saltLength) {
+  if (actuales.iterations === blanks.iterations && actuales.saltLength === blanks.saltLength) {
     return { action: 'ninguna' }
   }
-  return { action: 'updateNSEC3Params', ...nuevos }
+  return { action: 'updateNSEC3Params', ...blanks }
 }

@@ -21,15 +21,15 @@ import {
   type FormularioOpciones,
   type PestanaOpciones,
 } from '../opciones'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import { Externo } from '../../../ui/Externo'
 import { RFC_ZONEMD } from '../referencias'
 import frm from '../../../ui/Form.module.css'
 import { GroupRow } from '../../../ui/Form'
-import { Segmentado } from '../../../ui/Segmentado'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { Segmented } from '../../../ui/Segmentado'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalZoneOptions` (zone.js:1524 and 2380). Five tabs and a visibility matrix
@@ -47,28 +47,28 @@ would be impossible to resolve.
 
 export function OpcionesZona({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   onCerrar,
   onHecho,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
 }) {
   const [respuesta, setRespuesta] = useState<Respuesta | null>(null)
   const [f, setF] = useState<FormularioOpciones | null>(null)
   const [pestana, setPestana] = useState<PestanaOpciones>('General')
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setAviso(null)
     setLoading(true)
     void getZoneOptions(token, zone, node).then((r) => {
@@ -81,14 +81,14 @@ export function OpcionesZona({
       setF(formularioDesdeOpciones(r))
       setPestana(estadoOpciones(r).pestanaInicial)
     })
-  }, [abierto, token, zone, node])
+  }, [open, token, zone, node])
 
   const e: EstadoOpciones | null = respuesta ? estadoOpciones(respuesta) : null
 
   const set = <K extends keyof FormularioOpciones>(k: K, value: FormularioOpciones[K]) =>
     setF((prev) => (prev == null ? prev : { ...prev, [k]: value }))
 
-  async function guardar() {
+  async function save() {
     if (f == null || respuesta == null) return
 
     const r = construirCuerpoOpciones(f, respuesta.type)
@@ -103,7 +103,7 @@ export function OpcionesZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -116,19 +116,19 @@ export function OpcionesZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       size="medium"
       title={`Zone Options - ${zone === '.' ? '<root>' : zone}`}
       actions={
         <>
-          <Button variant="primary" disabled={busy || f == null} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy || f == null} onClick={() => void save()}>
             Save
           </Button>
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       {loading || f == null || e == null ? (
         <Loading>Loading zone options…</Loading>
@@ -136,7 +136,7 @@ export function OpcionesZona({
         <>
           {/* A segmented control, not the pagination button's class: a tab
               and a page number are not the same thing. */}
-          <Segmentado
+          <Segmented
             comoPestanas
             etiqueta="Zone options"
             options={PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => ({

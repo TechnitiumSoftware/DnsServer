@@ -1,5 +1,5 @@
 import styles from './Listas.module.css'
-import { Icono } from '../../ui/Icono'
+import { Icon } from '../../ui/Icono'
 
 /*
 The domain tree.
@@ -46,7 +46,7 @@ export function Tree({
     <div className={styles.lvl}>
       {zones.map((z) => (
         <button key={z} type="button" className={styles.node} onClick={() => onNavegar(z)}>
-          <span className={styles.car}><Icono name="chevronDerecha" tam={12} /></span>
+          <span className={styles.car}><Icon name="chevronRight" tam={12} /></span>
           <span className={styles.etiqueta}>{z}</span>
         </button>
       ))}
@@ -57,7 +57,7 @@ export function Tree({
     tree = (
       <div className={styles.lvl}>
         <button type="button" className={styles.node} aria-current="true" disabled>
-          <span className={styles.car}><Icono name="chevronAbajo" tam={12} /></span>
+          <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
           <span className={styles.etiqueta}>{domainIdn ?? domain}</span>
         </button>
         {tree}
@@ -73,7 +73,7 @@ export function Tree({
             className={styles.node}
             onClick={() => onNavegar(padre, true)}
           >
-            <span className={styles.car}><Icono name="chevronAbajo" tam={12} /></span>
+            <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
             <span className={styles.etiqueta}>{padre}</span>
           </button>
           {inside}
@@ -91,7 +91,7 @@ export function Tree({
         onClick={enRaiz ? undefined : () => onNavegar('', true)}
         disabled={enRaiz}
       >
-        <span className={styles.car}><Icono name="chevronAbajo" tam={12} /></span>
+        <span className={styles.car}><Icon name="chevronDown" tam={12} /></span>
         <span className={styles.etiqueta}>&lt;ROOT&gt;</span>
       </button>
       {tree}

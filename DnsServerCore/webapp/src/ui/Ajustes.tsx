@@ -5,7 +5,7 @@ import { Empty } from './Empty'
 import { Input, Textarea } from './Field'
 import { HelpText, GroupRow, Row } from './Form'
 import { Panel } from './Panel'
-import { TablaEditable } from './TablaEditable'
+import { EditableTable } from './TablaEditable'
 import check from './Check.module.css'
 import text from './texto.module.css'
 import styles from './Ajustes.module.css'
@@ -168,7 +168,7 @@ export function Radios({
 }
 
 /** Several loose blocks carrying the panel body's inset. */
-export function Avisos({ children }: { children: ReactNode }) {
+export function Notices({ children }: { children: ReactNode }) {
   return <div className={styles.notices}>{children}</div>
 }
 
@@ -244,12 +244,12 @@ The deterministic `id` exists because upstream's validation alert says literally
 "the text field in focus": without being able to focus the failing cell, the alert
 cannot be resolved.
 */
-export function EditableTable<T extends Record<string, string>>({
+export function EditableList<T extends Record<string, string>>({
   label,
   columnas,
   rows,
   onChange,
-  nueva,
+  blank,
   help,
   disabled,
   idCelda,
@@ -258,14 +258,14 @@ export function EditableTable<T extends Record<string, string>>({
   columnas: Columna<T>[]
   rows: T[]
   onChange: (rows: T[]) => void
-  nueva: () => T
+  blank: () => T
   help?: ReactNode
   disabled?: boolean
   idCelda?: (row: number, columna: string) => string
 }) {
   return (
     <GroupRow label={label}>
-      <TablaEditable
+      <EditableTable
         className={styles.editable}
         header={
           <>
@@ -318,12 +318,12 @@ export function EditableTable<T extends Record<string, string>>({
             </tr>
           )
         })}
-      </TablaEditable>
+      </EditableTable>
       {/* With no rows, the table showed the headers and nothing beneath: blank
           does not say "there are none", it says "I do not know". */}
       {rows.length === 0 && <Empty compacto>No entries.</Empty>}
       <div>
-        <Button disabled={disabled} onClick={() => onChange([...rows, nueva()])}>
+        <Button disabled={disabled} onClick={() => onChange([...rows, blank()])}>
           Add
         </Button>
       </div>
@@ -334,4 +334,4 @@ export function EditableTable<T extends Record<string, string>>({
 
 export { Check } from './Check'
 export { HelpText, GroupRow, Row }
-export { styles as ajustesStyles }
+export { styles as panelFormStyles }

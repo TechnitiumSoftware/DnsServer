@@ -21,7 +21,7 @@ Two oddities of the original:
     catalog on creation.
 */
 
-export type TipoAlta =
+export type AddZoneKind =
   | 'Primary'
   | 'Secondary'
   | 'Stub'
@@ -31,14 +31,14 @@ export type TipoAlta =
   | 'SecondaryCatalog'
   | 'SecondaryRoot'
 
-export interface TipoDeAlta {
-  value: TipoAlta
+export interface AddZoneOption {
+  value: AddZoneKind
   etiqueta: string
   /** An external reference upstream draws in brackets after the label. */
   referencia?: { text: string; href: string }
 }
 
-export const TIPOS_ALTA: TipoDeAlta[] = [
+export const ADD_TYPES: AddZoneOption[] = [
   { value: 'Primary', etiqueta: 'Primary Zone (default)' },
   { value: 'Secondary', etiqueta: 'Secondary Zone' },
   { value: 'Stub', etiqueta: 'Stub Zone' },
@@ -72,7 +72,7 @@ export const PROTOCOLOS_FORWARDER = [
   { value: 'Quic', etiqueta: 'DNS-over-QUIC' },
 ]
 
-export const TIPOS_PROXY = [
+export const PROXY_TYPES = [
   { value: 'NoProxy', etiqueta: 'No Proxy' },
   { value: 'DefaultProxy', etiqueta: 'Default Proxy (default)' },
   { value: 'Http', etiqueta: 'HTTP Proxy' },
@@ -81,7 +81,7 @@ export const TIPOS_PROXY = [
 
 export interface FormularioAlta {
   zone: string
-  tipo: TipoAlta
+  type: AddZoneKind
   catalog: string
   useSoaSerialDateScheme: boolean
   primaryNameServerAddresses: string
@@ -103,7 +103,7 @@ export interface FormularioAlta {
 export function formularioAltaInicial(useSoaSerialDateScheme: boolean, dnssecValidation: boolean): FormularioAlta {
   return {
     zone: '',
-    tipo: 'Primary',
+    type: 'Primary',
     catalog: '',
     // Both inherit from the global setting on the Settings screen, not from false.
     useSoaSerialDateScheme,
@@ -124,14 +124,14 @@ export function formularioAltaInicial(useSoaSerialDateScheme: boolean, dnssecVal
   }
 }
 
-export interface ErrorAlta {
+export interface AddError {
   title: string
   text: string
   /** Which field receives the focus, just as upstream does. */
   field: keyof FormularioAlta
 }
 
-export type ResultadoAlta = { error: ErrorAlta } | { parametros: Record<string, string> }
+export type ResultadoAlta = { error: AddError } | { parametros: Record<string, string> }
 
 export interface SeccionesAlta {
   /** Only if the dropdown also brought catalogs (`hasItems`). */
@@ -157,7 +157,7 @@ export interface SeccionesAlta {
  * NOTHING**: it has no branch in the `switch`, so only the name and the type
  * remain.
  */
-export function seccionesVisibles(tipo: TipoAlta, initializeForwarder: boolean): SeccionesAlta {
+export function seccionesVisibles(type: AddZoneKind, initializeForwarder: boolean): SeccionesAlta {
   const base: SeccionesAlta = {
     catalogo: false,
     ficheroDeZona: false,
@@ -172,7 +172,7 @@ export function seccionesVisibles(tipo: TipoAlta, initializeForwarder: boolean):
     zonaFija: null,
   }
 
-  switch (tipo) {
+  switch (type) {
     case 'Primary':
       return { ...base, catalogo: true, ficheroDeZona: true, serieSoa: true }
 
@@ -242,10 +242,10 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
     }
   }
 
-  let type: string = f.tipo
+  let type: string = f.type
   const p: Record<string, string> = {}
 
-  switch (f.tipo) {
+  switch (f.type) {
     case 'Primary':
       p.catalog = f.catalog
       p.useSoaSerialDateScheme = String(f.useSoaSerialDateScheme)
@@ -354,6 +354,6 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
 }
 
 /** Only Primary and Forwarder accept a zone file on creation (zone.js:3030). */
-export function admiteFicheroDeZona(tipo: TipoAlta): boolean {
-  return tipo === 'Primary' || tipo === 'Forwarder'
+export function admiteFicheroDeZona(type: AddZoneKind): boolean {
+  return type === 'Primary' || type === 'Forwarder'
 }

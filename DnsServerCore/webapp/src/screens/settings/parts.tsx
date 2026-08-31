@@ -8,11 +8,11 @@ not to repeat the path in eleven files.
 */
 export {
   AreaRow,
-  Avisos,
+  Notices,
   Block,
   Check,
   Coletilla,
-  EditableTable,
+  EditableList,
   GroupRow,
   Help,
   Note,
@@ -22,7 +22,7 @@ export {
   Row,
   TextRow,
   Warning,
-  ajustesStyles,
+  panelFormStyles,
   type Columna,
   type OpcionRadio,
 } from '../../ui/Ajustes'

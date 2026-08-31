@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Permissions } from './Permissions'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, PERMISSIONS } from './admin.fixture'
-import { elegir } from '../../test/desplegable'
+import { choose } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -84,7 +84,7 @@ describe('Permissions — the list', () => {
 })
 
 describe('Permissions — the editing modal', () => {
-  async function abrir(cluster = null as never) {
+  async function open(cluster = null as never) {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Permissions {...props} cluster={cluster} />)
@@ -97,7 +97,7 @@ describe('Permissions — the editing modal', () => {
   }
 
   it('it asks for the section with users and groups', async () => {
-    const { spy } = await abrir()
+    const { spy } = await open()
     expect(spy.mock.calls.find((c) => c[0] === 'admin/permissions/get')?.[1]).toEqual({
       token: 'tok',
       body: { section: 'Dashboard', includeUsersAndGroups: 'true' },
@@ -105,7 +105,7 @@ describe('Permissions — the editing modal', () => {
   })
 
   it('it serialises both tables with `|` and sends the primary node of the cluster', async () => {
-    const { user, spy } = await abrir(CLUSTER_PRIMARIO as never)
+    const { user, spy } = await open(CLUSTER_PRIMARIO as never)
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]).toEqual({
@@ -121,15 +121,15 @@ describe('Permissions — the editing modal', () => {
   })
 
   it('with no cluster the node travels as an empty string', async () => {
-    const { user, spy } = await abrir()
+    const { user, spy } = await open()
     await user.click(screen.getByRole('button', { name: 'Save' }))
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>
     expect(body.node).toBe('')
   })
 
   it('\"Add User\" adds the row with the three permissions false', async () => {
-    const { user, spy } = await abrir()
-    await elegir(user, screen.getByLabelText('Add User'), 'testuser')
+    const { user, spy } = await open()
+    await choose(user, screen.getByLabelText('Add User'), 'testuser')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>
@@ -137,8 +137,8 @@ describe('Permissions — the editing modal', () => {
   })
 
   it('\"None\" empties the whole table', async () => {
-    const { user, spy } = await abrir()
-    await elegir(user, screen.getByLabelText('Add Group'), 'None')
+    const { user, spy } = await open()
+    await choose(user, screen.getByLabelText('Add Group'), 'None')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/permissions/set')?.[1]?.body as Record<string, string>
@@ -146,7 +146,7 @@ describe('Permissions — the editing modal', () => {
   })
 
   it('\"Remove\" takes a row out and checking a box shows up in the send', async () => {
-    const { user, spy } = await abrir()
+    const { user, spy } = await open()
     const dialogo = screen.getByRole('dialog')
 
     await user.click(within(dialogo).getByLabelText('Everyone Modify'))

@@ -71,7 +71,7 @@ session.
 */
 let alCaducar: (() => void) | null = null
 
-export function avisarSiCaducaLaSesion(fn: (() => void) | null): void {
+export function onSessionExpired(fn: (() => void) | null): void {
   alCaducar = fn
 }
 

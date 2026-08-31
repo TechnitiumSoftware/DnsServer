@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { Users } from './Users'
 import * as client from '../../api/client'
 import { DETALLE_USUARIO, USUARIO_ADMIN, USUARIO_NUEVO, USUARIO_SSO } from './admin.fixture'
-import { elegir } from '../../test/desplegable'
+import { choose } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -160,7 +160,7 @@ describe('Users — enable and disable', () => {
 })
 
 describe('Users — "Add User"', () => {
-  async function abrir() {
+  async function open() {
     servidor()
     const user = userEvent.setup()
     render(<Users {...props} />)
@@ -170,27 +170,27 @@ describe('Users — "Add User"', () => {
   }
 
   it('the order of the four validations is the one of upstream', async () => {
-    const user = await abrir()
-    const anadir = screen.getByRole('button', { name: 'Add' })
+    const user = await open()
+    const add = screen.getByRole('button', { name: 'Add' })
 
-    await user.click(anadir)
+    await user.click(add)
     expect(screen.getByText('Please enter an username to add user.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Username'), 'nuevo')
-    await user.click(anadir)
+    await user.click(add)
     expect(screen.getByText('Please enter a password to add user.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Password'), 'uno')
-    await user.click(anadir)
+    await user.click(add)
     expect(screen.getByText('Please enter confirm password.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Confirm Password'), 'dos')
-    await user.click(anadir)
+    await user.click(add)
     expect(screen.getByText('Passwords do not match. Please try again.')).toBeInTheDocument()
   })
 
   it('the display name is optional: it is not validated', async () => {
-    const user = await abrir()
+    const user = await open()
     await user.type(screen.getByLabelText('Username'), 'nuevo')
     await user.type(screen.getByLabelText('Password'), 'x')
     await user.type(screen.getByLabelText('Confirm Password'), 'x')
@@ -293,10 +293,10 @@ describe('Users — the details modal', () => {
     await user.click(await screen.findByRole('button', { name: 'View Details' }))
     const add = await screen.findByLabelText('Add Group')
 
-    await elegir(user, add, 'Administrators')
+    await choose(user, add, 'Administrators')
     expect(screen.getByLabelText('Member Of')).toHaveValue('Administrators\n')
 
-    await elegir(user, add, 'DNS Administrators')
+    await choose(user, add, 'DNS Administrators')
     expect(screen.getByLabelText('Member Of')).toHaveValue('Administrators\nDNS Administrators\n')
 
     await user.click(screen.getByRole('button', { name: 'Save' }))

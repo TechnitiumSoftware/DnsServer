@@ -9,7 +9,7 @@ is announced with `role="tab"` and `aria-selected`; a group of options —the
 Dashboard's period— are state buttons and are announced with `aria-pressed`. They
 look alike and are not the same thing, so the caller decides.
 */
-export function Segmentado<T extends string>({
+export function Segmented<T extends string>({
   options,
   active,
   onElegir,

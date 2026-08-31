@@ -8,14 +8,14 @@ import {
   type LogFile,
 } from '../../api/logs'
 import { deleteAllStats } from '../../api/dashboard'
-import { Confirmar } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
 import { Body, Panel } from '../../ui/Panel'
-import { avisoDeFallo, type Aviso } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure, type Notice } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 Logs › View Logs (logs.js:105-268).
@@ -55,27 +55,27 @@ export function ViewLogs({
   canDeleteStats = true,
 }: ViewLogsProps) {
   const [ficheros, setFicheros] = useState<LogFile[] | null>(null)
-  const [abierto, setAbierto] = useState<string | null>(null)
+  const [open, setAbierto] = useState<string | null>(null)
   const [body, setCuerpo] = useState<string | null>(null)
   const [cargandoCuerpo, setCargandoCuerpo] = useState(false)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
-  const [confirmar, setConfirmar] = useState<Confirmation | null>(null)
+  const [confirm, setConfirmar] = useState<Confirmation | null>(null)
 
   // A failure on load is not drawn as an empty list; see `dhcp/Leases`.
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     const r = await listLogFiles(token, node)
     if (r.kind === 'ok') {
       setFicheros(r.data)
       return
     }
     setFicheros([])
-    setAviso(avisoDeFallo(r))
+    setAviso(noticeFromFailure(r))
   }, [token, node])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
   async function ver(fileName: string) {
     setAbierto(fileName)
@@ -87,21 +87,21 @@ export function ViewLogs({
   }
 
   async function descargar() {
-    if (abierto == null) return
+    if (open == null) return
     setBusy(true)
-    await openLogDownload(token, abierto, node)
+    await openLogDownload(token, open, node)
     setBusy(false)
   }
 
-  async function borrarLog() {
-    if (abierto == null) return
+  async function removeLogFile() {
+    if (open == null) return
     setConfirmar(null)
     setBusy(true)
-    const outcome = await deleteLog(token, abierto, node)
+    const outcome = await deleteLog(token, open, node)
     setBusy(false)
     if (outcome.kind !== 'ok') return
 
-    await cargar()
+    await load()
     setAbierto(null)
     setCuerpo(null)
     setAviso({
@@ -111,14 +111,14 @@ export function ViewLogs({
     })
   }
 
-  async function borrarTodos() {
+  async function removeAllLogs() {
     setConfirmar(null)
     setBusy(true)
     const outcome = await deleteAllLogs(token, node)
     setBusy(false)
     if (outcome.kind !== 'ok') return
 
-    await cargar()
+    await load()
     setAbierto(null)
     setCuerpo(null)
     setAviso({
@@ -128,7 +128,7 @@ export function ViewLogs({
     })
   }
 
-  async function borrarStats() {
+  async function removeAllStats() {
     setConfirmar(null)
     setBusy(true)
     const outcome = await deleteAllStats(token)
@@ -147,7 +147,7 @@ export function ViewLogs({
   const TEXTO_CONFIRM: Record<Confirmation, { titulo: string; text: string; etiqueta: string }> = {
     log: {
       titulo: 'Delete Log',
-      text: `Are you sure you want to permanently delete the log file '${abierto ?? ''}'?`,
+      text: `Are you sure you want to permanently delete the log file '${open ?? ''}'?`,
       etiqueta: 'Delete',
     },
     allLogs: {
@@ -181,14 +181,14 @@ export function ViewLogs({
           )}</>}
       />
 
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.dos}>
         <Panel titulo="Log Files" className={styles.panel}>
           <Body className={styles.pbLista}>
             {ficheros.length === 0 ? (
               <Empty>
-                {aviso?.type === 'danger'
+                {notice?.type === 'danger'
                   ? 'Unable to load the log files.'
                   : 'No Log File Was Found'}
               </Empty>
@@ -199,7 +199,7 @@ export function ViewLogs({
                     key={f.fileName}
                     type="button"
                     className={styles.logfile}
-                    aria-current={abierto === f.fileName}
+                    aria-current={open === f.fileName}
                     onClick={() => void ver(f.fileName)}
                   >
                     <span className={styles.name}>{f.fileName}</span>
@@ -211,10 +211,10 @@ export function ViewLogs({
           </Body>
         </Panel>
 
-        {abierto != null && (
+        {open != null && (
           <Panel
             className={styles.panel}
-            titulo={<span className={styles.mono}>{abierto}</span>}
+            titulo={<span className={styles.mono}>{open}</span>}
             actions={
               <div className={styles.acts}>
                 <Button disabled={busy} onClick={() => void descargar()}>
@@ -239,17 +239,17 @@ export function ViewLogs({
         )}
       </div>
 
-      <Confirmar
-        abierto={confirmar !== null}
-        titulo={confirmar ? TEXTO_CONFIRM[confirmar].titulo : ''}
-        text={confirmar ? TEXTO_CONFIRM[confirmar].text : ''}
-        etiqueta={confirmar ? TEXTO_CONFIRM[confirmar].etiqueta : ''}
+      <Confirm
+        open={confirm !== null}
+        titulo={confirm ? TEXTO_CONFIRM[confirm].titulo : ''}
+        text={confirm ? TEXTO_CONFIRM[confirm].text : ''}
+        etiqueta={confirm ? TEXTO_CONFIRM[confirm].etiqueta : ''}
         busy={busy}
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => {
-          if (confirmar === 'log') void borrarLog()
-          else if (confirmar === 'allLogs') void borrarTodos()
-          else if (confirmar === 'allStats') void borrarStats()
+          if (confirm === 'log') void removeLogFile()
+          else if (confirm === 'allLogs') void removeAllLogs()
+          else if (confirm === 'allStats') void removeAllStats()
         }}
       />
     </div>

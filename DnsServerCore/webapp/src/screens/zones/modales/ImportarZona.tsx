@@ -4,12 +4,12 @@ import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { LabeledTextarea } from '../../../ui/Field'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import frm from '../../../ui/Form.module.css'
 import { GroupRow, Row } from '../../../ui/Form'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 import { Input } from '../../../ui/Field'
 
 /*
@@ -19,37 +19,37 @@ first**: if the text editor is empty, upstream sends the request all the same an
 lets the server fail. It is replicated.
 */
 
-type Modo = 'File' | 'Text'
+type Mode = 'File' | 'Text'
 
 export function ImportarZona({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   onCerrar,
   onHecho,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
 }) {
-  const [modo, setModo] = useState<Modo>('File')
+  const [mode, setModo] = useState<Mode>('File')
   const [archivo, setArchivo] = useState<File | null>(null)
   const [text, setTexto] = useState('')
   const [overwrite, setOverwrite] = useState(true)
   const [overwriteZone, setOverwriteZone] = useState(false)
   const [overwriteSoaSerial, setOverwriteSoaSerial] = useState(false)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const fichero = useRef<HTMLInputElement>(null)
 
   // `showImportZoneModal`: on opening it returns to the defaults, which are NOT
   // son todos falsos — «Overwrite Existing Records» empieza marcado.
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setModo('File')
     setArchivo(null)
     setTexto('')
@@ -57,10 +57,10 @@ export function ImportarZona({
     setOverwriteZone(false)
     setOverwriteSoaSerial(false)
     setAviso(null)
-  }, [abierto])
+  }, [open])
 
   async function importar() {
-    if (modo === 'File' && archivo == null) {
+    if (mode === 'File' && archivo == null) {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please select a zone file to import.' })
       fichero.current?.focus()
       return
@@ -70,14 +70,14 @@ export function ImportarZona({
     const outcome = await importZone(
       token,
       zone,
-      modo === 'File' ? { archivo: archivo! } : { text },
+      mode === 'File' ? { archivo: archivo! } : { text },
       { overwrite, overwriteZone, overwriteSoaSerial },
       node,
     )
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -87,7 +87,7 @@ export function ImportarZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       size="medium"
       title={`Import - ${zone}`}
@@ -99,7 +99,7 @@ export function ImportarZona({
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fields}>
         <GroupRow modal label="Import Options">
@@ -135,7 +135,7 @@ export function ImportarZona({
             <input
               type="radio"
               name="importType"
-              checked={modo === 'File'}
+              checked={mode === 'File'}
               onChange={() => setModo('File')}
             />
             Zone File
@@ -144,14 +144,14 @@ export function ImportarZona({
             <input
               type="radio"
               name="importType"
-              checked={modo === 'Text'}
+              checked={mode === 'Text'}
               onChange={() => setModo('Text')}
             />
             Text Editor
           </label>
         </GroupRow>
 
-        {modo === 'File' ? (
+        {mode === 'File' ? (
           <Row modal label="Zone File">
             {(id) => (
               <Input

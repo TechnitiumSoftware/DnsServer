@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
-import { getZonePermissions, serializarPermisos, setZonePermissions } from '../../../api/zones'
+import { getZonePermissions, serializePermissions, setZonePermissions } from '../../../api/zones'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
 import { Field, Select } from '../../../ui/Field'
 import { Loading } from '../../../ui/Empty'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import { Table } from '../../../ui/Table'
 import styles from '../Zones.module.css'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalEditPermissions` for a zone (zone.js:2544 and 2616).
@@ -31,7 +31,7 @@ interface Row {
 
 export function PermisosZona({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   canModify,
@@ -39,12 +39,12 @@ export function PermisosZona({
   onHecho,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   canModify: boolean
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
 }) {
   /* Upstream titles it `Edit Permissions - <span>` (`index.html:6856`) and fills
      that span with `"Zones / " + zone` (`zone.js:2549`). Without the prefix, the
@@ -58,12 +58,12 @@ export function PermisosZona({
   const [groups, setGrupos] = useState<Row[]>([])
   const [usuariosDisponibles, setUsuariosDisponibles] = useState<string[]>([])
   const [gruposDisponibles, setGruposDisponibles] = useState<string[]>([])
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setAviso(null)
     setLoading(true)
     void getZonePermissions(token, zone, node).then((r) => {
@@ -92,21 +92,21 @@ export function PermisosZona({
       setUsuariosDisponibles(r.users ?? [])
       setGruposDisponibles(r.groups ?? [])
     })
-  }, [abierto, token, zone, node])
+  }, [open, token, zone, node])
 
-  async function guardar() {
+  async function save() {
     setBusy(true)
     const outcome = await setZonePermissions(
       token,
       zone,
-      serializarPermisos(users),
-      serializarPermisos(groups),
+      serializePermissions(users),
+      serializePermissions(groups),
       node,
     )
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -116,21 +116,21 @@ export function PermisosZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       size="medium"
       title={titulo}
       actions={
         <>
           {canModify && (
-            <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
+            <Button variant="primary" disabled={busy || loading} onClick={() => void save()}>
               Save
             </Button>
           )}
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       {loading ? (
         <Loading>Loading permissions…</Loading>

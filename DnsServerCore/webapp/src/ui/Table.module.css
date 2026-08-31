@@ -132,7 +132,7 @@ with nothing.
 
 /* A sortable header is a button, not a `th` with `onclick`: that way it is
    reachable with the tab key and announced for what it is. */
-.orden {
+.sort {
   composes: golpe from '../ui/interaccion.module.css';
   display: inline-flex;
   /*
@@ -157,7 +157,7 @@ with nothing.
   cursor: pointer;
 }
 
-.orden:hover { color: var(--ink); }
+.sort:hover { color: var(--ink); }
 
 /*
 The sort arrow is only visible when it is needed: on the active column, on hover
@@ -172,8 +172,8 @@ saying nothing, because "this is sortable" is the same on all of them.
   transition: opacity var(--t-rapido);
 }
 
-.orden:hover .flecha,
-.orden:focus-visible .flecha,
+.sort:hover .flecha,
+.sort:focus-visible .flecha,
 [aria-sort='ascending'] .flecha,
 [aria-sort='descending'] .flecha { opacity: 1; }
 
@@ -182,7 +182,7 @@ saying nothing, because "this is sortable" is the same on all of them.
 .flecha svg { transition: transform var(--t-rapido), color var(--t-rapido); }
 .flecha svg[data-desc='true'] { transform: rotate(180deg); }
 
-.orden:hover .flecha,
+.sort:hover .flecha,
 [aria-sort='ascending'] .flecha,
 [aria-sort='descending'] .flecha { color: var(--acc); }
 
@@ -274,8 +274,8 @@ reader announce it just the same— and in `title`, which is the tooltip on hove
 And the `⋮` menu carries EVERY action with its text, delete included, so no name
 lives only inside a drawing.
 */
-.actions > [data-icono='true'],
-.actions > * > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
+.actions > [data-icon='true'],
+.actions > * > [data-icon='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
 
 /* The row-selection checkbox is 18 px: it is clicked from anywhere in its cell. */
 .celdaCheck {

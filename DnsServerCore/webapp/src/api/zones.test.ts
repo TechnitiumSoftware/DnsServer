@@ -4,13 +4,13 @@ import {
   importZone,
   exportZone,
   neverUsed,
-  serializarPermisos,
+  serializePermissions,
   getZoneOptions,
   getZonePermissions,
   setZonePermissions,
   listCatalogs,
   convertZone,
-  TIPOS_ZONA,
+  ZONE_TYPES,
 } from './zones'
 import * as client from './client'
 import * as user from './user'
@@ -20,7 +20,7 @@ const env = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', respon
 
 describe('zones', () => {
   it('offers the seven zone types of upstream', () => {
-    expect(TIPOS_ZONA).toEqual(['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'])
+    expect(ZONE_TYPES).toEqual(['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'])
   })
 
   it('listZones paginates on the SERVER: it sends pageNumber and zonesPerPage', async () => {
@@ -119,7 +119,7 @@ describe('zones', () => {
 
   it('the permissions serialise as name|view|modify|delete per row', () => {
     expect(
-      serializarPermisos([
+      serializePermissions([
         { name: 'admin', canView: true, canModify: true, canDelete: false },
         { name: 'ana', canView: true, canModify: false, canDelete: false },
       ]),
@@ -127,7 +127,7 @@ describe('zones', () => {
   })
 
   it('an empty permissions table serialises as an empty string', () => {
-    expect(serializarPermisos([])).toBe('')
+    expect(serializePermissions([])).toBe('')
   })
 
   it('permissions/set sends both tables already serialised', async () => {

@@ -10,9 +10,9 @@ import styles from './MyProfile.module.css'
 import tbl from '../../ui/Table.module.css'
 import { Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
-import { Confirmar } from '../../ui/Confirmar'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
+import { Confirm } from '../../ui/Confirmar'
 import { Menu } from '../../ui/Menu'
 
 /*
@@ -56,7 +56,7 @@ export function MyProfile({
   onSaved?: (displayName: string) => void
 }) {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const { rows: sesionesVisibles, orden, alternar } = useOrden(KEYS, profile?.sessions ?? [])
+  const { rows: sesionesVisibles, sort, alternar } = useOrden(KEYS, profile?.sessions ?? [])
   const groups = useOrden(CLAVES_GRUPO, profile?.memberOfGroups ?? [])
   const [displayName, setDisplayName] = useState('')
   const [timeout, setTimeoutSeconds] = useState('')
@@ -91,7 +91,7 @@ export function MyProfile({
   and "User Details" use for this very action. Here the browser's native
   `confirm()` had been left behind.
   */
-  async function borrarSesion(row: SessionRow) {
+  async function removeSession(row: SessionRow) {
     const outcome = await deleteSession(token, row.partialToken)
     if (outcome.kind === 'ok') {
       setAlert({
@@ -102,7 +102,7 @@ export function MyProfile({
       setReloadKey((k) => k + 1)
       return
     }
-    setAlert(avisoDeFallo(outcome))
+    setAlert(noticeFromFailure(outcome))
   }
 
   async function save() {
@@ -123,7 +123,7 @@ export function MyProfile({
       onSaved?.(displayName)
       return
     }
-    setAlert(avisoDeFallo(outcome))
+    setAlert(noticeFromFailure(outcome))
   }
 
   return (
@@ -140,7 +140,7 @@ export function MyProfile({
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="Username" value={profile?.username ?? ''} readOnly />
       <LabeledInput label="User Type" value={profile?.isSsoUser ? 'Remote/SSO' : 'Local'} readOnly />
       {/* auth.js:667-674 — on an SSO user the 2FA is not this console's business. */}
@@ -181,7 +181,7 @@ export function MyProfile({
         <Table
           className={styles.estrecha}
           header={
-            <Th field="group" orden={groups.orden} onOrdenar={groups.alternar}>Group</Th>
+            <Th field="group" sort={groups.sort} onOrdenar={groups.alternar}>Group</Th>
           }
           isEmpty={groups.rows.length === 0}
           emptyText="No Group Found"
@@ -201,15 +201,15 @@ export function MyProfile({
         <Table
           header={
             <>
-              <Th field="type" orden={orden} onOrdenar={alternar}>Session</Th>
-              <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-              <Th field="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+              <Th field="type" sort={sort} onOrdenar={alternar}>Session</Th>
+              <Th field="lastSeen" sort={sort} onOrdenar={alternar}>Last Seen</Th>
+              <Th field="address" sort={sort} onOrdenar={alternar}>Remote Address</Th>
               {/* Upstream has it (`index.html`, the `tbodyMyProfileActiveSessions`
                   table: Session · Last Seen · Remote Address · User Agent) and here
                   it had been lost: it was the only one of the console's three
                   sessions tables without it, and it is the one that says WHERE each
                   session is open from. */}
-              <Th field="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+              <Th field="agent" sort={sort} onOrdenar={alternar}>User Agent</Th>
               <th className={tbl.celdaAcciones} />
             </>
           }
@@ -231,11 +231,11 @@ export function MyProfile({
                   {/* In a dropdown, as in the other two sessions tables and as in
                       upstream (`auth.js`, `deleteMySession`). */}
                   <Menu etiqueta={`Actions for ${row.partialToken}`}>
-                    {(cerrar) => (
+                    {(close) => (
                       <button
                         type="button"
                         data-variant="danger"
-                        onClick={() => { cerrar(); setPorBorrar(row) }}
+                        onClick={() => { close(); setPorBorrar(row) }}
                       >
                         Delete Session
                       </button>
@@ -249,13 +249,13 @@ export function MyProfile({
         <div className={styles.total}>Total Sessions: {profile?.sessions?.length ?? 0}</div>
       </div>
 
-      <Confirmar
-        abierto={porBorrar !== null}
+      <Confirm
+        open={porBorrar !== null}
         titulo="Delete Session"
         text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
         etiqueta="Delete Session"
         onCerrar={() => setPorBorrar(null)}
-        onConfirmar={() => porBorrar && borrarSesion(porBorrar)}
+        onConfirmar={() => porBorrar && removeSession(porBorrar)}
       />
     </Dialog>
   )

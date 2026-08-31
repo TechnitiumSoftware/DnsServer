@@ -3,11 +3,11 @@ import { convertZone } from '../../../api/zones'
 import { Alert } from '../../../ui/Alert'
 import { Button } from '../../../ui/Button'
 import { Dialog } from '../../../ui/Dialog'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import { GroupRow } from '../../../ui/Form'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalConvertZone` (zone.js:1387 and 1443).
@@ -28,8 +28,8 @@ export interface TablaConversion {
   porDefecto: DestinoConversion | null
 }
 
-export function destinosDeConversion(tipoOrigen: string): TablaConversion {
-  switch (tipoOrigen) {
+export function destinosDeConversion(sourceType: string): TablaConversion {
+  switch (sourceType) {
     case 'Primary':
       return { habilitados: ['Forwarder'], porDefecto: 'Forwarder' }
     case 'Secondary':
@@ -50,35 +50,35 @@ const ETIQUETAS: Record<DestinoConversion, string> = {
   Catalog: 'Catalog Zone',
 }
 
-export function ConvertirZona({
+export function ConvertZone({
   zone,
-  tipoOrigen,
-  abierto,
+  sourceType,
+  open,
   token,
   node = '',
   onCerrar,
   onHecho,
 }: {
   zone: string
-  tipoOrigen: string
-  abierto: boolean
+  sourceType: string
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
 }) {
-  const table = destinosDeConversion(tipoOrigen)
+  const table = destinosDeConversion(sourceType)
   const [destino, setDestino] = useState<DestinoConversion | null>(table.porDefecto)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (!abierto) return
-    setDestino(destinosDeConversion(tipoOrigen).porDefecto)
+    if (!open) return
+    setDestino(destinosDeConversion(sourceType).porDefecto)
     setAviso(null)
-  }, [abierto, tipoOrigen])
+  }, [open, sourceType])
 
-  async function convertir() {
+  async function convert() {
     if (destino == null) return
 
     setBusy(true)
@@ -86,7 +86,7 @@ export function ConvertirZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -96,18 +96,18 @@ export function ConvertirZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Convert Zone - ${zone === '.' ? '<root>' : zone}`}
       actions={
         <>
-          <Button variant="primary" disabled={busy || destino == null} onClick={() => void convertir()}>
+          <Button variant="primary" disabled={busy || destino == null} onClick={() => void convert()}>
             Convert Zone
           </Button>
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fields}>
         <GroupRow modal label="Convert To">

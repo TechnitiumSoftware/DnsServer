@@ -4,8 +4,8 @@ import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 A replica of `showConfigure2FAModal` / `enable2FA` / `disable2FA`
@@ -67,7 +67,7 @@ export function Configure2FA({
       onChanged?.(true)
       return
     }
-    setAlert(avisoDeFallo(outcome))
+    setAlert(noticeFromFailure(outcome))
   }
 
   async function disable() {
@@ -83,7 +83,7 @@ export function Configure2FA({
       onChanged?.(false)
       return
     }
-    setAlert(avisoDeFallo(outcome))
+    setAlert(noticeFromFailure(outcome))
   }
 
   const enabled = init?.totpEnabled ?? false
@@ -110,7 +110,7 @@ export function Configure2FA({
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       {!enabled && init && (
         <>
           <img

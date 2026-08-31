@@ -1,9 +1,9 @@
 import {
   AreaRow,
-  Avisos,
+  Notices,
   Block,
   Check,
-  EditableTable,
+  EditableList,
   GroupRow,
   Note,
   Radios,
@@ -63,7 +63,7 @@ export function General({ f, set, en }: PaneProps) {
             </>
           }
         />
-        <Avisos>
+        <Notices>
           <Note>
             The DNS Server local end point changes will be automatically applied and so you do not
             need to manually restart the main service.
@@ -76,7 +76,7 @@ export function General({ f, set, en }: PaneProps) {
             not configured, the IP address of the interface with a default route will be used as the
             source address.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Default Parameters">
@@ -115,7 +115,7 @@ export function General({ f, set, en }: PaneProps) {
         />
         <GroupRow label="Zone Defaults">
           <Check
-            conmutador
+            toggle
             label="Use SOA Serial Date Scheme"
             checked={f.useSoaSerialDateScheme}
             onChange={(v) => set({ useSoaSerialDateScheme: v })}
@@ -155,14 +155,14 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="Software Update">
         <GroupRow label="Software Update">
           <Check
-            conmutador
+            toggle
             label="Enable Check For Update"
             checked={f.dnsServerEnableCheckForUpdate}
             onChange={(v) => set({ dnsServerEnableCheckForUpdate: v })}
             help="Enables the DNS Server to check if an update is available when the Check For Update API is called which usually occurs after a user logs into the Web Console."
           />
           <Check
-            conmutador
+            toggle
             label="Enable Automatic Update"
             checked={f.dnsAppsEnableAutomaticUpdate}
             onChange={(v) => set({ dnsAppsEnableAutomaticUpdate: v })}
@@ -196,7 +196,7 @@ export function General({ f, set, en }: PaneProps) {
             ]}
           />
         </GroupRow>
-        <Avisos>
+        <Notices>
           <Warning>
             Enable IPv6 support only if this DNS Server has native IPv6 Internet access otherwise it
             will affect performance. There are many name servers on the Internet that do not respond
@@ -204,13 +204,13 @@ export function General({ f, set, en }: PaneProps) {
             resolver mode (i.e. without any forwarders) may cause frequent operational issues with
             resolution that may result increase in Server Failure responses.
           </Warning>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="UDP Socket Pool">
         <GroupRow label="UDP Socket Pool">
           <Check
-            conmutador
+            toggle
             label="Enable UDP Socket Pool"
             checked={f.enableUdpSocketPool}
             onChange={(v) => set({ enableUdpSocketPool: v })}
@@ -225,7 +225,7 @@ export function General({ f, set, en }: PaneProps) {
           disabled={!en.socketPoolExcludedPorts}
           help="Enter port numbers one below other to be excluded from being used by the UDP socket pool."
         />
-        <Avisos>
+        <Notices>
           <Note>
             Enabling UDP socket pool provides port randomization for all outbound DNS-over-UDP
             requests to mitigate spoofing attacks. It is recommended to enable UDP socket pool on
@@ -233,7 +233,7 @@ export function General({ f, set, en }: PaneProps) {
             if more randomization is desired. The DNS Server can detect DNS spoofing attack attempts
             based on ID mismatch and switch to TCP protocol automatically.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="EDNS">
@@ -251,14 +251,14 @@ export function General({ f, set, en }: PaneProps) {
       <Block title="DNSSEC">
         <GroupRow label="DNSSEC">
           <Check
-            conmutador
+            toggle
             label="Enable DNSSEC Validation"
             checked={f.dnssecValidation}
             onChange={(v) => set({ dnssecValidation: v })}
             help="The DNS Server will validate all responses from name servers or forwarders when this option is enabled."
           />
         </GroupRow>
-        <Avisos>
+        <Notices>
           <Warning>
             Devices that do not have a real-time clock and rely on NTP when booting (e.g. Raspberry
             Pi), enabling DNSSEC validation will cause failure to resolve the NTP server domain name
@@ -277,13 +277,13 @@ export function General({ f, set, en }: PaneProps) {
             Enabling DNSSEC may increase delays in resolving domain names when the cache is
             initially empty. As the cache fills up, the performance will be normal as expected.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="EDNS Client Subnet">
         <GroupRow label="EDNS Client Subnet (ECS)">
           <Check
-            conmutador
+            toggle
             label="Enable EDNS Client Subnet"
             checked={f.eDnsClientSubnet}
             onChange={(v) => set({ eDnsClientSubnet: v })}
@@ -328,7 +328,7 @@ export function General({ f, set, en }: PaneProps) {
           disabled={!en.ecs}
           help="The IPv6 network address that must be used as ECS for all outbound requests overriding client's actual subnet."
         />
-        <Avisos>
+        <Notices>
           <Warning>
             EDNS Client Subnet (ECS) option when enabled will compromises user's privacy since the
             DNS Server will send the user's public IP network subnet to name servers or forwarders
@@ -348,11 +348,11 @@ export function General({ f, set, en }: PaneProps) {
             It will also increase cache misses since DNS Server will have to resolve requests and
             cache them for each client subnet separately.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Rate Limiting">
-        <EditableTable
+        <EditableList
           label="Queries Per Minute (QPM) Limits (IPv4)"
           columnas={[
             { key: 'prefix', label: 'IPv4 Prefix', type: 'number' },
@@ -361,7 +361,7 @@ export function General({ f, set, en }: PaneProps) {
           ]}
           rows={f.qpmPrefixLimitsIPv4}
           onChange={(rows) => set({ qpmPrefixLimitsIPv4: rows })}
-          nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
+          blank={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
           help={
             <>
               The maximum queries an IPv4 client subnet can make to DNS-over-UDP and DNS-over-TCP
@@ -371,7 +371,7 @@ export function General({ f, set, en }: PaneProps) {
             </>
           }
         />
-        <EditableTable
+        <EditableList
           label="Queries Per Minute (QPM) Limits (IPv6)"
           columnas={[
             { key: 'prefix', label: 'IPv6 Prefix', type: 'number' },
@@ -380,7 +380,7 @@ export function General({ f, set, en }: PaneProps) {
           ]}
           rows={f.qpmPrefixLimitsIPv6}
           onChange={(rows) => set({ qpmPrefixLimitsIPv6: rows })}
-          nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
+          blank={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
           help={
             <>
               The maximum queries an IPv6 client subnet can make to DNS-over-UDP and DNS-over-TCP
@@ -415,7 +415,7 @@ export function General({ f, set, en }: PaneProps) {
           rows={5}
           help="Enter IP addresses or network addresses one below another that are allowed to bypass the QPM limit."
         />
-        <Avisos>
+        <Notices>
           <Note>
             Queries Per Minute (QPM) feature will limit requests from a client subnet based on its
             IP address and the specified subnet prefix lengths except for loopback IP addresses. The
@@ -428,7 +428,7 @@ export function General({ f, set, en }: PaneProps) {
             The configured TCP limits apply to the DNS-over-TCP protocol service as well as to the
             DNS-over-TLS, DNS-over-HTTPS and DNS-over-QUIC optional protocol services.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Advanced Options">

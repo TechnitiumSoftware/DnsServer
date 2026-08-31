@@ -8,10 +8,10 @@ import {
   setScope,
   type DhcpScopeRow,
 } from '../../api/dhcp'
-import { Confirmar } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
-import { errorAviso, type Aviso } from './avisos'
+import { errorNotice, type Notice } from './avisos'
 import { formularioDesdeScope, formularioNuevo, type ScopeForm as Form } from './model'
 import { ScopeForm } from './ScopeForm'
 import { Loading } from '../../ui/Empty'
@@ -20,8 +20,8 @@ import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 DHCP › Scopes (dhcp.js:201-684).
@@ -62,15 +62,15 @@ const KEYS: Keys<DhcpScopeRow> = {
 
 export function Scopes({ token, node = '', canModify = true, canDelete = true }: ScopesProps) {
   const [scopes, setScopes] = useState<DhcpScopeRow[] | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState<Editing | null>(null)
-  const [confirmar, setConfirmar] = useState<{ action: 'disable' | 'delete'; name: string } | null>(
+  const [confirm, setConfirmar] = useState<{ action: 'disable' | 'delete'; name: string } | null>(
     null,
   )
 
   // A failure on load is not drawn as an empty list; see `Leases`.
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setScopes(null)
     const r = await listScopes(token, node)
     if (r.kind === 'ok') {
@@ -78,16 +78,16 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
       return
     }
     setScopes([])
-    setAviso(avisoDeFallo(r))
+    setAviso(noticeFromFailure(r))
   }, [token, node])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
   // The hook goes BEFORE any return: otherwise it would stop being called as soon
   // as the table is loading.
-  const { rows: scopesVisibles, orden, alternar } = useOrden(KEYS, scopes ?? [])
+  const { rows: scopesVisibles, sort, alternar } = useOrden(KEYS, scopes ?? [])
 
   async function editar(name: string) {
     setBusy(true)
@@ -97,18 +97,18 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     setEditing({ titulo: 'Edit Scope', form: formularioDesdeScope(s) })
   }
 
-  async function guardar(body: Record<string, string>) {
+  async function save(body: Record<string, string>) {
     setBusy(true)
     const outcome = await setScope(token, body, node)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(errorAviso(outcome))
+      setAviso(errorNotice(outcome))
       return
     }
 
     setEditing(null)
-    await cargar()
+    await load()
     setAviso({
       type: 'success',
       title: 'Scope Saved!',
@@ -121,7 +121,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     const outcome = await enableScope(token, name, node)
     setBusy(false)
     if (outcome.kind !== 'ok') return
-    await cargar()
+    await load()
     setAviso({
       type: 'success',
       title: 'Scope Enabled!',
@@ -135,7 +135,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     const outcome = await disableScope(token, name, node)
     setBusy(false)
     if (outcome.kind !== 'ok') return
-    await cargar()
+    await load()
     setAviso({
       type: 'success',
       title: 'Scope Disabled!',
@@ -143,7 +143,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     })
   }
 
-  async function borrar(name: string) {
+  async function remove(name: string) {
     setConfirmar(null)
     setBusy(true)
     const outcome = await deleteScope(token, name, node)
@@ -161,16 +161,16 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
   if (editing != null) {
     return (
       <div className={styles.wrap}>
-        <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+        <Notifier notice={notice} onCerrar={() => setAviso(null)} />
         <ScopeForm
           key={editing.titulo + editing.form.oldName}
           titulo={editing.titulo}
           inicial={editing.form}
           busy={busy}
-          onGuardar={(body) => void guardar(body)}
+          onGuardar={(body) => void save(body)}
           onCancelar={() => {
             setEditing(null)
-            void cargar()
+            void load()
           }}
           onAviso={(e) => setAviso({ type: 'warning', title: e.title, text: e.text })}
         />
@@ -198,15 +198,15 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
           )}</>}
       />
 
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <Table
         header={
           <>
-            <Th field="name" orden={orden} onOrdenar={alternar}>Name</Th>
-            <Th field="range" orden={orden} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
-            <Th field="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
-            <Th field="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
+            <Th field="name" sort={sort} onOrdenar={alternar}>Name</Th>
+            <Th field="range" sort={sort} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
+            <Th field="network" sort={sort} onOrdenar={alternar}>Network/Broadcast</Th>
+            <Th field="interfaz" sort={sort} onOrdenar={alternar}>Interface</Th>
             <th>Status</th>
             <th className={tbl.celdaAcciones} />
           </>
@@ -247,7 +247,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
             <td className={tbl.celdaAcciones}>
               <div className={tbl.actions}>
                 <AccionFila
-                  icono="editar"
+                  icon="edit"
                   name="Edit Scope"
                   disabled={busy}
                   onClick={() => void editar(s.name)}
@@ -255,7 +255,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                 {canModify && (
                   /* dhcp.js:615 — enabling asks nothing; disabling does. */
                   <AccionFila
-                    icono="energia"
+                    icon="power"
                     name={s.enabled ? 'Disable Scope' : 'Enable Scope'}
                     disabled={busy}
                     onClick={() =>
@@ -267,12 +267,12 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                 )}
                 {canDelete && (
                   <Menu etiqueta={`Actions for ${s.name}`}>
-                    {(cerrar) => (
+                    {(close) => (
                       <button
                         type="button"
                         data-variant="danger"
                         disabled={busy}
-                        onClick={() => { cerrar(); setConfirmar({ action: 'delete', name: s.name }) }}
+                        onClick={() => { close(); setConfirmar({ action: 'delete', name: s.name }) }}
                       >
                         Delete Scope
                       </button>
@@ -293,21 +293,21 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
         <span>{`Total Scopes: ${scopes.length}`}</span>
       </div>
 
-      <Confirmar
-        abierto={confirmar !== null}
-        titulo={confirmar?.action === 'delete' ? 'Delete Scope' : 'Disable Scope'}
+      <Confirm
+        open={confirm !== null}
+        titulo={confirm?.action === 'delete' ? 'Delete Scope' : 'Disable Scope'}
         text={
-          confirmar?.action === 'delete'
-            ? `Are you sure you want to delete the DHCP scope '${confirmar.name}'?`
-            : `Are you sure you want to disable the DHCP scope '${confirmar?.name ?? ''}'?`
+          confirm?.action === 'delete'
+            ? `Are you sure you want to delete the DHCP scope '${confirm.name}'?`
+            : `Are you sure you want to disable the DHCP scope '${confirm?.name ?? ''}'?`
         }
-        etiqueta={confirmar?.action === 'delete' ? 'Delete' : 'Disable'}
+        etiqueta={confirm?.action === 'delete' ? 'Delete' : 'Disable'}
         busy={busy}
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => {
-          if (!confirmar) return
-          if (confirmar.action === 'delete') void borrar(confirmar.name)
-          else void deshabilitar(confirmar.name)
+          if (!confirm) return
+          if (confirm.action === 'delete') void remove(confirm.name)
+          else void deshabilitar(confirm.name)
         }}
       />
     </div>

@@ -1,6 +1,6 @@
 import {
   AreaRow,
-  Avisos,
+  Notices,
   Block,
   Check,
   GroupRow,
@@ -80,12 +80,12 @@ export function ProxyForwarders({ f, set, en }: PaneProps) {
           disabled={!en.proxy}
           help="Enter IP addresses, network addresses or domain names to never proxy."
         />
-        <Avisos>
+        <Notices>
           <Note>
             When proxy server is configured, DNS Server will use it for all outbound network
             requests.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Forwarders">
@@ -114,7 +114,7 @@ export function ProxyForwarders({ f, set, en }: PaneProps) {
         </GroupRow>
         <GroupRow label="Concurrent Forwarding">
           <Check
-            conmutador
+            toggle
             label="Enable Concurrent Forwarding"
             checked={f.concurrentForwarding}
             onChange={(v) => set({ concurrentForwarding: v })}
@@ -131,7 +131,7 @@ export function ProxyForwarders({ f, set, en }: PaneProps) {
           disabled={!en.forwarderConcurrency}
           help="The number of concurrent requests that must be sent when Concurrent Forwarding is enabled for resolving a domain name."
         />
-        <Avisos>
+        <Notices>
           <Note>
             Forwarders are upstream DNS servers which this DNS Server must use to resolve domain
             names. If no forwarders are configured then the DNS Server will use preconfigured ROOT
@@ -152,7 +152,7 @@ export function ProxyForwarders({ f, set, en }: PaneProps) {
             To customize the Quick Select drop down list, read the instructions given in the{' '}
             <code>www/json/readme.txt</code> file found in the installation folder.
           </Note>
-        </Avisos>
+        </Notices>
         <Help href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html">
           Help: Configuring DNS Server For Privacy &amp; Security
         </Help>

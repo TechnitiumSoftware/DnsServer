@@ -8,7 +8,7 @@ import * as apps from '../../api/apps'
 import type { InstalledApp } from '../../api/apps'
 import type { QueryLogEntry, QueryLogPage } from '../../api/logs'
 import { claseFila, rangoPaginas, textoEstado } from './QueryLogs'
-import { elegir, opcionesDe, valorDe } from '../../test/desplegable'
+import { choose, opcionesDe, valorDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -224,7 +224,7 @@ describe('Logs › Query Logs — the form', () => {
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
-    await elegir(user, screen.getByLabelText('Logs Per Page'), '100')
+    await choose(user, screen.getByLabelText('Logs Per Page'), '100')
 
     expect(localStorage.getItem('optQueryLogsEntriesPerPage')).toBe('100')
     localStorage.removeItem('optQueryLogsEntriesPerPage')
@@ -240,7 +240,7 @@ describe('Logs › Query Logs — the form', () => {
     await screen.findByLabelText('App Name')
 
     await user.type(screen.getByLabelText('Domain'), 'casa.test')
-    await elegir(user, screen.getByLabelText('Protocol'), 'UDP')
+    await choose(user, screen.getByLabelText('Protocol'), 'UDP')
     await user.click(screen.getByRole('button', { name: 'Query' }))
 
     expect(spy.mock.calls[0][1]).toEqual({
@@ -319,7 +319,7 @@ describe('Logs › Query Logs — the form', () => {
     await screen.findByLabelText('App Name')
 
     await user.type(screen.getByLabelText('Domain'), 'casa.test')
-    await elegir(user, screen.getByLabelText('Order'), 'Ascending')
+    await choose(user, screen.getByLabelText('Order'), 'Ascending')
     await user.click(screen.getByRole('button', { name: 'Reset' }))
 
     expect(screen.getByLabelText('Domain')).toHaveValue('')
@@ -336,7 +336,7 @@ describe('Logs › Query Logs — the form', () => {
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
-    await elegir(user, screen.getByLabelText('Order'), 'Ascending')
+    await choose(user, screen.getByLabelText('Order'), 'Ascending')
     await user.type(screen.getByLabelText('From'), '2026-08-25T00:00')
     await user.click(screen.getByLabelText('Live Update'))
 

@@ -8,7 +8,7 @@ This type was declared EIGHT times —in Administration, DHCP, Zones, Lists, the
 two Logs screens, and under another name in Settings and in Apps— with the same
 three properties.
 */
-export interface Aviso {
+export interface Notice {
   type: AlertType
   title: string
   text: string
@@ -26,7 +26,7 @@ three were reachable.
 
 "Unknown error." stays, which is the only one of the three that says anything.
 */
-export function avisoDeFallo(outcome: { kind: string; message?: string }): Aviso {
+export function noticeFromFailure(outcome: { kind: string; message?: string }): Notice {
   return {
     type: 'danger',
     title: 'Error!',

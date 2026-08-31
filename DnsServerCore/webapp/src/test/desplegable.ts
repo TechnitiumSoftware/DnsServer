@@ -9,15 +9,15 @@ to select, there is a list that opens and a line that gets pressed.
 This does what a person would do: open and choose. And along the way it checks
 what `selectOptions` was not checking, that the list really does open.
 */
-export async function elegir(user: UserEvent, disparador: HTMLElement, etiqueta: string | RegExp) {
+export async function choose(user: UserEvent, disparador: HTMLElement, etiqueta: string | RegExp) {
   await user.click(disparador)
   const list = await screen.findByRole('listbox')
   await user.click(within(list).getByRole('option', { name: etiqueta }))
 }
 
 /** The same, finding the trigger by its label. */
-export async function elegirEn(user: UserEvent, field: string | RegExp, etiqueta: string | RegExp) {
-  await elegir(user, screen.getByLabelText(field), etiqueta)
+export async function chooseIn(user: UserEvent, field: string | RegExp, etiqueta: string | RegExp) {
+  await choose(user, screen.getByLabelText(field), etiqueta)
 }
 
 /** The options a dropdown offers, in order. It opens it and closes it again. */

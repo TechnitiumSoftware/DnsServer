@@ -11,12 +11,12 @@ import {
   type SectionPermission,
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
-import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Cell } from './tabla'
-import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
+import { addToTable, OPCION_BLANK, OPCION_NONE, serializeTable, type Cell } from './tabla'
+import { noticeFromFailure, MRow, adminStyles as styles, type Notice } from './partes'
 import { Th, useOrden, type Keys } from '../../ui/Table'
 import { Select } from '../../ui/Select'
-import { TablaEditable } from '../../ui/TablaEditable'
-import { Avisador } from '../../ui/Avisador'
+import { EditableTable } from '../../ui/TablaEditable'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 `refreshAdminPermissions`, `showEditSectionPermissionsModal` and
@@ -39,7 +39,7 @@ Three things that govern this screen:
 interface Props {
   token: string | null
   cluster: ClusterState | null
-  onAviso: (a: Aviso) => void
+  onAviso: (a: Notice) => void
 }
 
 export function Permissions({ token, cluster, onAviso }: Props) {
@@ -47,22 +47,22 @@ export function Permissions({ token, cluster, onAviso }: Props) {
   const [loading, setLoading] = useState(true)
   const [editar, setEditar] = useState<string | null>(null)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const outcome = await listPermissions(token)
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setSecciones([])
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
     setSecciones(outcome.data.response.permissions)
   }, [token, onAviso])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
   return (
     <>
@@ -211,16 +211,16 @@ function EditarPermisos({
   const [listaGrupos, setListaGrupos] = useState<string[]>([])
   const [addUser, setAddUser] = useState(OPCION_BLANK)
   const [addGroup, setAddGroup] = useState(OPCION_BLANK)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const outcome = await getPermission(token, section)
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
     const d = outcome.data.response
@@ -247,26 +247,26 @@ function EditarPermisos({
   }, [token, section])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
-  async function guardar() {
+  async function save() {
     const serie = (rows: readonly Row[]): Cell[][] =>
       rows.map((f) => [
-        { tipo: 'text', value: f.name },
-        { tipo: 'casilla', value: f.canView },
-        { tipo: 'casilla', value: f.canModify },
-        { tipo: 'casilla', value: f.canDelete },
+        { type: 'text', value: f.name },
+        { type: 'casilla', value: f.canView },
+        { type: 'casilla', value: f.canModify },
+        { type: 'casilla', value: f.canDelete },
       ])
 
-    const u = serializarTabla(serie(users))
+    const u = serializeTable(serie(users))
     if (!u.ok) {
-      setAviso({ type: 'warning', title: u.fallo.title, text: u.fallo.text })
+      setAviso({ type: 'warning', title: u.failure.title, text: u.failure.text })
       return
     }
-    const g = serializarTabla(serie(groups))
+    const g = serializeTable(serie(groups))
     if (!g.ok) {
-      setAviso({ type: 'warning', title: g.fallo.title, text: g.fallo.text })
+      setAviso({ type: 'warning', title: g.failure.title, text: g.failure.text })
       return
     }
 
@@ -275,7 +275,7 @@ function EditarPermisos({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
     onSaved(outcome.data.response)
@@ -295,13 +295,13 @@ function EditarPermisos({
       size="medium"
       actions={
         <>
-          <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy || loading} onClick={() => void save()}>
             Save
           </Button>
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
       {loading ? (
         <Loading />
       ) : (
@@ -320,7 +320,7 @@ function EditarPermisos({
                 value={addUser}
                 onChange={(e) => {
                   setAddUser(e.target.value)
-                  setUsuarios((f) => anadirALaTabla(f, e.target.value, nuevaFila))
+                  setUsuarios((f) => addToTable(f, e.target.value, blankRow))
                 }}
               >
                 <option value={OPCION_BLANK} />
@@ -348,7 +348,7 @@ function EditarPermisos({
                 value={addGroup}
                 onChange={(e) => {
                   setAddGroup(e.target.value)
-                  setGrupos((f) => anadirALaTabla(f, e.target.value, nuevaFila))
+                  setGrupos((f) => addToTable(f, e.target.value, blankRow))
                 }}
               >
                 <option value={OPCION_BLANK} />
@@ -367,7 +367,7 @@ function EditarPermisos({
   )
 }
 
-const nuevaFila = (name: string): Row => ({
+const blankRow = (name: string): Row => ({
   name,
   canView: false,
   canModify: false,
@@ -388,7 +388,7 @@ function TablaPermisos({
   rows: readonly Row[]
   onChange: (f: readonly Row[]) => void
 }) {
-  const { rows: visibles, orden, alternar } = useOrden(CLAVES_PERMISO, rows as Row[])
+  const { rows: visibles, sort, alternar } = useOrden(CLAVES_PERMISO, rows as Row[])
 
   // The checkbox writes over the ORIGINAL list: the sorting only changes the
   // order things are drawn in, not the data's.
@@ -402,11 +402,11 @@ function TablaPermisos({
       {/* The editable one does not carry the data table's panel wrapper: it is
           another piece (`ui/TablaEditable.module.css`) and lives INSIDE a panel. */}
       <div>
-        <TablaEditable
+        <EditableTable
       className={styles.edit}
           header={
             <>
-              <Th field="nombre" orden={orden} onOrdenar={alternar}>{header}</Th>
+              <Th field="nombre" sort={sort} onOrdenar={alternar}>{header}</Th>
               <th>View</th>
               <th>Modify</th>
               <th>Delete</th>
@@ -449,7 +449,7 @@ function TablaPermisos({
               </td>
             </tr>
           ))}
-        </TablaEditable>
+        </EditableTable>
         {/* Upstream puts no text when the modal's table is empty; nor does it
             here, so as not to invent a literal that does not exist. */}
       </div>

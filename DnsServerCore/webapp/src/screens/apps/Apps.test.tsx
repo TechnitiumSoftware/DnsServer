@@ -331,7 +331,7 @@ const TIENDA: StoreApp[] = [
   },
 ]
 
-async function abrirTienda() {
+async function openStore() {
   await userEvent.click(screen.getByRole('button', { name: 'App Store' }))
   return await screen.findByText('DNS App Store')
 }
@@ -342,7 +342,7 @@ describe('Apps — tienda', () => {
     conTienda(TIENDA)
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'NO DATA' })
-    await abrirTienda()
+    await openStore()
 
     const row = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
     expect(row.getByText('Version 11.1')).toBeInTheDocument()
@@ -356,7 +356,7 @@ describe('Apps — tienda', () => {
     conTienda(TIENDA)
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'NO DATA' })
-    await abrirTienda()
+    await openStore()
 
     const row = within(
       await within(screen.getByRole('dialog')).findByRole('listitem', { name: 'NO DATA' }),
@@ -376,7 +376,7 @@ describe('Apps — tienda', () => {
       .mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
     render(<Apps token="t" />)
     await screen.findByText('No apps installed')
-    await abrirTienda()
+    await openStore()
 
     const row = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
     await userEvent.click(row.getByRole('button', { name: 'Install' }))
@@ -395,7 +395,7 @@ describe('Apps — tienda', () => {
     vi.spyOn(api, 'uninstallApp').mockResolvedValue({ kind: 'ok', data: { status: 'ok' } } as never)
     render(<Apps token="t" />)
     await screen.findByRole('listitem', { name: 'NO DATA' })
-    await abrirTienda()
+    await openStore()
 
     const row = within(
       await within(screen.getAllByRole('dialog')[0]).findByRole('listitem', { name: 'NO DATA' }),
@@ -415,7 +415,7 @@ describe('Apps — tienda', () => {
     conTienda([])
     render(<Apps token="t" />)
     await screen.findByText('No apps installed')
-    await abrirTienda()
+    await openStore()
 
     expect(await screen.findByText('No Apps Found')).toBeInTheDocument()
   })

@@ -1,4 +1,4 @@
-import { Avisos, Block, Check, GroupRow, Radios, TextRow, Warning } from '../parts'
+import { Notices, Block, Check, GroupRow, Radios, TextRow, Warning } from '../parts'
 import type { PaneProps } from './tipos'
 
 /* Settings > Logging (index.html:2359-2476). Dos bloques. */
@@ -39,7 +39,7 @@ export function Logging({ f, set, en }: PaneProps) {
 
         <GroupRow label="Logging Options">
           <Check
-            conmutador
+            toggle
             label="Ignore Resolver Error Logs"
             checked={f.ignoreResolverLogs}
             onChange={(v) => set({ ignoreResolverLogs: v })}
@@ -47,7 +47,7 @@ export function Logging({ f, set, en }: PaneProps) {
             help="Enable this option to stop logging domain name resolution errors."
           />
           <Check
-            conmutador
+            toggle
             label="No Stack Trace"
             checked={f.noStackTrace}
             onChange={(v) => set({ noStackTrace: v })}
@@ -55,7 +55,7 @@ export function Logging({ f, set, en }: PaneProps) {
             help="Enable to log only short error messages instead of full exception stack trace."
           />
           <Check
-            conmutador
+            toggle
             label="Log All Queries"
             checked={f.logQueries}
             onChange={(v) => set({ logQueries: v })}
@@ -63,7 +63,7 @@ export function Logging({ f, set, en }: PaneProps) {
             help="Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file."
           />
           <Check
-            conmutador
+            toggle
             label="Use Local Time"
             checked={f.useLocalTime}
             onChange={(v) => set({ useLocalTime: v })}
@@ -91,18 +91,18 @@ export function Logging({ f, set, en }: PaneProps) {
           suffix="days (default 365, set 0 to disable auto delete)"
           help="Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically."
         />
-        <Avisos>
+        <Notices>
           <Warning>
             Enabling query logging will significantly increase the log file size and use up disk
             space.
           </Warning>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Stats">
         <GroupRow label="Stats">
           <Check
-            conmutador
+            toggle
             label="Enable In-Memory Stats"
             checked={f.enableInMemoryStats}
             onChange={(v) => set({ enableInMemoryStats: v })}

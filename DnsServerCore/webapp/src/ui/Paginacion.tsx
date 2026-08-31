@@ -1,4 +1,4 @@
-import { Icono } from './Icono'
+import { Icon } from './Icono'
 import styles from './Pagination.module.css'
 import type { Pagination as Ventana } from '../lib/paginacion'
 
@@ -31,7 +31,7 @@ export function Pagination({
     <span className={styles.pg}>
       {ventana.primera && (
         <button type="button" className={styles.pgb} aria-label="First" onClick={() => onIr(1)}>
-          <Icono name="first" tam={14} />
+          <Icon name="first" tam={14} />
         </button>
       )}
       {ventana.previous != null && (
@@ -41,7 +41,7 @@ export function Pagination({
           aria-label="Previous"
           onClick={() => onIr(ventana.previous!)}
         >
-          <Icono name="chevronIzquierda" tam={14} />
+          <Icon name="chevronLeft" tam={14} />
         </button>
       )}
       {ventana.pages.map((p) => (
@@ -62,12 +62,12 @@ export function Pagination({
           aria-label="Next"
           onClick={() => onIr(ventana.next!)}
         >
-          <Icono name="chevronDerecha" tam={14} />
+          <Icon name="chevronRight" tam={14} />
         </button>
       )}
       {ventana.last && (
         <button type="button" className={styles.pgb} aria-label="Last" onClick={() => onIr(last)}>
-          <Icono name="last" tam={14} />
+          <Icon name="last" tam={14} />
         </button>
       )}
     </span>

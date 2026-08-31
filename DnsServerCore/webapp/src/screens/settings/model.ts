@@ -1,5 +1,5 @@
 import type { DnsSettings } from '../../api/settings'
-import { serializarTabla, type Cell } from '../../lib/tabla-serie'
+import { serializeTable, type Cell } from '../../lib/tabla-serie'
 
 /*
 The model of the Settings form.
@@ -350,7 +350,7 @@ export function formularioDesdeAjustes(s: DnsSettings): SettingsForm {
 
     // main.js:1525 — the proxy type is compared lowercased and any
     // valor desconocido cae en «None».
-    proxyType: tipoProxy(s.proxy?.type),
+    proxyType: proxyType(s.proxy?.type),
     proxyAddress: s.proxy?.address ?? '',
     proxyPort: s.proxy == null ? '' : String(s.proxy.port ?? ''),
     proxyUsername: s.proxy?.username ?? '',
@@ -379,8 +379,8 @@ function filaQpm(l: { prefix: number; udpLimit: number; tcpLimit: number }): Qpm
   return { prefix: String(l.prefix), udpLimit: String(l.udpLimit), tcpLimit: String(l.tcpLimit) }
 }
 
-function tipoProxy(tipo: string | undefined): string {
-  switch ((tipo ?? '').toLowerCase()) {
+function proxyType(type: string | undefined): string {
+  switch ((type ?? '').toLowerCase()) {
     case 'http':
       return 'Http'
     case 'socks5':
@@ -449,7 +449,7 @@ export function enabled(f: SettingsForm) {
 
 /* ── Building the body of `settings/set` ──────────────────────────────── */
 
-export interface ErrorValidacion {
+export interface ValidationError {
   title: string
   text: string
   /** The sub-tab the field is in, so it can be jumped to. */
@@ -459,7 +459,7 @@ export interface ErrorValidacion {
 }
 
 export interface ResultadoCuerpo {
-  error?: ErrorValidacion
+  error?: ValidationError
   body?: Record<string, string>
   /** Textareas upstream rewrites with the sanitised list. */
   sanitised?: Partial<SettingsForm>
@@ -474,27 +474,27 @@ field.
 Only `sharedSecret` carries `data-optional` in upstream, so only it allows empty;
 each cell says so through its `opcional`.
 */
-function serializarConUbicacion(
+function serializeWithLocation(
   rows: Cell[][],
   tab: string,
   field: string,
-): { value: string } | { error: ErrorValidacion } {
-  const r = serializarTabla(rows)
+): { value: string } | { error: ValidationError } {
+  const r = serializeTable(rows)
   if (r.ok) return { value: r.value }
-  return { error: { title: r.fallo.title, text: r.fallo.text, tab, field } }
+  return { error: { title: r.failure.title, text: r.failure.text, tab, field } }
 }
 
 export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   const body: Record<string, string> = { node }
   const sanitised: Partial<SettingsForm> = {}
 
-  const falta = (text: string, tab: string, field: string): ResultadoCuerpo => ({
+  const missing = (text: string, tab: string, field: string): ResultadoCuerpo => ({
     error: { title: 'Missing!', text, tab, field },
   })
 
   // ── General: local parameters
   if (f.dnsServerDomain === '') {
-    return falta('Please enter server domain name.', 'General', 'dnsServerDomain')
+    return missing('Please enter server domain name.', 'General', 'dnsServerDomain')
   }
 
   let dnsServerLocalEndPoints = limpiarLista(f.dnsServerLocalEndPoints)
@@ -540,14 +540,14 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
 
   // ── General: EDNS / DNSSEC / ECS
   if (f.eDnsClientSubnetIPv4PrefixLength === '') {
-    return falta(
+    return missing(
       'Please enter EDNS Client Subnet IPv4 prefix length.',
       'General',
       'eDnsClientSubnetIPv4PrefixLength',
     )
   }
   if (f.eDnsClientSubnetIPv6PrefixLength === '') {
-    return falta(
+    return missing(
       'Please enter EDNS Client Subnet IPv6 prefix length.',
       'General',
       'eDnsClientSubnetIPv6PrefixLength',
@@ -555,22 +555,22 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   }
 
   // ── General: QPM
-  const qpm4 = serializarConUbicacion(
+  const qpm4 = serializeWithLocation(
     f.qpmPrefixLimitsIPv4.map((r) => [
-      { tipo: 'text' as const, value: r.prefix },
-      { tipo: 'text' as const, value: r.udpLimit },
-      { tipo: 'text' as const, value: r.tcpLimit },
+      { type: 'text' as const, value: r.prefix },
+      { type: 'text' as const, value: r.udpLimit },
+      { type: 'text' as const, value: r.tcpLimit },
     ]),
     'General',
     'qpmPrefixLimitsIPv4',
   )
   if ('error' in qpm4) return { error: qpm4.error }
 
-  const qpm6 = serializarConUbicacion(
+  const qpm6 = serializeWithLocation(
     f.qpmPrefixLimitsIPv6.map((r) => [
-      { tipo: 'text' as const, value: r.prefix },
-      { tipo: 'text' as const, value: r.udpLimit },
-      { tipo: 'text' as const, value: r.tcpLimit },
+      { type: 'text' as const, value: r.prefix },
+      { type: 'text' as const, value: r.udpLimit },
+      { type: 'text' as const, value: r.tcpLimit },
     ]),
     'General',
     'qpmPrefixLimitsIPv6',
@@ -578,14 +578,14 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   if ('error' in qpm6) return { error: qpm6.error }
 
   if (f.qpmLimitSampleMinutes === '') {
-    return falta(
+    return missing(
       'Please enter Queries Per Minute (QPM) sample value.',
       'General',
       'qpmLimitSampleMinutes',
     )
   }
   if (f.qpmLimitUdpTruncationPercentage === '') {
-    return falta(
+    return missing(
       'Please enter Queries Per Minute (QPM) limit UDP truncation percentage value.',
       'General',
       'qpmLimitUdpTruncationPercentage',
@@ -608,7 +608,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['maxConcurrentResolutionsPerCore', 'Please enter a value for Max Concurrent Resolutions.', 'maxConcurrentResolutionsPerCore'],
   ]
   for (const [key, text, field] of obligatorios) {
-    if (f[key] === '') return falta(text, 'General', field)
+    if (f[key] === '') return missing(text, 'General', field)
   }
 
   body.udpPayloadSize = f.udpPayloadSize
@@ -670,7 +670,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['dnsOverQuicPort', 'Please enter a value for DNS-over-QUIC Port.', 'dnsOverQuicPort'],
   ]
   for (const [key, text, field] of puertos) {
-    if (f[key] === '') return falta(text, 'Optional Protocols', field)
+    if (f[key] === '') return missing(text, 'Optional Protocols', field)
   }
 
   const drpa = limpiarLista(f.dnsReverseProxyNetworkACL)
@@ -703,11 +703,11 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.dnsTlsCertificatePassword = f.dnsTlsCertificatePassword
 
   // ── TSIG
-  const tsig = serializarConUbicacion(
+  const tsig = serializeWithLocation(
     f.tsigKeys.map((k) => [
-      { tipo: 'text' as const, value: k.keyName },
-      { tipo: 'text' as const, value: k.sharedSecret, opcional: true },
-      { tipo: 'text' as const, value: k.algorithmName },
+      { type: 'text' as const, value: k.keyName },
+      { type: 'text' as const, value: k.sharedSecret, opcional: true },
+      { type: 'text' as const, value: k.algorithmName },
     ]),
     'TSIG',
     'tsigKeys',
@@ -726,7 +726,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['resolverMaxStackCount', 'Please enter a value for Resolver Max Stack Count.', 'resolverMaxStackCount'],
   ]
   for (const [key, text, field] of resolutor) {
-    if (f[key] === '') return falta(text, 'Recursion', field)
+    if (f[key] === '') return missing(text, 'Recursion', field)
   }
 
   body.recursion = f.recursion
@@ -752,7 +752,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['cachePrefetchSampleEligibilityHitsPerHour', 'Please enter cache auto prefetch sample eligibility value.', 'cachePrefetchSampleEligibilityHitsPerHour'],
   ]
   for (const [key, text, field] of cache) {
-    if (f[key] === '') return falta(text, 'Cache', field)
+    if (f[key] === '') return missing(text, 'Cache', field)
   }
 
   body.saveCache = String(f.saveCache)
@@ -795,10 +795,10 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   const proxy: Record<string, string> = { proxyType }
   if (proxyType !== 'none') {
     if (f.proxyAddress === '') {
-      return falta('Please enter proxy server address.', 'Proxy & Forwarders', 'proxyAddress')
+      return missing('Please enter proxy server address.', 'Proxy & Forwarders', 'proxyAddress')
     }
     if (f.proxyPort === '') {
-      return falta('Please enter proxy server port.', 'Proxy & Forwarders', 'proxyPort')
+      return missing('Please enter proxy server port.', 'Proxy & Forwarders', 'proxyPort')
     }
     const pb = limpiarLista(f.proxyBypassList)
     // main.js:2145 — here empty is NOT "false", it is an empty string.
@@ -820,7 +820,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['forwarderConcurrency', 'Please enter a value for Forwarder Concurrency.', 'forwarderConcurrency'],
   ]
   for (const [key, text, field] of reenvio) {
-    if (f[key] === '') return falta(text, 'Proxy & Forwarders', field)
+    if (f[key] === '') return missing(text, 'Proxy & Forwarders', field)
   }
 
   Object.assign(body, proxy)

@@ -7,11 +7,11 @@
 .ah { display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-8); margin-bottom: var(--s-5); }
 .ah h2 { margin: 0; font-size: var(--t-4); font-weight: 550; color:var(--ink); }
 .ver { font-family:var(--font-mono); font-size: var(--t-2); color:var(--faint); margin-top: var(--s-1); }
-.nueva { color:var(--acc); }
+.blank { color:var(--acc); }
 .desc { margin: 0 0 var(--s-7); font-size: var(--t-4); line-height:1.55; color:var(--mute); white-space:pre-line; }
 .foot { display:flex; gap: var(--s-3); justify-content:flex-end; flex-wrap:wrap; margin-top: auto; }
 
-.detalles { margin: 0 0 var(--s-7); }
+.details { margin: 0 0 var(--s-7); }
 
 .clase { margin-top: var(--s-6); padding-top: var(--s-6); border-top:1px solid var(--line2); }
 .clase:first-of-type { border-top:0; }

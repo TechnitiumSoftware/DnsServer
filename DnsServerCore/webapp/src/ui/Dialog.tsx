@@ -1,7 +1,7 @@
 import * as RadixDialog from '@radix-ui/react-dialog'
 import type { ReactNode } from 'react'
 import { Button } from './Button'
-import { Icono } from './Icono'
+import { Icon } from './Icono'
 import styles from './Dialog.module.css'
 
 /*
@@ -24,7 +24,7 @@ export function Dialog({
   title,
   children,
   actions,
-  cerrar = 'Close',
+  close = 'Close',
   size = 'form',
 }: {
   open: boolean
@@ -34,7 +34,7 @@ export function Dialog({
   /** The buttons that do something. The dismiss one is not passed: Dialog adds it. */
   actions?: ReactNode
   /** Label for the dismiss button. `Cancel` when the modal is a question. */
-  cerrar?: string
+  close?: string
   /**
    * The size, decided by the CONTENT and not by taste:
    *
@@ -62,13 +62,13 @@ export function Dialog({
           <div className={styles.head}>
             <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
             <RadixDialog.Close className={styles.close} aria-label="Close">
-              <Icono name="cerrar" tam={16} />
+              <Icon name="close" tam={16} />
             </RadixDialog.Close>
           </div>
           <div className={styles.body}>{children}</div>
           <div className={styles.foot}>
             {actions}
-            <Button onClick={() => onOpenChange(false)}>{cerrar}</Button>
+            <Button onClick={() => onOpenChange(false)}>{close}</Button>
           </div>
         </RadixDialog.Content>
       </RadixDialog.Portal>

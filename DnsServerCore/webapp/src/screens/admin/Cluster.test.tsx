@@ -5,7 +5,7 @@ import { Cluster } from './Cluster'
 import * as client from '../../api/client'
 import { CLUSTER_PRIMARIO, CLUSTER_SECUNDARIO, CLUSTER_SIN_INICIAR } from './admin.fixture'
 import type { ClusterState } from '../../api/admin-cluster'
-import { elegir, opcionesDe } from '../../test/desplegable'
+import { choose, opcionesDe } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -60,7 +60,7 @@ describe('Cluster — not initialised', () => {
 })
 
 describe('Cluster — inicializar uno nuevo', () => {
-  async function abrir() {
+  async function open() {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -70,7 +70,7 @@ describe('Cluster — inicializar uno nuevo', () => {
   }
 
   it('it requires the domain first and then some IP', async () => {
-    const { user, spy } = await abrir()
+    const { user, spy } = await open()
     const button = screen.getByRole('button', { name: 'Initialize' })
 
     await user.click(button)
@@ -83,24 +83,24 @@ describe('Cluster — inicializar uno nuevo', () => {
   })
 
   it('\"Quick Add\" appends the chosen IP to the end of the list', async () => {
-    const { user } = await abrir()
-    await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
+    const { user } = await open()
+    await choose(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
     expect(screen.getByLabelText('Primary Node IP Addresses')).toHaveValue('10.0.0.1\n')
   })
 
   it('\"Quick Add\" compares by SUBSTRING, which is the upstream bug being replicated', async () => {
-    const { user } = await abrir()
+    const { user } = await open()
     const area = screen.getByLabelText('Primary Node IP Addresses')
-    await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.10')
+    await choose(user, screen.getByLabelText('Quick Add'), '10.0.0.10')
     // With `10.0.0.10` already in the list, `indexOf('10.0.0.1')` finds it inside
     // and upstream takes the IP as added: `10.0.0.1` does NOT go in. The behaviour
     // is replicated, not the intent.
-    await elegir(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
+    await choose(user, screen.getByLabelText('Quick Add'), '10.0.0.1')
     expect(area).toHaveValue('10.0.0.10\n')
   })
 
   it('it sends domain and IP already cleaned, and without `node`', async () => {
-    const { user, spy } = await abrir()
+    const { user, spy } = await open()
     await user.type(screen.getByLabelText('Cluster Domain'), 'micluster.test')
     await user.type(screen.getByLabelText('Primary Node IP Addresses'), '10.0.0.1\n10.0.0.2\n')
     await user.click(screen.getByRole('button', { name: 'Initialize' }))
@@ -121,7 +121,7 @@ describe('Cluster — inicializar uno nuevo', () => {
 })
 
 describe('Cluster — unirse a uno existente', () => {
-  async function abrir() {
+  async function open() {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Cluster {...props} />)
@@ -131,14 +131,14 @@ describe('Cluster — unirse a uno existente', () => {
   }
 
   it('the user comes filled in with \"admin\" and the OTP is not visible yet', async () => {
-    const { user } = await abrir()
+    const { user } = await open()
     expect(screen.getByLabelText('Primary Node Username')).toHaveValue('admin')
     expect(screen.queryByLabelText('Primary Node OTP')).not.toBeInTheDocument()
     expect(user).toBeTruthy()
   })
 
   it('the validation order is IP, URL, user and password', async () => {
-    const { user, spy } = await abrir()
+    const { user, spy } = await open()
     const button = screen.getByRole('button', { name: 'Join' })
 
     await user.click(button)
@@ -160,7 +160,7 @@ describe('Cluster — unirse a uno existente', () => {
   })
 
   it('it sends the seven fields by POST', async () => {
-    const { user, spy } = await abrir()
+    const { user, spy } = await open()
     await user.type(screen.getByLabelText('Secondary Node IP Addresses'), '10.0.0.3\n')
     await user.type(screen.getByLabelText('Primary Node URL'), 'https://ns1.test')
     await user.type(screen.getByLabelText('Primary Node Password'), 'secreta')

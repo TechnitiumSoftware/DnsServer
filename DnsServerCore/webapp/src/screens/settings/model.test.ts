@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { AJUSTES } from './ajustes.fixture'
+import { SETTINGS } from './ajustes.fixture'
 import { construirCuerpo, formularioDesdeAjustes, enabled, limpiarLista, listaATexto } from './model'
 
-const base = () => formularioDesdeAjustes(AJUSTES)
+const base = () => formularioDesdeAjustes(SETTINGS)
 
 function body(parcial: Partial<ReturnType<typeof base>> = {}) {
   const r = construirCuerpo({ ...base(), ...parcial })
@@ -51,7 +51,7 @@ describe('formularioDesdeAjustes', () => {
 
   it('the proxy type is normalised regardless of case', () => {
     const f = formularioDesdeAjustes({
-      ...AJUSTES,
+      ...SETTINGS,
       proxy: { type: 'SOCKS5', address: 'p', port: 1080, username: '', password: '', bypass: [] },
     })
     expect(f.proxyType).toBe('Socks5')

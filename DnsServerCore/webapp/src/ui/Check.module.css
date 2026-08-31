@@ -30,7 +30,7 @@ The switch. It is the same `input[type=checkbox]`, redrawn: the track is the
 input's own box and the knob is its offset inset shadow, so neither an extra
 element nor a pseudo-element the browser paints its own way is needed.
 */
-.conmutador input {
+.toggle input {
   width: var(--ctrl-track-w);
   height: var(--ctrl-track-h);
   border-radius: var(--r-full);
@@ -46,7 +46,7 @@ element nor a pseudo-element the browser paints its own way is needed.
 }
 
 /* The knob: a circle that travels from one end of the track to the other. */
-.conmutador input::after {
+.toggle input::after {
   content: '';
   position: absolute;
   top: 2px;
@@ -59,23 +59,23 @@ element nor a pseudo-element the browser paints its own way is needed.
   transition: transform var(--t-medio), background var(--t-rapido);
 }
 
-.conmutador input:checked {
+.toggle input:checked {
   background-color: var(--acc);
   background-image: none;
   border-color: var(--acc);
   box-shadow: var(--filo-fuerte);
 }
 
-.conmutador input:checked::after {
+.toggle input:checked::after {
   background: var(--on-acc);
   transform: translateX(calc(var(--ctrl-track-w) - var(--ctrl-track-h)));
 }
 
-.conmutador input:active:not(:disabled) { transform: none; }
+.toggle input:active:not(:disabled) { transform: none; }
 
-.conmutador .help { margin-left: calc(var(--ctrl-track-w) + var(--s-6)); }
+.toggle .help { margin-left: calc(var(--ctrl-track-w) + var(--s-6)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .conmutador input,
-  .conmutador input::after { transition: none; }
+  .toggle input,
+  .toggle input::after { transition: none; }
 }

@@ -5,11 +5,11 @@ import { Button } from '../../ui/Button'
 import { LabeledInput, LabeledSelect } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
-import { Detalles } from '../../ui/Detalles'
+import { Details } from '../../ui/Detalles'
 import styles from './DnsClient.module.css'
 import { Body, Panel } from '../../ui/Panel'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 A replica of `resolveQuery()` (dnsclient.js:95-210). Both buttons call the same
@@ -69,7 +69,7 @@ export function DnsClient({ token }: { token: string | null }) {
     if (outcome.kind !== 'ok') {
       setSalida(null)
       setCrudas([])
-      setAlert(avisoDeFallo(outcome))
+      setAlert(noticeFromFailure(outcome))
       return
     }
 
@@ -92,7 +92,7 @@ export function DnsClient({ token }: { token: string | null }) {
     <>
       <SectionHeader titulo="DNS Client" />
 
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
 
       {/*
       The query bar used labels made by hand with inline `style` —`fontSize: 11`,
@@ -144,13 +144,13 @@ export function DnsClient({ token }: { token: string | null }) {
             <pre className={styles.out}>{salida}</pre>
 
             {crudas.length > 0 && (
-              <Detalles className={styles.crudas} summary={`Raw Responses (${crudas.length})`}>
+              <Details className={styles.crudas} summary={`Raw Responses (${crudas.length})`}>
                 {crudas.map((c, i) => (
                   <pre key={i} className={styles.out}>
                     {JSON.stringify(c, null, 2)}
                   </pre>
                 ))}
-              </Detalles>
+              </Details>
             )}
           </Body>
         </Panel>

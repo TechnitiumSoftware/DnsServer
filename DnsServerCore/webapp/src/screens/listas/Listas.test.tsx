@@ -50,7 +50,7 @@ function conNodo(...nodes: NodoLista[]) {
   return spy
 }
 
-async function confirmar(etiqueta: string) {
+async function confirm(etiqueta: string) {
   const dialogo = await screen.findByRole('dialog')
   await userEvent.click(within(dialogo).getByRole('button', { name: etiqueta }))
 }
@@ -165,7 +165,7 @@ describe('Cache', () => {
     const list = conNodo(node({ domain: 'casa.test', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Flush Cache' }))
-    await confirmar('Flush Cache')
+    await confirm('Flush Cache')
     expect(spy).toHaveBeenCalled()
     expect(
       await screen.findByText('DNS Server cache was flushed successfully.'),
@@ -188,7 +188,7 @@ describe('Cache', () => {
   })
 
   it('deleting a node confirms and alerts with the literal texts', async () => {
-    const spy = vi.spyOn(api, 'borrarNodoCache').mockResolvedValue(OK)
+    const spy = vi.spyOn(api, 'deleteCacheNode').mockResolvedValue(OK)
     conNodo(node({ domain: 'casa.test', records: [REG_CACHE] }))
     render(<Cache token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
@@ -197,7 +197,7 @@ describe('Cache', () => {
         "Are you sure you want to delete the cached zone 'casa.test' and all its records?",
       ),
     ).toBeInTheDocument()
-    await confirmar('Delete')
+    await confirm('Delete')
     expect(spy.mock.calls[0][1]).toBe('casa.test')
     expect(
       await screen.findByText("Cached zone 'casa.test' was deleted successfully."),
@@ -214,7 +214,7 @@ describe('Allowed', () => {
   })
 
   it('it adds the domain, alerts with the literal text and empties the field', async () => {
-    const spy = vi.spyOn(api, 'anadirDominio').mockResolvedValue(OK)
+    const spy = vi.spyOn(api, 'addDomain').mockResolvedValue(OK)
     conNodo(node())
     render(<Allowed token="t" />)
     const field = await screen.findByLabelText('Domain')
@@ -242,14 +242,14 @@ describe('Allowed', () => {
   })
 
   it('deleting alerts with \"deleted from Allowed Zone\", which is not the Blocked text', async () => {
-    vi.spyOn(api, 'borrarDominio').mockResolvedValue(OK)
+    vi.spyOn(api, 'deleteDomain').mockResolvedValue(OK)
     conNodo(node({ domain: 'casa.test', records: [REG_AUTH] }))
     render(<Allowed token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     expect(
       await screen.findByText("Are you sure you want to delete the allowed zone 'casa.test'?"),
     ).toBeInTheDocument()
-    await confirmar('Delete')
+    await confirm('Delete')
     expect(
       await screen.findByText("Domain 'casa.test' was deleted from Allowed Zone successfully."),
     ).toBeInTheDocument()
@@ -263,7 +263,7 @@ describe('Allowed', () => {
     expect(
       await screen.findByText('Are you sure you want to flush the entire Allowed zone?'),
     ).toBeInTheDocument()
-    await confirmar('Flush')
+    await confirm('Flush')
     expect(spy.mock.calls[0][0]).toBe('allowed')
     expect(await screen.findByText('Allowed zone was flushed successfully.')).toBeInTheDocument()
   })
@@ -312,7 +312,7 @@ describe('Blocked', () => {
   })
 
   it('it alerts with \"added to Blocked Zone\"', async () => {
-    vi.spyOn(api, 'anadirDominio').mockResolvedValue(OK)
+    vi.spyOn(api, 'addDomain').mockResolvedValue(OK)
     conNodo(node())
     render(<Blocked token="t" />)
     await userEvent.type(await screen.findByLabelText('Domain'), 'ads.test')
@@ -326,14 +326,14 @@ describe('Blocked', () => {
      Zone successfully." and Blocked says "Blocked zone 'x' was deleted
      successfully.". They are two different sentences and both are contract. */
   it('deleting alerts with \"Blocked zone ... was deleted successfully\"', async () => {
-    vi.spyOn(api, 'borrarDominio').mockResolvedValue(OK)
+    vi.spyOn(api, 'deleteDomain').mockResolvedValue(OK)
     conNodo(node({ domain: 'ads.test', records: [REG_AUTH] }))
     render(<Blocked token="t" />)
     await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     expect(
       await screen.findByText("Are you sure you want to delete the blocked zone 'ads.test'?"),
     ).toBeInTheDocument()
-    await confirmar('Delete')
+    await confirm('Delete')
     expect(
       await screen.findByText("Blocked zone 'ads.test' was deleted successfully."),
     ).toBeInTheDocument()
@@ -347,7 +347,7 @@ describe('Blocked', () => {
     expect(
       await screen.findByText('Are you sure you want to flush the entire Blocked zone?'),
     ).toBeInTheDocument()
-    await confirmar('Flush')
+    await confirm('Flush')
     expect(await screen.findByText('Blocked zone was flushed successfully.')).toBeInTheDocument()
   })
 

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { Icono } from './Icono'
+import { Icon } from './Icono'
 import styles from './Detalles.module.css'
 
 /** A `<details>` with the icon set's chevron. See the styles module. */
-export function Detalles({
+export function Details({
   summary,
   children,
   className,
@@ -13,9 +13,9 @@ export function Detalles({
   className?: string
 }) {
   return (
-    <details className={[styles.detalles, className].filter(Boolean).join(' ')}>
+    <details className={[styles.details, className].filter(Boolean).join(' ')}>
       <summary>
-        <Icono name="chevronDerecha" tam={12} className={styles.chevron} />
+        <Icon name="chevronRight" tam={12} className={styles.chevron} />
         {summary}
       </summary>
       {children}

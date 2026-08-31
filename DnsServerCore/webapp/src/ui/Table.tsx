@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from './Button'
-import { Icono, type NombreIcono } from './Icono'
+import { Icon, type IconName } from './Icono'
 import styles from './Table.module.css'
 
 /*
@@ -103,7 +103,7 @@ export function Table({
   )
 }
 
-export interface Orden {
+export interface Sort {
   field: string
   desc: boolean
 }
@@ -116,41 +116,41 @@ function text(v: string | number | null | undefined): string {
 }
 
 export function useOrden<T>(keys: Keys<T>, rows: T[]) {
-  const [orden, setOrden] = useState<Orden | null>(null)
+  const [sort, setOrden] = useState<Sort | null>(null)
 
-  const ordenadas = (() => {
-    if (orden == null || keys[orden.field] == null) return rows
-    const leer = keys[orden.field]
-    const signo = orden.desc ? -1 : 1
+  const sorted = (() => {
+    if (sort == null || keys[sort.field] == null) return rows
+    const read = keys[sort.field]
+    const signo = sort.desc ? -1 : 1
     return [...rows].sort((a, b) => {
-      const x = text(leer(a))
-      const y = text(leer(b))
+      const x = text(read(a))
+      const y = text(read(b))
       return x === y ? 0 : (x > y ? 1 : -1) * signo
     })
   })()
 
   function alternar(field: string) {
-    const leer = keys[field]
-    if (leer == null) return
+    const read = keys[field]
+    if (read == null) return
     // The list is looked at AS IT IS DRAWN, which is what upstream looks at.
-    const yaAsc = ordenadas.every((f, i) => i === 0 || text(leer(ordenadas[i - 1])) <= text(leer(f)))
+    const yaAsc = sorted.every((f, i) => i === 0 || text(read(sorted[i - 1])) <= text(read(f)))
     setOrden({ field, desc: yaAsc })
   }
 
-  return { rows: ordenadas, orden, alternar }
+  return { rows: sorted, sort, alternar }
 }
 
 /** A sortable column header. Without `campo` it is an ordinary header. */
 export function Th({
   field,
-  orden,
+  sort,
   onOrdenar,
   children,
   name,
   ...rest
 }: {
   field?: string
-  orden?: Orden | null
+  sort?: Sort | null
   onOrdenar?: (field: string) => void
   children?: ReactNode
   /** For a header upstream leaves BLANK and which is still sortable: the button
@@ -159,18 +159,18 @@ export function Th({
 } & React.ThHTMLAttributes<HTMLTableCellElement>) {
   if (field == null || onOrdenar == null) return <th {...rest}>{children}</th>
 
-  const active = orden?.field === field
+  const active = sort?.field === field
   return (
-    <th aria-sort={active ? (orden!.desc ? 'descending' : 'ascending') : 'none'} {...rest}>
+    <th aria-sort={active ? (sort!.desc ? 'descending' : 'ascending') : 'none'} {...rest}>
       <button
         type="button"
-        className={styles.orden}
+        className={styles.sort}
         aria-label={children == null ? name : undefined}
         onClick={() => onOrdenar(field)}
       >
         {children}
         <span className={styles.flecha}>
-          <Icono name={active ? 'chevronAbajo' : 'orden'} tam={12} data-desc={active && !orden!.desc} />
+          <Icon name={active ? 'chevronDown' : 'sort'} tam={12} data-desc={active && !sort!.desc} />
         </span>
       </button>
     </th>
@@ -184,17 +184,17 @@ reasoning in `Table.module.css`— but keeps its name in `aria-label` and in
 the text that used to fill the column said.
 */
 export function AccionFila({
-  icono,
+  icon,
   name,
   ...rest
 }: {
-  icono: NombreIcono
+  icon: IconName
   /** What it does, in upstream's wording: "Options", "Disable", "Edit". */
   name: string
-} & Omit<React.ComponentProps<typeof Button>, 'children' | 'size' | 'icono'>) {
+} & Omit<React.ComponentProps<typeof Button>, 'children' | 'size' | 'icon'>) {
   return (
-    <Button size="sm" icono aria-label={name} title={name} {...rest}>
-      <Icono name={icono} tam={15} />
+    <Button size="sm" icon aria-label={name} title={name} {...rest}>
+      <Icon name={icon} tam={15} />
     </Button>
   )
 }

@@ -12,26 +12,26 @@ afterEach(() => vi.restoreAllMocks())
 const ok = (data: unknown = { status: 'ok' }) => ({ kind: 'ok' as const, data })
 
 describe('Change Password', () => {
-  const abrir = (totpEnabled = false) =>
+  const open = (totpEnabled = false) =>
     render(
       <ChangePassword open onOpenChange={() => {}} totpEnabled={totpEnabled} token="t" />,
     )
 
   it('it requires the current password, with the literal text', async () => {
-    abrir()
+    open()
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter the current password.')).toBeInTheDocument()
   })
 
   it('it requires the new one before the confirmation: the order is contract', async () => {
-    abrir()
+    open()
     await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter new password.')).toBeInTheDocument()
   })
 
   it('it requires the confirmation', async () => {
-    abrir()
+    open()
     await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -39,7 +39,7 @@ describe('Change Password', () => {
   })
 
   it('it warns that they do not match under the Mismatch! title', async () => {
-    abrir()
+    open()
     await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'otra')
@@ -50,7 +50,7 @@ describe('Change Password', () => {
 
   it('with 2FA off it asks for no OTP', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok())
-    abrir(false)
+    open(false)
     expect(screen.queryByLabelText('OTP')).not.toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
@@ -61,7 +61,7 @@ describe('Change Password', () => {
   })
 
   it('with 2FA on it requires the 6 digits', async () => {
-    abrir(true)
+    open(true)
     await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'nueva')
@@ -73,7 +73,7 @@ describe('Change Password', () => {
 
   it('it confirms the change with the literal text', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(ok())
-    abrir()
+    open()
     await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'nueva')
@@ -214,7 +214,7 @@ describe('My Profile — sesiones activas', () => {
   operating system's. The text is still upstream's literal (`auth.js:803`), which
   is what these two tests guard.
   */
-  async function abrirBorradoDeSesion() {
+  async function openSessionDelete() {
     await userEvent.click(screen.getByRole('button', { name: 'Actions for bbb222' }))
     await userEvent.click(screen.getByRole('button', { name: 'Delete Session' }))
   }
@@ -223,7 +223,7 @@ describe('My Profile — sesiones activas', () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
-    await abrirBorradoDeSesion()
+    await openSessionDelete()
     expect(
       screen.getByText('Are you sure you want to delete the session [bbb222] ?'),
     ).toBeInTheDocument()
@@ -233,7 +233,7 @@ describe('My Profile — sesiones activas', () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(conSesiones)
     render(<MyProfile open onOpenChange={() => {}} token="t" />)
     await screen.findByText('Total Sessions: 2')
-    await abrirBorradoDeSesion()
+    await openSessionDelete()
     await userEvent.click(
       screen.getByRole('button', { name: 'Delete Session', hidden: false }),
     )

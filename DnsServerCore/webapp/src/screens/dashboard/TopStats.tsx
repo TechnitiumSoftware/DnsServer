@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getTop, type Range, type TipoTop, type TopEntry } from '../../api/dashboard'
+import { getTop, type Range, type TopKind, type TopEntry } from '../../api/dashboard'
 import { Dialog } from '../../ui/Dialog'
 import { Table } from '../../ui/Table'
 import { Loading } from '../../ui/Empty'
@@ -25,32 +25,32 @@ the name carries "(rate limited)" after it. Both fields only come in
 
 const LIMITE = 1000
 
-const TITULOS: Record<TipoTop, string> = {
+const TITULOS: Record<TopKind, string> = {
   TopClients: 'Clients',
   TopDomains: 'Domains',
   TopBlockedDomains: 'Blocked Domains',
 }
 
-const HEADER: Record<TipoTop, string> = {
+const HEADER: Record<TopKind, string> = {
   TopClients: 'Client',
   TopDomains: 'Domain',
   TopBlockedDomains: 'Domain',
 }
 
-const CONTEO: Record<TipoTop, string> = {
+const CONTEO: Record<TopKind, string> = {
   TopClients: 'Queries',
   TopDomains: 'Hits',
   TopBlockedDomains: 'Hits',
 }
 
 export function TopStats({
-  tipo,
+  type,
   range,
   token,
   onCerrar,
 }: {
   /** `null` with the modal closed. */
-  tipo: TipoTop | null
+  type: TopKind | null
   range: Range
   token: string | null
   onCerrar: () => void
@@ -59,26 +59,26 @@ export function TopStats({
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (tipo == null) return
+    if (type == null) return
     setLoading(true)
     setFilas([])
-    void getTop(token, range, tipo, LIMITE).then((r) => {
+    void getTop(token, range, type, LIMITE).then((r) => {
       setFilas(r)
       setLoading(false)
     })
-  }, [tipo, range, token])
+  }, [type, range, token])
 
-  const esCliente = tipo === 'TopClients'
+  const esCliente = type === 'TopClients'
 
   return (
     <Dialog
-      open={tipo !== null}
+      open={type !== null}
       onOpenChange={(o) => !o && onCerrar()}
       /* Upstream gives it 600 px (`modalTopStats`), not the 940 of the wide
          tables, and the measurement proves it right: the domain column took 736 px
          for a text of 148. It is a two-column list, not a wide table. */
       size="form"
-      title={tipo == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[tipo]}`}
+      title={type == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[type]}`}
     >
       {loading ? (
         <Loading compacto />
@@ -88,8 +88,8 @@ export function TopStats({
           claseTabla={styles.topTabla}
           header={
             <>
-              <th>{tipo == null ? '' : HEADER[tipo]}</th>
-              <th style={{ width: 110 }}>{tipo == null ? '' : CONTEO[tipo]}</th>
+              <th>{type == null ? '' : HEADER[type]}</th>
+              <th style={{ width: 110 }}>{type == null ? '' : CONTEO[type]}</th>
             </>
           }
           isEmpty={rows.length === 0}
@@ -97,7 +97,7 @@ export function TopStats({
           columnas={2}
           footer={
             <th colSpan={2}>
-              {tipo == null ? '' : `Total ${TITULOS[tipo]}: ${rows.length.toLocaleString()}`}
+              {type == null ? '' : `Total ${TITULOS[type]}: ${rows.length.toLocaleString()}`}
             </th>
           }
         >

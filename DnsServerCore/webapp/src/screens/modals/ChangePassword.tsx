@@ -4,8 +4,8 @@ import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 A replica of `changePassword()` (auth.js:426-497).
@@ -64,7 +64,7 @@ export function ChangePassword({
       onChanged?.()
       return
     }
-    setAlert(avisoDeFallo(outcome))
+    setAlert(noticeFromFailure(outcome))
   }
 
   return (
@@ -80,7 +80,7 @@ export function ChangePassword({
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput
         label="Current Password"
         placeholder="current password"

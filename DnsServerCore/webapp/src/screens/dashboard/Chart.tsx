@@ -18,12 +18,12 @@ Chart.js is used, not hand-written SVG, for two behavioural reasons:
     exists today. With SVG it would be lost.
 */
 export function Chart({
-  tipo,
+  type,
   data,
   height = 230,
   aria,
 }: {
-  tipo: ChartType
+  type: ChartType
   data: ChartData
   height?: number
   aria: string
@@ -38,7 +38,7 @@ export function Chart({
     const line = css.getPropertyValue('--line2').trim() || '#1a202b'
 
     chart.current = new ChartJS(ref.current, {
-      type: tipo,
+      type: type,
       data: data as unknown as ChartJsData,
       options: {
         responsive: true,
@@ -48,7 +48,7 @@ export function Chart({
           legend: { labels: { color: tinta, boxWidth: 10, boxHeight: 10, font: { size: 11 } } },
         },
         scales:
-          tipo === 'line'
+          type === 'line'
             ? {
                 x: { ticks: { color: tinta, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: line } },
                 y: { ticks: { color: tinta, font: { size: 10 } }, grid: { color: line }, beginAtZero: true },
@@ -60,7 +60,7 @@ export function Chart({
       chart.current?.destroy()
       chart.current = null
     }
-  }, [tipo, data])
+  }, [type, data])
 
   return (
     <div style={{ height: height }}>

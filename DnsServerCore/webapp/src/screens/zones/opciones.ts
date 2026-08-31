@@ -1,6 +1,6 @@
 import type { OpcionesZona, PoliticaActualizacion } from '../../api/zones'
 import { limpiarLista } from '../../api/zonelists'
-import { serializarTabla } from '../../lib/tabla-serie'
+import { serializeTable } from '../../lib/tabla-serie'
 
 /*
 The `modalZoneOptions` form: five tabs, and **what shows and what can be touched
@@ -114,7 +114,7 @@ export interface EstadoOpciones {
 const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
 
 export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
-  const tipo = r.type
+  const type = r.type
   const enCatalogo = r.catalog != null
   const miembroSecundario = enCatalogo && r.isSecondaryCatalogMember === true
   const catalogosDisponibles = (r.availableCatalogZoneNames ?? []).length > 0
@@ -128,7 +128,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   let sobrescribirZoneTransfer = false
   let sobrescribirNotify = false
 
-  switch (tipo) {
+  switch (type) {
     case 'Primary':
     case 'Forwarder':
       if (catalogosDisponibles) {
@@ -179,17 +179,17 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   let validarZona = false
   let servidorPrimarioObligatorio = false
 
-  if (SECUNDARIAS.includes(tipo)) {
+  if (SECUNDARIAS.includes(type)) {
     protocoloXfr = true
     tsigDelPrimario = true
-    validarZona = tipo === 'Secondary'
-    servidorPrimarioObligatorio = tipo === 'SecondaryForwarder' || tipo === 'SecondaryCatalog'
+    validarZona = type === 'Secondary'
+    servidorPrimarioObligatorio = type === 'SecondaryForwarder' || type === 'SecondaryCatalog'
 
     servidorPrimario =
-      tipo === 'Secondary' || tipo === 'SecondaryForwarder'
+      type === 'Secondary' || type === 'SecondaryForwarder'
         ? !enCatalogo || r.overrideCatalogPrimaryNameServers === true
         : true
-  } else if (tipo === 'Stub') {
+  } else if (type === 'Stub') {
     servidorPrimario = true
   }
 
@@ -199,7 +199,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   let queryAccess = false
   let queryAccessBloqueado = false
 
-  switch (tipo) {
+  switch (type) {
     case 'Primary':
     case 'Forwarder':
     case 'Catalog':
@@ -233,7 +233,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   let zoneTransfer = false
   let zoneTransferBloqueado = false
 
-  switch (tipo) {
+  switch (type) {
     case 'Primary':
     case 'Forwarder':
       zoneTransfer = !enCatalogo || r.overrideCatalogZoneTransfer === true
@@ -258,7 +258,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
 
   /* ── Notify ───────────────────────────────────────────────────────── */
   let notify = false
-  switch (tipo) {
+  switch (type) {
     case 'Primary':
     case 'Forwarder':
       notify = !enCatalogo || r.overrideCatalogNotify === true
@@ -271,7 +271,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   if (notify) pestanas.push('Notify')
 
   /* ── Dynamic Updates ──────────────────────────────────────────────── */
-  const update = ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder'].includes(tipo)
+  const update = ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder'].includes(type)
   if (update) pestanas.push('Dynamic Updates')
 
   /*
@@ -280,9 +280,9 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
   available (zone.js:2303-2360).
   */
   let inicial: PestanaOpciones = pestanas[0] ?? 'Query Access'
-  if ([...SECUNDARIAS, 'Stub'].includes(tipo)) inicial = 'General'
-  else if (tipo === 'Catalog') inicial = 'Query Access'
-  else if (tipo === 'Primary' || tipo === 'Forwarder') {
+  if ([...SECUNDARIAS, 'Stub'].includes(type)) inicial = 'General'
+  else if (type === 'Catalog') inicial = 'Query Access'
+  else if (type === 'Primary' || type === 'Forwarder') {
     inicial = catalogosDisponibles ? 'General' : 'Query Access'
   }
 
@@ -304,13 +304,13 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
     validarZona,
     servidorPrimarioBloqueado: miembroSecundario,
     queryAccessBloqueado,
-    queryAccessConNameServers: !['Stub', 'Forwarder', 'SecondaryForwarder', 'Catalog', 'SecondaryCatalog'].includes(tipo),
+    queryAccessConNameServers: !['Stub', 'Forwarder', 'SecondaryForwarder', 'Catalog', 'SecondaryCatalog'].includes(type),
     zoneTransferBloqueado,
-    zoneTransferConNameServers: !['Forwarder', 'Catalog', 'SecondaryCatalog'].includes(tipo),
-    notifyConNameServers: tipo !== 'Forwarder' && tipo !== 'Catalog',
-    notifySeparados: tipo === 'Catalog',
-    updateConNameServers: !['Secondary', 'SecondaryForwarder', 'Forwarder'].includes(tipo),
-    securityPolicies: tipo === 'Primary' || tipo === 'Forwarder',
+    zoneTransferConNameServers: !['Forwarder', 'Catalog', 'SecondaryCatalog'].includes(type),
+    notifyConNameServers: type !== 'Forwarder' && type !== 'Catalog',
+    notifySeparados: type === 'Catalog',
+    updateConNameServers: !['Secondary', 'SecondaryForwarder', 'Forwarder'].includes(type),
+    securityPolicies: type === 'Primary' || type === 'Forwarder',
   }
 }
 
@@ -391,27 +391,27 @@ function filaDesdePolitica(p: PoliticaActualizacion): FilaPolitica {
   }
 }
 
-export interface ErrorOpciones {
+export interface OptionsError {
   title: string
   text: string
   tab: PestanaOpciones
   field: keyof FormularioOpciones
 }
 
-export type ResultadoOpciones = { error: ErrorOpciones } | { body: Record<string, string> }
+export type ResultadoOpciones = { error: OptionsError } | { body: Record<string, string> }
 
 /*
 `serializeTableData` with 3 columns for the update policies. The algorithm lives
 in `lib/tabla-serie`, shared by the five screens with an editable table; all that
 is said here is where the failing cell is.
 */
-function serializarPoliticas(
+function serializePolicies(
   rows: FilaPolitica[],
-): { value: string } | { error: ErrorOpciones } {
-  const r = serializarTabla(
+): { value: string } | { error: OptionsError } {
+  const r = serializeTable(
     rows.map((row) =>
       [row.tsigKeyName, row.domain, row.allowedTypes].map((value) => ({
-        tipo: 'text' as const,
+        type: 'text' as const,
         value,
       })),
     ),
@@ -419,8 +419,8 @@ function serializarPoliticas(
   if (r.ok) return { value: r.value }
   return {
     error: {
-      title: r.fallo.title,
-      text: r.fallo.text,
+      title: r.failure.title,
+      text: r.failure.text,
       tab: 'Dynamic Updates',
       field: 'updateSecurityPolicies',
     },
@@ -437,9 +437,9 @@ function serializarPoliticas(
  */
 export function construirCuerpoOpciones(
   f: FormularioOpciones,
-  tipoZona: string,
+  zoneType: string,
 ): ResultadoOpciones {
-  if (tipoZona === 'SecondaryForwarder' || tipoZona === 'SecondaryCatalog') {
+  if (zoneType === 'SecondaryForwarder' || zoneType === 'SecondaryCatalog') {
     const direcciones = limpiarLista(f.primaryNameServerAddresses)
     if (direcciones.length === 0 || direcciones === ',') {
       return {
@@ -458,7 +458,7 @@ export function construirCuerpoOpciones(
     return limpio.length === 0 || limpio === ',' ? 'false' : limpio
   }
 
-  const politicas = serializarPoliticas(f.updateSecurityPolicies)
+  const politicas = serializePolicies(f.updateSecurityPolicies)
   if ('error' in politicas) return politicas
 
   return {

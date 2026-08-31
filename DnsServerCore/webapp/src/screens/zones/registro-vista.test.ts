@@ -8,7 +8,7 @@ import {
   ocultarDnssec,
   pieDeRegistro,
 } from './registro-vista'
-import { cabeceraDeZona, tiposOcultosAlAnadir } from './vista-zona'
+import { cabeceraDeZona, typesHiddenWhenAdding } from './vista-zona'
 
 function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
@@ -234,10 +234,10 @@ describe('the header of an open zone', () => {
   })
 
   it('only Primary and Forwarder allow adding records by hand', () => {
-    expect(cabeceraDeZona('Primary', 'Unsigned').anadirRegistro).toBe(true)
-    expect(cabeceraDeZona('Forwarder', 'Unsigned').anadirRegistro).toBe(true)
-    expect(cabeceraDeZona('Secondary', 'Unsigned').anadirRegistro).toBe(false)
-    expect(cabeceraDeZona('Catalog', 'Unsigned').anadirRegistro).toBe(false)
+    expect(cabeceraDeZona('Primary', 'Unsigned').addRecord).toBe(true)
+    expect(cabeceraDeZona('Forwarder', 'Unsigned').addRecord).toBe(true)
+    expect(cabeceraDeZona('Secondary', 'Unsigned').addRecord).toBe(false)
+    expect(cabeceraDeZona('Catalog', 'Unsigned').addRecord).toBe(false)
   })
 
   it('exporting covers more types than importing', () => {
@@ -248,14 +248,14 @@ describe('the header of an open zone', () => {
 
 describe('which types \"Add Record\" offers', () => {
   it('a Forwarder hides the three DNSSEC ones', () => {
-    expect(tiposOcultosAlAnadir('Forwarder', 'Unsigned')).toEqual(['DS', 'SSHFP', 'TLSA'])
+    expect(typesHiddenWhenAdding('Forwarder', 'Unsigned')).toEqual(['DS', 'SSHFP', 'TLSA'])
   })
 
   it('an unsigned Primary hides FWD and the three DNSSEC ones', () => {
-    expect(tiposOcultosAlAnadir('Primary', 'Unsigned')).toEqual(['FWD', 'DS', 'SSHFP', 'TLSA'])
+    expect(typesHiddenWhenAdding('Primary', 'Unsigned')).toEqual(['FWD', 'DS', 'SSHFP', 'TLSA'])
   })
 
   it('a SIGNED Primary changes what it hides: DS/SSHFP/TLSA appear and ANAME and APP go', () => {
-    expect(tiposOcultosAlAnadir('Primary', 'SignedWithNSEC')).toEqual(['FWD', 'ANAME', 'APP'])
+    expect(typesHiddenWhenAdding('Primary', 'SignedWithNSEC')).toEqual(['FWD', 'ANAME', 'APP'])
   })
 })

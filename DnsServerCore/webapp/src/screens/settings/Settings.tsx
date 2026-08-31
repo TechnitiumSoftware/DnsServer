@@ -23,12 +23,12 @@ import { Cache } from './panes/Cache'
 import { Blocking } from './panes/Blocking'
 import { ProxyForwarders } from './panes/ProxyForwarders'
 import { Logging } from './panes/Logging'
-import { BackupDialog, Confirmar, RestoreDialog } from './dialogs'
-import { Fallo, Loading } from '../../ui/Empty'
+import { BackupDialog, Confirm, RestoreDialog } from './dialogs'
+import { Failure, Loading } from '../../ui/Empty'
 import styles from './Settings.module.css'
 import formulario from '../../ui/Ajustes.module.css'
-import { avisoDeFallo, type Aviso } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure, type Notice } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 Settings. The console's biggest screen: in upstream, the General sub-tab alone is
@@ -86,22 +86,22 @@ export function Settings({
   canFlushCache = true,
   canBackup = true,
 }: SettingsProps) {
-  const [ajustes, setAjustes] = useState<DnsSettings | null>(null)
+  const [settings, setAjustes] = useState<DnsSettings | null>(null)
   const [form, setForm] = useState<SettingsForm | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   // The validation jump remembers which sub-tab it fired from: as soon as the
   // Shell asks for a different one, it stops holding. Deriving it this way avoids
   // an effect whose only job was to null it out, and the extra render it brings.
   const [newline, setSalto] = useState<{ tab: Subpestana; desde: string } | null>(null)
-  const [confirmar, setConfirmar] = useState<null | 'flush' | 'disable' | 'update'>(null)
+  const [confirm, setConfirmar] = useState<null | 'flush' | 'disable' | 'update'>(null)
   const [modal, setModal] = useState<null | 'backup' | 'restore'>(null)
   const [selection, setSelection] = useState<Record<string, boolean>>(seleccionInicialBackup)
-  const [avisoModal, setAvisoModal] = useState<{ title: string; text: string } | null>(null)
+  const [modalNotice, setAvisoModal] = useState<{ title: string; text: string } | null>(null)
   const [proximaLista, setProximaLista] = useState<string | null | undefined>(undefined)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const s = await getSettings(token)
     aplicar(s)
@@ -115,8 +115,8 @@ export function Settings({
   }
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
   const pedida = (sub ?? 'General') as Subpestana
   const valida: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'General'
@@ -127,13 +127,13 @@ export function Settings({
   }, [])
 
   if (loading) return <Loading />
-  if (form == null || ajustes == null) {
-    return <Fallo>Unable to load the DNS Server settings.</Fallo>
+  if (form == null || settings == null) {
+    return <Failure>Unable to load the DNS Server settings.</Failure>
   }
 
   const en = enabled(form)
 
-  async function guardar() {
+  async function save() {
     if (form == null) return
     const result = construirCuerpo(form)
 
@@ -151,7 +151,7 @@ export function Settings({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -241,7 +241,7 @@ export function Settings({
     })
   }
 
-  async function hacerRestore(fichero: File | null, borrar: boolean) {
+  async function hacerRestore(fichero: File | null, remove: boolean) {
     // The validation order is upstream's: the file first, then that there is
     // at least one item checked (main.js:3137-3160).
     if (fichero == null) {
@@ -254,11 +254,11 @@ export function Settings({
     }
     setAvisoModal(null)
     setBusy(true)
-    const outcome = await restoreSettings(token, fichero, selection, borrar)
+    const outcome = await restoreSettings(token, fichero, selection, remove)
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAvisoModal(avisoDeFallo(outcome))
+      setAvisoModal(noticeFromFailure(outcome))
       return
     }
 
@@ -280,7 +280,7 @@ export function Settings({
           with Ctrl+F. */}
       <SectionHeader section="Settings" titulo={active} />
 
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div>
         {active === 'General' && <General {...props} />}
@@ -293,7 +293,7 @@ export function Settings({
           <Blocking
             {...props}
             extra={{
-              temporaryDisableBlockingTill: ajustes.temporaryDisableBlockingTill,
+              temporaryDisableBlockingTill: settings.temporaryDisableBlockingTill,
               blockListNextUpdatedOn: proximaLista,
               onTemporaryDisable: pedirDesactivarBloqueo,
               onUpdateNow: () => setConfirmar('update'),
@@ -307,7 +307,7 @@ export function Settings({
 
       <div className={formulario.bar}>
         {canModify && (
-          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void save()}>
             Save Settings
           </Button>
         )}
@@ -341,8 +341,8 @@ export function Settings({
         )}
       </div>
 
-      <Confirmar
-        abierto={confirmar === 'flush'}
+      <Confirm
+        open={confirm === 'flush'}
         onCerrar={() => setConfirmar(null)}
         titulo="Flush Cache"
         etiqueta="Flush"
@@ -351,8 +351,8 @@ export function Settings({
         busy={busy}
         onConfirmar={() => void vaciarCache()}
       />
-      <Confirmar
-        abierto={confirmar === 'disable'}
+      <Confirm
+        open={confirm === 'disable'}
         onCerrar={() => setConfirmar(null)}
         titulo="Temporary Disable Blocking"
         etiqueta="Disable"
@@ -361,8 +361,8 @@ export function Settings({
         busy={busy}
         onConfirmar={() => void desactivarBloqueo()}
       />
-      <Confirmar
-        abierto={confirmar === 'update'}
+      <Confirm
+        open={confirm === 'update'}
         onCerrar={() => setConfirmar(null)}
         titulo="Update Block Lists"
         etiqueta="Update"
@@ -377,7 +377,7 @@ export function Settings({
         onOpenChange={(o) => setModal(o ? 'backup' : null)}
         selection={selection}
         onSelection={setSelection}
-        aviso={avisoModal}
+        notice={modalNotice}
         busy={busy}
         onBackup={() => void hacerBackup()}
       />
@@ -386,9 +386,9 @@ export function Settings({
         onOpenChange={(o) => setModal(o ? 'restore' : null)}
         selection={selection}
         onSelection={setSelection}
-        aviso={avisoModal}
+        notice={modalNotice}
         busy={busy}
-        onRestore={(fichero, borrar) => void hacerRestore(fichero, borrar)}
+        onRestore={(fichero, remove) => void hacerRestore(fichero, remove)}
       />
     </div>
   )

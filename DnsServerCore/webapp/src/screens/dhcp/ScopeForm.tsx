@@ -4,15 +4,15 @@ import { Input, Textarea } from '../../ui/Field'
 import {
   construirCuerpo,
   idCelda,
-  type ErrorScope,
+  type ScopeError,
   type ScopeForm as Form,
 } from './model'
 import {
   AreaRow,
-  Avisos,
+  Notices,
   Block,
   Check,
-  EditableTable,
+  EditableList,
   GroupRow,
   Note,
   Row,
@@ -53,7 +53,7 @@ export function ScopeForm({
   busy: boolean
   onGuardar: (body: Record<string, string>) => void
   onCancelar: () => void
-  onAviso: (e: ErrorScope) => void
+  onAviso: (e: ScopeError) => void
 }) {
   const [f, setF] = useState<Form>(inicial)
 
@@ -61,7 +61,7 @@ export function ScopeForm({
     setF((prev) => ({ ...prev, ...parcial }))
   }
 
-  function guardar() {
+  function save() {
     const result = construirCuerpo(f)
     if ('error' in result) {
       onAviso(result.error)
@@ -161,7 +161,7 @@ export function ScopeForm({
       <Block title="Ping Check">
         <GroupRow label="Ping Check">
           <Check
-            conmutador
+            toggle
             label="Enable Ping Check"
             checked={f.pingCheckEnabled}
             onChange={(v) => set({ pingCheckEnabled: v })}
@@ -186,7 +186,7 @@ export function ScopeForm({
           onChange={(v) => set({ pingCheckRetries: v })}
           help="The maximum number of ping requests to try."
         />
-        <Avisos>
+        <Notices>
           <Warning>
             Ping check would work as expected only when you make sure that all the client devices with
             manually configured IP addresses on the network respond to a ping request. Devices running
@@ -195,7 +195,7 @@ export function ScopeForm({
             and instead make sure that you exclude a range of addresses using Exclusions and manually
             assign IP addresses to your devices only in the excluded range.
           </Warning>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="DNS">
@@ -215,14 +215,14 @@ export function ScopeForm({
         />
         <GroupRow label="DNS Updates">
           <Check
-            conmutador
+            toggle
             label="Enable DNS Updates"
             checked={f.dnsUpdates}
             onChange={(v) => set({ dnsUpdates: v })}
             help="Enable this option to allow the DHCP server to automatically update forward and reverse DNS entries for clients."
           />
           <Check
-            conmutador
+            toggle
             label="Enable DNS Overwrite For Dynamic Lease"
             checked={f.dnsOverwriteForDynamicLease}
             disabled={!f.dnsUpdates}
@@ -255,7 +255,7 @@ export function ScopeForm({
           {(id) => (
             <>
               <Check
-                conmutador
+                toggle
                 label="Use This DNS Server"
                 checked={f.useThisDnsServer}
                 onChange={(v) => set({ useThisDnsServer: v })}
@@ -295,7 +295,7 @@ export function ScopeForm({
       </Block>
 
       <Block title="Static Routes">
-        <EditableTable
+        <EditableList
           label="Static Routes"
           idCelda={(row, columna) => idCelda('staticRoutes', row, columna)}
           columnas={[
@@ -305,7 +305,7 @@ export function ScopeForm({
           ]}
           rows={f.staticRoutes}
           onChange={(rows) => set({ staticRoutes: rows })}
-          nueva={() => ({ destination: '', subnetMask: '', router: '' })}
+          blank={() => ({ destination: '', subnetMask: '', router: '' })}
           help="The static routes to be used by the clients for accessing specified destination networks. (Option 121)"
         />
       </Block>
@@ -338,7 +338,7 @@ export function ScopeForm({
       </Block>
 
       <Block title="Vendor Specific Information">
-        <EditableTable
+        <EditableList
           label="Vendor Specific Information"
           idCelda={(row, columna) => idCelda('vendorInfo', row, columna)}
           columnas={[
@@ -347,7 +347,7 @@ export function ScopeForm({
           ]}
           rows={f.vendorInfo}
           onChange={(rows) => set({ vendorInfo: rows })}
-          nueva={() => ({ identifier: '', information: '' })}
+          blank={() => ({ identifier: '', information: '' })}
           help={
             <>
               The Vendor Specific Information (option 43) to be sent to the clients that match the
@@ -384,7 +384,7 @@ export function ScopeForm({
       </Block>
 
       <Block title="Generic DHCP Options">
-        <EditableTable
+        <EditableList
           label="Generic DHCP Options"
           idCelda={(row, columna) => idCelda('genericOptions', row, columna)}
           columnas={[
@@ -393,7 +393,7 @@ export function ScopeForm({
           ]}
           rows={f.genericOptions}
           onChange={(rows) => set({ genericOptions: rows })}
-          nueva={() => ({ code: '', value: '' })}
+          blank={() => ({ code: '', value: '' })}
           help={
             <>
               This feature allows you to define DHCP options that are not yet directly supported. To
@@ -406,7 +406,7 @@ export function ScopeForm({
       </Block>
 
       <Block title="Exclusions">
-        <EditableTable
+        <EditableList
           label="Exclusions"
           idCelda={(row, columna) => idCelda('exclusions', row, columna)}
           columnas={[
@@ -415,29 +415,29 @@ export function ScopeForm({
           ]}
           rows={f.exclusions}
           onChange={(rows) => set({ exclusions: rows })}
-          nueva={() => ({ startingAddress: '', endingAddress: '' })}
+          blank={() => ({ startingAddress: '', endingAddress: '' })}
           help="The IP address range that must be excluded or not assigned dynamically to any client by the DHCP server."
         />
-        <Avisos>
+        <Notices>
           <Note>
             Make sure to exclude address ranges if you plan to manually assign IP addresses to some of
             the devices or to assign reserved leases so that these IP addresses are not dynamically
             allocated in the first place.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Advanced Options">
         <GroupRow label="Advanced Options">
           <Check
-            conmutador
+            toggle
             label="Allow Only Reserved Lease Allocations"
             checked={f.allowOnlyReservedLeases}
             onChange={(v) => set({ allowOnlyReservedLeases: v })}
             help="Enable this option to stop dynamic IP address allocation and allocate only reserved IP addresses."
           />
           <Check
-            conmutador
+            toggle
             label="Block Locally Administered MAC Addresses"
             checked={f.blockLocallyAdministeredMacAddresses}
             onChange={(v) => set({ blockLocallyAdministeredMacAddresses: v })}
@@ -459,7 +459,7 @@ export function ScopeForm({
             }
           />
           <Check
-            conmutador
+            toggle
             label="Ignore Client Identifier (Option 61)"
             checked={f.ignoreClientIdentifierOption}
             onChange={(v) => set({ ignoreClientIdentifierOption: v })}
@@ -469,7 +469,7 @@ export function ScopeForm({
       </Block>
 
       <Block title="Reserved Leases">
-        <EditableTable
+        <EditableList
           label="Reserved Leases"
           idCelda={(row, columna) => idCelda('reservedLeases', row, columna)}
           columnas={[
@@ -480,13 +480,13 @@ export function ScopeForm({
           ]}
           rows={f.reservedLeases}
           onChange={(rows) => set({ reservedLeases: rows })}
-          nueva={() => ({ hostName: '', hardwareAddress: '', address: '', comments: '' })}
+          blank={() => ({ hostName: '', hardwareAddress: '', address: '', comments: '' })}
           help="The reserved IP addresses to be assigned to specific clients based on their MAC address. Set a hostname to override the client's hostname."
         />
       </Block>
 
       <div className={styles.bar}>
-        <Button variant="primary" disabled={busy} onClick={guardar}>
+        <Button variant="primary" disabled={busy} onClick={save}>
           Save
         </Button>
         <Button onClick={onCancelar}>Cancel</Button>

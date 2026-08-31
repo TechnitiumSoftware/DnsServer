@@ -6,20 +6,20 @@ import {
   removeLease,
   type DhcpLease,
 } from '../../api/dhcp'
-import { Confirmar } from '../../ui/Confirmar'
+import { Confirm } from '../../ui/Confirmar'
 import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { fechaMinuto } from './fechas'
-import type { Aviso } from './avisos'
+import type { Notice } from './avisos'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
 import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 DHCP › Leases (dhcp.js:37-199).
@@ -62,11 +62,11 @@ const KEYS: Keys<DhcpLease> = {
 
 export function Leases({ token, node = '', canModify = true, canDelete = true }: LeasesProps) {
   const [leases, setLeases] = useState<DhcpLease[] | null>(null)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
-  const [confirmar, setConfirmar] = useState<{ tipo: 'reserve' | 'dynamic'; i: number } | null>(null)
-  const [quitar, setQuitar] = useState<number | null>(null)
-  const [avisoModal, setAvisoModal] = useState<Aviso | null>(null)
+  const [confirm, setConfirmar] = useState<{ type: 'reserve' | 'dynamic'; i: number } | null>(null)
+  const [discard, setQuitar] = useState<number | null>(null)
+  const [modalNotice, setAvisoModal] = useState<Notice | null>(null)
 
   /*
   A failure on load is NOT drawn as an empty list.
@@ -76,7 +76,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
   suspects a response that looks normal. Now the failure is said, with the message
   the server sent.
   */
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLeases(null)
     const r = await listLeases(token, node)
     if (r.kind === 'ok') {
@@ -84,25 +84,25 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       return
     }
     setLeases([])
-    setAviso(avisoDeFallo(r))
+    setAviso(noticeFromFailure(r))
   }, [token, node])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
   // The hook goes BEFORE any return: otherwise it would stop being called as soon
   // as the table is loading.
-  const { rows: leasesVisibles, orden, alternar } = useOrden(KEYS, leases ?? [])
+  const { rows: leasesVisibles, sort, alternar } = useOrden(KEYS, leases ?? [])
 
-  async function convertir(i: number, tipo: 'reserve' | 'dynamic') {
+  async function convert(i: number, type: 'reserve' | 'dynamic') {
     const lease = leases?.[i]
     setConfirmar(null)
     if (lease == null) return
 
     setBusy(true)
     const outcome =
-      tipo === 'reserve'
+      type === 'reserve'
         ? await convertToReservedLease(token, lease.scope, lease.clientIdentifier, node)
         : await convertToDynamicLease(token, lease.scope, lease.clientIdentifier, node)
     setBusy(false)
@@ -110,10 +110,10 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     if (outcome.kind !== 'ok') return
 
     // dhcp.js:104-109 — only the row's tag changes; nothing is reloaded.
-    const nuevo = tipo === 'reserve' ? 'Reserved' : 'Dynamic'
-    setLeases((prev) => prev?.map((l, j) => (j === i ? { ...l, type: nuevo } : l)) ?? prev)
+    const blank = type === 'reserve' ? 'Reserved' : 'Dynamic'
+    setLeases((prev) => prev?.map((l, j) => (j === i ? { ...l, type: blank } : l)) ?? prev)
     setAviso(
-      tipo === 'reserve'
+      type === 'reserve'
         ? {
             type: 'success',
             title: 'Reserved!',
@@ -127,8 +127,8 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     )
   }
 
-  async function quitarLease() {
-    const i = quitar
+  async function discardLease() {
+    const i = discard
     const lease = i == null ? null : leases?.[i]
     if (i == null || lease == null) return
 
@@ -137,7 +137,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAvisoModal(avisoDeFallo(outcome))
+      setAvisoModal(noticeFromFailure(outcome))
       return
     }
 
@@ -157,21 +157,21 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       <SectionHeader
         section="DHCP"
         titulo="Leases"
-        actions={<><Button onClick={() => void cargar()}>Refresh</Button></>}
+        actions={<><Button onClick={() => void load()}>Refresh</Button></>}
       />
 
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <Table
         header={
           <>
-            <Th field="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
-            <Th field="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
-            <Th field="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
-            <Th field="type" orden={orden} onOrdenar={alternar} name="Type" />
-            <Th field="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
-            <Th field="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
-            <Th field="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
+            <Th field="scope" sort={sort} onOrdenar={alternar}>Scope</Th>
+            <Th field="mac" sort={sort} onOrdenar={alternar}>MAC Address</Th>
+            <Th field="address" sort={sort} onOrdenar={alternar}>IP Address</Th>
+            <Th field="type" sort={sort} onOrdenar={alternar} name="Type" />
+            <Th field="host" sort={sort} onOrdenar={alternar}>Host Name</Th>
+            <Th field="obtained" sort={sort} onOrdenar={alternar}>Lease Obtained</Th>
+            <Th field="expires" sort={sort} onOrdenar={alternar}>Lease Expires</Th>
             <th className={tbl.celdaAcciones} />
           </>
         }
@@ -198,7 +198,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                     depends on the lease's current type. */}
                 {canModify && (
                   <AccionFila
-                    icono="convertir"
+                    icon="convert"
                     name={
                       l.type === 'Dynamic'
                         ? 'Convert To Reserved Lease'
@@ -206,18 +206,18 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                     }
                     disabled={busy}
                     onClick={() =>
-                      setConfirmar({ tipo: l.type === 'Dynamic' ? 'reserve' : 'dynamic', i })
+                      setConfirmar({ type: l.type === 'Dynamic' ? 'reserve' : 'dynamic', i })
                     }
                   />
                 )}
                 {canDelete && (
                   <Menu etiqueta={`Actions for ${l.address}`}>
-                    {(cerrar) => (
+                    {(close) => (
                       <button
                         type="button"
                         data-variant="danger"
                         disabled={busy}
-                        onClick={() => { cerrar(); setAvisoModal(null); setQuitar(i) }}
+                        onClick={() => { close(); setAvisoModal(null); setQuitar(i) }}
                       >
                         Remove Lease
                       </button>
@@ -238,11 +238,11 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         <span>{`Total Leases: ${leases.length}`}</span>
       </div>
 
-      <Confirmar
-        abierto={confirmar !== null}
-        titulo={confirmar?.tipo === 'dynamic' ? 'Convert To Dynamic Lease' : 'Convert To Reserved Lease'}
+      <Confirm
+        open={confirm !== null}
+        titulo={confirm?.type === 'dynamic' ? 'Convert To Dynamic Lease' : 'Convert To Reserved Lease'}
         text={
-          confirmar?.tipo === 'dynamic'
+          confirm?.type === 'dynamic'
             ? 'Are you sure you want to convert the reserved lease to dynamic lease?'
             : 'Are you sure you want to convert the dynamic lease to reserved lease?'
         }
@@ -250,24 +250,24 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         variante="primary"
         busy={busy}
         onCerrar={() => setConfirmar(null)}
-        onConfirmar={() => confirmar && void convertir(confirmar.i, confirmar.tipo)}
+        onConfirmar={() => confirm && void convert(confirm.i, confirm.type)}
       />
 
       {/* index.html:6587-6617 — the complete "Remove Lease?" modal, with its two
           warnings, its recommendation and its list of alternatives. */}
       <Dialog
-        open={quitar !== null}
+        open={discard !== null}
         onOpenChange={(o) => !o && setQuitar(null)}
         title="Remove Lease?"
         actions={
           <>
-            <Button variant="danger" disabled={busy} onClick={() => void quitarLease()}>
+            <Button variant="danger" disabled={busy} onClick={() => void discardLease()}>
               Remove
             </Button>
           </>
         }
       >
-        <Avisador aviso={avisoModal} onCerrar={() => setAvisoModal(null)} />
+        <Notifier notice={modalNotice} onCerrar={() => setAvisoModal(null)} />
         <p className={styles.parrafo}>
           <b>Warning!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP
           address from the client side. Make sure that the client assigned this lease is not

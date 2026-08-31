@@ -4,7 +4,7 @@ import { Button } from '../../ui/Button'
 import { Dialog } from '../../ui/Dialog'
 import { LabeledInput } from '../../ui/Field'
 import { error, type AlertState } from './Apps'
-import { Avisador } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Avisador'
 
 /*
 A replica of `showInstallAppModal` / `installApp` (apps.js:198-209 and 330-379).
@@ -76,7 +76,7 @@ export function InstallApp({
         </>
       }
     >
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
       <LabeledInput label="App Name" value={name} onChange={(e) => setName(e.target.value)} />
       <LabeledInput label="App Zip File" type="file" ref={fileRef} />
     </Dialog>

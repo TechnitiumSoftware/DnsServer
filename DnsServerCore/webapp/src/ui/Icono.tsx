@@ -24,14 +24,14 @@ const TRAZO = {
   strokeLinejoin: 'round',
 } as const
 
-export type NombreIcono =
+export type IconName =
   | 'dashboard' | 'zones' | 'cache' | 'allowed' | 'blocked' | 'apps'
   | 'dnsclient' | 'settings' | 'dhcp' | 'admin' | 'logs' | 'about'
-  | 'chevronAbajo' | 'chevronDerecha' | 'chevronIzquierda'
-  | 'first' | 'last' | 'cerrar' | 'menu' | 'mas' | 'orden' | 'atras' | 'check'
-  | 'editar' | 'energia' | 'ficha' | 'convertir'
+  | 'chevronDown' | 'chevronRight' | 'chevronLeft'
+  | 'first' | 'last' | 'close' | 'menu' | 'plus' | 'sort' | 'back' | 'check'
+  | 'edit' | 'power' | 'card' | 'convert'
 
-const TRAZADOS: Record<NombreIcono, ReactElement> = {
+const PATHS: Record<IconName, ReactElement> = {
   // ── Secciones ─────────────────────────────────────────────────────────
   /* A panel with its readings: the dashboard. */
   dashboard: (
@@ -141,9 +141,9 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
   ),
 
   // ── Controles ─────────────────────────────────────────────────────────
-  chevronAbajo: <path d="m6 9 6 6 6-6" />,
-  chevronDerecha: <path d="m9 6 6 6-6 6" />,
-  chevronIzquierda: <path d="m15 6-6 6 6 6" />,
+  chevronDown: <path d="m6 9 6 6 6-6" />,
+  chevronRight: <path d="m9 6 6 6-6 6" />,
+  chevronLeft: <path d="m15 6-6 6 6 6" />,
   first: (
     <>
       <path d="m17 6-6 6 6 6" />
@@ -156,11 +156,11 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M16.5 6v12" />
     </>
   ),
-  cerrar: <path d="m6 6 12 12M18 6 6 18" />,
+  close: <path d="m6 6 12 12M18 6 6 18" />,
   check: <path d="m20 6-11 11-5-5" />,
 
   // ── Acciones de fila ──────────────────────────────────────────────────
-  editar: (
+  edit: (
     <>
       <path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" />
       <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z" />
@@ -168,14 +168,14 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
   ),
   /* Power on and off: the same symbol for both states, because the "Status"
      column already says which one it is in. */
-  energia: (
+  power: (
     <>
       <path d="M12 3v9" />
       <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
     </>
   ),
   /* Someone's record: "View Details". */
-  ficha: (
+  card: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <circle cx="9" cy="10" r="2" />
@@ -184,7 +184,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
       <path d="M15 13h3.5" />
     </>
   ),
-  convertir: (
+  convert: (
     <>
       <path d="M4 8h13" />
       <path d="m14 5 3 3-3 3" />
@@ -200,7 +200,7 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
     </>
   ),
   /* The three dots of a row menu. Filled, not stroked. */
-  mas: (
+  plus: (
     <g fill="currentColor" stroke="none">
       <circle cx="12" cy="5.5" r="1.6" />
       <circle cx="12" cy="12" r="1.6" />
@@ -208,13 +208,13 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
     </g>
   ),
   /* The double arrowhead of a sortable column, with no direction yet. */
-  orden: (
+  sort: (
     <>
       <path d="m8 10 4-4 4 4" />
       <path d="m8 14 4 4 4-4" />
     </>
   ),
-  atras: (
+  back: (
     <>
       <path d="M19 12H5" />
       <path d="m11 6-6 6 6 6" />
@@ -222,11 +222,11 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
   ),
 }
 
-export function Icono({
+export function Icon({
   name,
   tam = 16,
   ...rest
-}: { name: NombreIcono; tam?: number } & Omit<SVGProps<SVGSVGElement>, 'ref'>) {
+}: { name: IconName; tam?: number } & Omit<SVGProps<SVGSVGElement>, 'ref'>) {
   return (
     <svg
       width={tam}
@@ -237,7 +237,7 @@ export function Icono({
       {...TRAZO}
       {...rest}
     >
-      {TRAZADOS[name]}
+      {PATHS[name]}
     </svg>
   )
 }

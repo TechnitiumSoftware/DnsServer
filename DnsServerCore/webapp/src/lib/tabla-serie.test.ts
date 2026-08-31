@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { serializarTabla, type Cell } from './tabla-serie'
+import { serializeTable, type Cell } from './tabla-serie'
 
-const t = (value: string): Cell => ({ tipo: 'text', value })
-const c = (value: boolean): Cell => ({ tipo: 'casilla', value })
+const t = (value: string): Cell => ({ type: 'text', value })
+const c = (value: boolean): Cell => ({ type: 'casilla', value })
 
-describe('serializarTabla', () => {
+describe('serializeTable', () => {
   it('with no rows it produces the empty string, not "false"', () => {
-    expect(serializarTabla([])).toEqual({ ok: true, value: '' })
+    expect(serializeTable([])).toEqual({ ok: true, value: '' })
   })
 
   it('it uses `|` between columns as well as between rows', () => {
-    const r = serializarTabla([
+    const r = serializeTable([
       [t('ana'), c(true), c(false), c(false)],
       [t('luis'), c(true), c(true), c(true)],
     ])
@@ -18,26 +18,26 @@ describe('serializarTabla', () => {
   })
 
   it('a checkbox serialises as "true" or "false", never empty', () => {
-    expect(serializarTabla([[c(false)]])).toEqual({ ok: true, value: 'false' })
+    expect(serializeTable([[c(false)]])).toEqual({ ok: true, value: 'false' })
   })
 
   it('an empty text field aborts with the literal alert of upstream', () => {
-    const r = serializarTabla([[t('openid')], [t('')]])
+    const r = serializeTable([[t('openid')], [t('')]])
     expect(r.ok).toBe(false)
     if (r.ok) return
-    expect(r.fallo.title).toBe('Missing!')
-    expect(r.fallo.text).toBe('Please enter a valid value in the text field in focus.')
-    expect(r.fallo).toMatchObject({ row: 1, columna: 0 })
+    expect(r.failure.title).toBe('Missing!')
+    expect(r.failure.text).toBe('Please enter a valid value in the text field in focus.')
+    expect(r.failure).toMatchObject({ row: 1, columna: 0 })
   })
 
   it('a `|` inside a field aborts with its own alert', () => {
-    const r = serializarTabla([[t('remoto'), t('mal|valor')]])
+    const r = serializeTable([[t('remoto'), t('mal|valor')]])
     expect(r.ok).toBe(false)
     if (r.ok) return
-    expect(r.fallo.title).toBe('Invalid Character!')
-    expect(r.fallo.text).toBe(
+    expect(r.failure.title).toBe('Invalid Character!')
+    expect(r.failure.text).toBe(
       "Please edit the value in the text field in focus to remove '|' character.",
     )
-    expect(r.fallo).toMatchObject({ row: 0, columna: 1 })
+    expect(r.failure).toMatchObject({ row: 0, columna: 1 })
   })
 })

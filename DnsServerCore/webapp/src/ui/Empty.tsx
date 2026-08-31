@@ -54,6 +54,6 @@ export function Loading({
 }
 
 /** The data never arrived. It fills the same slot as the `Loading` it replaces. */
-export function Fallo({ children }: { children: ReactNode }) {
+export function Failure({ children }: { children: ReactNode }) {
   return <div className={styles.loading}>{children}</div>
 }

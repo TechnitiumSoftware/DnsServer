@@ -6,7 +6,7 @@ import { ThemeProvider } from '../theme/ThemeProvider'
 import * as client from '../api/client'
 
 // The Shell consumes the theme, so it is mounted the way App.tsx will.
-function montar() {
+function mount() {
   return render(
     <ThemeProvider>
       <SessionProvider />
@@ -55,14 +55,14 @@ afterEach(() => vi.restoreAllMocks())
 
 describe('SessionProvider', () => {
   it('with no token, it shows the login', async () => {
-    montar()
+    mount()
     expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument()
   })
 
   it('with a valid stored token, it goes straight in without the login', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     expect(await screen.findByRole('navigation')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Login' })).not.toBeInTheDocument()
   })
@@ -70,13 +70,13 @@ describe('SessionProvider', () => {
   it('with an invalid token, it falls back to the login', async () => {
     localStorage.setItem('token', 'caducado')
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
-    montar()
+    mount()
     expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument()
   })
 
   it('with an SSO #error, it shows the login and the alert with that text', async () => {
     window.history.replaceState(null, '', '/#error=' + encodeURIComponent('SSO authentication failed. Please try again.'))
-    montar()
+    mount()
     expect(await screen.findByRole('button', { name: 'Login' })).toBeInTheDocument()
     expect(screen.getByText('SSO authentication failed. Please try again.')).toBeInTheDocument()
   })
@@ -84,7 +84,7 @@ describe('SessionProvider', () => {
   it('it sets the document title in the upstream format', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     await screen.findByRole('navigation')
     await waitFor(() =>
       expect(document.title).toBe('dns.shlab.app - Technitium DNS Server v15.4'),
@@ -94,7 +94,7 @@ describe('SessionProvider', () => {
   it('it hides the sections with no read permission', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session({}, { DhcpServer: false, Administration: false }))
-    montar()
+    mount()
     await screen.findByRole('navigation')
     expect(screen.queryByRole('link', { name: 'DHCP' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('SessionProvider', () => {
   it('it lands on the first visible section when Dashboard is not one', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session({}, { Dashboard: false }))
-    montar()
+    mount()
     await screen.findByRole('navigation')
     expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Zones' })).toHaveAttribute('aria-current', 'page')
@@ -124,7 +124,7 @@ describe('SessionProvider', () => {
   it('the side panel is real links, not tabs', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     await screen.findByRole('navigation')
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
@@ -143,7 +143,7 @@ describe('SessionProvider', () => {
   it('the active sub-section is the only one claiming to be the current page', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     await screen.findByRole('navigation')
 
     fireEvent.click(screen.getByRole('link', { name: 'Logs' }))
@@ -166,7 +166,7 @@ describe('SessionProvider', () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     window.history.replaceState(null, '', '/settings/')
-    montar()
+    mount()
     await screen.findByRole('navigation')
 
     // Being "in Settings" and nothing more is half a page: the address is completed.
@@ -191,7 +191,7 @@ describe('SessionProvider', () => {
   it('the upstream footer is still there with the console open, not only on the login', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     await screen.findByRole('navigation')
     // In upstream the footer hangs off the `body`: it shows on EVERY screen.
     expect(screen.getByRole('link', { name: 'Donate' })).toHaveAttribute(
@@ -221,7 +221,7 @@ describe('SessionProvider', () => {
   it('if the server rejects the session, the session ends and it returns to the login', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     await screen.findByRole('navigation')
 
     // From here on, the server says the token is no longer valid.
@@ -242,7 +242,7 @@ describe('SessionProvider', () => {
   it('for an SSO user it hides changing the password and configuring 2FA', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session({ isSsoUser: true }))
-    montar()
+    mount()
     await screen.findByRole('navigation')
     await userEvent.click(screen.getByRole('button', { name: /Administrator/ }))
     expect(screen.queryByText('Change Password')).not.toBeInTheDocument()
@@ -253,7 +253,7 @@ describe('SessionProvider', () => {
   it('for an ordinary user it shows them', async () => {
     localStorage.setItem('token', 'tok')
     vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
-    montar()
+    mount()
     await screen.findByRole('navigation')
     await userEvent.click(screen.getByRole('button', { name: /Administrator/ }))
     expect(screen.getByText('Change Password')).toBeInTheDocument()

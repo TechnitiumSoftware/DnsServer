@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { apiRequest, avisarSiCaducaLaSesion } from '../api/client'
+import { apiRequest, onSessionExpired } from '../api/client'
 import { Login, type Session } from '../screens/Login'
 import { Shell, type ShellSession } from '../app/Shell'
 import { readBootIntent } from './boot'
@@ -47,7 +47,7 @@ export function SessionProvider() {
   stayed standing with a dead session.
   */
   useEffect(() => {
-    avisarSiCaducaLaSesion(() => {
+    onSessionExpired(() => {
       localStorage.removeItem('token')
       setState((previous) =>
         previous.phase === 'login'
@@ -58,7 +58,7 @@ export function SessionProvider() {
             },
       )
     })
-    return () => avisarSiCaducaLaSesion(null)
+    return () => onSessionExpired(null)
   }, [])
 
   const onSuccess = useCallback((session: Session) => {

@@ -1,4 +1,4 @@
-import { AreaRow, Avisos, Block, Check, GroupRow, Help, Note, Plain, Pre, TextRow } from '../parts'
+import { AreaRow, Notices, Block, Check, GroupRow, Help, Note, Plain, Pre, TextRow } from '../parts'
 import type { PaneProps } from './tipos'
 
 /*
@@ -31,14 +31,14 @@ export function WebService({ f, set, en }: PaneProps) {
       <Block title="Unix Domain Sockets">
         <GroupRow label="Unix Domain Sockets (UDS)">
           <Check
-            conmutador
+            toggle
             label="Enable HTTP Unix Domain Sockets (UDS)"
             checked={f.webServiceEnableHttpUnixSocket}
             onChange={(v) => set({ webServiceEnableHttpUnixSocket: v })}
             help="Enables Web Service HTTP over Unix Domain Sockets (UDS)."
           />
           <Check
-            conmutador
+            toggle
             label="Enable HTTPS Unix Domain Sockets (UDS)"
             checked={f.webServiceEnableTlsUnixSocket}
             onChange={(v) => set({ webServiceEnableTlsUnixSocket: v })}
@@ -68,27 +68,27 @@ export function WebService({ f, set, en }: PaneProps) {
       <Block title="HTTPS Options">
         <GroupRow label="HTTPS Options">
           <Check
-            conmutador
+            toggle
             label="Enable HTTPS"
             checked={f.webServiceEnableTls}
             onChange={(v) => set({ webServiceEnableTls: v })}
           />
           <Check
-            conmutador
+            toggle
             label="Enable HTTP/3"
             checked={f.webServiceEnableHttp3}
             onChange={(v) => set({ webServiceEnableHttp3: v })}
             disabled={!en.webServiceEnableHttp3}
           />
           <Check
-            conmutador
+            toggle
             label="Enable HTTP to HTTPS Redirection"
             checked={f.webServiceHttpToTlsRedirect}
             onChange={(v) => set({ webServiceHttpToTlsRedirect: v })}
             disabled={!en.webServiceHttpToTlsRedirect}
           />
           <Check
-            conmutador
+            toggle
             label="Use A Self Signed TLS Certificate When TLS Certificate File Path Is Unspecified"
             checked={f.webServiceUseSelfSignedTlsCertificate}
             onChange={(v) => set({ webServiceUseSelfSignedTlsCertificate: v })}
@@ -172,7 +172,7 @@ export function WebService({ f, set, en }: PaneProps) {
           disabled={!en.webServiceTlsCert}
           help="Enter the certificate (.pfx) password, if any."
         />
-        <Avisos>
+        <Notices>
           <Note>
             The Web Service port changes will be automatically applied and so you do not need to
             manually restart the main service. The TLS certificate too will be automatically
@@ -204,7 +204,7 @@ export function WebService({ f, set, en }: PaneProps) {
             Unix Domain Sockets (UDS) are supported only on Linux, Windows 10 (build 17063 and
             later), and Windows Server 2019 (update 1809 and later).
           </Note>
-        </Avisos>
+        </Notices>
         <Plain>
           Use the following openssl command to convert your TLS certificate that is in PEM format to
           PKCS #12 certificate (.pfx) format:

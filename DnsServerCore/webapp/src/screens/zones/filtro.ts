@@ -21,7 +21,7 @@ Three rules that are not obvious and that are replicated as they are:
 
 export interface Filter {
   name: string
-  tipo: string
+  type: string
 }
 
 /** Translates the name filter into the domain or the expression to compare against. */
@@ -60,12 +60,12 @@ export function compilarFiltroDeNombre(
  * whatever `compilarFiltroDeNombre` returns. It needs the zone because without
  * it `@` cannot be resolved.
  */
-export function filtrar(records: ResourceRecord[], filter: Filter, zone: string): ResourceRecord[] {
-  const { name, tipo } = filter
-  if (name === '' && tipo === '') return records
+export function filterBy(records: ResourceRecord[], filter: Filter, zone: string): ResourceRecord[] {
+  const { name, type } = filter
+  if (name === '' && type === '') return records
 
   const { dominio, regex } = compilarFiltroDeNombre(name, zone)
-  const wantedType = tipo === '' ? null : tipo.toUpperCase()
+  const wantedType = type === '' ? null : type.toUpperCase()
 
   return records.filter((r) => {
     const nombreReg = r.name.toLowerCase()

@@ -13,13 +13,13 @@ import {
   TAMANOS_RSA,
   curvaPorDefecto,
 } from './dnssec-opciones'
-import type { Aviso } from '../tipos'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import { HelpText, Externo } from '../../../ui/Externo'
 import { AYUDA_DNSSEC, RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import { GroupRow } from '../../../ui/Form'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalDnssecSignZone` (zone.js:6539 and 6578).
@@ -68,28 +68,28 @@ function inicial(): Formulario {
 
 export function FirmarZona({
   zone,
-  abierto,
+  open,
   token,
   node = '',
   onCerrar,
   onHecho,
 }: {
   zone: string
-  abierto: boolean
+  open: boolean
   token: string | null
   node?: string
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
 }) {
   const [f, setF] = useState<Formulario>(inicial)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     setF(inicial())
     setAviso(null)
-  }, [abierto])
+  }, [open])
 
   const set = <K extends keyof Formulario>(k: K, value: Formulario[K]) =>
     setF((prev) => ({ ...prev, [k]: value }))
@@ -124,7 +124,7 @@ export function FirmarZona({
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -137,7 +137,7 @@ export function FirmarZona({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Sign Zone - ${zone === '.' ? '<root>' : zone}`}
       actions={
@@ -148,7 +148,7 @@ export function FirmarZona({
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fields}>
         <GroupRow modal label="DNSKEY Algorithm">

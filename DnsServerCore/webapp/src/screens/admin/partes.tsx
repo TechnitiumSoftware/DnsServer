@@ -7,8 +7,8 @@ export { Check } from '../../ui/Check'
 
 /* The pieces Administration's six sub-tabs share. */
 
-export type { Aviso } from '../../lib/aviso'
-export { avisoDeFallo } from '../../lib/aviso'
+export type { Notice } from '../../lib/aviso'
+export { noticeFromFailure } from '../../lib/aviso'
 
 
 
@@ -69,6 +69,6 @@ export function SelectorNodo({
 
 
 export { CeldaSesion } from '../../ui/Sesion'
-export { Confirmar } from '../../ui/Confirmar'
-export { Avisador } from '../../ui/Avisador'
+export { Confirm } from '../../ui/Confirmar'
+export { Notifier } from '../../ui/Avisador'
 export { styles as adminStyles }

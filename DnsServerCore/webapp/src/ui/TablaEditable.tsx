@@ -15,7 +15,7 @@ written five times. Three modules also defined their own class with the same val
 copied by hand, and that is where one ended up with 0.07em of letter-spacing and
 the rest with 0.05.
 */
-export function TablaEditable({
+export function EditableTable({
   header,
   children,
   className,

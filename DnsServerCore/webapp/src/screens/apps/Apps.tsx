@@ -17,9 +17,9 @@ import { UpdateApp } from './UpdateApp'
 import { Empty, Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import styles from './Apps.module.css'
-import { avisoDeFallo } from '../../lib/aviso'
-import { Avisador } from '../../ui/Avisador'
-import { Confirmar } from '../../ui/Confirmar'
+import { noticeFromFailure } from '../../lib/aviso'
+import { Notifier } from '../../ui/Avisador'
+import { Confirm } from '../../ui/Confirmar'
 
 /*
 A replica of the Apps tab (apps.js + index.html:807-835).
@@ -49,7 +49,7 @@ type Modal =
   | { kind: 'config'; name: string; config: string }
 
 export function error(outcome: { kind: string; message?: string }): AlertState {
-  return avisoDeFallo(outcome)
+  return noticeFromFailure(outcome)
 }
 
 export function Apps({ token }: { token: string | null }) {
@@ -120,7 +120,7 @@ export function Apps({ token }: { token: string | null }) {
 
   // apps.js:459-491 — the config is read BEFORE opening the modal, and from the
   // cluster's primary node. `config` can come null; the editor is left empty.
-  async function abrirConfig(name: string) {
+  async function openConfig(name: string) {
     setBusy(name)
     const outcome = await getAppConfig(token, name)
     setBusy(null)
@@ -139,7 +139,7 @@ export function Apps({ token }: { token: string | null }) {
 
   return (
     <>
-      <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+      <Notifier notice={alert} onCerrar={() => setAlert(null)} />
 
       <SectionHeader
         titulo="Apps"
@@ -181,7 +181,7 @@ export function Apps({ token }: { token: string | null }) {
               key={app.name}
               app={app}
               busy={busy === app.name}
-              onConfig={() => void abrirConfig(app.name)}
+              onConfig={() => void openConfig(app.name)}
               onUpdate={() => setModal({ kind: 'update', name: app.name })}
               onStoreUpdate={() => void actualizarDesdeTienda(app)}
               onUninstall={() => setPorDesinstalar(app.name)}
@@ -190,8 +190,8 @@ export function Apps({ token }: { token: string | null }) {
         </ul>
       )}
 
-      <Confirmar
-        abierto={porDesinstalar !== null}
+      <Confirm
+        open={porDesinstalar !== null}
         titulo="Uninstall App"
         text={`Are you sure you want to uninstall the DNS application '${porDesinstalar ?? ''}'?`}
         etiqueta="Uninstall"

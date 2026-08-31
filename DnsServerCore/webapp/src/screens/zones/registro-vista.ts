@@ -294,11 +294,11 @@ export function celdasDeRegistro(r: ResourceRecord): Cell[] {
     case 'SVCB':
     case 'HTTPS': {
       const priority = s(d.svcPriority)
-      const modo = String(d.svcPriority) === '0' ? ' (alias mode)' : ' (service mode)'
+      const mode = String(d.svcPriority) === '0' ? ' (alias mode)' : ' (service mode)'
       salida.push({
         clase: 'pairs',
         pares: [
-          { etiqueta: 'Priority:', value: priority + modo },
+          { etiqueta: 'Priority:', value: priority + mode },
           { etiqueta: 'Target Name:', value: s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName) },
         ],
       })
@@ -451,8 +451,8 @@ export interface AccionesDeFila {
  * catalog zone the SOA can be edited but the rest of the records offer not a
  * single button (zone.js:4195-4232).
  */
-export function accionesDeFila(tipoZona: string, tipoRegistro: string): AccionesDeFila {
-  switch (tipoZona) {
+export function accionesDeFila(zoneType: string, recordType: string): AccionesDeFila {
+  switch (zoneType) {
     case 'Secondary':
     case 'SecondaryForwarder':
     case 'SecondaryCatalog':
@@ -460,13 +460,13 @@ export function accionesDeFila(tipoZona: string, tipoRegistro: string): Acciones
       return { ocultas: true, editingOnly: false }
 
     case 'Catalog':
-      return tipoRegistro === 'SOA'
+      return recordType === 'SOA'
         ? { ocultas: false, editingOnly: true }
         : { ocultas: true, editingOnly: false }
 
     default:
-      if (tipoRegistro === 'SOA') return { ocultas: false, editingOnly: true }
-      if (['DNSKEY', 'RRSIG', 'NSEC', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].includes(tipoRegistro)) {
+      if (recordType === 'SOA') return { ocultas: false, editingOnly: true }
+      if (['DNSKEY', 'RRSIG', 'NSEC', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].includes(recordType)) {
         return { ocultas: true, editingOnly: false }
       }
       return { ocultas: false, editingOnly: false }
@@ -474,10 +474,10 @@ export function accionesDeFila(tipoZona: string, tipoRegistro: string): Acciones
 }
 
 /** The five types "Hide DNSSEC Records" hides (zone.js:3446-3460). */
-export const TIPOS_DNSSEC = ['RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM']
+export const DNSSEC_TYPES = ['RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM']
 
 export function ocultarDnssec(records: ResourceRecord[]): ResourceRecord[] {
-  return records.filter((r) => !TIPOS_DNSSEC.includes(r.type.toUpperCase()))
+  return records.filter((r) => !DNSSEC_TYPES.includes(r.type.toUpperCase()))
 }
 
 /* ── Fechas ───────────────────────────────────────────────────────────── */

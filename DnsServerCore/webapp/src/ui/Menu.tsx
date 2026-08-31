@@ -1,7 +1,7 @@
 import { Button } from './Button'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './Menu.module.css'
-import { Icono } from './Icono'
+import { Icon } from './Icono'
 
 /*
 The `⋮` menu on each row. Upstream solves it with the Bootstrap 3 dropdown; here
@@ -50,9 +50,9 @@ export function Menu({
   ancla?: 'derecha' | 'izquierda'
   /** The trigger fills the width of its column, with the label on the left. */
   comoFila?: boolean
-  children: (cerrar: () => void) => ReactNode
+  children: (close: () => void) => ReactNode
 }) {
-  const [abierto, setAbierto] = useState(false)
+  const [open, setAbierto] = useState(false)
   const [caja, setCaja] = useState<
     { right?: number; left?: number; top?: number; bottom?: number; maxHeight: number } | null
   >(null)
@@ -79,7 +79,7 @@ export function Menu({
   —a very short window— every option is still reachable.
   */
   useLayoutEffect(() => {
-    if (!abierto) { setCaja(null); return }
+    if (!open) { setCaja(null); return }
     const r = disparador.current?.getBoundingClientRect()
     if (r == null) return
 
@@ -93,10 +93,10 @@ export function Menu({
         ? { ...borde, bottom: window.innerHeight - r.top + 4, maxHeight: encima }
         : { ...borde, top: r.bottom + 4, maxHeight: debajo },
     )
-  }, [abierto, ancla])
+  }, [open, ancla])
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
 
     function outside(e: MouseEvent) {
       const t = e.target as Node
@@ -129,49 +129,49 @@ export function Menu({
       window.removeEventListener('scroll', alRodar, true)
       window.removeEventListener('resize', alRodar)
     }
-  }, [abierto])
+  }, [open])
 
-  const abrirOCerrar = () => {
-    if (!abierto) onAbrir?.()
+  const toggleOpen = () => {
+    if (!open) onAbrir?.()
     setAbierto((v) => !v)
   }
 
   return (
-    <div className={comoFila ? styles.menuAncho : styles.menu}>
+    <div className={comoFila ? styles.menuWidth : styles.menu}>
       {comoFila ? (
         <button
           ref={disparador}
           type="button"
           className={styles.row}
           aria-haspopup="menu"
-          aria-expanded={abierto}
-          onClick={abrirOCerrar}
+          aria-expanded={open}
+          onClick={toggleOpen}
         >
           {rotulo}
-          <Icono name="chevronAbajo" tam={12} />
+          <Icon name="chevronDown" tam={12} />
         </button>
       ) : (
         <Button
           ref={disparador}
           size="sm"
-          icono={rotulo == null}
+          icon={rotulo == null}
           aria-haspopup="menu"
-          aria-expanded={abierto}
+          aria-expanded={open}
           aria-label={etiqueta}
-          onClick={abrirOCerrar}
+          onClick={toggleOpen}
         >
           {rotulo == null ? (
-            <Icono name="mas" tam={16} />
+            <Icon name="plus" tam={16} />
           ) : (
             <>
               {rotulo}
-              <Icono name="chevronAbajo" tam={12} />
+              <Icon name="chevronDown" tam={12} />
             </>
           )}
         </Button>
       )}
-      {abierto && caja && (
-        <div className={styles.menuLista} role="menu" ref={list} style={caja}>
+      {open && caja && (
+        <div className={styles.menuList} role="menu" ref={list} style={caja}>
           {children(() => setAbierto(false))}
         </div>
       )}

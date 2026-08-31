@@ -13,22 +13,22 @@ import {
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
 import { limpiarLista } from '../settings/model'
-import { anadirALaLista, OPCION_BLANK, OPCION_NONE } from './tabla'
+import { addToList, OPCION_BLANK, OPCION_NONE } from './tabla'
 import { fechaHora, desdeAhora } from './fechas'
 import {
-  avisoDeFallo,
+  noticeFromFailure,
   CeldaSesion,
   Check,
-  Confirmar,
+  Confirm,
   MRow,
   MValue,
   adminStyles as styles,
-  type Aviso,
+  type Notice,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
 import { Th, useOrden, type Keys, Table } from '../../ui/Table'
-import { Avisador } from '../../ui/Avisador'
+import { Notifier } from '../../ui/Avisador'
 import { Menu } from '../../ui/Menu'
 
 /*
@@ -51,14 +51,14 @@ the query by looking at each field's `disabled`, so an SSO user saves only
 */
 
 interface Props {
-  abierto: boolean
+  open: boolean
   username: string | null
   token: string | null
   cluster: ClusterState | null
   onCerrar: () => void
   /** The Users tab redraws its row; the Sessions tab reloads the list. */
   alGuardar: (u: AdminUserDetails) => void
-  onAviso: (a: Aviso) => void
+  onAviso: (a: Notice) => void
 }
 
 
@@ -73,23 +73,23 @@ const KEYS: Keys<AdminSession> = {
   agent: (s) => s.lastSeenUserAgent,
 }
 
-export function UserDetails({ abierto, username, token, cluster, onCerrar, alGuardar, onAviso }: Props) {
+export function UserDetails({ open, username, token, cluster, onCerrar, alGuardar, onAviso }: Props) {
   const [detalle, setDetalle] = useState<AdminUserDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
 
   const [displayName, setDisplayName] = useState('')
-  const [nuevoUsuario, setNuevoUsuario] = useState('')
+  const [newUser, setNuevoUsuario] = useState('')
   const [disabled, setDisabled] = useState(false)
   const [timeout, setTimeoutSeconds] = useState('')
   const [memberOf, setMemberOf] = useState('')
   const [sessions, setSesiones] = useState<AdminSession[]>([])
-  const { rows: sesionesVisibles, orden, alternar } = useOrden(KEYS, sessions)
+  const { rows: sesionesVisibles, sort, alternar } = useOrden(KEYS, sessions)
   const [porBorrar, setPorBorrar] = useState<AdminSession | null>(null)
   const [addGroup, setAddGroup] = useState(OPCION_BLANK)
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     if (username == null) return
     setLoading(true)
     setAviso(null)
@@ -97,7 +97,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -113,13 +113,13 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
   }, [token, username])
 
   useEffect(() => {
-    if (abierto) void cargar()
-  }, [abierto, cargar])
+    if (open) void load()
+  }, [open, load])
 
   const perfilBloqueado = detalle?.isSsoUser === true
   const gruposBloqueados = detalle?.isSsoUser === true && detalle.ssoManagedGroups === true
 
-  async function guardar() {
+  async function save() {
     if (detalle == null || username == null) return
 
     // "if (sessionTimeoutSeconds === "") sessionTimeoutSeconds = 1800" — it is
@@ -133,7 +133,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     }
     if (!perfilBloqueado) {
       body.displayName = displayName
-      if (nuevoUsuario !== username) body.newUser = nuevoUsuario
+      if (newUser !== username) body.newUser = newUser
     }
     if (!gruposBloqueados) body.memberOfGroups = limpiarLista(memberOf)
 
@@ -142,7 +142,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -151,7 +151,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     onAviso({ type: 'success', title: 'User Saved!', text: 'User details were saved successfully.' })
   }
 
-  async function borrarSesion(s: AdminSession) {
+  async function deleteSession(s: AdminSession) {
     setPorBorrar(null)
     // auth.js:1382 — here the `node` travels ONLY if the session is an API token.
     // The Sessions tab always sends it; this modal does not.
@@ -159,7 +159,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     const outcome = await deleteAdminSession(token, s.partialToken, node)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -174,19 +174,19 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
   return (
     <>
       <Dialog
-        open={abierto}
+        open={open}
         onOpenChange={(o) => !o && onCerrar()}
         size="wide"
         title="User Details"
         actions={
           <>
-            <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
+            <Button variant="primary" disabled={busy || loading} onClick={() => void save()}>
               Save
             </Button>
           </>
         }
       >
-        <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+        <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
         {loading || detalle == null ? (
           <Loading />
@@ -209,7 +209,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
               {(id) => (
                 <Input
                   id={id}
-                  value={nuevoUsuario}
+                  value={newUser}
                   placeholder="username"
                   maxLength={255}
                   disabled={perfilBloqueado}
@@ -227,7 +227,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
             <div className={frm.mrow}>
               <div />
               <Check
-                conmutador
+                toggle
                 label="Disable User Account"
                 checked={disabled}
                 onChange={setDisabled}
@@ -275,7 +275,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                   value={addGroup}
                   onChange={(e) => {
                     setAddGroup(e.target.value)
-                    setMemberOf((t) => anadirALaLista(t, e.target.value))
+                    setMemberOf((t) => addToList(t, e.target.value))
                   }}
                 >
                   <option value={OPCION_BLANK} />
@@ -293,10 +293,10 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
             <Table
               header={
                 <>
-                  <Th field="session" orden={orden} onOrdenar={alternar}>Session</Th>
-                  <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                  <Th field="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-                  <Th field="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+                  <Th field="session" sort={sort} onOrdenar={alternar}>Session</Th>
+                  <Th field="lastSeen" sort={sort} onOrdenar={alternar}>Last Seen</Th>
+                  <Th field="address" sort={sort} onOrdenar={alternar}>Remote Address</Th>
+                  <Th field="agent" sort={sort} onOrdenar={alternar}>User Agent</Th>
                   <th className={tbl.celdaAcciones} />
                 </>
               }
@@ -321,11 +321,11 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                           row "Delete" without the friction the rule demands, in a
                           console with no undo. */}
                       <Menu etiqueta={`Actions for ${s.partialToken}`}>
-                        {(cerrar) => (
+                        {(close) => (
                           <button
                             type="button"
                             data-variant="danger"
-                            onClick={() => { cerrar(); setPorBorrar(s) }}
+                            onClick={() => { close(); setPorBorrar(s) }}
                           >
                             Delete Session
                           </button>
@@ -343,13 +343,13 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
         )}
       </Dialog>
 
-      <Confirmar
-        abierto={porBorrar !== null}
+      <Confirm
+        open={porBorrar !== null}
         titulo="Delete Session"
         text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
         etiqueta="Delete"
         onCerrar={() => setPorBorrar(null)}
-        onConfirmar={() => porBorrar && void borrarSesion(porBorrar)}
+        onConfirmar={() => porBorrar && void deleteSession(porBorrar)}
       />
     </>
   )

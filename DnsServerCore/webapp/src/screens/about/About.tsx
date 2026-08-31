@@ -34,14 +34,14 @@ function Enlace({
 
 export function About({ token, info }: { token: string | null; info?: Info }) {
   /*
-  "sin-mirar" is a REAL state —the server says it has update notifications
+  "not-checked" is a REAL state —the server says it has update notifications
   switched off— and that is why it is no good for reporting a failure: with the
   call fallen over the screen said "Update notifications are turned off for this
   server.", which is a claim about the server's configuration and not about what
   just happened. Hence the fifth state.
   */
-  const [update, setUpdate] = useState<'sin-mirar' | 'mirando' | 'al-dia' | 'hay' | 'fallo'>(
-    'sin-mirar',
+  const [update, setUpdate] = useState<'not-checked' | 'checking' | 'up-to-date' | 'available' | 'failed'>(
+    'not-checked',
   )
 
   useEffect(() => {
@@ -50,20 +50,20 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
       if (r.kind === 'skipped') return
       if (r.kind === 'ok') {
         const d = r.data as { response?: { updateAvailable?: boolean } }
-        setUpdate(d.response?.updateAvailable ? 'hay' : 'al-dia')
+        setUpdate(d.response?.updateAvailable ? 'available' : 'up-to-date')
         return
       }
-      setUpdate('fallo')
+      setUpdate('failed')
     })()
   }, [token])
 
   async function mirar() {
-    setUpdate('mirando')
+    setUpdate('checking')
     const r = await checkForUpdate(token, true)
     if (r.kind === 'ok') {
       const d = r.data as { response?: { updateAvailable?: boolean } }
-      setUpdate(d.response?.updateAvailable ? 'hay' : 'al-dia')
-    } else setUpdate(r.kind === 'skipped' ? 'sin-mirar' : 'fallo')
+      setUpdate(d.response?.updateAvailable ? 'available' : 'up-to-date')
+    } else setUpdate(r.kind === 'skipped' ? 'not-checked' : 'failed')
   }
 
   return (
@@ -171,19 +171,19 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
         </Panel>
         <Panel titulo="Update" className={styles.panel}>
           <Body>
-            {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
+            {update === 'up-to-date' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {/*
             main.js:751-767 — the default title is "New Update Available!" and
             the MESSAGE is sent by the server; if it does not come, upstream shows
             none. The sentence that was here was invented, and in Spanish.
             */}
-            {update === 'hay' && <Alert type="success" title="New Update Available!" />}
-            {update === 'sin-mirar' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
-            {update === 'fallo' && (
+            {update === 'available' && <Alert type="success" title="New Update Available!" />}
+            {update === 'not-checked' && <Empty compacto>Update notifications are turned off for this server.</Empty>}
+            {update === 'failed' && (
               <Alert type="danger" title="Error!">Unable to check for updates.</Alert>
             )}
             <div className={styles.action}>
-              <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>
+              <Button disabled={update === 'checking'} onClick={() => void mirar()}>Check for Update</Button>
             </div>
           </Body>
         </Panel>

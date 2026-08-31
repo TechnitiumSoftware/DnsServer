@@ -6,7 +6,7 @@ import { Groups } from './Groups'
 import { Permissions } from './Permissions'
 import { Sso } from './Sso'
 import { Cluster } from './Cluster'
-import { Avisador, type Aviso } from './partes'
+import { Notifier, type Notice } from './partes'
 
 /*
 Administration. Six sub-tabs and thirty endpoints: the console's second largest
@@ -47,7 +47,7 @@ export interface AdminProps {
 }
 
 export function Admin({ token, sub }: AdminProps) {
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [cluster, setCluster] = useState<ClusterState | null>(null)
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function Admin({ token, sub }: AdminProps) {
   // Stable across renders: the sub-tabs put it in the dependencies of their
   // loading `useCallback`, and a new function per render would reload them in
   // bucle.
-  const avisar = useCallback((a: Aviso) => setAviso(a), [])
+  const notify = useCallback((a: Notice) => setAviso(a), [])
   const alCluster = useCallback((s: ClusterState) => setCluster(s), [])
 
   const pedida = (sub ?? 'Sessions') as Subpestana
@@ -71,17 +71,17 @@ export function Admin({ token, sub }: AdminProps) {
 
   return (
     <div>
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
-      {active === 'Sessions' && <Sessions token={token} cluster={cluster} onAviso={avisar} />}
-      {active === 'Users' && <Users token={token} cluster={cluster} onAviso={avisar} />}
-      {active === 'Groups' && <Groups token={token} onAviso={avisar} />}
+      {active === 'Sessions' && <Sessions token={token} cluster={cluster} onAviso={notify} />}
+      {active === 'Users' && <Users token={token} cluster={cluster} onAviso={notify} />}
+      {active === 'Groups' && <Groups token={token} onAviso={notify} />}
       {active === 'Permissions' && (
-        <Permissions token={token} cluster={cluster} onAviso={avisar} />
+        <Permissions token={token} cluster={cluster} onAviso={notify} />
       )}
-      {active === 'SSO' && <Sso token={token} onAviso={avisar} />}
+      {active === 'SSO' && <Sso token={token} onAviso={notify} />}
       {active === 'Cluster' && (
-        <Cluster token={token} cluster={cluster} onCluster={alCluster} onAviso={avisar} />
+        <Cluster token={token} cluster={cluster} onCluster={alCluster} onAviso={notify} />
       )}
     </div>
   )

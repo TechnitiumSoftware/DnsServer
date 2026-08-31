@@ -1,6 +1,6 @@
 import { etiquetasDnsApp, type InstalledApp } from '../../api/apps'
 import { Button } from '../../ui/Button'
-import { Detalles } from '../../ui/Detalles'
+import { Details } from '../../ui/Detalles'
 import { Chip } from '../../ui/Tag'
 import styles from './Apps.module.css'
 
@@ -38,7 +38,7 @@ export function AppCard({
           <div className={styles.ver}>
             v{app.version} ·{' '}
             {hayUpdate ? (
-              <span className={styles.nueva}>Update v{app.updateVersion}</span>
+              <span className={styles.blank}>Update v{app.updateVersion}</span>
             ) : (
               'installed'
             )}
@@ -49,7 +49,7 @@ export function AppCard({
       {app.description && <p className={styles.desc}>{app.description}</p>}
 
       {app.dnsApps.length > 0 && (
-        <Detalles className={styles.detalles} summary="More Details">
+        <Details className={styles.details} summary="More Details">
           {app.dnsApps.map((d) => (
             <div key={d.classPath} className={styles.clase}>
               <div className={styles.clasePath}>{d.classPath}</div>
@@ -69,7 +69,7 @@ export function AppCard({
               )}
             </div>
           ))}
-        </Detalles>
+        </Details>
       )}
 
       <div className={styles.foot}>

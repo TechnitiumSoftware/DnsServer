@@ -30,7 +30,7 @@ export const CURVAS_EDDSA = [
 
 export const TAMANOS_RSA = ['1024', '1280', '1536', '2048', '3072', '4096']
 
-export const TIPOS_CLAVE = [
+export const KEY_TYPES = [
   { value: 'KeySigningKey', etiqueta: 'Key Signing Key (KSK)' },
   { value: 'ZoneSigningKey', etiqueta: 'Zone Signing Key (ZSK)' },
 ]

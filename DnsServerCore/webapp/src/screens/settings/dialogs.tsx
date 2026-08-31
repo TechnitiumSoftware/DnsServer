@@ -12,7 +12,7 @@ import { Input } from '../../ui/Field'
 The "are you sure?" step is `ui/Confirmar`, the same dialog the other five
 screens use. It is re-exported under the name it is asked for by here.
 */
-export { Confirmar } from '../../ui/Confirmar'
+export { Confirm } from '../../ui/Confirmar'
 
 function ListaElementos({
   selection,
@@ -42,7 +42,7 @@ export interface DialogoProps {
   onOpenChange: (o: boolean) => void
   selection: Record<string, boolean>
   onSelection: (s: Record<string, boolean>) => void
-  aviso: { title: string; text: string } | null
+  notice: { title: string; text: string } | null
   busy?: boolean
 }
 
@@ -52,7 +52,7 @@ export function BackupDialog({
   onOpenChange,
   selection,
   onSelection,
-  aviso,
+  notice,
   busy,
   onBackup,
 }: DialogoProps & { onBackup: () => void }) {
@@ -69,9 +69,9 @@ export function BackupDialog({
         </>
       }
     >
-      {aviso && (
-        <Alert type="warning" title={aviso.title}>
-          {aviso.text}
+      {notice && (
+        <Alert type="warning" title={notice.title}>
+          {notice.text}
         </Alert>
       )}
       <p>The backup process will create a zip file for the items selected below:</p>
@@ -96,12 +96,12 @@ export function RestoreDialog({
   onOpenChange,
   selection,
   onSelection,
-  aviso,
+  notice,
   busy,
   onRestore,
-}: DialogoProps & { onRestore: (fichero: File | null, borrar: boolean) => void }) {
+}: DialogoProps & { onRestore: (fichero: File | null, remove: boolean) => void }) {
   const [fichero, setFichero] = useState<File | null>(null)
-  const [borrar, setBorrar] = useState(true)
+  const [remove, setBorrar] = useState(true)
 
   return (
     <Dialog
@@ -110,15 +110,15 @@ export function RestoreDialog({
       title="Restore Settings"
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => onRestore(fichero, borrar)}>
+          <Button variant="primary" disabled={busy} onClick={() => onRestore(fichero, remove)}>
             Restore
           </Button>
         </>
       }
     >
-      {aviso && (
-        <Alert type="warning" title={aviso.title}>
-          {aviso.text}
+      {notice && (
+        <Alert type="warning" title={notice.title}>
+          {notice.text}
         </Alert>
       )}
       <Field label="Backup Zip File">
@@ -131,7 +131,7 @@ export function RestoreDialog({
       <p>Restore options:</p>
       <Check
         label="Delete Existing Files For Selected Items"
-        checked={borrar}
+        checked={remove}
         onChange={setBorrar}
       />
       <div>

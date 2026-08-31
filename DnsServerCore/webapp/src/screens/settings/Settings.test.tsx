@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Settings } from './Settings'
-import { AJUSTES } from './ajustes.fixture'
+import { SETTINGS } from './ajustes.fixture'
 import * as client from '../../api/client'
 import { valorDe } from '../../test/desplegable'
 
@@ -14,13 +14,13 @@ const ok = (data: unknown) => ({ kind: 'ok' as const, data })
  *  response so the screen starts with real data. */
 function servidor(overrides: Record<string, unknown> = {}) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
-    if (path === 'settings/get') return ok({ response: { ...AJUSTES, ...overrides } })
-    if (path === 'settings/set') return ok({ response: { ...AJUSTES, ...overrides } })
+    if (path === 'settings/get') return ok({ response: { ...SETTINGS, ...overrides } })
+    if (path === 'settings/set') return ok({ response: { ...SETTINGS, ...overrides } })
     return ok({ response: {} })
   })
 }
 
-async function montar(props: Record<string, unknown> = {}) {
+async function mount(props: Record<string, unknown> = {}) {
   const r = render(<Settings token="tok" {...props} />)
   await screen.findByRole('button', { name: 'Save Settings' })
   return r
@@ -29,7 +29,7 @@ async function montar(props: Record<string, unknown> = {}) {
 describe('Settings — carga', () => {
   it('it draws General by default with the real values from the server', async () => {
     servidor()
-    await montar()
+    await mount()
     expect(screen.getByLabelText('DNS Server Domain')).toHaveValue('ref.technitium-ui.test')
     expect(screen.getByLabelText('Default Record TTL')).toHaveValue('3600')
     expect(screen.getByText('seconds (default 3600/1h)')).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('Settings — carga', () => {
 
   it('the active sub-tab arrives by prop: the sub-navigation belongs to the Shell', async () => {
     servidor()
-    await montar({ sub: 'Logging' })
+    await mount({ sub: 'Logging' })
     expect(screen.getByLabelText('Log Folder Path')).toBeInTheDocument()
     expect(screen.queryByLabelText('DNS Server Domain')).not.toBeInTheDocument()
   })
@@ -72,7 +72,7 @@ describe('Settings — carga', () => {
 describe('Settings — guardar', () => {
   it('it sends settings/set by POST with the fields of the nine sub-tabs', async () => {
     const spy = servidor()
-    await montar({ sub: 'Logging' })
+    await mount({ sub: 'Logging' })
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
 
     const call = await waitFor(() => {
@@ -89,7 +89,7 @@ describe('Settings — guardar', () => {
 
   it('on a successful save, the alert is the upstream literal', async () => {
     servidor()
-    await montar()
+    await mount()
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
     expect(await screen.findByText('Settings Saved!')).toBeInTheDocument()
     expect(screen.getByText('DNS Server settings were saved successfully.')).toBeInTheDocument()
@@ -97,10 +97,10 @@ describe('Settings — guardar', () => {
 
   it('a server error comes out with its errorMessage under the Error! title', async () => {
     vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
-      if (path === 'settings/get') return ok({ response: AJUSTES })
+      if (path === 'settings/get') return ok({ response: SETTINGS })
       return { kind: 'error' as const, message: 'Invalid Web Service HTTPS port.' }
     })
-    await montar()
+    await mount()
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
     expect(await screen.findByText('Error!')).toBeInTheDocument()
     expect(screen.getByText('Invalid Web Service HTTPS port.')).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('Settings — guardar', () => {
 
   it('an empty field blocks the save with the literal alert, and does not call the server', async () => {
     const spy = servidor()
-    await montar()
+    await mount()
     await userEvent.clear(screen.getByLabelText('DNS Server Domain'))
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
 
@@ -120,7 +120,7 @@ describe('Settings — guardar', () => {
   it('if the missing field is on another sub-tab, the screen jumps to it', async () => {
     servidor()
     const onSubChange = vi.fn()
-    await montar({ sub: 'Recursion', onSubChange })
+    await mount({ sub: 'Recursion', onSubChange })
     await userEvent.clear(screen.getByLabelText('Resolver Retries'))
     // It switches to another sub-tab before saving to exercise the jump.
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
@@ -131,7 +131,7 @@ describe('Settings — guardar', () => {
 
   it('the validation jump is undone as soon as the Shell asks for another sub-tab', async () => {
     servidor()
-    const { rerender } = await montar({ sub: 'General' })
+    const { rerender } = await mount({ sub: 'General' })
     await userEvent.clear(screen.getByLabelText('DNS Server Domain'))
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
     expect(await screen.findByText('Please enter server domain name.')).toBeInTheDocument()
@@ -145,20 +145,20 @@ describe('Settings — guardar', () => {
 describe('Settings — Blocking', () => {
   it('with no date, the labels are \"Not Set\" and \"Not Scheduled\"', async () => {
     servidor()
-    await montar({ sub: 'Blocking' })
+    await mount({ sub: 'Blocking' })
     expect(screen.getByText('Not Set')).toBeInTheDocument()
     expect(screen.getByText('Not Scheduled')).toBeInTheDocument()
   })
 
   it('\"Update Now\" is off if there are no lists configured', async () => {
     servidor()
-    await montar({ sub: 'Blocking' })
+    await mount({ sub: 'Blocking' })
     expect(screen.getByRole('button', { name: 'Update Now' })).toBeDisabled()
   })
 
   it('switching off \"Enable Blocking\" switches off the rest of the sub-tab', async () => {
     servidor()
-    await montar({ sub: 'Blocking' })
+    await mount({ sub: 'Blocking' })
     expect(screen.getByLabelText('Allow TXT Blocking Report')).toBeEnabled()
     await userEvent.click(screen.getByLabelText('Enable Blocking'))
     expect(screen.getByLabelText('Allow TXT Blocking Report')).toBeDisabled()
@@ -168,7 +168,7 @@ describe('Settings — Blocking', () => {
 
   it('with no minutes, \"Temporary Disable Now\" alerts with the literal text', async () => {
     servidor()
-    await montar({ sub: 'Blocking' })
+    await mount({ sub: 'Blocking' })
     await userEvent.click(screen.getByRole('button', { name: 'Temporary Disable Now' }))
     expect(
       await screen.findByText('Please enter a value in minutes to temporarily disable blocking.'),
@@ -177,13 +177,13 @@ describe('Settings — Blocking', () => {
 
   it('with minutes, it confirms and calls the endpoint with the literal success alert', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
-      if (path === 'settings/get') return ok({ response: AJUSTES })
+      if (path === 'settings/get') return ok({ response: SETTINGS })
       if (path === 'settings/temporaryDisableBlocking') {
         return ok({ response: { temporaryDisableBlockingTill: '2026-08-25T14:00:00Z' } })
       }
       return ok({ response: {} })
     })
-    await montar({ sub: 'Blocking' })
+    await mount({ sub: 'Blocking' })
 
     await userEvent.type(screen.getByLabelText('Blocking Temporarily Disabled Till'), '15')
     await userEvent.click(screen.getByRole('button', { name: 'Temporary Disable Now' }))
@@ -208,7 +208,7 @@ describe('Settings — Blocking', () => {
 
   it('\"Update Now\" confirms and fires forceUpdateBlockLists', async () => {
     const spy = servidor({ blockListUrls: ['https://example.com/list.txt'] })
-    await montar({ sub: 'Blocking' })
+    await mount({ sub: 'Blocking' })
 
     await userEvent.click(screen.getByRole('button', { name: 'Update Now' }))
     expect(
@@ -228,7 +228,7 @@ describe('Settings — Blocking', () => {
 describe('Settings — action bar', () => {
   it('\"Flush Cache\" confirms and calls cache/flush with its literal alert', async () => {
     const spy = servidor()
-    await montar()
+    await mount()
     await userEvent.click(screen.getByRole('button', { name: 'Flush Cache' }))
     expect(await screen.findByText('Are you sure to flush the DNS Server cache?')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Flush' }))
@@ -248,7 +248,7 @@ describe('Settings — action bar', () => {
 
   it('a backup with nothing checked alerts with the literal text', async () => {
     servidor()
-    await montar()
+    await mount()
     await userEvent.click(screen.getByRole('button', { name: 'Backup Settings' }))
     for (const etiqueta of [
       'Authentication Config File (auth.config)',
@@ -272,7 +272,7 @@ describe('Settings — action bar', () => {
 
   it('a restore with no file alerts before looking at the items', async () => {
     servidor()
-    await montar()
+    await mount()
     await userEvent.click(screen.getByRole('button', { name: 'Restore Settings' }))
     await userEvent.click(screen.getByRole('button', { name: 'Restore' }))
     expect(await screen.findByText('Please select a backup zip file to restore.')).toBeInTheDocument()
@@ -282,7 +282,7 @@ describe('Settings — action bar', () => {
 describe('Settings — enablement rules of the remaining sub-tabs', () => {
   it('the recursion ACL can only be edited with the fourth option', async () => {
     servidor()
-    await montar({ sub: 'Recursion' })
+    await mount({ sub: 'Recursion' })
     const acl = screen.getByLabelText('Network Access Control List (ACL)')
     expect(acl).toBeDisabled()
     await userEvent.click(screen.getByLabelText('Use Specified Network Access Control List (ACL)'))
@@ -291,7 +291,7 @@ describe('Settings — enablement rules of the remaining sub-tabs', () => {
 
   it('the proxy fields wake up on choosing a type', async () => {
     servidor()
-    await montar({ sub: 'Proxy & Forwarders' })
+    await mount({ sub: 'Proxy & Forwarders' })
     expect(screen.getByLabelText('Proxy Server Address')).toBeDisabled()
     await userEvent.click(screen.getByLabelText('SOCKS5 Proxy'))
     expect(screen.getByLabelText('Proxy Server Address')).toBeEnabled()
@@ -299,7 +299,7 @@ describe('Settings — enablement rules of the remaining sub-tabs', () => {
 
   it('\"None\" in the logging switches off its four options and the folder', async () => {
     servidor()
-    await montar({ sub: 'Logging' })
+    await mount({ sub: 'Logging' })
     expect(screen.getByLabelText('Log All Queries')).toBeEnabled()
     await userEvent.click(screen.getByLabelText('None'))
     expect(screen.getByLabelText('Log All Queries')).toBeDisabled()
@@ -308,7 +308,7 @@ describe('Settings — enablement rules of the remaining sub-tabs', () => {
 
   it('the TSIG table adds and deletes rows', async () => {
     servidor()
-    await montar({ sub: 'TSIG' })
+    await mount({ sub: 'TSIG' })
     expect(screen.queryByLabelText('TSIG Keys 1 Key Name')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(screen.getByLabelText('TSIG Keys 1 Key Name')).toBeInTheDocument()
@@ -320,7 +320,7 @@ describe('Settings — enablement rules of the remaining sub-tabs', () => {
 
   it('the QPM table arrives with the real rows from the server', async () => {
     servidor()
-    await montar()
+    await mount()
     expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv4) 1 IPv4 Prefix')).toHaveValue(32)
     expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv4) 2 UDP Limit')).toHaveValue(6000)
     expect(screen.getByLabelText('Queries Per Minute (QPM) Limits (IPv6) 3 IPv6 Prefix')).toHaveValue(56)

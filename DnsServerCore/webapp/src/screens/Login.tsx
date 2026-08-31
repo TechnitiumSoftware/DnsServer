@@ -8,7 +8,7 @@ import { ForgotPassword } from './modals/ForgotPassword'
 import styles from './Login.module.css'
 import { urlPublica } from '../app/base'
 import { PieDeEnlaces } from '../ui/PieDeEnlaces'
-import { Avisador } from '../ui/Avisador'
+import { Notifier } from '../ui/Avisador'
 
 /*
 The login screen. A replica of `login()` in
@@ -193,7 +193,7 @@ export function Login({
           <span className={styles.name}>Technitium DNS Server</span>
         </div>
 
-        <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
+        <Notifier notice={alert} onCerrar={() => setAlert(null)} />
 
         <form
           className={styles.form}

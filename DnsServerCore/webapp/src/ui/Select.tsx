@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
-import { Icono } from './Icono'
+import { Icon } from './Icono'
 import styles from './Select.module.css'
 
 /*
@@ -89,7 +89,7 @@ export function Select({
   'aria-label'?: string
 }) {
   const options = opcionesDeHijos(children)
-  const [abierto, setAbierto] = useState(false)
+  const [open, setAbierto] = useState(false)
   const [active, setActivo] = useState(0)
   const [caja, setCaja] = useState<{ left: number; top: number; width: number; up: boolean } | null>(null)
   const disparador = useRef<HTMLButtonElement>(null)
@@ -100,36 +100,36 @@ export function Select({
   const indiceSel = options.findIndex((o) => o.value === String(value))
   const elegida = indiceSel >= 0 ? options[indiceSel] : undefined
 
-  function abrir() {
+  function openList() {
     if (disabled) return
     setActivo(indiceSel >= 0 ? indiceSel : primeraUtil(options, 0, 1))
     setAbierto(true)
   }
 
-  function cerrar(devolverFoco = true) {
+  function close(devolverFoco = true) {
     setAbierto(false)
     if (devolverFoco) disparador.current?.focus()
   }
 
-  function elegir(i: number) {
+  function choose(i: number) {
     const o = options[i]
     if (o == null || o.disabled) return
     onChange?.({ target: { value: o.value } })
-    cerrar()
+    close()
   }
 
   // The box is measured right before painting, so it does not visibly jump.
   useLayoutEffect(() => {
-    if (!abierto) { setCaja(null); return }
+    if (!open) { setCaja(null); return }
     const r = disparador.current?.getBoundingClientRect()
     if (r == null) return
     const debajo = window.innerHeight - r.bottom
     const up = debajo < Math.min(ALTO_MAX, options.length * 30 + 8) && r.top > debajo
     setCaja({ left: r.left, top: up ? r.top : r.bottom, width: r.width, up })
-  }, [abierto, options.length])
+  }, [open, options.length])
 
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     const outside = (e: MouseEvent) => {
       const t = e.target as Node
       if (!disparador.current?.contains(t) && !list.current?.contains(t)) setAbierto(false)
@@ -145,23 +145,23 @@ export function Select({
       window.removeEventListener('scroll', alRodar, true)
       window.removeEventListener('resize', alRodar)
     }
-  }, [abierto])
+  }, [open])
 
   // The selected option is kept in view when moving with the keyboard.
   useEffect(() => {
-    if (!abierto) return
+    if (!open) return
     const checked = list.current?.querySelector('[data-activa="true"]')
     // `scrollIntoView` does not exist in jsdom, and nothing breaks without it.
     checked?.scrollIntoView?.({ block: 'nearest' })
-  }, [abierto, active])
+  }, [open, active])
 
   function alTeclado(e: React.KeyboardEvent) {
     if (disabled) return
 
-    if (!abierto) {
+    if (!open) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
-        abrir()
+        openList()
       }
       return
     }
@@ -169,7 +169,7 @@ export function Select({
     switch (e.key) {
       case 'Escape':
         e.preventDefault()
-        cerrar()
+        close()
         return
       case 'Tab':
         setAbierto(false)
@@ -177,7 +177,7 @@ export function Select({
       case 'Enter':
       case ' ':
         e.preventDefault()
-        elegir(active)
+        choose(active)
         return
       case 'ArrowDown':
         e.preventDefault()
@@ -217,13 +217,13 @@ export function Select({
         id={id}
         ref={fusionar(disparador, ref)}
         role="combobox"
-        aria-expanded={abierto}
-        aria-controls={abierto ? idLista : undefined}
-        aria-activedescendant={abierto ? `${idLista}-${active}` : undefined}
+        aria-expanded={open}
+        aria-controls={open ? idLista : undefined}
+        aria-activedescendant={open ? `${idLista}-${active}` : undefined}
         aria-label={ariaLabel}
         disabled={disabled}
         className={[styles.disparador, className].filter(Boolean).join(' ')}
-        onClick={() => (abierto ? cerrar(false) : abrir())}
+        onClick={() => (open ? close(false) : openList())}
         onKeyDown={alTeclado}
       >
         {/*
@@ -234,10 +234,10 @@ export function Select({
         <span className={elegida?.label ? styles.value : styles.emptyText}>
           {elegida?.label || placeholder || '—'}
         </span>
-        <Icono name="chevronAbajo" tam={14} className={styles.chevron} />
+        <Icon name="chevronDown" tam={14} className={styles.chevron} />
       </button>
 
-      {abierto && caja && (
+      {open && caja && (
         <div
           ref={list}
           id={idLista}
@@ -262,10 +262,10 @@ export function Select({
               data-active={i === active}
               className={styles.option}
               onMouseEnter={() => !o.disabled && setActivo(i)}
-              onClick={() => elegir(i)}
+              onClick={() => choose(i)}
             >
               <span className={styles.brand}>
-                {o.value === String(value) && <Icono name="check" tam={13} />}
+                {o.value === String(value) && <Icon name="check" tam={13} />}
               </span>
               {o.label === '' ? <span className={styles.isEmpty}>—</span> : o.label}
             </div>

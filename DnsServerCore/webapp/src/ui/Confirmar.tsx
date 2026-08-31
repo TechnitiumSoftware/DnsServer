@@ -28,8 +28,8 @@ not a one-line confirmation but four paragraphs of warning with its list of
 alternatives and its slot for a server alert. That it would fit in `texto` does
 not make it the same thing.
 */
-export function Confirmar({
-  abierto,
+export function Confirm({
+  open,
   titulo,
   text: body,
   etiqueta,
@@ -38,7 +38,7 @@ export function Confirmar({
   onCerrar,
   onConfirmar,
 }: {
-  abierto: boolean
+  open: boolean
   titulo: string
   text: ReactNode
   /** The action's verb: "Delete", "Convert", "Disable". */
@@ -51,7 +51,7 @@ export function Confirmar({
 }) {
   const [enCurso, setEnCurso] = useState(false)
 
-  function confirmar() {
+  function confirm() {
     const r = onConfirmar()
     if (!(r instanceof Promise)) return
     setEnCurso(true)
@@ -63,15 +63,15 @@ export function Confirmar({
 
   return (
     <Dialog
-      open={abierto}
+      open={open}
       onOpenChange={(o) => !o && onCerrar()}
       title={titulo}
       actions={
-        <Button variant={variante} disabled={busy || enCurso} onClick={confirmar}>
+        <Button variant={variante} disabled={busy || enCurso} onClick={confirm}>
           {etiqueta}
         </Button>
       }
-      cerrar="Cancel"
+      close="Cancel"
       size="compact"
     >
       {/* `pre-wrap`: there are multi-line confirmations —the Zones ones— and

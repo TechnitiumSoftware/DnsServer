@@ -73,9 +73,9 @@ describe('SSO — validaciones', () => {
     render(<Sso {...props} onAviso={onAviso} />)
 
     await user.click(await screen.findByLabelText('Enable Single Sign-On (SSO)'))
-    const guardar = screen.getByRole('button', { name: 'Save Config' })
+    const save = screen.getByRole('button', { name: 'Save Config' })
 
-    await user.click(guardar)
+    await user.click(save)
     expect(onAviso).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',
@@ -83,7 +83,7 @@ describe('SSO — validaciones', () => {
     })
 
     await user.type(screen.getByLabelText('Authority (Issuer)'), 'https://id.test')
-    await user.click(guardar)
+    await user.click(save)
     expect(onAviso).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',
@@ -91,7 +91,7 @@ describe('SSO — validaciones', () => {
     })
 
     await user.type(screen.getByLabelText('Client ID'), 'technitium')
-    await user.click(guardar)
+    await user.click(save)
     expect(onAviso).toHaveBeenLastCalledWith({
       type: 'warning',
       title: 'Missing!',

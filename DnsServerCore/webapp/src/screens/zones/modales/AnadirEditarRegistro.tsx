@@ -12,24 +12,24 @@ import { Dialog } from '../../../ui/Dialog'
 import { Field, Input, Select, Textarea } from '../../../ui/Field'
 import {
   PROTOCOLOS_FORWARDER,
-  TIPOS_PROXY,
+  PROXY_TYPES,
   ejemploDeForwarder,
   proxyEditable,
 } from './anadir-zona'
 import {
-  TIPOS_REGISTRO,
+  RECORD_TYPES,
   construirCuerpoRegistro,
   formularioDesdeRegistro,
   formularioVacio,
   type FormularioRegistro,
-  type ModoRegistro,
+  type RecordMode,
 } from '../registro-form'
-import { tiposOcultosAlAnadir } from '../vista-zona'
-import type { Aviso } from '../tipos'
+import { typesHiddenWhenAdding } from '../vista-zona'
+import type { Notice } from '../tipos'
 import styles from '../Zones.module.css'
 import { GroupRow } from '../../../ui/Form'
-import { avisoDeFallo } from '../../../lib/aviso'
-import { Avisador } from '../../../ui/Avisador'
+import { noticeFromFailure } from '../../../lib/aviso'
+import { Notifier } from '../../../ui/Avisador'
 
 /*
 `modalAddEditRecord` (zone.js:4395 add, 5295 edit). A single form for all 23
@@ -54,9 +54,9 @@ const USOS_TLSA = ['PKIX-TA', 'PKIX-EE', 'DANE-TA', 'DANE-EE']
 const SELECTORES_TLSA = ['Cert', 'SPKI']
 const COINCIDENCIAS_TLSA = ['Full', 'SHA2-256', 'SHA2-512']
 
-export interface AnadirEditarRegistroProps {
-  abierto: boolean
-  modo: ModoRegistro
+export interface AddEditRecordProps {
+  open: boolean
+  mode: RecordMode
   zone: string
   zoneInfo: ZonaDeRegistros | null
   /** Every record in the zone: they are needed for the SVCB hints. */
@@ -66,24 +66,24 @@ export interface AnadirEditarRegistroProps {
   token: string | null
   node?: string
   onCerrar: () => void
-  onHecho: (a: Aviso) => void
+  onHecho: (a: Notice) => void
   /** The expiry TTL is reported because the row's "Disable" button uses it. */
   onExpiryTtl: (v: string) => void
 }
 
-export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
+export function AddEditRecord(p: AddEditRecordProps) {
   const [f, setF] = useState<FormularioRegistro>(formularioVacio)
-  const [aviso, setAviso] = useState<Aviso | null>(null)
+  const [notice, setAviso] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
   const [apps, setApps] = useState<string[]>([])
   const [clases, setClases] = useState<string[]>([])
   const nombreRef = useRef<HTMLInputElement>(null)
 
-  const editing = p.modo === 'update'
-  const ocultos = p.zoneInfo ? tiposOcultosAlAnadir(p.zoneInfo.type, p.zoneInfo.dnssecStatus) : []
+  const editing = p.mode === 'update'
+  const ocultos = p.zoneInfo ? typesHiddenWhenAdding(p.zoneInfo.type, p.zoneInfo.dnssecStatus) : []
 
   useEffect(() => {
-    if (!p.abierto) return
+    if (!p.open) return
 
     if (editing && p.original) {
       setF(formularioDesdeRegistro(p.original, p.zone))
@@ -91,7 +91,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
       const inicial = formularioVacio()
       // The first visible type, not a blind "A": on a signed Primary the
       // dropdown starts the same, but on a Forwarder the hidden ones change.
-      const first = TIPOS_REGISTRO.find((t) => t !== 'SOA' && !ocultos.includes(t))
+      const first = RECORD_TYPES.find((t) => t !== 'SOA' && !ocultos.includes(t))
       inicial.type = first ?? 'A'
       setF(inicial)
     }
@@ -99,11 +99,11 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     nombreRef.current?.focus()
     // `ocultos` is recalculated on every render; depending on it would loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.abierto, p.modo, p.original, p.zone])
+  }, [p.open, p.mode, p.original, p.zone])
 
   // `loadAddRecordModalAppNames`: only the apps that handle APP records.
   useEffect(() => {
-    if (!p.abierto || f.type !== 'APP') return
+    if (!p.open || f.type !== 'APP') return
     void listApps(p.token, p.node ?? '').then((outcome) => {
       if (outcome.kind !== 'ok') return
       // Only the apps that bring an APP record handler (zone.js:4451).
@@ -118,16 +118,16 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
           .map((d) => d.classPath),
       )
     })
-  }, [p.abierto, f.type, f.appName, p.token, p.node])
+  }, [p.open, f.type, f.appName, p.token, p.node])
 
   const set = <K extends keyof FormularioRegistro>(k: K, value: FormularioRegistro[K]) =>
     setF((prev) => ({ ...prev, [k]: value }))
 
-  async function guardar() {
+  async function save() {
     const pistas = zonaTienePistaSvcbAuto(p.records, f.type === 'A', f.type === 'AAAA')
     const r = construirCuerpoRegistro(f, {
       zone: p.zone,
-      modo: p.modo,
+      mode: p.mode,
       original: p.original ?? undefined,
       updateSvcbHints: pistas,
     })
@@ -145,7 +145,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      setAviso(avisoDeFallo(outcome))
+      setAviso(noticeFromFailure(outcome))
       return
     }
 
@@ -160,19 +160,19 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
 
   return (
     <Dialog
-      open={p.abierto}
+      open={p.open}
       onOpenChange={(o) => !o && p.onCerrar()}
       size="medium"
       title={editing ? 'Edit Record' : 'Add Record'}
       actions={
         <>
-          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void save()}>
             Save
           </Button>
         </>
       }
     >
-      <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
+      <Notifier notice={notice} onCerrar={() => setAviso(null)} />
 
       <div className={styles.fields}>
         <Field label="Name">
@@ -200,7 +200,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
               value={f.type}
               onChange={(e) => set('type', e.target.value)}
             >
-              {TIPOS_REGISTRO.filter(
+              {RECORD_TYPES.filter(
                 // SOA only appears on edit; the rest according to the zone type.
                 (t) => (t === 'SOA' ? editing : !ocultos.includes(t)),
               ).map((t) => (
@@ -301,7 +301,7 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
     </Field>
   )
 
-  const desplegable = (etiqueta: string, key: keyof FormularioRegistro, valores: string[]) => (
+  const dropdown = (etiqueta: string, key: keyof FormularioRegistro, valores: string[]) => (
     <Field label={etiqueta}>
       {(id) => (
         <Select id={id} value={String(f[key] ?? '')} onChange={(e) => set(key, e.target.value as never)}>
@@ -457,8 +457,8 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
       return (
         <>
           {text('Key Tag', 'dsKeyTag', { mono: true, short: true, placeholder: 'key tag' })}
-          {desplegable('DNSSEC Algorithm', 'dsAlgorithm', ALGORITMOS_DS)}
-          {desplegable('Digest Type', 'dsDigestType', DIGESTS_DS)}
+          {dropdown('DNSSEC Algorithm', 'dsAlgorithm', ALGORITMOS_DS)}
+          {dropdown('Digest Type', 'dsDigestType', DIGESTS_DS)}
           {text('Digest', 'dsDigest', { mono: true, placeholder: 'hash string' })}
         </>
       )
@@ -466,8 +466,8 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
     case 'SSHFP':
       return (
         <>
-          {desplegable('Algorithm', 'sshfpAlgorithm', ALGORITMOS_SSHFP)}
-          {desplegable('Fingerprint Type', 'sshfpFingerprintType', HUELLAS_SSHFP)}
+          {dropdown('Algorithm', 'sshfpAlgorithm', ALGORITMOS_SSHFP)}
+          {dropdown('Fingerprint Type', 'sshfpFingerprintType', HUELLAS_SSHFP)}
           {text('Fingerprint', 'sshfpFingerprint', { mono: true, placeholder: 'hash string' })}
         </>
       )
@@ -475,9 +475,9 @@ function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
     case 'TLSA':
       return (
         <>
-          {desplegable('Certificate Usage', 'tlsaCertificateUsage', USOS_TLSA)}
-          {desplegable('Selector', 'tlsaSelector', SELECTORES_TLSA)}
-          {desplegable('Matching Type', 'tlsaMatchingType', COINCIDENCIAS_TLSA)}
+          {dropdown('Certificate Usage', 'tlsaCertificateUsage', USOS_TLSA)}
+          {dropdown('Selector', 'tlsaSelector', SELECTORES_TLSA)}
+          {dropdown('Matching Type', 'tlsaMatchingType', COINCIDENCIAS_TLSA)}
           <Field label="Certificate Association Data">
             {(id) => (
               <Textarea
@@ -616,7 +616,7 @@ MII...
             Enable DNSSEC Validation
           </label>
           <GroupRow modal label="Network Proxy">
-            {TIPOS_PROXY.map((x) => (
+            {PROXY_TYPES.map((x) => (
               <label key={x.value} className={styles.chk}>
                 <input
                   type="radio"

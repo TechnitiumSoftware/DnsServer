@@ -15,10 +15,10 @@ node.
 function Ejemplo({ comoFila = false }: { comoFila?: boolean } = {}) {
   return (
     <Menu etiqueta="Opciones" rotulo="Opciones" comoFila={comoFila}>
-      {(cerrar) => (
+      {(close) => (
         <>
-          <button role="menuitem" onClick={cerrar}>Uno</button>
-          <button role="menuitem" onClick={cerrar}>Dos</button>
+          <button role="menuitem" onClick={close}>Uno</button>
+          <button role="menuitem" onClick={close}>Dos</button>
         </>
       )}
     </Menu>
@@ -36,9 +36,9 @@ describe('Menu', () => {
   })
 
   it('it reports on opening, for whoever needs to check the state just before', async () => {
-    const abiertas: number[] = []
+    const openOnes: number[] = []
     render(
-      <Menu etiqueta="Opciones" rotulo="Opciones" onAbrir={() => abiertas.push(1)}>
+      <Menu etiqueta="Opciones" rotulo="Opciones" onAbrir={() => openOnes.push(1)}>
         {() => <button role="menuitem">Uno</button>}
       </Menu>,
     )
@@ -46,7 +46,7 @@ describe('Menu', () => {
     await userEvent.click(b)
     await userEvent.click(b) // cerrar no avisa
     await userEvent.click(b)
-    expect(abiertas).toHaveLength(2)
+    expect(openOnes).toHaveLength(2)
   })
 
   it('Escape closes it and returns the focus to the trigger', async () => {

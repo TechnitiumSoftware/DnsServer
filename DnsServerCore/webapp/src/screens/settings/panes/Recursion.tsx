@@ -1,5 +1,5 @@
 import {
-  Avisos,
+  Notices,
   Block,
   Check,
   GroupRow,
@@ -8,7 +8,7 @@ import {
   Row,
   TextRow,
   Warning,
-  ajustesStyles as ajustes,
+  settingsStyles as settings,
 } from '../parts'
 import { Textarea } from '../../../ui/Field'
 import type { PaneProps } from './tipos'
@@ -71,7 +71,7 @@ export function Recursion({ f, set, en }: PaneProps) {
             <Textarea
               mono
               id={id}
-              className={ajustes.area}
+              className={settings.area}
               rows={5}
               spellCheck={false}
               disabled={!en.recursionNetworkACL}
@@ -81,7 +81,7 @@ export function Recursion({ f, set, en }: PaneProps) {
           )}
         </Row>
 
-        <Avisos>
+        <Notices>
           <Note>
             Disable recursion if you wish this server to act only as authoritative name server for
             the configured zones.
@@ -92,13 +92,13 @@ export function Recursion({ f, set, en }: PaneProps) {
             option is not about recursive resolution itself but about the Recursion Desired (RD)
             flag in the incoming DNS requests.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Recursive Resolver">
         <GroupRow label="Recursive Resolver">
           <Check
-            conmutador
+            toggle
             label="Randomize Name"
             checked={f.randomizeName}
             onChange={(v) => set({ randomizeName: v })}
@@ -117,7 +117,7 @@ export function Recursion({ f, set, en }: PaneProps) {
             }
           />
           <Check
-            conmutador
+            toggle
             label="QNAME Minimization"
             checked={f.qnameMinimization}
             onChange={(v) => set({ qnameMinimization: v })}
@@ -132,7 +132,7 @@ export function Recursion({ f, set, en }: PaneProps) {
             }
           />
           <Check
-            conmutador
+            toggle
             label="Locally Served DNS Zones"
             checked={f.locallyServedDnsZones}
             onChange={(v) => set({ locallyServedDnsZones: v })}
@@ -153,14 +153,14 @@ export function Recursion({ f, set, en }: PaneProps) {
             }
           />
         </GroupRow>
-        <Avisos>
+        <Notices>
           <Warning>
             Enabling the <b>Randomize Name</b> option may cause some domain names to fail to resolve
             due to their name servers dropping the requests or sending the QNAME in response with a
             different case causing mismatch. The DNS Server can already detect DNS spoofing attack
             attempts and switch to TCP protocol automatically so its safe to not use this feature.
           </Warning>
-        </Avisos>
+        </Notices>
       </Block>
 
       <Block title="Resolver Options">
@@ -200,7 +200,7 @@ export function Recursion({ f, set, en }: PaneProps) {
           suffix="(valid range 10-30; default 16)"
           help="The maximum stack count the recursive resolver must use for resolving a domain name."
         />
-        <Avisos>
+        <Notices>
           <Note>
             The DNS Server supports EDNS and thus all outbound recursive resolution requests will
             have an OPT record for it in the additional section. If a name server does not respond
@@ -214,7 +214,7 @@ export function Recursion({ f, set, en }: PaneProps) {
             name servers most of the time. Since each domain name has a different set of name
             servers, it may take a while before the algorithm learns about them.
           </Note>
-        </Avisos>
+        </Notices>
       </Block>
     </>
   )

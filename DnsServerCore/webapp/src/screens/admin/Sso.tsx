@@ -6,15 +6,15 @@ import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import { getSsoConfig, setSsoConfig, type SsoConfig } from '../../api/admin'
-import { serializarTabla, type Cell } from './tabla'
+import { serializeTable, type Cell } from './tabla'
 import {
-  avisoDeFallo,
+  noticeFromFailure,
   Check,
-  Confirmar,
+  Confirm,
   adminStyles as styles,
-  type Aviso,
+  type Notice,
 } from './partes'
-import { TablaEditable } from '../../ui/TablaEditable'
+import { EditableTable } from '../../ui/TablaEditable'
 import { GroupRow, Row } from '../../ui/Form'
 
 /*
@@ -44,7 +44,7 @@ the PAGE, not in a modal: upstream calls `showAlert` with no destination.
 
 interface Props {
   token: string | null
-  onAviso: (a: Aviso) => void
+  onAviso: (a: Notice) => void
 }
 
 interface FilaGrupo {
@@ -65,7 +65,7 @@ export function Sso({ token, onAviso }: Props) {
   const [onlyMapped, setOnlyMapped] = useState(false)
   const [groupMap, setGroupMap] = useState<FilaGrupo[]>([])
   const [busy, setBusy] = useState(false)
-  const [confirmar, setConfirmar] = useState<null | 'authority' | 'metadata'>(null)
+  const [confirm, setConfirmar] = useState<null | 'authority' | 'metadata'>(null)
 
   function aplicar(c: SsoConfig) {
     setEnabled(c.ssoEnabled)
@@ -82,21 +82,21 @@ export function Sso({ token, onAviso }: Props) {
     if (c.localGroups != null) setGruposLocales(c.localGroups)
   }
 
-  const cargar = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     const outcome = await getSsoConfig(token)
     setLoading(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
     aplicar(outcome.data.response)
   }, [token, onAviso])
 
   useEffect(() => {
-    void cargar()
-  }, [cargar])
+    void load()
+  }, [load])
 
   /*
   `loadAdminSsoConfig` (auth.js:2196-2204): the Redirect URI that has to be
@@ -108,7 +108,7 @@ export function Sso({ token, onAviso }: Props) {
     return base.endsWith('/') ? `${base}sso/callback` : `${base}/sso/callback`
   })()
 
-  function guardar(saltarAuthority = false, saltarMetadata = false) {
+  function save(saltarAuthority = false, saltarMetadata = false) {
     if (enabled && authority === '') {
       onAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Authority URL.' })
       return
@@ -122,20 +122,20 @@ export function Sso({ token, onAviso }: Props) {
       return
     }
 
-    const s = serializarTabla(scopes.map((v): Cell[] => [{ tipo: 'text', value: v }]))
+    const s = serializeTable(scopes.map((v): Cell[] => [{ type: 'text', value: v }]))
     if (!s.ok) {
-      onAviso({ type: 'warning', title: s.fallo.title, text: s.fallo.text })
+      onAviso({ type: 'warning', title: s.failure.title, text: s.failure.text })
       return
     }
 
-    const g = serializarTabla(
+    const g = serializeTable(
       groupMap.map((f): Cell[] => [
-        { tipo: 'text', value: f.remoteGroup },
-        { tipo: 'text', value: f.localGroup },
+        { type: 'text', value: f.remoteGroup },
+        { type: 'text', value: f.localGroup },
       ]),
     )
     if (!g.ok) {
-      onAviso({ type: 'warning', title: g.fallo.title, text: g.fallo.text })
+      onAviso({ type: 'warning', title: g.failure.title, text: g.failure.text })
       return
     }
 
@@ -167,7 +167,7 @@ export function Sso({ token, onAviso }: Props) {
     setBusy(false)
 
     if (outcome.kind !== 'ok') {
-      onAviso(avisoDeFallo(outcome))
+      onAviso(noticeFromFailure(outcome))
       return
     }
     aplicar(outcome.data.response)
@@ -194,7 +194,7 @@ export function Sso({ token, onAviso }: Props) {
 
         <GroupRow label="Single Sign-On (SSO)">
           <Check
-            conmutador
+            toggle
             label="Enable Single Sign-On (SSO)"
             checked={enabled}
             onChange={setEnabled}
@@ -233,7 +233,7 @@ export function Sso({ token, onAviso }: Props) {
         />
 
         <GroupRow label="Scopes">
-                <TablaEditable
+                <EditableTable
           className={styles.edit}
                   header={
                     <>
@@ -264,7 +264,7 @@ export function Sso({ token, onAviso }: Props) {
                       </td>
                     </tr>
                   ))}
-                </TablaEditable>
+                </EditableTable>
                 <div>
                   <Button onClick={() => setScopes((list) => [...list, ''])}>Add</Button>
                 </div>
@@ -279,14 +279,14 @@ export function Sso({ token, onAviso }: Props) {
         <GroupRow label="SSO User Sign Up">
           <div className={styles.group}>
             <Check
-              conmutador
+              toggle
               label="Allow New User Sign Up"
               checked={allowSignup}
               onChange={setAllowSignup}
               help="Enable to allow automatically provisioning of user accounts for new users signing in via Single Sign-On (SSO). Keep this option disabled if you do not expect new SSO users to sign up."
             />
             <Check
-              conmutador
+              toggle
               label="Allow Sign Up Only For Mapped Users"
               checked={onlyMapped}
               onChange={setOnlyMapped}
@@ -304,7 +304,7 @@ export function Sso({ token, onAviso }: Props) {
         </GroupRow>
 
         <GroupRow label="Group Map (Optional)">
-                <TablaEditable
+                <EditableTable
           className={styles.edit}
                   header={
                     <>
@@ -358,7 +358,7 @@ export function Sso({ token, onAviso }: Props) {
                       </td>
                     </tr>
                   ))}
-                </TablaEditable>
+                </EditableTable>
                 <div>
                   <Button
                     onClick={() =>
@@ -448,13 +448,13 @@ export function Sso({ token, onAviso }: Props) {
       </Panel>
 
       <div className={styles.bar}>
-        <Button variant="primary" disabled={busy} onClick={() => guardar()}>
+        <Button variant="primary" disabled={busy} onClick={() => save()}>
           Save Config
         </Button>
       </div>
 
-      <Confirmar
-        abierto={confirmar === 'authority'}
+      <Confirm
+        open={confirm === 'authority'}
         titulo="Save Config"
         text="WARNING! The SSO Authority must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
         etiqueta="OK"
@@ -462,11 +462,11 @@ export function Sso({ token, onAviso }: Props) {
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => {
           setConfirmar(null)
-          guardar(true)
+          save(true)
         }}
       />
-      <Confirmar
-        abierto={confirmar === 'metadata'}
+      <Confirm
+        open={confirm === 'metadata'}
         titulo="Save Config"
         text="WARNING! The Metadata Address must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
         etiqueta="OK"
@@ -474,7 +474,7 @@ export function Sso({ token, onAviso }: Props) {
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => {
           setConfirmar(null)
-          guardar(true, true)
+          save(true, true)
         }}
       />
     </>
