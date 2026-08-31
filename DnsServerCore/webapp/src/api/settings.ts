@@ -1,7 +1,7 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-La familia `settings`. Seis endpoints salen de la consola antigua:
+The `settings` family. Six endpoints come from the old console:
 
   settings/get                      main.js:891  (refreshDnsSettings)
   settings/set                      main.js:2189 (saveDnsSettings, POST)
@@ -10,25 +10,26 @@ La familia `settings`. Seis endpoints salen de la consola antigua:
   settings/backup                   main.js:3067 (descarga, token de un solo uso)
   settings/restore                  main.js:3137 (POST multipart)
 
-El séptimo control de la pantalla, «Flush Cache», NO es de esta familia: llama a
-`cache/flush` (other-zones.js:20). Se declara aquí porque la barra de acciones de
-Settings es su único consumidor hasta que llegue la fase 5 con `src/api/cache.ts`;
-cuando exista, se mueve allí.
+The screen's seventh control, "Flush Cache", is NOT of this family: it calls
+`cache/flush` (other-zones.js:20). It is declared here because the Settings
+action bar is its only consumer until phase 5 arrives with `src/api/cache.ts`;
+once that exists, it moves there.
 
-Tres cosas comprobadas contra una instancia v15.4 y que NO se deducen del código:
+Three things checked against a v15.4 instance that are NOT deducible from the code:
 
-  1. `settings/get` OMITE las claves nulas en vez de mandarlas a null. Con la
-     instalación recién hecha no aparecen ni `temporaryDisableBlockingTill`, ni
-     `blockListNextUpdatedOn`, ni `clusterNodes`. Por eso son opcionales aquí y
-     `loadDnsSettings` las compara con `== null`: ausente y null valen igual.
-     En cambio `blockListUrls`, `proxy`, `defaultResponsiblePerson` y los cuatro
-     caminos de certificado sí llegan explícitamente a `null`.
-  2. `proxy` es un objeto anidado (`type`/`address`/`port`/`username`/`password`/
-     `bypass`) al leer, pero al guardar se manda PLANO: `proxyType`,
-     `proxyAddress`… Y cuando el tipo es `none` NO se manda ningún otro campo
-     de proxy (main.js:2122-2123): la lista de bypass se pierde a propósito.
-  3. `settings/set` devuelve los ajustes completos, igual que `get`, y upstream
-     los usa para repintar el formulario. Así se ve el saneado del servidor.
+  1. `settings/get` OMITS the null keys instead of sending them as null. On a
+     fresh install neither `temporaryDisableBlockingTill`, nor
+     `blockListNextUpdatedOn`, nor `clusterNodes` appear. That is why they are
+     optional here and `loadDnsSettings` compares them with `== null`: absent and
+     null count the same. `blockListUrls`, `proxy`, `defaultResponsiblePerson`
+     and the four certificate paths, on the other hand, do arrive explicitly as
+     `null`.
+  2. `proxy` is a nested object (`type`/`address`/`port`/`username`/`password`/
+     `bypass`) when reading, but when saving it is sent FLAT: `proxyType`,
+     `proxyAddress`… And when the type is `none` NO other proxy field is sent at
+     all (main.js:2122-2123): the bypass list is lost on purpose.
+  3. `settings/set` returns the complete settings, just like `get`, and upstream
+     uses them to redraw the form. That is how the server's sanitising shows.
 */
 
 export interface QpmPrefixLimit {
@@ -58,7 +59,7 @@ export interface DnsSettings {
   clusterInitialized?: boolean
   clusterNodes?: string[]
 
-  // General — parámetros locales
+  // General — local parameters
   dnsServerDomain: string
   dnsServerLocalEndPoints: string[] | null
   dnsServerIPv4SourceAddresses: string[] | null
@@ -75,7 +76,7 @@ export interface DnsSettings {
   zoneTransferAllowedNetworks: string[]
   notifyAllowedNetworks: string[]
 
-  // General — actualización de software
+  // General — software update
   dnsServerEnableCheckForUpdate: boolean
   dnsAppsEnableAutomaticUpdate: boolean
 
@@ -94,7 +95,7 @@ export interface DnsSettings {
   eDnsClientSubnetIpv4Override: string | null
   eDnsClientSubnetIpv6Override: string | null
 
-  // General — límite de consultas por minuto
+  // General — queries-per-minute limit
   qpmPrefixLimitsIPv4: QpmPrefixLimit[]
   qpmPrefixLimitsIPv6: QpmPrefixLimit[]
   qpmLimitSampleMinutes: number
@@ -220,8 +221,8 @@ export interface DnsSettings {
   maxStatFileDays: number
 }
 
-/** `settings/get`. `node` existe para el modo clúster; con una sola instancia
- *  upstream manda la cadena vacía y el servidor responde con sus propios ajustes. */
+/** `settings/get`. `node` exists for cluster mode; with a single instance
+ *  upstream sends the empty string and the server answers with its own settings. */
 export async function getSettings(
   token: string | null,
   node = '',
@@ -233,10 +234,10 @@ export async function getSettings(
   return outcome.kind === 'ok' ? outcome.data.response : null
 }
 
-/** `settings/set`. Va por POST con el cuerpo urlencoded, igual que upstream, y
- *  devuelve los ajustes ya saneados por el servidor para repintar el formulario.
- *  Se devuelve el `ApiOutcome` entero porque la pantalla necesita el
- *  `errorMessage` del servidor para el aviso `Error!`. */
+/** `settings/set`. Goes by POST with the body urlencoded, just like upstream,
+ *  and returns the settings already sanitised by the server so the form can be
+ *  redrawn. The whole `ApiOutcome` is returned because the screen needs the
+ *  server's `errorMessage` for the `Error!` alert. */
 export async function setSettings(
   token: string | null,
   body: Record<string, string>,
@@ -248,13 +249,13 @@ export async function setSettings(
   })
 }
 
-/** `settings/forceUpdateBlockLists`. Sin parámetros: fuerza la descarga ya. */
+/** `settings/forceUpdateBlockLists`. No parameters: forces the download now. */
 export async function forceUpdateBlockLists(token: string | null): Promise<boolean> {
   const outcome = await apiRequest('settings/forceUpdateBlockLists', { token })
   return outcome.kind === 'ok'
 }
 
-/** `settings/temporaryDisableBlocking`. Devuelve hasta cuándo queda desactivado. */
+/** `settings/temporaryDisableBlocking`. Returns until when it stays disabled. */
 export async function temporaryDisableBlocking(
   token: string | null,
   minutes: string,
@@ -266,8 +267,8 @@ export async function temporaryDisableBlocking(
   return outcome.kind === 'ok' ? outcome.data.response.temporaryDisableBlockingTill : null
 }
 
-/** Los trece elementos del backup, en el orden y con las etiquetas de upstream
- *  (index.html:6291-6385). `logs` es el único que NO viene marcado. */
+/** The thirteen items of the backup, in upstream's order and with its labels
+ *  (index.html:6291-6385). `logs` is the only one that does NOT come checked. */
 export const ELEMENTOS_BACKUP = [
   { key: 'authConfig', label: 'Authentication Config File (auth.config)' },
   { key: 'clusterConfig', label: 'Cluster Config File (cluster.config)' },
@@ -286,7 +287,7 @@ export const ELEMENTOS_BACKUP = [
 
 export type ElementoBackup = (typeof ELEMENTOS_BACKUP)[number]['key']
 
-/** Estado inicial de los dos modales: todo marcado menos los logs
+/** Initial state of the two modals: everything checked except the logs
  *  (`resetBackupSettingsModal`, main.js:3049; `resetRestoreSettingsModal`, 3116). */
 export function seleccionInicialBackup(): Record<string, boolean> {
   return Object.fromEntries(ELEMENTOS_BACKUP.map((e) => [e.key, e.key !== 'logs']))
@@ -303,9 +304,10 @@ export function parametrosBackup(
 }
 
 /*
-`settings/restore` manda el fichero por multipart y el resto de opciones en la
-QUERY, no en el cuerpo (main.js:3170). Se respeta al pie de la letra: la ruta
-lleva ya la query montada y `apiRequest` sólo añade el FormData con el zip.
+`settings/restore` sends the file by multipart and the rest of the options in the
+QUERY, not in the body (main.js:3170). That is honoured to the letter: the path
+comes with the query already built and `apiRequest` only adds the FormData with
+the zip.
 */
 export async function restoreSettings(
   token: string | null,
@@ -324,16 +326,16 @@ export async function restoreSettings(
   })
 }
 
-/** `cache/flush` (other-zones.js:20). Vive aquí de prestado: ver cabecera. */
+/** `cache/flush` (other-zones.js:20). It lives here on loan: see the header. */
 export async function flushCache(token: string | null, node = ''): Promise<boolean> {
   const outcome = await apiRequest('cache/flush', { token, body: { node } })
   return outcome.kind === 'ok'
 }
 
 /*
-`settings/getTsigKeyNames` pertenece a esta familia pero **lo consume la
-pantalla de Zones** (zone.js), para elegir la clave TSIG en las opciones de una
-zona y en el SOA de una secundaria. Vive aquí por familia, no por pantalla.
+`settings/getTsigKeyNames` belongs to this family but **it is consumed by the
+Zones screen** (zone.js), to pick the TSIG key in a zone's options and in a
+secondary's SOA. It lives here by family, not by screen.
 */
 export async function getTsigKeyNames(token: string | null, node = ''): Promise<string[]> {
   const outcome = await apiRequest<{ response: { tsigKeyNames: string[] } }>(

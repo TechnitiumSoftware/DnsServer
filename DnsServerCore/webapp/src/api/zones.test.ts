@@ -40,20 +40,20 @@ describe('zones', () => {
   })
 
   it('si el servidor omite la paginación, se rellena sin romper', async () => {
-    // Comprobado en v15.4: sin pageNumber la respuesta trae sólo `zones`.
+    // Checked on v15.4: without pageNumber the response brings only `zones`.
     vi.spyOn(client, 'apiRequest').mockResolvedValue(env({ zones: [{ name: 'a' }, { name: 'b' }] }))
     const r = await listZones('t')
     expect(r).toMatchObject({ kind: 'ok', data: { pageNumber: 1, totalPages: 1, totalZones: 2 } })
   })
 
   /*
-  `listZones` sube el fallo entero y los demás siguen devolviendo `null`.
+  `listZones` raises the whole failure and the rest still return `null`.
 
-  La diferencia no es capricho: la lista de zonas es lo primero que se pinta al
-  entrar en la pantalla, así que su fallo es el que el usuario ve y hay que
-  contárselo con el motivo —antes se decía «Unable to reach the DNS server.»
-  incluso cuando el servidor había contestado—. Los otros tres alimentan
-  diálogos que ya avisan por su cuenta.
+  The difference is not a whim: the zone list is the first thing drawn on
+  entering the screen, so its failure is the one the user sees and it has to be
+  told with its reason —it used to say "Unable to reach the DNS server." even
+  when the server had answered. The other three feed dialogs that already warn on
+  their own.
   */
   it('listZones sube el fallo con su motivo; los demás devuelven null', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'invalid-token' })
@@ -77,7 +77,7 @@ describe('zones', () => {
       overwriteZone: false,
       overwriteSoaSerial: false,
     })
-    // Los interruptores viajan en la QUERY, no en el cuerpo (zone.js:1287).
+    // The switches travel in the QUERY, not in the body (zone.js:1287).
     expect(spy.mock.calls[0][0]).toContain('zones/import?')
     expect(spy.mock.calls[0][0]).toContain('overwrite=true')
     expect(spy.mock.calls[0][0]).toContain('overwriteZone=false')
@@ -96,8 +96,8 @@ describe('zones', () => {
   })
 
   it('exportar una zona pasa por el token de un solo uso y SIN `ts`', async () => {
-    // zone.js:1322 no añade el rompe-cachés que sí llevan las descargas de
-    // logs y la copia de ajustes. La URL tiene que salir igual.
+    // zone.js:1322 does not add the cache-buster that the log downloads and the
+    // settings backup do carry. The URL has to come out the same.
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
     await exportZone('t', 'casa.test')
     expect(spy).toHaveBeenCalledWith('t', 'zones/export', { zone: 'casa.test', node: '' })

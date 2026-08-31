@@ -22,8 +22,8 @@ function espiar() {
 
 describe('apps — endpoints de lectura', () => {
   it('lista las instaladas por `apps/list`, con el nodo del clúster', async () => {
-    // `node` lo manda upstream también aquí (zone.js:4440, al cargar los
-    // nombres de app del modal de registro). Con una sola instancia va vacío.
+    // upstream sends `node` here too (zone.js:4440, when loading the record
+    // modal's app names). With a single instance it goes empty.
     const spy = espiar()
     await listApps('t')
     const call = spy.mock.calls.find((c) => c[0] === 'apps/list')
@@ -38,9 +38,9 @@ describe('apps — endpoints de lectura', () => {
   })
 
   /*
-  El `node` es el nodo primario del clúster: upstream lee SIEMPRE la config del
-  primario para no leer una copia sin propagar (apps.js:460). Sin clúster, lo
-  que se manda es la cadena vacía, y el servidor la ignora.
+  The `node` is the cluster's primary node: upstream ALWAYS reads the config from
+  the primary so as not to read an unpropagated copy (apps.js:460). Without a
+  cluster, what gets sent is the empty string, and the server ignores it.
   */
   it('pide la config con `name` y con `node`, vacío por defecto', async () => {
     const spy = espiar()
@@ -89,8 +89,8 @@ describe('apps — endpoints de escritura', () => {
 })
 
 /*
-Subida multipart. El cliente todavía no la soporta, así que aquí sólo se
-comprueba lo que SÍ se puede comprobar: la ruta y la forma del FormData.
+Multipart upload. The client does not support it yet, so what is checked here is
+only what CAN be checked: the path and the shape of the FormData.
 */
 describe('apps — subida de zip', () => {
   it('arma la petición de instalar con el nombre en la ruta y el zip en el form', () => {
@@ -110,7 +110,7 @@ describe('apps — subida de zip', () => {
     const zip = new File(['PK'], 'app.zip', { type: 'application/zip' })
     await installApp('t', 'NO DATA', zip)
     const [path, opts] = spy.mock.calls[0]
-    // El servidor da 404 por GET, así que el cliente fuerza POST al ver `form`.
+    // The server gives a 404 by GET, so the client forces POST on seeing `form`.
     expect(path).toBe('apps/install?name=NO+DATA')
     expect(opts?.form).toBeInstanceOf(FormData)
     expect((opts?.form as FormData).get('fileAppZip')).toBeInstanceOf(File)

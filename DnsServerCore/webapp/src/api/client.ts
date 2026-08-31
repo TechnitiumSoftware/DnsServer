@@ -1,21 +1,21 @@
 import { urlApi } from '../app/base'
 /*
-Cliente HTTP de la consola. Réplica del helper `HTTPRequest` de la consola
-antigua (upstream/master:DnsServerCore/www/js/common.js:28).
+The console's HTTP client. A replica of the old console's `HTTPRequest` helper
+(upstream/master:DnsServerCore/www/js/common.js:28).
 
-Tres cosas que son contrato del servidor y no preferencias nuestras:
+Three things that are the server's contract and not our preferences:
 
-  1. Las rutas van en RELATIVO y sin barra inicial. El servidor honra
-     X-Forwarded-Prefix y monta un PathBase (DnsWebService.cs:1943-1945), así
-     que una barra inicial rompe cualquier instalación tras un proxy con prefijo.
+  1. Paths go RELATIVE and without a leading slash. The server honours
+     X-Forwarded-Prefix and mounts a PathBase (DnsWebService.cs:1943-1945), so a
+     leading slash breaks any install behind a proxy with a prefix.
 
-  2. NO se desenvuelve la respuesta. `user/login` y `user/session/get` devuelven
-     la sesión PLANA; el resto de endpoints la envuelven en `response`.
-     Verificado contra una instancia v15.4. Igual que upstream, aquí se entrega
-     el JSON tal cual y decide quien llama.
+  2. The response is NOT unwrapped. `user/login` and `user/session/get` return
+     the session FLAT; every other endpoint wraps it in `response`. Verified
+     against a v15.4 instance. Just like upstream, the JSON is handed over as it
+     came and the caller decides.
 
-  3. Los cuatro valores de `status` son `ok`, `2fa-required`, `invalid-token` y
-     `error`. Verificados en DnsWebService.cs:2475-2543.
+  3. The four values of `status` are `ok`, `2fa-required`, `invalid-token` and
+     `error`. Verified in DnsWebService.cs:2475-2543.
 */
 
 export type ApiOutcome<T = unknown> =
@@ -29,19 +29,19 @@ export interface ApiOptions {
   body?: Record<string, string>
   token?: string | null
   /*
-  Subida multipart. La consola tiene cinco: instalar y actualizar app, importar
-  zona, importar registros y restaurar ajustes (apps.js:348,392 · zone.js:1273,
-  3039 · main.js:3169). Van con FormData, no con formulario codificado, así que
-  NO se debe fijar Content-Type a mano: el navegador lo pone con su boundary.
-  Los campos de `body` viajan también dentro del FormData.
+  Multipart upload. The console has five: install and update app, import zone,
+  import records and restore settings (apps.js:348,392 · zone.js:1273,3039 ·
+  main.js:3169). They go with FormData, not with an encoded form, so
+  Content-Type must NOT be set by hand: the browser sets it with its boundary.
+  The fields of `body` travel inside the FormData too.
   */
   file?: { campo: string; archivo: File }
-  /** Alternativa a `file` cuando quien llama ya tiene armado el FormData. */
+  /** Alternative to `file` when the caller already built the FormData. */
   form?: FormData
   /*
-  Cuerpo en texto plano. Lo pide una sola pantalla: importar una zona pegando
-  el fichero en un textarea manda el texto crudo con `Content-Type: text/plain`
-  en vez de multipart (zone.js:1281). El servidor distingue por ese tipo.
+  Plain-text body. One single screen asks for it: importing a zone by pasting
+  the file into a textarea sends the raw text with `Content-Type: text/plain`
+  instead of multipart (zone.js:1281). The server tells them apart by that type.
   */
   texto?: string
 }
@@ -52,20 +52,22 @@ interface Envelope {
 }
 
 /*
-Qué hacer cuando el servidor dice que la sesión ya no vale.
+What to do when the server says the session is no longer valid.
 
-Upstream termina la sesión SIEMPRE: `invalid-token` llama a `showPageLogin()`
-—que borra el token y enseña el login— en las sesenta y cuatro llamadas que lo
-declaran, y en las que no, cae al `window.location = "/"` de `common.js:147`.
+Upstream ALWAYS ends the session: `invalid-token` calls `showPageLogin()` —which
+clears the token and shows the login— in the sixty-four calls that declare it,
+and in the ones that do not, it falls through to the `window.location = "/"` of
+`common.js:147`.
 
-Aquí no lo hacía nadie. Cada pantalla enseñaba «Invalid token or session
-expired.» y se quedaba donde estaba, con la consola aparentemente usable y todas
-las acciones fallando una tras otra; para volver a entrar había que saber que
-tocaba recargar. Aparte de incómodo, es una consola de administración: no debe
-seguir en pie con una sesión que el servidor ya ha rechazado.
+Here nobody did. Every screen showed "Invalid token or session expired." and
+stayed where it was, with the console apparently usable and every action failing
+one after another; to get back in you had to know that a reload was due. Beyond
+being awkward, this is an administration console: it must not stay standing with
+a session the server has already rejected.
 
-Se resuelve en un solo sitio —aquí— y no en las treinta pantallas, porque la
-regla es una: la registra `SessionProvider`, que es quien tiene la sesión.
+It is solved in a single place —here— and not in the thirty screens, because the
+rule is one: `SessionProvider` registers it, since it is the one that holds the
+session.
 */
 let alCaducar: (() => void) | null = null
 
@@ -98,7 +100,7 @@ export async function apiRequest<T = unknown>(
     fd.append(opts.file.campo, opts.file.archivo)
     init.method = 'POST'
     init.body = fd
-    // Sin Content-Type a mano: el navegador añade el boundary.
+    // No Content-Type by hand: the browser adds the boundary.
   } else if (body) {
     const encoded = new URLSearchParams(body).toString()
     if (method === 'POST') {

@@ -20,10 +20,10 @@ function ok(data: unknown) {
   return { kind: 'ok' as const, data }
 }
 
-/* Un scope tal y como lo devuelve de verdad una instancia v15.4 recién
-   instalada: SIN `domainSearchList`, `serverAddress`, `serverHostName`,
-   `bootFileName`, `winsServers`, `ntpServers`, `staticRoutes`, `vendorInfo`,
-   `capwapAcIpAddresses`, `tftpServerAddresses` ni `genericOptions`. */
+/* A scope exactly as a freshly installed v15.4 instance really returns it:
+   WITHOUT `domainSearchList`, `serverAddress`, `serverHostName`, `bootFileName`,
+   `winsServers`, `ntpServers`, `staticRoutes`, `vendorInfo`,
+   `capwapAcIpAddresses`, `tftpServerAddresses` or `genericOptions`. */
 const SCOPE_REAL: DhcpScope = {
   name: 'Default',
   startingAddress: '192.168.1.1',
@@ -64,11 +64,11 @@ describe('api/dhcp — concesiones', () => {
   })
 
   /*
-  Esta prueba afirmaba lo contrario —«devuelve lista vacía si el servidor
-  falla»— y estaba fijando el fallo: una lista vacía y una llamada caída se
-  pintan igual, así que la pantalla decía «No Lease Found» cuando lo que
-  había pasado es que no había respuesta. Ahora el fallo sube tal cual, con su
-  mensaje, y es la pantalla la que decide qué enseñar.
+  This test claimed the opposite —"returns an empty list if the server fails"—
+  and was pinning the bug in place: an empty list and a fallen call draw the
+  same, so the screen said "No Lease Found" when what had happened was that
+  there was no response. Now the failure rises as it is, with its message, and it
+  is the screen that decides what to show.
   */
   it('leases/list sube el fallo del servidor, no una lista vacía', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
@@ -111,11 +111,11 @@ describe('api/dhcp — scopes', () => {
   })
 
   /*
-  Esta prueba afirmaba lo contrario —«devuelve lista vacía si el servidor
-  falla»— y estaba fijando el fallo: una lista vacía y una llamada caída se
-  pintan igual, así que la pantalla decía «No Scope Found» cuando lo que
-  había pasado es que no había respuesta. Ahora el fallo sube tal cual, con su
-  mensaje, y es la pantalla la que decide qué enseñar.
+  This test claimed the opposite —"returns an empty list if the server fails"—
+  and was pinning the bug in place: an empty list and a fallen call draw the
+  same, so the screen said "No Scope Found" when what had happened was that
+  there was no response. Now the failure rises as it is, with its message, and it
+  is the screen that decides what to show.
   */
   it('scopes/list sube el fallo del servidor, no una lista vacía', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
@@ -132,7 +132,7 @@ describe('api/dhcp — scopes', () => {
       node: '',
     })
     expect(s?.name).toBe('Default')
-    // Las claves que el servidor omite siguen ausentes: no se inventan nulos.
+    // The keys the server omits stay absent: no nulls are invented.
     expect(s?.staticRoutes).toBeUndefined()
     expect(s?.winsServers).toBeUndefined()
   })
@@ -150,7 +150,7 @@ describe('api/dhcp — scopes', () => {
     const llamada = spy.mock.calls.find((c) => String(c[0]).startsWith('dhcp/scopes/set'))!
     expect(llamada[0]).toBe('dhcp/scopes/set?node=nodo-1')
     expect(llamada[1]).toMatchObject({ method: 'POST', body: { name: 'Default' } })
-    // El nodo NO se duplica en el cuerpo.
+    // The node is NOT duplicated in the body.
     expect(llamada[1]?.body).not.toHaveProperty('node')
   })
 

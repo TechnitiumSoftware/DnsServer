@@ -1,17 +1,17 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-Los tres endpoints de la familia `dashboard`.
+The three endpoints of the `dashboard` family.
 
-La respuesta de `stats/get` viene envuelta en `response` y trae CUATRO conjuntos
-de gráfica, no dos: la principal de líneas y tres de reparto —tipo de respuesta,
-tipo de consulta y protocolo—. Verificado contra v15.4.
+The response of `stats/get` comes wrapped in `response` and brings FOUR chart
+sets, not two: the main line one and three breakdowns —response type, query type
+and protocol. Verified against v15.4.
 */
 
 export const RANGOS = ['LastHour', 'LastDay', 'LastWeek', 'LastMonth', 'LastYear', 'Custom'] as const
 export type Rango = (typeof RANGOS)[number]
 
-/** Etiquetas literales de upstream para cada rango. */
+/** Upstream's literal labels for each range. */
 export const ETIQUETA_RANGO: Record<Rango, string> = {
   LastHour: 'Last Hour',
   LastDay: 'Last Day',
@@ -41,7 +41,7 @@ export interface Stats {
   blockListZones: number
 }
 
-/** Formato de Chart.js, que es el que emite el servidor. */
+/** Chart.js's format, which is the one the server emits. */
 export interface ChartData {
   labelFormat?: string
   labels: string[]
@@ -49,15 +49,15 @@ export interface ChartData {
 }
 
 /*
-Un top NO es sólo nombre y aciertos. Un cliente trae además el dominio que
-resolvió y si el servidor lo estaba limitando, y upstream pinta las dos cosas:
-el dominio debajo del nombre, y la fila en naranja con «(rate limited)» detrás.
-Los dos campos sólo existen en `TopClients`. Comprobado contra v15.4.
+A top is NOT just a name and a hit count. A client also brings the domain it
+resolved and whether the server was rate-limiting it, and upstream draws both:
+the domain under the name, and the row in orange with "(rate limited)" after it.
+The two fields only exist in `TopClients`. Checked against v15.4.
 */
 export interface TopEntry {
   name: string
   hits: number
-  /** Sólo en clientes: el dominio que resolvió. Vacío se pinta como «.». */
+  /** Only on clients: the domain it resolved. Empty is drawn as ".". */
   domain?: string
   /** Sólo en clientes. */
   rateLimited?: boolean
@@ -86,14 +86,14 @@ export async function getDashboardStats(
   }
   const outcome = await apiRequest<{ response: DashboardStats }>('dashboard/stats/get', { token, body })
   /*
-  Devuelve el resultado entero y no `DashboardStats | null`.
+  Returns the whole outcome and not `DashboardStats | null`.
 
-  Con `null` el Dashboard no podía distinguir «el servidor no ha atendido
-  consultas» de «la llamada se cayó», y las dos cosas se pintaban igual: once
-  baldosas a cero y «No queries for this period.». Es la peor mentira de la
-  consola —quien administra un DNS y lee eso concluye que su servidor no está
-  recibiendo tráfico—, y la más fácil de creer, porque tiene toda la pinta de una
-  respuesta normal.
+  With `null` the Dashboard could not tell "the server has served no queries"
+  apart from "the call fell over", and both were drawn the same: eleven tiles at
+  zero and "No queries for this period.". It is the console's worst lie —whoever
+  administers a DNS and reads that concludes their server is receiving no
+  traffic— and the easiest to believe, because it looks exactly like a normal
+  response.
   */
   return outcome.kind === 'ok' ? { kind: 'ok', data: outcome.data.response } : outcome
 }

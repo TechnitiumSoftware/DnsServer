@@ -2,35 +2,35 @@ import { apiRequest, type ApiOutcome } from './client'
 import { openDownload } from './user'
 
 /*
-Familia `zones`, parte de gestión de zonas: 15 endpoints. Los 4 de
-`zones/records/*` viven en registros.ts y los 15 de DNSSEC en dnssec.ts. Entre
-los tres suman los 34 de la fase 4.
+The `zones` family, the zone-management part: 15 endpoints. The 4 of
+`zones/records/*` live in registros.ts and the 15 of DNSSEC in dnssec.ts. Between
+the three they add up to the 34 of phase 4.
 
-DOS PAGINACIONES DISTINTAS, y esto es fácil de equivocar:
+TWO DIFFERENT PAGINATIONS, and this one is easy to get wrong:
 
-  · `zones/list` PAGINA EN EL SERVIDOR: se le mandan `pageNumber` y
-    `zonesPerPage`, y devuelve `pageNumber`, `totalPages` y `totalZones`.
-    Ojo: esos tres campos **sólo aparecen si mandas `pageNumber`**; sin él la
-    respuesta trae únicamente `zones`.
+  · `zones/list` PAGINATES ON THE SERVER: it is sent `pageNumber` and
+    `zonesPerPage`, and returns `pageNumber`, `totalPages` and `totalZones`.
+    Careful: those three fields **only appear if you send `pageNumber`**;
+    without it the response brings only `zones`.
 
-  · `zones/records/get` NO pagina (ver registros.ts).
+  · `zones/records/get` does NOT paginate (see registros.ts).
 
-`node` es el nodo del clúster al que se dirige la petición
-(`optZonesClusterNode`). Con una sola instancia va vacío, y así lo manda
-upstream: la cadena `&node=` viaja igualmente en las 40 llamadas de zone.js.
+`node` is the cluster node the request is aimed at (`optZonesClusterNode`). With
+a single instance it goes empty, and that is how upstream sends it: the string
+`&node=` travels all the same in the 40 calls of zone.js.
 */
 
 /*
-Sospecha de todo campo opcional. Comprobado contra una v15.4 recién instalada:
+Be suspicious of every optional field. Checked against a freshly installed v15.4:
 
-  · `zones/list` NO devuelve los cinco que gobiernan el estado (`isExpired`,
-    `validationFailed`, `syncFailed`, `expiry`) ni `nameIdn` salvo en zonas
-    secundarias, caducadas o con nombre internacionalizado.
+  · `zones/list` does NOT return the five that govern the state (`isExpired`,
+    `validationFailed`, `syncFailed`, `expiry`) nor `nameIdn` except on
+    secondary, expired or internationalised-name zones.
 
-  · Y lo que menos se espera: **una zona Catalog o Forwarder omite
-    `dnssecStatus` y `hasDnssecPrivateKeys`**, y la Catalog omite además
-    `catalog`. Son tipos que no pueden firmarse, así que el servidor ni los
-    escribe. Declararlos obligatorios miente sobre la mitad de la lista.
+  · And the least expected one: **a Catalog or Forwarder zone omits
+    `dnssecStatus` and `hasDnssecPrivateKeys`**, and the Catalog also omits
+    `catalog`. They are types that cannot be signed, so the server does not even
+    write them. Declaring them required lies about half the list.
 */
 export interface Zone {
   name: string
@@ -47,17 +47,17 @@ export interface Zone {
   isExpired?: boolean
   validationFailed?: boolean
   syncFailed?: boolean
-  /** Nombre internacionalizado; sólo en zonas con caracteres no ASCII. */
+  /** Internationalised name; only on zones with non-ASCII characters. */
   nameIdn?: string
-  /** Sólo en zonas internas del servidor: no se pueden borrar ni editar. */
+  /** Only on the server's internal zones: they cannot be deleted or edited. */
   internal?: boolean
 }
 
 /**
- * El estado que se pinta en la fila, con la prioridad EXACTA de
- * `refreshZones` (zone.js:733-745). No es alfabética ni por gravedad: es la
- * cadena de `else if` de upstream y el orden importa — una zona caducada y con
- * notificación fallida dice «Expired», no «Notify Failed».
+ * The state drawn in the row, with the EXACT priority of `refreshZones`
+ * (zone.js:733-745). It is neither alphabetical nor by severity: it is
+ * upstream's chain of `else if` and the order matters — a zone that is expired
+ * and has a failed notify says "Expired", not "Notify Failed".
  */
 export type EstadoZona = 'Disabled' | 'Expired' | 'Validation Failed' | 'Sync Failed' | 'Notify Failed' | 'Enabled'
 
@@ -70,14 +70,14 @@ export function estadoDeZona(z: Zone): EstadoZona {
   return 'Enabled'
 }
 
-/** El texto del tipo: sólo los dos «Secondary…» se parten en dos palabras. */
+/** The type's text: only the two "Secondary…" split into two words. */
 export function etiquetaTipo(type: string): string {
   if (type === 'SecondaryForwarder') return 'Secondary Forwarder'
   if (type === 'SecondaryCatalog') return 'Secondary Catalog'
   return type
 }
 
-/** El nombre que se pinta: la raíz es `<root>` y un IDN lleva los dos. */
+/** The name that is drawn: the root is `<root>` and an IDN carries both. */
 export function nombreDeZona(z: Pick<Zone, 'name' | 'nameIdn'>): string {
   const name = z.name === '' ? '.' : z.name
   if (z.nameIdn == null) return name === '.' ? '<root>' : name
@@ -93,7 +93,7 @@ export interface ListaZonas {
 
 export const TIPOS_ZONA = ['Primary','Secondary','Stub','Forwarder','SecondaryForwarder','Catalog','SecondaryCatalog'] as const
 
-/** Tamaños de página del desplegable de upstream (index.html, `optZonesPerPage`). */
+/** Page sizes of upstream's dropdown (index.html, `optZonesPerPage`). */
 export const ZONAS_POR_PAGINA = [10, 25, 50, 100, 250, 500] as const
 
 export async function listZones(
@@ -124,13 +124,13 @@ export async function listZones(
     },
   })
   /*
-  Devuelve el resultado entero y no `ListaZonas | null`.
+  Returns the whole outcome and not `ListaZonas | null`.
 
-  Con `null` la pantalla no sabía POR QUÉ había fallado y decía siempre «Unable
-  to reach the DNS server.», que es una afirmación concreta —la red está caída—
-  y era falsa en los dos casos que de verdad pasan: el servidor contestando un
-  error, y el servidor rechazando la sesión. En el segundo, además, mandaba a
-  mirar la red a quien lo que tenía que hacer era volver a entrar.
+  With `null` the screen did not know WHY it had failed and always said "Unable
+  to reach the DNS server.", which is a concrete claim —the network is down— and
+  was false in the two cases that actually happen: the server answering an error,
+  and the server rejecting the session. In the second one it also sent someone to
+  go look at the network when what they had to do was log back in.
   */
   if (outcome.kind !== 'ok') return outcome
   const r = outcome.data.response
@@ -145,16 +145,16 @@ export async function listZones(
   }
 }
 
-/** «never» cuando la fecha es el mínimo de .NET, que es lo que upstream muestra. */
+/** "never" when the date is .NET's minimum, which is what upstream shows. */
 export function nuncaUsado(iso: string): boolean {
   return !iso || iso.startsWith('0001-01-01')
 }
 
 /**
- * `zones/create` (zone.js:2911). Es POST pero **los parámetros van en la
- * query**, no en el cuerpo: el cuerpo se reserva para el fichero de zona
- * opcional, que viaja como multipart en el campo `fileImportZone`. Sin fichero,
- * upstream manda un POST sin cuerpo ninguno.
+ * `zones/create` (zone.js:2911). It is a POST but **the parameters go in the
+ * query**, not in the body: the body is reserved for the optional zone file,
+ * which travels as multipart in the `fileImportZone` field. Without a file,
+ * upstream sends a POST with no body at all.
  */
 export function createZone(
   token: string | null,
@@ -179,9 +179,9 @@ export interface BorradoMultiple {
 }
 
 /**
- * El borrado en bloque usa el MISMO endpoint con el parámetro en plural
- * (`zones=`, separadas por coma) y devuelve dos listas: lo borrado y lo
- * fallido. No es un endpoint distinto, aunque lo parezca (zone.js:1140).
+ * The bulk delete uses the SAME endpoint with the parameter in plural (`zones=`,
+ * comma-separated) and returns two lists: what was deleted and what failed. It
+ * is not a different endpoint, however much it looks like one (zone.js:1140).
  */
 export function deleteZones(
   token: string | null,
@@ -243,7 +243,7 @@ export interface OpcionesZona {
   catalog: string | null
   notifyFailed?: boolean
   notifyFailedFor?: string[]
-  /** Sólo en zonas que pertenecen a un catálogo. */
+  /** Only on zones that belong to a catalog. */
   overrideCatalogQueryAccess?: boolean
   overrideCatalogZoneTransfer?: boolean
   overrideCatalogNotify?: boolean
@@ -262,15 +262,15 @@ export interface OpcionesZona {
   update: string
   updateNetworkACL: string[]
   updateSecurityPolicies: PoliticaActualizacion[]
-  /** Sólo si se pide con `includeAvailableCatalogZoneNames`. */
+  /** Only if asked for with `includeAvailableCatalogZoneNames`. */
   availableCatalogZoneNames?: string[]
-  /** Sólo si se pide con `includeAvailableTsigKeyNames`. */
+  /** Only if asked for with `includeAvailableTsigKeyNames`. */
   availableTsigKeyNames?: string[]
   /*
-  Los dos que gobiernan el bloqueo de casi todo el formulario y que sólo
-  aparecen en zonas que pertenecen a un catálogo. `isSecondaryCatalogMember`
-  significa que la zona la administra un catálogo secundario, y entonces la
-  mitad de los controles se ven pero no se pueden tocar.
+  The two that govern the locking of nearly the whole form and that only appear
+  on zones belonging to a catalog. `isSecondaryCatalogMember` means the zone is
+  administered by a secondary catalog, and then half the controls are visible but
+  cannot be touched.
   */
   isSecondaryCatalogMember?: boolean
   overrideCatalogPrimaryNameServers?: boolean
@@ -293,7 +293,7 @@ export async function getZoneOptions(
   return outcome.kind === 'ok' ? outcome.data.response : null
 }
 
-/** El cuerpo lo arma la pantalla, que es quien valida (ver screens/zones/opciones.ts). */
+/** The body is built by the screen, which is the one that validates (see screens/zones/opciones.ts). */
 export function setZoneOptions(
   token: string | null,
   body: Record<string, string>,
@@ -305,9 +305,9 @@ export function setZoneOptions(
 /* ── Permisos de zona ──────────────────────────────────────────────────── */
 
 /*
-El nombre del sujeto NO se llama igual en las dos tablas: un permiso de usuario
-trae `username` y uno de grupo trae `name`. Verificado contra v15.4. Tratarlas
-como la misma forma deja media tabla en blanco.
+The subject's name is NOT called the same in the two tables: a user permission
+brings `username` and a group one brings `name`. Verified against v15.4. Treating
+them as the same shape leaves half the table blank.
 */
 export interface PermisoDeUsuario {
   username: string
@@ -328,7 +328,7 @@ export interface PermisosZona {
   subItem: string
   userPermissions: PermisoDeUsuario[]
   groupPermissions: PermisoDeGrupo[]
-  /** Sólo si se pide con `includeUsersAndGroups`. */
+  /** Only if asked for with `includeUsersAndGroups`. */
   users?: string[]
   groups?: string[]
 }
@@ -352,8 +352,8 @@ export async function getZonePermissions(
 }
 
 /**
- * `serializeTableData` con 4 columnas (common.js:282): nombre y los tres
- * booleanos de cada fila, todo unido por `|` en una sola cadena.
+ * `serializeTableData` with 4 columns (common.js:282): the name and the three
+ * booleans of each row, all joined by `|` into a single string.
  */
 export function serializarPermisos(
   filas: { nombre: string; canView: boolean; canModify: boolean; canDelete: boolean }[],
@@ -387,12 +387,13 @@ export interface OpcionesImportacion {
 }
 
 /**
- * `zones/import` (zone.js:1251). Tiene **dos formas de mandar el fichero**, y
- * la diferencia no es cosmética: subiéndolo va como multipart en el campo
- * `fileImportZone`; pegándolo en el textarea va como **texto plano crudo** con
- * `Content-Type: text/plain`. El servidor distingue por ese tipo.
+ * `zones/import` (zone.js:1251). It has **two ways of sending the file**, and
+ * the difference is not cosmetic: uploading it goes as multipart in the
+ * `fileImportZone` field; pasting it into the textarea goes as **raw plain
+ * text** with `Content-Type: text/plain`. The server tells them apart by that
+ * type.
  *
- * Los tres interruptores viajan siempre en la query, igual que la zona.
+ * The three switches always travel in the query, same as the zone.
  */
 export function importZone(
   token: string | null,
@@ -417,15 +418,15 @@ export function importZone(
 }
 
 /**
- * `zones/export` (zone.js:1315). Una de las seis descargas del proyecto: no se
- * hace `fetch`, se pide un token de un solo uso y se abre una ventana. Sin ese
- * token la descarga viajaría con el de sesión en la URL.
+ * `zones/export` (zone.js:1315). One of the project's six downloads: there is no
+ * `fetch`, a single-use token is asked for and a window is opened. Without that
+ * token the download would travel with the session one in the URL.
  */
 export function exportZone(
   token: string | null,
   zone: string,
   node = '',
 ): Promise<{ ok: boolean }> {
-  // Sin `ts`: upstream no lo añade en esta descarga (zone.js:1322).
+  // No `ts`: upstream does not add it on this download (zone.js:1322).
   return openDownload(token, 'zones/export', { zone, node })
 }

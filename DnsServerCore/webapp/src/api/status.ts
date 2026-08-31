@@ -1,15 +1,15 @@
 import { apiRequest } from './client'
 
 /*
-`api/status` es público: se llama SIN token, desde la pantalla de login
-(main.js:48-60). Gobierna dos comportamientos:
+`api/status` is public: it is called WITHOUT a token, from the login screen
+(main.js:48-60). It governs two behaviours:
 
-  · ssoEnabled            -> muestra u oculta el botón «Sign in with SSO».
-  · hasDefaultCredentials -> en una instalación recién hecha, la consola
-                             entra SOLA con admin/admin.
+  · ssoEnabled            -> shows or hides the "Sign in with SSO" button.
+  · hasDefaultCredentials -> on a fresh install, the console logs itself IN with
+                             admin/admin.
 
-La respuesta viene PLANA, sin envoltorio `response`, igual que login y
-session/get. Verificado contra v15.4.
+The response comes FLAT, with no `response` wrapper, same as login and
+session/get. Verified against v15.4.
 */
 export interface ServerStatus {
   hasDefaultCredentials: boolean

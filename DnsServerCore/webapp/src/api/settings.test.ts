@@ -111,7 +111,7 @@ describe('api/settings', () => {
       token: 'tok',
       file: { campo: 'fileBackupZip', archivo: fichero },
     })
-    // El cuerpo NO lleva las opciones: upstream las manda sólo por la query.
+    // The body does NOT carry the options: upstream sends them by query only.
     expect(llamada[1]?.body).toBeUndefined()
   })
 
@@ -122,7 +122,7 @@ describe('api/settings', () => {
   })
 })
 
-// El tipo tiene que aceptar la respuesta real sin las claves nulas ausentes.
+// The type has to accept the real response without the absent null keys.
 const _forma: Partial<DnsSettings> = { temporaryDisableBlockingTill: undefined }
 void _forma
 

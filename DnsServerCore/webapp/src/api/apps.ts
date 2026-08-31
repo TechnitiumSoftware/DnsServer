@@ -1,29 +1,30 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-Los nueve endpoints de la familia `apps` (upstream/master:www/js/apps.js).
+The nine endpoints of the `apps` family (upstream/master:www/js/apps.js).
 
-Formas verificadas con curl contra una instancia real (v15.x) el 2026-08-25, no
-deducidas del código:
+Shapes verified with curl against a real instance (v15.x) on 2026-08-25, not
+deduced from the code:
 
-  1. `updateVersion`, `updateUrl` y `updateAvailable` son OPCIONALES en un app
-     instalado. El servidor sólo los escribe si el app aparece en el catálogo de
-     la tienda Y hay allí una versión compatible con este servidor
-     (WebServiceAppsApi.cs:60-99). Un app instalado desde un zip propio nunca
-     los trae. Además `apps/list` consulta el catálogo con un timeout de 5 s y,
-     si falla, devuelve la lista SIN esos tres campos en ningún app.
+  1. `updateVersion`, `updateUrl` and `updateAvailable` are OPTIONAL on an
+     installed app. The server only writes them if the app appears in the store
+     catalog AND there is a version there compatible with this server
+     (WebServiceAppsApi.cs:60-99). An app installed from your own zip never
+     brings them. On top of that, `apps/list` queries the catalog with a 5 s
+     timeout and, if it fails, returns the list WITHOUT those three fields on any
+     app.
 
-  2. `installedApp` / `updatedApp` —lo que devuelven install, update,
-     downloadAndInstall y downloadAndUpdate— tampoco los traen NUNCA: ese
-     `WriteAppAsJson` se llama sin el catálogo. Upstream repinta la fila con esa
-     respuesta, así que tras instalar el botón «Store Update» desaparece hasta
-     la siguiente recarga de la lista. Aquí se recarga la lista y punto.
+  2. `installedApp` / `updatedApp` —what install, update, downloadAndInstall and
+     downloadAndUpdate return— never bring them either: that `WriteAppAsJson` is
+     called without the catalog. Upstream redraws the row with that response, so
+     after installing, the "Store Update" button disappears until the next reload
+     of the list. Here the list is reloaded and that is that.
 
-  3. `config/get` puede devolver `config: null`, no sólo cadena. Pasa en cuanto
-     alguien guarda una config vacía: `config/set` con cadena vacía la guarda
-     como null (WebServiceAppsApi.cs:494-496).
+  3. `config/get` can return `config: null`, not only a string. It happens as
+     soon as someone saves an empty config: `config/set` with an empty string
+     stores it as null (WebServiceAppsApi.cs:494-496).
 
-  4. `apps/uninstall` de un app que no existe responde `ok`, no error.
+  4. `apps/uninstall` of an app that does not exist answers `ok`, not an error.
 */
 
 export interface DnsAppDetail {
@@ -56,15 +57,15 @@ export interface StoreApp {
   url: string
   size: string
   installed: boolean
-  /** Sólo cuando `installed` es true. */
+  /** Only when `installed` is true. */
   installedVersion?: string
-  /** Sólo cuando `installed` es true. */
+  /** Only when `installed` is true. */
   updateAvailable?: boolean
 }
 
 /*
-Las etiquetas de capacidad de cada clase del app, en el orden exacto de
-`getAppRowHtml` (apps.js:80-104). Si no hay ninguna, upstream pone «Generic».
+The capability labels of each of the app's classes, in the exact order of
+`getAppRowHtml` (apps.js:80-104). If there is none, upstream puts "Generic".
 */
 export function etiquetasDnsApp(d: DnsAppDetail): string[] {
   const labels: string[] = []
@@ -112,11 +113,12 @@ export function uninstallApp(token: string | null, name: string): Promise<ApiOut
 }
 
 /*
-`node` es el nombre del nodo PRIMARIO del clúster: upstream lee siempre de él
-para no mostrar una config que aún no se ha propagado (apps.js:460). Sin clúster
-manda la cadena vacía y el servidor la ignora (DnsWebService.cs:2367-2370).
-El nombre del primario sale de `sessionData.info.clusterNodes`, que esta consola
-no expone todavía; llega con la fase del clúster.
+`node` is the name of the cluster's PRIMARY node: upstream always reads from it
+so as not to show a config that has not propagated yet (apps.js:460). Without a
+cluster it sends the empty string and the server ignores it
+(DnsWebService.cs:2367-2370). The primary's name comes from
+`sessionData.info.clusterNodes`, which this console does not expose yet; it
+arrives with the cluster phase.
 */
 export function getAppConfig(
   token: string | null,
@@ -127,9 +129,9 @@ export function getAppConfig(
 }
 
 /*
-POST, porque una config puede ser larga y no cabe en una query. El servidor lee
-ambos parámetros con `QueryOrForm`, así que van los dos en el cuerpo.
-Una config vacía se guarda como `null`: eso es del servidor, no de aquí.
+POST, because a config can be long and does not fit in a query. The server reads
+both parameters with `QueryOrForm`, so both go in the body. An empty config is
+stored as `null`: that is the server's doing, not ours.
 */
 export function setAppConfig(
   token: string | null,
@@ -140,22 +142,22 @@ export function setAppConfig(
 }
 
 /*
---- Subida del zip: pendiente de multipart en el cliente ---
+--- Zip upload: pending multipart support in the client ---
 
-`apps/install` y `apps/update` son las DOS únicas llamadas de esta familia que
-no son una petición normal: son POST `multipart/form-data` con el zip
-(apps.js:348 y apps.js:392). El servidor exige `HasFormContentType` y coge
-`Form.Files[0]` (WebServiceAppsApi.cs:350-357 y 401-408), así que:
+`apps/install` and `apps/update` are the ONLY TWO calls of this family that are
+not an ordinary request: they are POST `multipart/form-data` with the zip
+(apps.js:348 and apps.js:392). The server requires `HasFormContentType` and takes
+`Form.Files[0]` (WebServiceAppsApi.cs:350-357 and 401-408), so:
 
-  - el NOMBRE del campo del fichero da igual (verificado con curl: subir el zip
-    como `cualquierNombre` instala igual). Aquí se manda `fileAppZip` sólo por
-    fidelidad a upstream;
-  - `name` puede ir en la query, y así lo hace upstream;
-  - son POST-only: por GET el servidor responde 404 (DnsWebService.cs:2183-2184).
+  - the field NAME of the file does not matter (verified with curl: uploading the
+    zip as `anyNameAtAll` installs just the same). `fileAppZip` is sent here only
+    out of fidelity to upstream;
+  - `name` may go in the query, and that is what upstream does;
+  - they are POST-only: by GET the server answers 404 (DnsWebService.cs:2183-2184).
 
-`apiRequest` sólo sabe mandar `x-www-form-urlencoded` y no se toca desde aquí.
-`buildUpload` deja armada la petición para el día que el cliente acepte un
-`FormData`; ese día `installApp`/`updateApp` son una línea cada una.
+`apiRequest` only knows how to send `x-www-form-urlencoded` and is not touched
+from here. `buildUpload` leaves the request built for the day the client accepts
+a `FormData`; that day `installApp`/`updateApp` become one line each.
 */
 export interface UploadRequest {
   path: string

@@ -1,33 +1,34 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-Los cuatro endpoints de `zones/records/*`: get, add, update y delete.
+The four endpoints of `zones/records/*`: get, add, update and delete.
 
-Se separan de zones.ts porque comparten algo que no comparte nadie más: para
-tocar un registro hay que **identificarlo por su contenido**. El servidor no da
-identificadores; se le manda el rdata completo del registro tal como está hoy y
-él busca cuál es. Eso significa que borrar, deshabilitar y editar tienen que
-reconstruir esos parámetros desde el registro que ya se tiene en pantalla, y
-esa reconstrucción es la parte más delicada de la fase.
+They are kept apart from zones.ts because they share something nobody else does:
+to touch a record you have to **identify it by its content**. The server hands
+out no identifiers; it is sent the record's full rdata exactly as it stands today
+and it looks up which one it is. That means delete, disable and edit all have to
+rebuild those parameters from the record already on screen, and that rebuilding
+is the most delicate part of the phase.
 
-Réplica de zone.js:4707 (add), 5584 (update), 6225 (updateRecordState) y
+A replica of zone.js:4707 (add), 5584 (update), 6225 (updateRecordState) and
 6400 (delete).
 
-Cuatro cosas que sorprenden y son de upstream:
+Four things that come as a surprise and belong to upstream:
 
-  1. **Los tres son POST**, con el cuerpo codificado como formulario. `node` es
-     el único parámetro que viaja en la query.
+  1. **All three are POST**, with the body encoded as a form. `node` is the only
+     parameter that travels in the query.
 
-  2. **`delete` no tiene caso para CNAME, DNAME, SOA ni APP.** Los cuatro caen
-     al `default`, que sólo manda `rdata` si existe — y no existe para ninguno
-     de ellos. O sea: para esos tipos el servidor recibe zone+domain+type y
-     nada más. No es un olvido nuestro; está así en zone.js:6420-6510.
+  2. **`delete` has no case for CNAME, DNAME, SOA or APP.** All four fall to the
+     `default`, which only sends `rdata` if it exists — and it exists for none of
+     them. That is: for those types the server receives zone+domain+type and
+     nothing else. It is not an oversight of ours; that is how it is in
+     zone.js:6420-6510.
 
-  3. **`delete` de un NS no manda `glue`; deshabilitarlo sí.** Misma pareja
-     de acciones, distinto conjunto de parámetros.
+  3. **Deleting an NS does not send `glue`; disabling it does.** Same pair of
+     actions, different set of parameters.
 
-  4. **Deshabilitar un registro es un `records/update`**, no un endpoint
-     propio: se reenvía el registro entero con `disable=true`.
+  4. **Disabling a record is a `records/update`**, not an endpoint of its own:
+     the whole record is resent with `disable=true`.
 */
 
 export interface Registro {
@@ -43,7 +44,7 @@ export interface Registro {
   expiryTtl: number
   expiryTtlString: string
   comments?: string
-  /** Sólo en registros NS con pegamento. */
+  /** Only on NS records with glue. */
   glueRecords?: string[]
 }
 
@@ -51,7 +52,7 @@ export interface ZonaDeRegistros {
   name: string
   type: string
   disabled: boolean
-  /** Una zona Catalog o Forwarder NO lo trae: esos tipos no pueden firmarse. */
+  /** A Catalog or Forwarder zone does NOT bring it: those types cannot be signed. */
   dnssecStatus?: string
   internal?: boolean
   soaSerial?: number
@@ -66,9 +67,10 @@ export interface RegistrosDeZona {
 }
 
 /**
- * `zones/records/get`. NO pagina: upstream lo pide con `listZone=true`, recibe
- * todos los registros y pagina en el cliente (zone.js:3079). Verificado contra
- * v15.4: mandarle `recordsPerPage` no cambia nada.
+ * `zones/records/get`. It does NOT paginate: upstream asks for it with
+ * `listZone=true`, receives every record and paginates on the client
+ * (zone.js:3079). Verified against v15.4: sending it `recordsPerPage` changes
+ * nothing.
  */
 export async function getRecords(
   token: string | null,
@@ -132,9 +134,9 @@ export function deleteRecord(
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
 /**
- * `svcParams` viaja aplanado como `clave|valor|clave|valor`, y una lista vacía
- * viaja como la cadena `"false"` — que es lo que sale de concatenar el booleano
- * al que upstream la reduce (zone.js:5990-6002).
+ * `svcParams` travels flattened as `key|value|key|value`, and an empty list
+ * travels as the string `"false"` — which is what comes out of concatenating the
+ * boolean upstream reduces it to (zone.js:5990-6002).
  */
 export function aplanarSvcParams(params: unknown): string {
   const obj = (params ?? {}) as Record<string, unknown>
@@ -143,7 +145,7 @@ export function aplanarSvcParams(params: unknown): string {
   return partes.length === 0 ? 'false' : partes.join('|')
 }
 
-/** `data-record-glue`: las direcciones unidas por «, » (zone.js:3700-3712). */
+/** `data-record-glue`: the addresses joined by ", " (zone.js:3700-3712). */
 export function aplanarGlue(glue: string[] | undefined): string {
   return (glue ?? []).join(', ')
 }
@@ -155,12 +157,13 @@ export function aplanarCharacterStrings(r: Record<string, unknown>): string {
 }
 
 /**
- * Los parámetros que identifican a un registro existente ante el servidor.
- * Es lo que mandan `deleteRecord` y `updateRecordState`, y también la mitad
- * «vieja» de un `records/update`.
+ * The parameters that identify an existing record to the server. It is what
+ * `deleteRecord` and `updateRecordState` send, and also the "old" half of a
+ * `records/update`.
  *
- * `paraBorrado` distingue los dos repartos, que NO son el mismo: al borrar, NS
- * va sin `glue`, y CNAME, DNAME, SOA y APP no aportan nada.
+ * `paraBorrado` tells the two splits apart, and they are NOT the same: when
+ * deleting, NS goes without `glue`, and CNAME, DNAME, SOA and APP contribute
+ * nothing.
  */
 export function identidadRegistro(
   registro: Registro,
@@ -247,7 +250,7 @@ export function identidadRegistro(
     case 'SVCB':
     case 'HTTPS':
       out.svcPriority = s(d.svcPriority)
-      // Un target vacío se manda como raíz, igual que en la fila (zone.js:4071).
+      // An empty target is sent as the root, same as in the row (zone.js:4071).
       out.svcTargetName = s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName)
       out.svcParams = aplanarSvcParams(d.svcParams)
       if (!borrado) {
@@ -297,7 +300,7 @@ export function identidadRegistro(
       break
 
     default:
-      // `rdata` sólo si el registro lo trae: al borrar, upstream comprueba null.
+      // `rdata` only if the record brings it: when deleting, upstream checks for null.
       if (d.value != null) out.rdata = s(d.value)
       break
   }
@@ -306,10 +309,10 @@ export function identidadRegistro(
 }
 
 /**
- * `zoneHasSvcbAutoHint` (zone.js:4689). Al tocar un A o un AAAA hay que decirle
- * al servidor si tiene que rehacer las pistas automáticas de algún SVCB/HTTPS
- * de la zona. **Sin la lista de registros devuelve `true`**, no `false`: con la
- * zona sin cargar upstream prefiere pedir la actualización.
+ * `zoneHasSvcbAutoHint` (zone.js:4689). When touching an A or an AAAA the server
+ * has to be told whether it must redo the automatic hints of any SVCB/HTTPS in
+ * the zone. **Without the record list it returns `true`**, not `false`: with the
+ * zone unloaded upstream would rather ask for the update.
  */
 export function zonaTienePistaSvcbAuto(
   registros: Registro[] | null,
@@ -327,9 +330,9 @@ export function zonaTienePistaSvcbAuto(
 }
 
 /**
- * El nombre completo de un registro a partir del sub-dominio escrito en el
- * formulario (zone.js:4713-4725). Vacío es `@`, `@` es la zona, y en la raíz
- * el sub-dominio se cierra con un punto.
+ * A record's full name from the sub-domain typed into the form
+ * (zone.js:4713-4725). Empty is `@`, `@` is the zone, and at the root the
+ * sub-domain is closed with a dot.
  */
 export function dominioCompleto(zone: string, subDominio: string): string {
   const sub = subDominio === '' ? '@' : subDominio
@@ -339,8 +342,8 @@ export function dominioCompleto(zone: string, subDominio: string): string {
 }
 
 /**
- * Cuerpo de un `records/delete`: la identidad más zone, domain y type.
- * Un nombre vacío es la raíz (zone.js:6410-6411).
+ * The body of a `records/delete`: the identity plus zone, domain and type.
+ * An empty name is the root (zone.js:6410-6411).
  */
 export function cuerpoBorrado(zone: string, registro: Registro): Record<string, string> {
   return {
@@ -352,9 +355,9 @@ export function cuerpoBorrado(zone: string, registro: Registro): Record<string, 
 }
 
 /**
- * Cuerpo del `records/update` que sólo cambia el estado. Reenvía el registro
- * entero —ttl, comentarios y expiración incluidos— con `disable` puesto.
- * `newDomain` no se manda: el nombre no cambia (zone.js:6225-6390).
+ * The body of the `records/update` that only changes the state. It resends the
+ * whole record —ttl, comments and expiry included— with `disable` set.
+ * `newDomain` is not sent: the name does not change (zone.js:6225-6390).
  */
 export function cuerpoCambioDeEstado(
   zone: string,

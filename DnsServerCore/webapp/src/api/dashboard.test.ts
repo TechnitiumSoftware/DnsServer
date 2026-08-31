@@ -31,9 +31,9 @@ describe('dashboard', () => {
   })
 
   /*
-  Antes esta prueba pedía `null` «para que la pantalla no reviente». No
-  reventar era el problema: con `null` el Dashboard no distinguía un fallo de un
-  servidor sin tráfico y pintaba once ceros.
+  This test used to ask for `null` "so the screen does not blow up". Not blowing
+  up was the problem: with `null` the Dashboard could not tell a failure apart
+  from a server with no traffic, and drew eleven zeros.
   */
   it('sube el fallo del servidor, para que el Dashboard pueda decirlo', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })

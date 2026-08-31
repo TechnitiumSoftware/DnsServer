@@ -12,9 +12,9 @@ beforeEach(() => vi.unstubAllGlobals())
 
 describe('apiRequest', () => {
   it('entrega el JSON crudo cuando el status es ok', async () => {
-    // user/login y user/session/get devuelven la sesión PLANA, sin envoltorio
-    // `response`. Todo lo demás sí la envuelve. Por eso el cliente no
-    // desenvuelve: igual que el HTTPRequest de upstream, entrega el JSON tal cual.
+    // user/login and user/session/get return the session FLAT, with no `response`
+    // wrapper. Everything else does wrap it. That is why the client does not
+    // unwrap: like upstream's HTTPRequest, it hands over the JSON as it came.
     mockFetch({ status: 'ok', token: 'abc', displayName: 'Administrator' })
     const r = await apiRequest('user/login')
     expect(r).toEqual({ kind: 'ok', data: { status: 'ok', token: 'abc', displayName: 'Administrator' } })
@@ -33,11 +33,11 @@ describe('apiRequest', () => {
   })
 
   /*
-  Iban en relativo para sobrevivir a `X-Forwarded-Prefix`, y eso dejó de valer
-  cuando las rutas de la consola pasaron a ser reales: desde
-  `/settings/logging/`, un `api/status` relativo pide
-  `/settings/logging/api/status` y recibe un 404. Comprobado en el navegador.
-  Ahora cuelgan de la raíz de la aplicación, que sigue conociendo el prefijo.
+  They used to be relative so as to survive `X-Forwarded-Prefix`, and that
+  stopped working when the console's routes became real ones: from
+  `/settings/logging/`, a relative `api/status` asks for
+  `/settings/logging/api/status` and gets a 404. Checked in the browser. Now they
+  hang off the application's root, which still knows the prefix.
   */
   it('cuelga las rutas de la raíz de la aplicación, no del directorio actual', async () => {
     const spy = mockFetch({ status: 'ok' })
@@ -114,7 +114,7 @@ describe('subidas multipart', () => {
     expect(url).toBe('/api/zones/import')
     expect(init.method).toBe('POST')
     expect(init.body).toBeInstanceOf(FormData)
-    // El navegador pone el boundary; fijarlo a mano rompe la subida.
+    // The browser sets the boundary; setting it by hand breaks the upload.
     expect(init.headers['Content-Type']).toBeUndefined()
   })
 

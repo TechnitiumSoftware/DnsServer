@@ -1,25 +1,25 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-`api/dnsClient/resolve` (dnsclient.js:166). El mismo endpoint resuelve y, con
-`import=true`, además importa los registros resueltos a este servidor — por eso
-los botones «Resolve» e «Import» comparten llamada.
+`api/dnsClient/resolve` (dnsclient.js:166). The same endpoint resolves and, with
+`import=true`, also imports the resolved records into this server — which is why
+the "Resolve" and "Import" buttons share a call.
 */
 
 export const TIPOS = ['A','NS','CNAME','SOA','PTR','MX','TXT','RP','AAAA','SRV','NAPTR','DNAME','DS','SSHFP','RRSIG','NSEC','DNSKEY','NSEC3','NSEC3PARAM','TLSA','ZONEMD','SVCB','HTTPS','URI','CAA','ANY','AXFR','ANAME'] as const
 export const PROTOCOLOS = ['UDP','TCP','TLS','HTTPS','QUIC'] as const
 
 /*
-Preparación del servidor antes de consultar (dnsclient.js:99-119). Dos cosas que
-no son obvias y que se pierden si no se replican:
+Preparing the server before querying (dnsclient.js:99-119). Two things that are
+not obvious and that get lost if they are not replicated:
 
-  1. El campo muestra etiquetas como «This Server {this-server}» y lo que se
-     envía es SÓLO lo que hay entre la primera «{» y la última «}».
-  2. Si el servidor es `recursive-resolver` o `system-dns`, el protocolo se
-     FUERZA a UDP, aunque el desplegable diga otra cosa.
+  1. The field shows labels like "This Server {this-server}" and what gets sent is
+     ONLY what sits between the first "{" and the last "}".
+  2. If the server is `recursive-resolver` or `system-dns`, the protocol is
+     FORCED to UDP, however much the dropdown says otherwise.
 
-Y el aviso de servidor vacío se comprueba DESPUÉS de extraer, no antes: una
-etiqueta como «{}» es un servidor vacío aunque el campo tenga texto.
+And the empty-server warning is checked AFTER extracting, not before: a label
+like "{}" is an empty server even though the field has text.
 */
 export function prepararServidor(
   server: string,

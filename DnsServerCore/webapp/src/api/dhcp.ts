@@ -1,42 +1,43 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-La familia `dhcp`: diez endpoints, todos en `dhcp.js` de upstream.
+The `dhcp` family: ten endpoints, all of them in upstream's `dhcp.js`.
 
-Cinco cosas del servidor que NO se deducen mirando el JavaScript y que gobiernan
-las dos pantallas:
+Five things about the server that are NOT deducible from looking at the
+JavaScript and that govern the two screens:
 
-  1. **Los campos nulos se OMITEN, no llegan como `null`.**
-     `WebServiceDhcpApi.cs:127-364` escribe cada propiedad opcional dentro de un
-     `if (… is not null)`. En `scopes/list` falta `interfaceAddress` en cuanto el
-     scope no está enlazado a una interfaz; en `scopes/get` faltan `domainName`,
-     `domainSearchList`, `serverAddress`, `serverHostName`, `bootFileName`,
-     `routerAddress`, `dnsServers`, `winsServers`, `ntpServers`,
-     `ntpServerDomainNames`, `staticRoutes`, `vendorInfo`,
-     `capwapAcIpAddresses`, `tftpServerAddresses`, `genericOptions` y
-     `exclusions`. Verificado contra una instancia v15.4 recién instalada, que
-     devuelve un scope sin la mitad de esas claves. Tiparlas obligatorias falla.
-     `reservedLeases` es la excepción: se escribe SIEMPRE, aunque sea `[]`.
+  1. **Null fields are OMITTED, they do not arrive as `null`.**
+     `WebServiceDhcpApi.cs:127-364` writes each optional property inside an
+     `if (… is not null)`. In `scopes/list`, `interfaceAddress` is missing as
+     soon as the scope is not bound to an interface; in `scopes/get` the missing
+     ones are `domainName`, `domainSearchList`, `serverAddress`,
+     `serverHostName`, `bootFileName`, `routerAddress`, `dnsServers`,
+     `winsServers`, `ntpServers`, `ntpServerDomainNames`, `staticRoutes`,
+     `vendorInfo`, `capwapAcIpAddresses`, `tftpServerAddresses`,
+     `genericOptions` and `exclusions`. Verified against a freshly installed
+     v15.4 instance, which returns a scope without half of those keys. Typing
+     them as required fails. `reservedLeases` is the exception: it is ALWAYS
+     written, even if it is `[]`.
 
-  2. **`scopes/set` manda el cuerpo por POST pero el `node` en la QUERY**
-     (dhcp.js:558-567). Se respeta al pie de la letra.
+  2. **`scopes/set` sends the body by POST but the `node` in the QUERY**
+     (dhcp.js:558-567). That is honoured to the letter.
 
-  3. **Renombrar es el mismo endpoint**: si el nombre cambió, se manda el nombre
-     VIEJO en `name` y el nuevo en `newName` (dhcp.js:486-493). Sin `newName` en
-     un scope nuevo.
+  3. **Renaming is the same endpoint**: if the name changed, the OLD name is sent
+     in `name` and the new one in `newName` (dhcp.js:486-493). No `newName` on a
+     new scope.
 
-  4. **`dnsServers` no se manda cuando `useThisDnsServer` está marcado**
-     (dhcp.js:565). No es un detalle cosmético: el servidor conserva los que
-     tenía guardados, y de hecho `scopes/get` sigue devolviéndolos.
+  4. **`dnsServers` is not sent when `useThisDnsServer` is checked**
+     (dhcp.js:565). It is not a cosmetic detail: the server keeps the ones it had
+     stored, and in fact `scopes/get` still returns them.
 
-  5. **Los permisos son asimétricos.** `WebServiceDhcpApi.cs`: los tres `list`
-     y `get` piden `DhcpServer.View`; `scopes/set`, `enable`, `disable` y las
-     dos conversiones de lease piden `Modify`; pero `scopes/delete` y
-     `leases/remove` piden `Delete`. Borrar un scope NO es `Modify`.
+  5. **The permissions are asymmetric.** `WebServiceDhcpApi.cs`: the three `list`
+     and `get` ask for `DhcpServer.View`; `scopes/set`, `enable`, `disable` and
+     the two lease conversions ask for `Modify`; but `scopes/delete` and
+     `leases/remove` ask for `Delete`. Deleting a scope is NOT `Modify`.
 */
 
-/** Una concesión de `dhcp/leases/list`. Todos los campos se escriben siempre
- *  (`WebServiceDhcpApi.cs:90-101`), pero `hostName` puede venir `null`. */
+/** A lease from `dhcp/leases/list`. Every field is always written
+ *  (`WebServiceDhcpApi.cs:90-101`), but `hostName` can come `null`. */
 export interface DhcpLease {
   scope: string
   /** `Dynamic` o `Reserved`. */
@@ -50,7 +51,7 @@ export interface DhcpLease {
   leaseExpires: string
 }
 
-/** Una fila de `dhcp/scopes/list`. `interfaceAddress` falta si es nula. */
+/** A row of `dhcp/scopes/list`. `interfaceAddress` is missing if it is null. */
 export interface DhcpScopeRow {
   name: string
   enabled: boolean
@@ -90,8 +91,8 @@ export interface ReservedLease {
   comments: string | null
 }
 
-/** `dhcp/scopes/get`. Sólo son obligatorias las claves que el servidor escribe
- *  incondicionalmente; el resto son opcionales porque SE OMITEN (ver cabecera). */
+/** `dhcp/scopes/get`. Only the keys the server writes unconditionally are
+ *  required; the rest are optional because they are OMITTED (see the header). */
 export interface DhcpScope {
   name: string
   startingAddress: string
@@ -124,7 +125,7 @@ export interface DhcpScope {
   tftpServerAddresses?: string[]
   genericOptions?: GenericOption[]
   exclusions?: Exclusion[]
-  /** Se escribe siempre, aunque venga vacío. */
+  /** Always written, even if it comes empty. */
   reservedLeases: ReservedLease[]
   allowOnlyReservedLeases: boolean
   blockLocallyAdministeredMacAddresses: boolean
@@ -132,17 +133,17 @@ export interface DhcpScope {
 }
 
 /*
-Devuelve el resultado entero, no una lista.
+Returns the whole outcome, not a list.
 
-Antes devolvía `[]` cuando el servidor fallaba, y eso parecía prudente —«la
-pantalla no revienta si la petición se cae»—. Era lo contrario: la lista vacía y
-el fallo se pintan igual, así que la pantalla decía «No Lease Found» cuando lo que había
-pasado es que la llamada no llegó. Eso es peor que un error, porque nadie
-sospecha de una respuesta que parece normal.
+It used to return `[]` when the server failed, and that looked prudent —"the
+screen does not blow up if the request falls over". It was the opposite: an empty
+list and a failure draw the same, so the screen said "No Lease Found" when what
+had happened was that the call never arrived. That is worse than an error,
+because nobody suspects a response that looks normal.
 
-Devolviendo el `ApiOutcome` —como ya hacían las pantallas de listas, que sí
-avisaban— el tipo obliga a distinguirlos y además se conserva el mensaje que
-mandó el servidor, que es lo que enseña upstream.
+By returning the `ApiOutcome` —as the list screens already did, and those did
+warn— the type forces the two apart, and the message the server sent is kept as
+well, which is what upstream shows.
 */
 /** `dhcp/leases/list` (dhcp.js:46). */
 export async function listLeases(
@@ -159,10 +160,10 @@ export async function listLeases(
 }
 
 /*
-Las tres acciones sobre una concesión se identifican con el par
-`name` (el scope) + `clientIdentifier`. El servidor acepta también
-`hardwareAddress` como alternativa (`WebServiceDhcpApi.cs:775-790`), pero
-upstream manda SIEMPRE el clientIdentifier, así que aquí también.
+The three actions on a lease are identified by the pair `name` (the scope) +
+`clientIdentifier`. The server also accepts `hardwareAddress` as an alternative
+(`WebServiceDhcpApi.cs:775-790`), but upstream ALWAYS sends the clientIdentifier,
+so here too.
 */
 export function removeLease(
   token: string | null,
@@ -197,8 +198,8 @@ export function convertToDynamicLease(
   })
 }
 
-/** `dhcp/scopes/list` (dhcp.js:220). Ver `listLeases` para por qué devuelve
- *  el resultado entero y no una lista. */
+/** `dhcp/scopes/list` (dhcp.js:220). See `listLeases` for why it returns the
+ *  whole outcome and not a list. */
 export async function listScopes(
   token: string | null,
   node = '',
@@ -212,7 +213,7 @@ export async function listScopes(
     : outcome
 }
 
-/** `dhcp/scopes/get` (dhcp.js:377). `null` si el servidor falla. */
+/** `dhcp/scopes/get` (dhcp.js:377). `null` if the server fails. */
 export async function getScope(
   token: string | null,
   name: string,
@@ -226,9 +227,9 @@ export async function getScope(
 }
 
 /*
-`dhcp/scopes/set` (dhcp.js:558). POST con el cuerpo codificado y el `node` en la
-query, exactamente como upstream. El cuerpo lo arma `construirCuerpo` de
-`screens/dhcp/model.ts`, que es quien conoce el formulario.
+`dhcp/scopes/set` (dhcp.js:558). POST with the encoded body and the `node` in
+the query, exactly like upstream. The body is built by `construirCuerpo` in
+`screens/dhcp/model.ts`, which is the one that knows the form.
 */
 export function setScope(
   token: string | null,

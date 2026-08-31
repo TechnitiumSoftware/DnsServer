@@ -17,7 +17,7 @@ import * as client from './client'
 afterEach(() => vi.restoreAllMocks())
 const env = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
 
-/** Un registro con lo mínimo, para no repetir doce campos en cada caso. */
+/** A record with the bare minimum, so as not to repeat twelve fields in each case. */
 function reg(type: string, rData: Record<string, unknown>, extra: Partial<Registro> = {}): Registro {
   return {
     name: 'www',
@@ -182,7 +182,7 @@ describe('reglas sueltas de upstream', () => {
   })
 
   it('sin la lista de registros cargada, las pistas SVCB se piden igual', () => {
-    // zone.js:4690 — el caso por defecto es `true`, no `false`.
+    // zone.js:4690 — the default case is `true`, not `false`.
     expect(zonaTienePistaSvcbAuto(null, true, false)).toBe(true)
   })
 

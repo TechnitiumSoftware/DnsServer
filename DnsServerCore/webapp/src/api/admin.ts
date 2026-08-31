@@ -1,54 +1,55 @@
 import { apiRequest, type ApiOutcome } from './client'
 
 /*
-La familia `admin` sin el cluster: sesiones, usuarios, grupos, permisos y SSO.
-Dieciocho endpoints, todos en `auth.js`. El cluster —doce más— vive en
-`admin-cluster.ts` porque es otra pantalla y otro fichero de upstream.
+The `admin` family without the cluster: sessions, users, groups, permissions and
+SSO. Eighteen endpoints, all of them in `auth.js`. The cluster —twelve more—
+lives in `admin-cluster.ts` because it is another screen and another upstream
+file.
 
-Seis cosas del servidor que NO se deducen leyendo el JavaScript de upstream y
-que gobiernan las pantallas:
+Six things about the server that are NOT deducible from reading upstream's
+JavaScript and that govern the screens:
 
-  1. **Los permisos son asimétricos.** Todo esto cuelga de la sección
-     `Administration`, pero no del mismo flag: listar y consultar piden `View`,
-     crear y modificar piden `Modify`, borrar pide `Delete` … y
-     `permissions/set` y `sso/set` piden **`Delete`**, no `Modify`
-     (WebServiceAuthApi.cs:1533 y 1692). Quien pinte la interfaz no puede
-     deducir el permiso por el nombre del verbo.
+  1. **The permissions are asymmetric.** All of this hangs off the
+     `Administration` section, but not off the same flag: listing and reading ask
+     for `View`, creating and modifying ask for `Modify`, deleting asks for
+     `Delete` … and `permissions/set` and `sso/set` ask for **`Delete`**, not
+     `Modify` (WebServiceAuthApi.cs:1533 and 1692). Whoever draws the interface
+     cannot deduce the permission from the name of the verb.
 
-  2. **`admin/sso/set` NO devuelve `localGroups`.** `WriteSsoConfig` sólo los
-     escribe con `includeGroups`, y el `set` lo llama con `false`
-     (WebServiceAuthApi.cs:1790). Upstream sobrevive porque guarda la lista en
-     una variable global al hacer el `get`; aquí hay que conservarla igual.
+  2. **`admin/sso/set` does NOT return `localGroups`.** `WriteSsoConfig` only
+     writes them with `includeGroups`, and the `set` calls it with `false`
+     (WebServiceAuthApi.cs:1790). Upstream survives because it keeps the list in
+     a global variable when doing the `get`; here it has to be kept just the same.
 
-  3. **El secreto de cliente viaja enmascarado.** `WriteSsoConfig` devuelve
-     `"************"` en cuanto hay uno guardado, y `SetSsoConfig` ignora ese
-     valor exacto (líneas 339-342 y 1738). Es lo que permite guardar el
-     formulario sin volver a teclear el secreto: se manda tal cual llegó.
+  3. **The client secret travels masked.** `WriteSsoConfig` returns
+     `"************"` as soon as one is stored, and `SetSsoConfig` ignores that
+     exact value (lines 339-342 and 1738). That is what allows saving the form
+     without typing the secret again: it is sent back exactly as it arrived.
 
-  4. **Cada endpoint devuelve una forma distinta del mismo usuario.**
-     `users/get?includeGroups=true` trae `groups` (todos los grupos del
-     servidor, para el desplegable); `users/set` NO lo trae aunque sí traiga
-     `memberOfGroups` y `sessions`; `users/list` y `users/create` no traen
-     ninguno de los tres. Verificado contra una instancia v15.4.
+  4. **Each endpoint returns a different shape of the same user.**
+     `users/get?includeGroups=true` brings `groups` (every group on the server,
+     for the dropdown); `users/set` does NOT bring it even though it does bring
+     `memberOfGroups` and `sessions`; `users/list` and `users/create` bring none
+     of the three. Verified against a v15.4 instance.
 
-  5. **La lista de grupos de `permissions/get` NO es la de `groups/list`.**
-     La primera incluye `Everyone` y la segunda no. Comprobado en vivo.
+  5. **The group list of `permissions/get` is NOT the one of `groups/list`.**
+     The first includes `Everyone` and the second does not. Checked live.
 
-  6. **Borrar una sesión que no existe SÍ da error** («No such active session
-     was found for partial token: …»), al revés que la mayoría de los borrados
-     de esta API. Comprobado en vivo.
+  6. **Deleting a session that does not exist DOES error** ("No such active
+     session was found for partial token: …"), the opposite of most of the
+     deletes in this API. Checked live.
 
-`node` es el nodo del cluster al que se dirige la petición
-(DnsWebService.cs:2367); vacío significa «este servidor». Sólo lo mandan
-`sessions/list`, `sessions/delete` y `permissions/set`, y no siempre el mismo
-valor: ver los comentarios de cada función.
+`node` is the cluster node the request is aimed at (DnsWebService.cs:2367); empty
+means "this server". Only `sessions/list`, `sessions/delete` and
+`permissions/set` send it, and not always the same value: see the comments on
+each function.
 */
 
 export interface AdminSession {
   username: string
   isCurrentSession: boolean
   partialToken: string
-  /** `Standard`, `ApiToken`, `ClusterApiToken` … lo demás se pinta «Unknown». */
+  /** `Standard`, `ApiToken`, `ClusterApiToken` … anything else draws "Unknown". */
   type: string
   tokenName: string | null
   lastSeen: string
@@ -73,7 +74,7 @@ export interface AdminUserDetails extends AdminUser {
   ssoManagedGroups: boolean
   memberOfGroups: string[]
   sessions: AdminSession[]
-  /** Sólo con `includeGroups=true`: TODOS los grupos del servidor. */
+  /** Only with `includeGroups=true`: EVERY group on the server. */
   groups?: string[]
 }
 
@@ -84,7 +85,7 @@ export interface AdminGroup {
 
 export interface AdminGroupDetails extends AdminGroup {
   members: string[]
-  /** Sólo con `includeUsers=true`: TODOS los usuarios del servidor. */
+  /** Only with `includeUsers=true`: EVERY user on the server. */
   users?: string[]
 }
 
@@ -109,9 +110,9 @@ export interface SectionPermission {
 }
 
 export interface SectionPermissionDetails extends SectionPermission {
-  /** Sólo con `includeUsersAndGroups=true`. */
+  /** Only with `includeUsersAndGroups=true`. */
   users?: string[]
-  /** Sólo con `includeUsersAndGroups=true`. Incluye `Everyone`. */
+  /** Only with `includeUsersAndGroups=true`. Includes `Everyone`. */
   groups?: string[]
 }
 
@@ -124,14 +125,14 @@ export interface SsoConfig {
   ssoEnabled: boolean
   ssoAuthority: string | null
   ssoClientId: string | null
-  /** `"************"` cuando hay uno guardado; `null` cuando no. */
+  /** `"************"` when one is stored; `null` when not. */
   ssoClientSecret: string | null
   ssoMetadataAddress: string | null
   ssoScopes: string[]
   ssoAllowSignup: boolean
   ssoAllowSignupOnlyForMappedUsers: boolean
   ssoGroupMap: SsoGroupMapEntry[]
-  /** Sólo en `sso/get?includeGroups=true`. Excluye `Everyone`. */
+  /** Only in `sso/get?includeGroups=true`. Excludes `Everyone`. */
   localGroups?: string[]
 }
 
@@ -145,8 +146,8 @@ type Env<T> = { response: T; server: string }
 
 /* --------------------------------------------------------------- sesiones */
 
-/** `refreshAdminSessions` (auth.js:856). El `server` de la envoltura hace falta:
- *  el botón «Create Token» sólo se ve si este servidor es el nodo primario. */
+/** `refreshAdminSessions` (auth.js:856). The `server` of the envelope is needed:
+ *  the "Create Token" button only shows if this server is the primary node. */
 export function listSessions(
   token: string | null,
   node = '',
@@ -164,12 +165,12 @@ export function createApiToken(
 }
 
 /*
-`deleteAdminSession` (auth.js:1040) y `deleteUserSession` (auth.js:1371) borran
-lo mismo con URLs DISTINTAS, y no es un descuido: desde la pestaña Sessions
-siempre viaja un `node` (el primario si la sesión es un token de API, el nodo
-elegido en cualquier otro caso) y desde el modal de detalles del usuario el
-`node` viaja SÓLO si la sesión es un token de API. Por eso `node` es opcional
-aquí: `undefined` significa «no mandes el parámetro».
+`deleteAdminSession` (auth.js:1040) and `deleteUserSession` (auth.js:1371) delete
+the same thing with DIFFERENT URLs, and it is not an oversight: from the Sessions
+tab a `node` always travels (the primary if the session is an API token, the
+chosen node in any other case), and from the user's details modal the `node`
+travels ONLY if the session is an API token. That is why `node` is optional here:
+`undefined` means "do not send the parameter".
 */
 export function deleteAdminSession(
   token: string | null,
@@ -190,10 +191,10 @@ export function listUsers(
 }
 
 /*
-`addUser` (auth.js:1178). Upstream lo manda por POST porque lleva contraseña.
+`addUser` (auth.js:1178). Upstream sends it by POST because it carries a password.
 
-`displayName` es opcional y de hecho el formulario no lo valida: si va vacío, el
-servidor devuelve el nombre de usuario como nombre visible. Comprobado en vivo.
+`displayName` is optional and in fact the form does not validate it: if it goes
+empty, the server returns the username as the display name. Checked live.
 */
 export function createUser(
   token: string | null,
@@ -216,11 +217,11 @@ export function getUser(
 }
 
 /*
-`admin/users/set` es un endpoint parcial: el servidor sólo toca lo que llega
-(`TryGetQueryOrForm`, WebServiceAuthApi.cs:1065-1225). Upstream se apoya en eso
-para cinco acciones distintas con el mismo endpoint —guardar el modal, activar,
-desactivar, quitar el 2FA y resetear la contraseña— mandando cada vez sólo los
-campos de esa acción. De ahí que aquí el cuerpo sea abierto.
+`admin/users/set` is a partial endpoint: the server only touches what arrives
+(`TryGetQueryOrForm`, WebServiceAuthApi.cs:1065-1225). Upstream leans on that for
+five different actions through the same endpoint —save the modal, enable,
+disable, clear the 2FA and reset the password— sending only the fields of that
+action each time. Hence the open body here.
 */
 export function setUser(
   token: string | null,
@@ -229,7 +230,7 @@ export function setUser(
   return apiRequest('admin/users/set', { token, body })
 }
 
-/** `resetUserPassword` (auth.js:1572). Por POST, que lleva la contraseña nueva. */
+/** `resetUserPassword` (auth.js:1572). By POST, since it carries the new password. */
 export function resetUserPassword(
   token: string | null,
   user: string,
@@ -266,11 +267,11 @@ export function getGroup(
 }
 
 /*
-`saveGroupDetails` (auth.js:1860). `newGroup` sólo viaja si el nombre cambió:
-mandarlo siempre haría que el servidor renombrase el grupo a sí mismo.
+`saveGroupDetails` (auth.js:1860). `newGroup` only travels if the name changed:
+always sending it would make the server rename the group to itself.
 
-Y la respuesta NO es la misma que la de `groups/create`: ésta trae `members` y
-aquélla no. Comprobado en vivo contra una v15.4.
+And the response is NOT the same as `groups/create`'s: this one brings `members`
+and that one does not. Checked live against a v15.4.
 */
 export function setGroup(
   token: string | null,
@@ -307,11 +308,11 @@ export function getPermission(
 }
 
 /*
-`saveSectionPermissions` (auth.js:2114). Las dos tablas viajan serializadas con
-`|` como separador ÚNICO —tanto entre columnas como entre filas—, que es lo que
-hace `serializeTableData` (common.js:282). Y el `node` NO es el nodo elegido en
-la pantalla: es siempre el nodo PRIMARIO del cluster, o cadena vacía si no hay
-cluster.
+`saveSectionPermissions` (auth.js:2114). Both tables travel serialised with `|`
+as the ONLY separator —between columns as well as between rows—, which is what
+`serializeTableData` does (common.js:282). And the `node` is NOT the node chosen
+on the screen: it is always the cluster's PRIMARY node, or an empty string if
+there is no cluster.
 */
 export function setPermissions(
   token: string | null,

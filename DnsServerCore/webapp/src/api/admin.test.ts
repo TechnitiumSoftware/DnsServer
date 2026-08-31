@@ -24,7 +24,7 @@ import {
 
 afterEach(() => vi.restoreAllMocks())
 
-/** Espía sobre `apiRequest` que devuelve siempre `ok` con carga vacía. */
+/** A spy over `apiRequest` that always returns `ok` with an empty payload. */
 function espia() {
   return vi
     .spyOn(client, 'apiRequest')

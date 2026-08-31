@@ -3,51 +3,51 @@ import { openDownload } from './user'
 import { urlApi } from '../app/base'
 
 /*
-La familia `logs`: seis endpoints, todos en `logs.js` de upstream.
+The `logs` family: six endpoints, all of them in upstream's `logs.js`.
 
-Cinco cosas que hay que saber antes de tocar esta pantalla:
+Five things to know before touching this screen:
 
-  1. **`logs/download` NO devuelve JSON.** Con éxito responde `text/plain` y el
-     fichero entero (`Content-Disposition: attachment`); con error responde
-     `application/json` y la envoltura de siempre. Comprobado contra una
-     instancia v15.4. Por eso NO puede ir por `apiRequest`, que hace `res.json()`
-     y convertiría cualquier log en un fallo de red. Upstream lo pide con
-     `isTextResponse: true` y, si lo que llega trae `status`, lo pinta
-     formateado dentro del mismo `<pre>` del visor (logs.js:170-172): el error
-     se lee como si fuera el contenido del fichero. Se replica.
+  1. **`logs/download` does NOT return JSON.** On success it answers `text/plain`
+     and the whole file (`Content-Disposition: attachment`); on error it answers
+     `application/json` and the usual envelope. Checked against a v15.4 instance.
+     That is why it can NOT go through `apiRequest`, which does `res.json()` and
+     would turn any log into a network failure. Upstream asks for it with
+     `isTextResponse: true` and, if what arrives carries `status`, draws it
+     formatted inside the viewer's own `<pre>` (logs.js:170-172): the error reads
+     as if it were the file's content. That is replicated.
 
-  2. **El visor pide sólo los 2 primeros MB** (`limit=2`, que el servidor
-     multiplica por 1024*1024 en `WebServiceLogsApi.cs:100`). El botón
-     «Download» pide el fichero ENTERO: va sin `limit`.
+  2. **The viewer asks only for the first 2 MB** (`limit=2`, which the server
+     multiplies by 1024*1024 in `WebServiceLogsApi.cs:100`). The "Download"
+     button asks for the WHOLE file: it goes without `limit`.
 
-  3. **`logs/download` y `logs/export` son descargas con token de un solo uso**,
-     por `window.open`, porque el navegador tiene que recibir el
-     `Content-Disposition`. Van por `openDownload` de `api/user.ts`.
+  3. **`logs/download` and `logs/export` are downloads with a single-use token**,
+     via `window.open`, because the browser has to receive the
+     `Content-Disposition`. They go through `openDownload` in `api/user.ts`.
 
-  4. **`logs/list` devuelve el nombre SIN extensión** (`fileName` sale de
-     `Path.GetFileNameWithoutExtension`) y el tamaño ya formateado como cadena
-     (`"20.48 KB"`). El borrado se pide con ese mismo nombre, pero el parámetro
-     se llama `log`, no `fileName`: los dos endpoints no comparten nombre de
-     parámetro. Confundirlos da un 500.
+  4. **`logs/list` returns the name WITHOUT extension** (`fileName` comes from
+     `Path.GetFileNameWithoutExtension`) and the size already formatted as a
+     string (`"20.48 KB"`). The delete is asked for with that same name, but the
+     parameter is called `log`, not `fileName`: the two endpoints do not share a
+     parameter name. Mixing them up gives a 500.
 
-  5. **`logs/query` valida en el servidor con `Enum.Parse`**: un `qtype` que no
-     sea un tipo real responde `Requested value 'ZZZ' was not found.`. No hay
-     validación previa en el cliente para ese campo, y no se le añade.
+  5. **`logs/query` validates on the server with `Enum.Parse`**: a `qtype` that
+     is not a real type answers `Requested value 'ZZZ' was not found.`. There is
+     no prior client-side validation for that field, and none is added.
 
-Permisos (`WebServiceLogsApi.cs`): `list`, `download`, `query` y `export` piden
-`Logs.View`; `delete` y `deleteAll` piden `Logs.Delete`.
+Permissions (`WebServiceLogsApi.cs`): `list`, `download`, `query` and `export`
+ask for `Logs.View`; `delete` and `deleteAll` ask for `Logs.Delete`.
 */
 
 export interface LogFile {
-  /** Sin extensión: el servidor ya se la quita. */
+  /** Without extension: the server already strips it. */
   fileName: string
-  /** Ya formateado por el servidor, p. ej. `"20.48 KB"`. */
+  /** Already formatted by the server, e.g. `"20.48 KB"`. */
   size: string
 }
 
-/** Una fila de `logs/query`. `responseRtt` se OMITE cuando no hay medida, y
- *  `qname`, `qtype`, `qclass` y `answer` llegan como `null` explícito cuando la
- *  entrada no tiene pregunta o no tiene respuesta (`WebServiceLogsApi.cs:221-234`). */
+/** A row of `logs/query`. `responseRtt` is OMITTED when there is no measurement,
+ *  and `qname`, `qtype`, `qclass` and `answer` arrive as an explicit `null` when
+ *  the entry has no question or no answer (`WebServiceLogsApi.cs:221-234`). */
 export interface QueryLogEntry {
   rowNumber: number
   timestamp: string
@@ -69,7 +69,7 @@ export interface QueryLogPage {
   entries: QueryLogEntry[]
 }
 
-/** Los filtros de la consulta, en el orden en que upstream los monta en la URL. */
+/** The query's filters, in the order upstream builds them into the URL. */
 export interface QueryLogsParams {
   name: string
   classPath: string
@@ -89,17 +89,17 @@ export interface QueryLogsParams {
 }
 
 /*
-Devuelve el resultado entero, no una lista.
+Returns the whole outcome, not a list.
 
-Antes devolvía `[]` cuando el servidor fallaba, y eso parecía prudente —«la
-pantalla no revienta si la petición se cae»—. Era lo contrario: la lista vacía y
-el fallo se pintan igual, así que la pantalla decía «No Log File Was Found» cuando lo que había
-pasado es que la llamada no llegó. Eso es peor que un error, porque nadie
-sospecha de una respuesta que parece normal.
+It used to return `[]` when the server failed, and that looked prudent —"the
+screen does not blow up if the request falls over". It was the opposite: an empty
+list and a failure draw the same, so the screen said "No Log File Was Found" when
+what had happened was that the call never arrived. That is worse than an error,
+because nobody suspects a response that looks normal.
 
-Devolviendo el `ApiOutcome` —como ya hacían las pantallas de listas, que sí
-avisaban— el tipo obliga a distinguirlos y además se conserva el mensaje que
-mandó el servidor, que es lo que enseña upstream.
+By returning the `ApiOutcome` —as the list screens already did, and those did
+warn— the type forces the two apart, and the message the server sent is kept as
+well, which is what upstream shows.
 */
 /** `logs/list` (logs.js:112). */
 export async function listLogFiles(
@@ -116,10 +116,10 @@ export async function listLogFiles(
 }
 
 /*
-`logs/download` para el VISOR (logs.js:161). No pasa por `apiRequest` porque la
-respuesta buena no es JSON; ver el punto 1 de la cabecera. Se replica también
-qué se pinta cuando el servidor responde un error: el JSON formateado, dentro
-del mismo visor.
+`logs/download` for the VIEWER (logs.js:161). It does not go through
+`apiRequest` because the good response is not JSON; see point 1 of the header.
+What is drawn when the server answers an error is replicated too: the formatted
+JSON, inside the viewer itself.
 */
 export async function downloadLogText(
   token: string | null,
@@ -146,16 +146,16 @@ export async function downloadLogText(
       return JSON.stringify(parsed, null, 2)
     }
   } catch {
-    /* No era JSON: es el log. */
+    /* It was not JSON: it is the log. */
   }
   return texto
 }
 
-/** El botón «Download» del visor (logs.js:186): fichero ENTERO, sin `limit`,
- *  con token de un solo uso y en una pestaña nueva.
+/** The viewer's "Download" button (logs.js:186): the WHOLE file, without
+ *  `limit`, with a single-use token and in a new tab.
  *
- *  Lleva `ts` —el rompe-cachés— porque upstream se lo añade aquí
- *  (`"&ts=" + (new Date().getTime())`). `logs/export` NO lo lleva. */
+ *  It carries `ts` —the cache-buster— because upstream adds it here
+ *  (`"&ts=" + (new Date().getTime())`). `logs/export` does NOT carry it. */
 export function openLogDownload(
   token: string | null,
   fileName: string,
@@ -164,7 +164,7 @@ export function openLogDownload(
   return openDownload(token, 'logs/download', { fileName, node }, { ts: true })
 }
 
-/** `logs/delete` (logs.js:212). Ojo: el parámetro se llama `log`. */
+/** `logs/delete` (logs.js:212). Careful: the parameter is called `log`. */
 export function deleteLog(token: string | null, log: string, node = ''): Promise<ApiOutcome> {
   return apiRequest('logs/delete', { token, body: { log, node } })
 }
@@ -173,8 +173,8 @@ export function deleteAllLogs(token: string | null, node = ''): Promise<ApiOutco
   return apiRequest('logs/deleteAll', { token, body: { node } })
 }
 
-/** `logs/query` (logs.js:436). Devuelve el resultado sin envolver para que la
- *  pantalla pueda distinguir un error del servidor de una página vacía. */
+/** `logs/query` (logs.js:436). Returns the outcome unwrapped so the screen can
+ *  tell a server error apart from an empty page. */
 export async function queryLogs(
   token: string | null,
   params: QueryLogsParams,
@@ -183,11 +183,11 @@ export async function queryLogs(
   return apiRequest<{ response: QueryLogPage }>('logs/query', { token, body })
 }
 
-/** `logs/export` (logs.js:678). Los mismos filtros que `query` MENOS los tres de
- *  paginación: `pageNumber`, `entriesPerPage` y `descendingOrder` no viajan.
- *  Y sin `ts`: de las seis descargas de la consola, sólo la copia de ajustes y
- *  `logs/download` lo llevan (verificado en main.js:3100, logs.js:196,
- *  zone.js:1322, other-zones.js:554 y 623). */
+/** `logs/export` (logs.js:678). The same filters as `query` MINUS the three
+ *  paging ones: `pageNumber`, `entriesPerPage` and `descendingOrder` do not
+ *  travel. And without `ts`: of the console's six downloads, only the settings
+ *  backup and `logs/download` carry it (verified in main.js:3100, logs.js:196,
+ *  zone.js:1322, other-zones.js:554 and 623). */
 export function exportLogsCsv(
   token: string | null,
   params: QueryLogsParams,
@@ -210,9 +210,9 @@ export function exportLogsCsv(
 }
 
 /*
-Las opciones de los desplegables del formulario, con las etiquetas y los valores
-literales de index.html:3300-3399. La primera opción de los cuatro filtros de
-respuesta es la vacía y va seleccionada.
+The options of the form's dropdowns, with the labels and the literal values of
+index.html:3300-3399. The first option of the four response filters is the empty
+one and comes selected.
 */
 export const ENTRIES_PER_PAGE = ['10', '25', '50', '100', '250', '500'] as const
 

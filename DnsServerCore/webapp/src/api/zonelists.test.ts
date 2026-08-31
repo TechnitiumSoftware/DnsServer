@@ -50,8 +50,8 @@ describe('listarNodo', () => {
     expect(spy.mock.calls[0][1]?.body?.direction).toBe('up')
   })
 
-  /* other-zones.js:105 escribe `domain.toLowerCase();` sin asignar: en JavaScript
-     las cadenas son inmutables, así que el dominio viaja TAL CUAL se escribió. */
+  /* other-zones.js:105 writes `domain.toLowerCase();` without assigning: in
+     JavaScript strings are immutable, so the domain travels EXACTLY as typed. */
   it('no pasa el dominio a minúsculas: upstream tampoco lo hace', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(RESPUESTA)
     await listarNodo('cache', 't', 'CASA.Test')
@@ -67,8 +67,8 @@ describe('listarNodo', () => {
     expect(r.data.zones).toEqual(['a.casa.test'])
   })
 
-  /* Upstream pinta el errorMessage del servidor cuando un list falla; con null
-     ese texto se perdería. */
+  /* Upstream draws the server's errorMessage when a list fails; with null that
+     text would be lost. */
   it('conserva el mensaje de error del servidor', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
     const r = await listarNodo('cache', 't', 'x')
@@ -80,9 +80,9 @@ describe('dominioPadre', () => {
   it('replica getParentDomain de other-zones.js', () => {
     expect(dominioPadre('a.b.casa.test')).toBe('b.casa.test')
     expect(dominioPadre('casa.test')).toBe('test')
-    // Un dominio de una sola etiqueta tiene por padre la raíz, que es "".
+    // A single-label domain has the root as its parent, which is "".
     expect(dominioPadre('test')).toBe('')
-    // La raíz no tiene padre: null, que es lo que oculta el enlace [up].
+    // The root has no parent: null, which is what hides the [up] link.
     expect(dominioPadre('')).toBeNull()
     expect(dominioPadre(null)).toBeNull()
   })
@@ -94,9 +94,9 @@ describe('limpiarLista', () => {
     expect(limpiarLista('a.test\n\n\nb.test')).toBe('a.test,b.test')
     expect(limpiarLista('\na.test\n')).toBe('a.test')
     expect(limpiarLista('')).toBe('')
-    // Un texto de sólo saltos de línea colapsa a cadena vacía: la coma de los
-    // extremos también se quita. Upstream comprueba además `=== ","` al validar
-    // el import; esa rama no la alcanza ninguna entrada, pero se replica igual.
+    // A text of nothing but newlines collapses to an empty string: the comma at
+    // the ends is stripped too. Upstream also checks `=== ","` when validating
+    // the import; no input reaches that branch, but it is replicated all the same.
     expect(limpiarLista('\n')).toBe('')
     expect(limpiarLista('\n\n\n')).toBe('')
   })
@@ -132,7 +132,7 @@ describe('allowed y blocked', () => {
     expect(spy.mock.calls[0][1]?.body).toEqual({ domain: 'ads.test' })
   })
 
-  /* flush de allowed/blocked NO lleva `node`: upstream lo manda sólo en cache. */
+  /* the allowed/blocked flush does NOT carry `node`: upstream sends it on cache only. */
   it('vaciarLista no manda node', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
     await vaciarLista('blocked', 't')
@@ -153,7 +153,7 @@ describe('allowed y blocked', () => {
     expect(spy.mock.calls[0][1]?.body).toEqual({ blockedZones: 'c.test' })
   })
 
-  /* La exportación no va por XHR: pide un token de un solo uso y abre ventana. */
+  /* The export does not go by XHR: it asks for a single-use token and opens a window. */
   it('exportarDominios pasa por openDownload', async () => {
     const spy = vi.spyOn(user, 'openDownload').mockResolvedValue({ ok: true })
     await exportarDominios('allowed', 't')

@@ -51,11 +51,11 @@ describe('api/logs — ficheros', () => {
   })
 
   /*
-  Esta prueba afirmaba lo contrario —«devuelve lista vacía si el servidor
-  falla»— y estaba fijando el fallo: una lista vacía y una llamada caída se
-  pintan igual, así que la pantalla decía «No Log File Was Found» cuando lo que
-  había pasado es que no había respuesta. Ahora el fallo sube tal cual, con su
-  mensaje, y es la pantalla la que decide qué enseñar.
+  This test claimed the opposite —"returns an empty list if the server fails"—
+  and was pinning the bug in place: an empty list and a fallen call draw the
+  same, so the screen said "No Log File Was Found" when what had happened was
+  that there was no response. Now the failure rises as it is, with its message,
+  and it is the screen that decides what to show.
   */
   it('logs/list sube el fallo del servidor, no una lista vacía', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'error', message: 'boom' })
