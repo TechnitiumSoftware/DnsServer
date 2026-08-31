@@ -187,6 +187,13 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
             </tr>
           </thead>
           <tbody>
+            {leasesVisibles.length === 0 && (
+              <tr>
+                <td colSpan={8} className={tbl.sinFilas}>
+                  No Lease Found
+                </td>
+              </tr>
+            )}
             {leasesVisibles.map((l, i) => (
               <tr key={`${l.scope}/${l.clientIdentifier}`}>
                 <td className={styles.mono}>{l.scope}</td>
@@ -241,14 +248,11 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       </div>
 
       <div className={styles.total}>
-        {leases.length > 0 ? (
-          <span>{`Total Leases: ${leases.length}`}</span>
-        ) : aviso?.type === 'danger' ? (
-          // Se ha ido a buscar y no se ha podido: eso no es «no hay ninguna».
-          'Unable to load the leases.'
-        ) : (
-          'No Lease Found'
-        )}
+        {/* El pie es el recuento y nada más. Cuando no hay filas, quien lo dice
+            es la propia tabla —con su fila centrada, como el resto de la
+            consola y como upstream (`dhcp.js:74`)—; aquí quedaba flotando
+            fuera del panel, bajo una tabla con el cuerpo en blanco. */}
+        <span>{`Total Leases: ${leases.length}`}</span>
       </div>
 
       <Dialog

@@ -79,12 +79,22 @@ describe('DHCP › Leases', () => {
     expect(screen.getByText('Total Leases: 2')).toBeInTheDocument()
   })
 
-  it('sin concesiones dice «No Lease Found», el texto de upstream', async () => {
+  /*
+  El mensaje va DENTRO de la tabla y el pie sigue siendo el recuento.
+
+  Antes el pie hacía de las dos cosas: con filas ponía el total y sin ellas el
+  «No Lease Found», así que una tabla vacía dejaba el cuerpo en blanco bajo la
+  banda de cabecera y el mensaje flotando fuera del panel. Upstream lo mete
+  centrado en el pie de la propia tabla (`dhcp.js:74`) y el resto de la consola
+  usa su fila de «no hay nada».
+  */
+  it('sin concesiones lo dice DENTRO de la tabla, y el pie sigue contando', async () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Leases" />)
 
-    expect(await screen.findByText('No Lease Found')).toBeInTheDocument()
-    expect(screen.queryByText(/Total Leases: /)).not.toBeInTheDocument()
+    const mensaje = await screen.findByText('No Lease Found')
+    expect(mensaje.closest('table')).not.toBeNull()
+    expect(screen.getByText('Total Leases: 0')).toBeInTheDocument()
   })
 
   it('cada fila ofrece sólo la conversión que le toca por su tipo', async () => {

@@ -160,6 +160,13 @@ export function Users({ token, cluster, onAviso }: Props) {
                 </tr>
               </thead>
               <tbody>
+                {usuariosVisibles.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className={tbl.sinFilas}>
+                      No User Found
+                    </td>
+                  </tr>
+                )}
                 {usuariosVisibles.map((u) => (
                   <tr key={u.username}>
                     <td>

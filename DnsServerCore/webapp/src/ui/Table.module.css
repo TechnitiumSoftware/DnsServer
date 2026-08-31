@@ -80,9 +80,17 @@ que está en una columna.
 /* Una celda con varias líneas dentro se alinea arriba; el resto, al centro. */
 .apilada { vertical-align: top; }
 
-/* La fila de «no hay nada». Estaba escrita con `style={{textAlign:'center'}}`
-   en cuatro sitios y con dos nombres de clase más para la misma regla. */
-.sinFilas {
+/*
+La fila de «no hay nada». Estaba escrita con `style={{textAlign:'center'}}` en
+cuatro sitios y con dos nombres de clase más para la misma regla.
+
+Va como `td.sinFilas` y no como `.sinFilas` a secas porque `.tabla td` —una
+clase y un tipo— le ganaba por especificidad, así que ni el color ni el relleno
+llegaban a aplicarse: la fila salía con el color del dato y la altura de una
+celda normal. Sólo se veía centrada, que es la única de las tres reglas que no
+choca con nada.
+*/
+.tabla td.sinFilas {
   text-align: center;
   color: var(--faint);
   padding: var(--s-11) var(--s-7);

@@ -223,6 +223,13 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
             </tr>
           </thead>
           <tbody>
+            {scopesVisibles.length === 0 && (
+              <tr>
+                <td colSpan={6} className={tbl.sinFilas}>
+                  No Scope Found
+                </td>
+              </tr>
+            )}
             {scopesVisibles.map((s) => (
               <tr key={s.name}>
                 <td className={styles.nombre}>{s.name}</td>
@@ -296,13 +303,11 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
       </div>
 
       <div className={styles.total}>
-        {scopes.length > 0 ? (
-          <span>{`Total Scopes: ${scopes.length}`}</span>
-        ) : aviso?.type === 'danger' ? (
-          'Unable to load the scopes.'
-        ) : (
-          'No Scope Found'
-        )}
+        {/* El pie es el recuento y nada más. Cuando no hay filas, quien lo dice
+            es la propia tabla —con su fila centrada, como el resto de la
+            consola y como upstream (`dhcp.js:74`)—; aquí quedaba flotando
+            fuera del panel, bajo una tabla con el cuerpo en blanco. */}
+        <span>{`Total Scopes: ${scopes.length}`}</span>
       </div>
 
       <Dialog

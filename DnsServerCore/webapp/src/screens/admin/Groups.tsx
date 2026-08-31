@@ -110,6 +110,13 @@ export function Groups({ token, onAviso }: Props) {
                 </tr>
               </thead>
               <tbody>
+                {gruposVisibles.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className={tbl.sinFilas}>
+                      No Group Found
+                    </td>
+                  </tr>
+                )}
                 {gruposVisibles.map((g) => (
                   <tr key={g.name}>
                     <td>

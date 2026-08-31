@@ -46,8 +46,12 @@ describe('Permissions — la lista', () => {
     servidor()
     render(<Permissions {...props} />)
 
-    expect(await screen.findByRole('button', { name: 'Dashboard' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Zones' })).toBeInTheDocument()
+    /* El nombre de la sección es el TÍTULO del panel, no un botón: estaba
+       como enlace naranja y hacía lo mismo que el «Edit Permissions» de al
+       lado —dos controles para una acción—. Upstream tampoco lo enlaza. */
+    expect(await screen.findByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Zones')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Edit Permissions' })).toHaveLength(2)
     expect(screen.getByText('Total Sections: 2')).toBeInTheDocument()
     expect(screen.getAllByText('User Permissions')).toHaveLength(2)
     expect(screen.getAllByText('Group Permissions')).toHaveLength(2)
@@ -84,7 +88,10 @@ describe('Permissions — el modal de edición', () => {
     const spy = servidor()
     const user = userEvent.setup()
     render(<Permissions {...props} cluster={cluster} />)
-    await user.click(await screen.findByRole('button', { name: 'Dashboard' }))
+    // Se abre por el botón de su panel, que es el único control que queda.
+    const titulo = await screen.findByText('Dashboard')
+    const panel = titulo.closest<HTMLElement>('[class*="_perm_"]')!
+    await user.click(within(panel).getByRole('button', { name: 'Edit Permissions' }))
     await screen.findByRole('dialog')
     return { user, spy }
   }
@@ -156,7 +163,8 @@ describe('Permissions — el modal de edición', () => {
     const user = userEvent.setup()
     render(<Permissions {...props} onAviso={onAviso} />)
 
-    await user.click(await screen.findByRole('button', { name: 'Dashboard' }))
+    const panel = (await screen.findByText('Dashboard')).closest<HTMLElement>('[class*="_perm_"]')!
+    await user.click(within(panel).getByRole('button', { name: 'Edit Permissions' }))
     await screen.findByRole('dialog')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 

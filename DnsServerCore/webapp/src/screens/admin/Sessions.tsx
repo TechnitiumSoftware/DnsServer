@@ -144,6 +144,13 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                 </tr>
               </thead>
               <tbody>
+                {sesionesVisibles.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className={tbl.sinFilas}>
+                      No Session Found
+                    </td>
+                  </tr>
+                )}
                 {sesionesVisibles.map((s) => (
                   <tr key={s.partialToken}>
                     <td>

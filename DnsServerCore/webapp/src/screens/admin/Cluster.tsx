@@ -209,6 +209,13 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                 </tr>
               </thead>
               <tbody>
+                {nodosVisibles.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className={tbl.sinFilas}>
+                      No Node Found
+                    </td>
+                  </tr>
+                )}
                 {nodosVisibles.map((n) => (
                   <tr key={n.id}>
                     <td>{n.name}</td>

@@ -75,10 +75,15 @@ export function Permissions({ token, cluster, onAviso }: Props) {
         <>
           {secciones.map((s) => (
             <div className={styles.perm} key={s.section}>
+              {/*
+              El nombre de la sección es el título del panel, no un enlace.
+              Estaba como botón naranja y hacía exactamente lo mismo que el
+              «Edit Permissions» de al lado: dos controles para una acción, y
+              uno de ellos disfrazado de título. Upstream tampoco lo enlaza —lo
+              pinta como celda de su tabla (`auth.js:1975`)—.
+              */}
               <h4 className={styles.permHead}>
-                <button type="button" className={styles.link} onClick={() => setEditar(s.section)}>
-                  {s.section}
-                </button>
+                <span className={styles.permNombre}>{s.section}</span>
                 <Button size="sm" onClick={() => setEditar(s.section)}>
                   Edit Permissions
                 </Button>
