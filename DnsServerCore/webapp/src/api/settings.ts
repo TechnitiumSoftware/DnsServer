@@ -294,11 +294,11 @@ export function seleccionInicialBackup(): Record<string, boolean> {
 }
 
 export function parametrosBackup(
-  seleccion: Record<string, boolean>,
+  selection: Record<string, boolean>,
   node = '',
 ): Record<string, string> {
   const params: Record<string, string> = {}
-  for (const e of ELEMENTOS_BACKUP) params[e.key] = String(seleccion[e.key] === true)
+  for (const e of ELEMENTOS_BACKUP) params[e.key] = String(selection[e.key] === true)
   params.node = node
   return params
 }
@@ -312,17 +312,17 @@ the zip.
 export async function restoreSettings(
   token: string | null,
   fichero: File,
-  seleccion: Record<string, boolean>,
+  selection: Record<string, boolean>,
   deleteExistingFiles: boolean,
   node = '',
 ): Promise<ApiOutcome<{ response: DnsSettings }>> {
-  const query = new URLSearchParams(parametrosBackup(seleccion, node))
+  const query = new URLSearchParams(parametrosBackup(selection, node))
   query.set('deleteExistingFiles', String(deleteExistingFiles))
 
   return apiRequest<{ response: DnsSettings }>(`settings/restore?${query.toString()}`, {
     token,
     method: 'POST',
-    file: { campo: 'fileBackupZip', archivo: fichero },
+    file: { field: 'fileBackupZip', archivo: fichero },
   })
 }
 

@@ -38,12 +38,12 @@ export function ImportarZona({
 }) {
   const [modo, setModo] = useState<Modo>('File')
   const [archivo, setArchivo] = useState<File | null>(null)
-  const [texto, setTexto] = useState('')
+  const [text, setTexto] = useState('')
   const [overwrite, setOverwrite] = useState(true)
   const [overwriteZone, setOverwriteZone] = useState(false)
   const [overwriteSoaSerial, setOverwriteSoaSerial] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
   const fichero = useRef<HTMLInputElement>(null)
 
   // `showImportZoneModal`: on opening it returns to the defaults, which are NOT
@@ -66,15 +66,15 @@ export function ImportarZona({
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await importZone(
       token,
       zone,
-      modo === 'File' ? { archivo: archivo! } : { texto },
+      modo === 'File' ? { archivo: archivo! } : { text },
       { overwrite, overwriteZone, overwriteSoaSerial },
       node,
     )
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -89,11 +89,11 @@ export function ImportarZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      tamano="medio"
+      size="medium"
       title={`Import - ${zone}`}
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void importar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void importar()}>
             Import
           </Button>
         </>
@@ -101,20 +101,20 @@ export function ImportarZona({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      <div className={styles.campos}>
+      <div className={styles.fields}>
         <GroupRow modal label="Import Options">
           <label className={styles.chk}>
             <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
             Overwrite Existing Records
           </label>
-          <div className={styles.ayuda}>
+          <div className={styles.help}>
             Enable this option to overwrite existing records for the record types being imported.
           </div>
           <label className={styles.chk}>
             <input type="checkbox" checked={overwriteZone} onChange={(e) => setOverwriteZone(e.target.checked)} />
             Overwrite Zone
           </label>
-          <div className={styles.ayuda}>
+          <div className={styles.help}>
             Enable this option to delete all existing records from the zone before importing new records.
           </div>
           <label className={styles.chk}>
@@ -125,7 +125,7 @@ export function ImportarZona({
             />
             Overwrite SOA Serial
           </label>
-          <div className={styles.ayuda}>
+          <div className={styles.help}>
             Enable this option to overwrite existing SOA record serial with the imported SOA record serial.
           </div>
         </GroupRow>
@@ -169,10 +169,10 @@ export function ImportarZona({
               mono
               className={styles.areaAlta}
               spellCheck={false}
-              value={texto}
+              value={text}
               onChange={(e) => setTexto(e.target.value)}
             />
-            <div className={styles.ayuda}>
+            <div className={styles.help}>
               Enter the records to be imported above in standard zone file format.
             </div>
           </div>

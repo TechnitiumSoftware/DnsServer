@@ -15,14 +15,14 @@ as a boolean.
 */
 export function AppCard({
   app,
-  ocupado,
+  busy,
   onConfig,
   onUpdate,
   onStoreUpdate,
   onUninstall,
 }: {
   app: InstalledApp
-  ocupado: boolean
+  busy: boolean
   onConfig: () => void
   onUpdate: () => void
   onStoreUpdate: () => void
@@ -49,7 +49,7 @@ export function AppCard({
       {app.description && <p className={styles.desc}>{app.description}</p>}
 
       {app.dnsApps.length > 0 && (
-        <Detalles className={styles.detalles} resumen="More Details">
+        <Detalles className={styles.detalles} summary="More Details">
           {app.dnsApps.map((d) => (
             <div key={d.classPath} className={styles.clase}>
               <div className={styles.clasePath}>{d.classPath}</div>
@@ -73,18 +73,18 @@ export function AppCard({
       )}
 
       <div className={styles.foot}>
-        <Button disabled={ocupado} onClick={onConfig}>
+        <Button disabled={busy} onClick={onConfig}>
           Config
         </Button>
-        <Button disabled={ocupado} onClick={onUpdate}>
+        <Button disabled={busy} onClick={onUpdate}>
           Update
         </Button>
         {hayUpdate && (
-          <Button variant="primary" disabled={ocupado} onClick={onStoreUpdate}>
+          <Button variant="primary" disabled={busy} onClick={onStoreUpdate}>
             Store Update
           </Button>
         )}
-        <Button variant="danger" disabled={ocupado} onClick={onUninstall}>
+        <Button variant="danger" disabled={busy} onClick={onUninstall}>
           Uninstall
         </Button>
       </div>

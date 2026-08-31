@@ -57,7 +57,7 @@ export function Menu({
     { right?: number; left?: number; top?: number; bottom?: number; maxHeight: number } | null
   >(null)
   const disparador = useRef<HTMLButtonElement>(null)
-  const lista = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
 
   /*
   The list is `position: fixed`, measured from the trigger, and NOT absolute
@@ -98,9 +98,9 @@ export function Menu({
   useEffect(() => {
     if (!abierto) return
 
-    function fuera(e: MouseEvent) {
+    function outside(e: MouseEvent) {
       const t = e.target as Node
-      if (!disparador.current?.contains(t) && !lista.current?.contains(t)) setAbierto(false)
+      if (!disparador.current?.contains(t) && !list.current?.contains(t)) setAbierto(false)
     }
     function escape(e: KeyboardEvent) {
       if (e.key === 'Escape') {
@@ -115,16 +115,16 @@ export function Menu({
        there the `target` is `window`, which is not a node. Without the guard,
        `contains()` threw on every resize with a menu open. */
     const alRodar = (e: Event) => {
-      if (e.target instanceof Node && lista.current?.contains(e.target)) return
+      if (e.target instanceof Node && list.current?.contains(e.target)) return
       setAbierto(false)
     }
 
-    document.addEventListener('mousedown', fuera)
+    document.addEventListener('mousedown', outside)
     document.addEventListener('keydown', escape)
     window.addEventListener('scroll', alRodar, true)
     window.addEventListener('resize', alRodar)
     return () => {
-      document.removeEventListener('mousedown', fuera)
+      document.removeEventListener('mousedown', outside)
       document.removeEventListener('keydown', escape)
       window.removeEventListener('scroll', alRodar, true)
       window.removeEventListener('resize', alRodar)
@@ -142,13 +142,13 @@ export function Menu({
         <button
           ref={disparador}
           type="button"
-          className={styles.fila}
+          className={styles.row}
           aria-haspopup="menu"
           aria-expanded={abierto}
           onClick={abrirOCerrar}
         >
           {rotulo}
-          <Icono nombre="chevronAbajo" tam={12} />
+          <Icono name="chevronAbajo" tam={12} />
         </button>
       ) : (
         <Button
@@ -161,17 +161,17 @@ export function Menu({
           onClick={abrirOCerrar}
         >
           {rotulo == null ? (
-            <Icono nombre="mas" tam={16} />
+            <Icono name="mas" tam={16} />
           ) : (
             <>
               {rotulo}
-              <Icono nombre="chevronAbajo" tam={12} />
+              <Icono name="chevronAbajo" tam={12} />
             </>
           )}
         </Button>
       )}
       {abierto && caja && (
-        <div className={styles.menuLista} role="menu" ref={lista} style={caja}>
+        <div className={styles.menuLista} role="menu" ref={list} style={caja}>
           {children(() => setAbierto(false))}
         </div>
       )}

@@ -12,12 +12,12 @@ other table's (`--rotulo-*` in tokens). It was not before —it ran at 0.07em—
 top of that this table was written THREE times, in Settings, in DHCP and in
 Administration, with the same values copied by hand.
 */
-.tabla {
+.table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.tabla th {
+.table th {
   text-align: left;
   font-size: var(--rotulo-tam);
   font-weight: var(--rotulo-peso);
@@ -28,7 +28,7 @@ Administration, with the same values copied by hand.
   border-bottom: 1px solid var(--line);
 }
 
-.tabla td {
+.table td {
   padding: var(--s-3) var(--s-5) var(--s-3) 0;
   vertical-align: middle;
 }

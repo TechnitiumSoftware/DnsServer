@@ -32,7 +32,7 @@ The sidebar's three groups. It is not a new taxonomy: it is upstream's own order
 with a gap where the kind of task already changed. What you operate daily, what you
 configure and what you consult.
 */
-const GRUPOS: string[][] = [
+const GROUPS: string[][] = [
   ['dashboard', 'zones', 'cache', 'allowed', 'blocked', 'apps', 'dnsclient'],
   ['settings', 'dhcp', 'admin'],
   ['logs', 'about'],
@@ -68,13 +68,13 @@ function clicSimple(e: React.MouseEvent): boolean {
 }
 
 export function Shell({ session, onLogout }: { session: ShellSession; onLogout: () => void }) {
-  const permisos = session.info?.permissions
+  const permissions = session.info?.permissions
   // Memoised: if it is recreated on every render, the `hashchange` resubscribes on each.
-  const sections = useMemo(() => visibleSections(permisos), [permisos])
+  const sections = useMemo(() => visibleSections(permissions), [permissions])
   /* The starting section comes from the address bar if it carries one, and only
      if not, from the first visible one. See `app/ruta.ts` for the reasoning. */
   const rutaInicial = leerRuta(sections)
-  const [active, setActive] = useState(() => rutaInicial?.seccion ?? sections[0]?.id ?? 'about')
+  const [active, setActive] = useState(() => rutaInicial?.section ?? sections[0]?.id ?? 'about')
   const [cajon, setCajon] = useState(false)
   const [modal, setModal] = useState<ModalId | null>(null)
   const [sub, setSub] = useState<string | null>(rutaInicial?.sub ?? null)
@@ -115,11 +115,11 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
   // La primera escritura normaliza la URL y no debe dejar entrada en el historial.
   const primerRender = useRef(true)
 
-  const activaRef = useRef({ seccion: current?.id ?? 'about', sub })
+  const activaRef = useRef({ section: current?.id ?? 'about', sub })
   useEffect(() => {
     if (current == null) return
-    activaRef.current = { seccion: current.id, sub: subActual }
-    escribirRuta({ seccion: current.id, sub: subActual }, primerRender.current)
+    activaRef.current = { section: current.id, sub: subActual }
+    escribirRuta({ section: current.id, sub: subActual }, primerRender.current)
     primerRender.current = false
   }, [current, sub, subActual])
 
@@ -129,7 +129,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       if (r == null) {
         // A route that does not resolve left the bar and the screen saying different
         // distintas. La pantalla manda: se corrige la URL.
-        escribirRuta({ seccion: activaRef.current.seccion, sub: activaRef.current.sub }, true)
+        escribirRuta({ section: activaRef.current.section, sub: activaRef.current.sub }, true)
         return
       }
       /*
@@ -141,11 +141,11 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
       And it is completed by replacing: pushing would leave a new entry pointing at
       where we already are, and the back button would go round in circles.
       */
-      const seccion = sections.find((x) => x.id === r.seccion)
-      const suya = r.sub ?? seccion?.subs?.[0] ?? null
-      if (suya !== r.sub) escribirRuta({ seccion: r.seccion, sub: suya }, true)
+      const section = sections.find((x) => x.id === r.section)
+      const suya = r.sub ?? section?.subs?.[0] ?? null
+      if (suya !== r.sub) escribirRuta({ section: r.section, sub: suya }, true)
 
-      setActive((v) => (v === r.seccion ? v : r.seccion))
+      setActive((v) => (v === r.section ? v : r.section))
       setSub((v) => (v === suya ? v : suya))
     }
     window.addEventListener('popstate', alCambiar)
@@ -187,18 +187,18 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
           `aria-current="page"` is reserved for ONE thing: the page you are on,
           which is the sub-section when there is one.
           */}
-          {GRUPOS.map((grupo, g) => (
-            <div className={styles.grupo} key={g}>
-              {sections.filter((sec) => grupo.includes(sec.id)).map((sec) => {
-                const activa = sec.id === current?.id
+          {GROUPS.map((group, g) => (
+            <div className={styles.group} key={g}>
+              {sections.filter((sec) => group.includes(sec.id)).map((sec) => {
+                const active = sec.id === current?.id
                 const primera = sec.subs?.[0] ?? null
                 return (
                   <div key={sec.id}>
                     <a
                       className={styles.s}
-                      href={aCamino({ seccion: sec.id, sub: primera })}
-                      data-activa={activa}
-                      aria-current={activa && sec.subs == null ? 'page' : undefined}
+                      href={aCamino({ section: sec.id, sub: primera })}
+                      data-active={active}
+                      aria-current={active && sec.subs == null ? 'page' : undefined}
                       onClick={(e) => {
                         if (!clicSimple(e)) return
                         e.preventDefault()
@@ -208,20 +208,20 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
                       }}
                     >
                       <span className={styles.ico}>
-                        <Icono nombre={ICONOS[sec.id] ?? 'about'} tam={16} />
+                        <Icono name={ICONOS[sec.id] ?? 'about'} tam={16} />
                       </span>
                       {sec.label}
                     </a>
                     {/* main.js — the sub-items are only visible when their section is
                         active, exactly as the sub-tabs are today. No dropdown. */}
-                    {activa && sec.subs && (
+                    {active && sec.subs && (
                       <div className={styles.sub}>
                         {sec.subs.map((t) => (
                           <a
                             key={t}
                             className={styles.s2}
-                            href={aCamino({ seccion: sec.id, sub: t })}
-                            aria-current={activa && subActual === t ? 'page' : undefined}
+                            href={aCamino({ section: sec.id, sub: t })}
+                            aria-current={active && subActual === t ? 'page' : undefined}
                             onClick={(e) => {
                               if (!clicSimple(e)) return
                               e.preventDefault()
@@ -305,7 +305,7 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             aria-expanded={cajon}
             onClick={() => setCajon((v) => !v)}
           >
-            <Icono nombre="menu" tam={18} />
+            <Icono name="menu" tam={18} />
           </button>
           <span className={styles.marcaTop}>
             <img className={styles.mark} src={urlPublica('img/logo.png')} alt="" width={22} height={22} /> Technitium
@@ -332,16 +332,16 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
         ) : current?.id === 'zones' ? (
           <Zones
             token={session.token}
-            canModify={permisos?.Zones?.canModify !== false}
-            canDelete={permisos?.Zones?.canDelete !== false}
+            canModify={permissions?.Zones?.canModify !== false}
+            canDelete={permissions?.Zones?.canDelete !== false}
           />
         ) : current?.id === 'dhcp' ? (
           <Dhcp
             token={session.token}
             sub={subActual ?? 'Leases'}
             onSubChange={setSub}
-            canModify={permisos?.DhcpServer?.canModify !== false}
-            canDelete={permisos?.DhcpServer?.canDelete !== false}
+            canModify={permissions?.DhcpServer?.canModify !== false}
+            canDelete={permissions?.DhcpServer?.canDelete !== false}
           />
         ) : current?.id === 'logs' ? (
           /* "Delete All Stats" lives on the Logs screen but asks for the
@@ -350,8 +350,8 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             token={session.token}
             sub={subActual ?? 'View Logs'}
             onSubChange={setSub}
-            canDeleteLogs={permisos?.Logs?.canDelete !== false}
-            canDeleteStats={permisos?.Dashboard?.canDelete !== false}
+            canDeleteLogs={permissions?.Logs?.canDelete !== false}
+            canDeleteStats={permissions?.Dashboard?.canDelete !== false}
           />
         ) : current?.id === 'admin' ? (
           /* No permission props on purpose: upstream hides and disables nothing
@@ -365,9 +365,9 @@ export function Shell({ session, onLogout }: { session: ShellSession; onLogout: 
             token={session.token}
             sub={subActual ?? 'General'}
             onSubChange={setSub}
-            canModify={permisos?.Settings?.canModify !== false}
-            canFlushCache={permisos?.Cache?.canDelete !== false}
-            canBackup={permisos?.Settings?.canDelete !== false}
+            canModify={permissions?.Settings?.canModify !== false}
+            canFlushCache={permissions?.Cache?.canDelete !== false}
+            canBackup={permissions?.Settings?.canDelete !== false}
           />
         ) : null}
         </main>

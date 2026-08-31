@@ -9,7 +9,7 @@ to weigh the same. What changes is that this one opens.
   justify-content: space-between;
   gap: var(--s-6);
   width: 100%;
-  min-height: var(--campo-alto);
+  min-height: var(--field-height);
   padding: var(--s-5) var(--s-7);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
@@ -34,8 +34,8 @@ to weigh the same. What changes is that this one opens.
 
 .disparador:disabled { opacity: 0.45; cursor: default; }
 
-.valor { composes: truncado from './texto.module.css'; }
-.vacio { color: var(--faint); }
+.value { composes: truncado from './texto.module.css'; }
+.emptyText { color: var(--faint); }
 
 .chevron { color: var(--mute); flex: none; transition: transform var(--t-rapido); }
 .disparador[aria-expanded='true'] .chevron { transform: rotate(180deg); }
@@ -44,7 +44,7 @@ to weigh the same. What changes is that this one opens.
 The list. It is genuinely raised —two steps above the field— because it floats
 over the form and has to read as something in front.
 */
-.lista {
+.list {
   position: fixed;
   scrollbar-width: thin;
   z-index: var(--capa-flotante);
@@ -56,7 +56,7 @@ over the form and has to read as something in front.
   box-shadow: var(--e-2), var(--filo);
 }
 
-.opcion {
+.option {
   display: flex;
   align-items: center;
   gap: var(--s-5);
@@ -68,13 +68,13 @@ over the form and has to read as something in front.
   white-space: nowrap;
 }
 
-.opcion[data-activa='true'] { background: var(--hover-fuerte); }
-.opcion[aria-selected='true'] { color: var(--acc); font-weight: 600; }
-.opcion[aria-disabled='true'] { color: var(--faint); cursor: default; }
-.opcion[aria-disabled='true'][data-activa='true'] { background: none; }
+.option[data-active='true'] { background: var(--hover-fuerte); }
+.option[aria-selected='true'] { color: var(--acc); font-weight: 600; }
+.option[aria-disabled='true'] { color: var(--faint); cursor: default; }
+.option[aria-disabled='true'][data-active='true'] { background: none; }
 
 /* Fixed room for the tick: without it, choosing would shift the text. */
-.marca {
+.brand {
   display: inline-flex;
   justify-content: center;
   width: 14px;
@@ -82,7 +82,7 @@ over the form and has to read as something in front.
   color: var(--acc);
 }
 
-.vacia { color: var(--faint); }
+.isEmpty { color: var(--faint); }
 
 @media (prefers-reduced-motion: reduce) {
   .disparador,

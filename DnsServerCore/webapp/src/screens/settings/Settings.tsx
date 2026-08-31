@@ -13,7 +13,7 @@ import {
   temporaryDisableBlocking,
   type DnsSettings,
 } from '../../api/settings'
-import { construirCuerpo, formularioDesdeAjustes, habilitado, type SettingsForm } from './model'
+import { construirCuerpo, formularioDesdeAjustes, enabled, type SettingsForm } from './model'
 import { General } from './panes/General'
 import { WebService } from './panes/WebService'
 import { OptionalProtocols } from './panes/OptionalProtocols'
@@ -88,24 +88,24 @@ export function Settings({
 }: SettingsProps) {
   const [ajustes, setAjustes] = useState<DnsSettings | null>(null)
   const [form, setForm] = useState<SettingsForm | null>(null)
-  const [cargando, setCargando] = useState(true)
-  const [ocupado, setOcupado] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
   // The validation jump remembers which sub-tab it fired from: as soon as the
   // Shell asks for a different one, it stops holding. Deriving it this way avoids
   // an effect whose only job was to null it out, and the extra render it brings.
-  const [salto, setSalto] = useState<{ tab: Subpestana; desde: string } | null>(null)
+  const [newline, setSalto] = useState<{ tab: Subpestana; desde: string } | null>(null)
   const [confirmar, setConfirmar] = useState<null | 'flush' | 'disable' | 'update'>(null)
   const [modal, setModal] = useState<null | 'backup' | 'restore'>(null)
-  const [seleccion, setSeleccion] = useState<Record<string, boolean>>(seleccionInicialBackup)
+  const [selection, setSelection] = useState<Record<string, boolean>>(seleccionInicialBackup)
   const [avisoModal, setAvisoModal] = useState<{ title: string; text: string } | null>(null)
   const [proximaLista, setProximaLista] = useState<string | null | undefined>(undefined)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
+    setLoading(true)
     const s = await getSettings(token)
     aplicar(s)
-    setCargando(false)
+    setLoading(false)
   }, [token])
 
   function aplicar(s: DnsSettings | null) {
@@ -120,25 +120,25 @@ export function Settings({
 
   const pedida = (sub ?? 'General') as Subpestana
   const valida: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'General'
-  const activa: Subpestana = salto?.desde === valida ? salto.tab : valida
+  const active: Subpestana = newline?.desde === valida ? newline.tab : valida
 
   const set = useCallback((parcial: Partial<SettingsForm>) => {
     setForm((f) => (f ? { ...f, ...parcial } : f))
   }, [])
 
-  if (cargando) return <Loading />
+  if (loading) return <Loading />
   if (form == null || ajustes == null) {
     return <Fallo>Unable to load the DNS Server settings.</Fallo>
   }
 
-  const en = habilitado(form)
+  const en = enabled(form)
 
   async function guardar() {
     if (form == null) return
-    const resultado = construirCuerpo(form)
+    const result = construirCuerpo(form)
 
-    if (resultado.error) {
-      const { title, text, tab } = resultado.error
+    if (result.error) {
+      const { title, text, tab } = result.error
       setAviso({ type: 'warning', title, text })
       const destino = tab as Subpestana
       setSalto({ tab: destino, desde: valida })
@@ -146,9 +146,9 @@ export function Settings({
       return
     }
 
-    setOcupado(true)
-    const outcome = await setSettings(token, resultado.body!)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await setSettings(token, result.body!)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -165,9 +165,9 @@ export function Settings({
 
   async function vaciarCache() {
     setConfirmar(null)
-    setOcupado(true)
+    setBusy(true)
     const ok = await flushCache(token)
-    setOcupado(false)
+    setBusy(false)
     if (ok) {
       setAviso({
         type: 'success',
@@ -194,9 +194,9 @@ export function Settings({
     if (form == null) return
     const minutos = form.temporaryDisableBlockingMinutes
     setConfirmar(null)
-    setOcupado(true)
+    setBusy(true)
     const till = await temporaryDisableBlocking(token, minutos)
-    setOcupado(false)
+    setBusy(false)
     if (till == null) return
 
     setAjustes((a) => (a ? { ...a, temporaryDisableBlockingTill: till } : a))
@@ -210,9 +210,9 @@ export function Settings({
 
   async function actualizarListas() {
     setConfirmar(null)
-    setOcupado(true)
+    setBusy(true)
     const ok = await forceUpdateBlockLists(token)
-    setOcupado(false)
+    setBusy(false)
     if (!ok) return
     // main.js:2356 — the label becomes "Updating Now" without reloading the settings.
     setProximaLista(new Date(0).toISOString())
@@ -224,14 +224,14 @@ export function Settings({
   }
 
   async function hacerBackup() {
-    if (!Object.values(seleccion).some(Boolean)) {
+    if (!Object.values(selection).some(Boolean)) {
       setAvisoModal({ title: 'Missing!', text: 'Please select at least one item to backup.' })
       return
     }
     setAvisoModal(null)
-    setOcupado(true)
-    const r = await openDownload(token, 'settings/backup', parametrosBackup(seleccion), { ts: true })
-    setOcupado(false)
+    setBusy(true)
+    const r = await openDownload(token, 'settings/backup', parametrosBackup(selection), { ts: true })
+    setBusy(false)
     if (!r.ok) return
     setModal(null)
     setAviso({
@@ -248,14 +248,14 @@ export function Settings({
       setAvisoModal({ title: 'Missing!', text: 'Please select a backup zip file to restore.' })
       return
     }
-    if (!Object.values(seleccion).some(Boolean)) {
+    if (!Object.values(selection).some(Boolean)) {
       setAvisoModal({ title: 'Missing!', text: 'Please select at least one item to restore.' })
       return
     }
     setAvisoModal(null)
-    setOcupado(true)
-    const outcome = await restoreSettings(token, fichero, seleccion, borrar)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await restoreSettings(token, fichero, selection, borrar)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAvisoModal(avisoDeFallo(outcome))
@@ -278,18 +278,18 @@ export function Settings({
       {/* The title is the sub-tab, not "Settings": all nine said the same
           thing, so it was no use either for orienting yourself or for finding it
           with Ctrl+F. */}
-      <SectionHeader seccion="Settings" titulo={activa} />
+      <SectionHeader section="Settings" titulo={active} />
 
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
       <div>
-        {activa === 'General' && <General {...props} />}
-        {activa === 'Web Service' && <WebService {...props} />}
-        {activa === 'Optional Protocols' && <OptionalProtocols {...props} />}
-        {activa === 'TSIG' && <Tsig {...props} />}
-        {activa === 'Recursion' && <Recursion {...props} />}
-        {activa === 'Cache' && <Cache {...props} />}
-        {activa === 'Blocking' && (
+        {active === 'General' && <General {...props} />}
+        {active === 'Web Service' && <WebService {...props} />}
+        {active === 'Optional Protocols' && <OptionalProtocols {...props} />}
+        {active === 'TSIG' && <Tsig {...props} />}
+        {active === 'Recursion' && <Recursion {...props} />}
+        {active === 'Cache' && <Cache {...props} />}
+        {active === 'Blocking' && (
           <Blocking
             {...props}
             extra={{
@@ -297,22 +297,22 @@ export function Settings({
               blockListNextUpdatedOn: proximaLista,
               onTemporaryDisable: pedirDesactivarBloqueo,
               onUpdateNow: () => setConfirmar('update'),
-              ocupado,
+              busy,
             }}
           />
         )}
-        {activa === 'Proxy & Forwarders' && <ProxyForwarders {...props} />}
-        {activa === 'Logging' && <Logging {...props} />}
+        {active === 'Proxy & Forwarders' && <ProxyForwarders {...props} />}
+        {active === 'Logging' && <Logging {...props} />}
       </div>
 
       <div className={formulario.bar}>
         {canModify && (
-          <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
             Save Settings
           </Button>
         )}
         {canFlushCache && (
-          <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('flush')}>
+          <Button variant="danger" disabled={busy} onClick={() => setConfirmar('flush')}>
             Flush Cache
           </Button>
         )}
@@ -321,7 +321,7 @@ export function Settings({
           <>
             <Button
               onClick={() => {
-                setSeleccion(seleccionInicialBackup())
+                setSelection(seleccionInicialBackup())
                 setAvisoModal(null)
                 setModal('backup')
               }}
@@ -330,7 +330,7 @@ export function Settings({
             </Button>
             <Button
               onClick={() => {
-                setSeleccion(seleccionInicialBackup())
+                setSelection(seleccionInicialBackup())
                 setAvisoModal(null)
                 setModal('restore')
               }}
@@ -347,8 +347,8 @@ export function Settings({
         titulo="Flush Cache"
         etiqueta="Flush"
         variante="primary"
-        texto="Are you sure to flush the DNS Server cache?"
-        ocupado={ocupado}
+        text="Are you sure to flush the DNS Server cache?"
+        busy={busy}
         onConfirmar={() => void vaciarCache()}
       />
       <Confirmar
@@ -357,8 +357,8 @@ export function Settings({
         titulo="Temporary Disable Blocking"
         etiqueta="Disable"
         variante="primary"
-        texto={`Are you sure to temporarily disable blocking for ${form.temporaryDisableBlockingMinutes} minute(s)?`}
-        ocupado={ocupado}
+        text={`Are you sure to temporarily disable blocking for ${form.temporaryDisableBlockingMinutes} minute(s)?`}
+        busy={busy}
         onConfirmar={() => void desactivarBloqueo()}
       />
       <Confirmar
@@ -367,27 +367,27 @@ export function Settings({
         titulo="Update Block Lists"
         etiqueta="Update"
         variante="primary"
-        texto="Are you sure to force download and update the block lists?"
-        ocupado={ocupado}
+        text="Are you sure to force download and update the block lists?"
+        busy={busy}
         onConfirmar={() => void actualizarListas()}
       />
 
       <BackupDialog
         open={modal === 'backup'}
         onOpenChange={(o) => setModal(o ? 'backup' : null)}
-        seleccion={seleccion}
-        onSeleccion={setSeleccion}
+        selection={selection}
+        onSelection={setSelection}
         aviso={avisoModal}
-        ocupado={ocupado}
+        busy={busy}
         onBackup={() => void hacerBackup()}
       />
       <RestoreDialog
         open={modal === 'restore'}
         onOpenChange={(o) => setModal(o ? 'restore' : null)}
-        seleccion={seleccion}
-        onSeleccion={setSeleccion}
+        selection={selection}
+        onSelection={setSelection}
         aviso={avisoModal}
-        ocupado={ocupado}
+        busy={busy}
         onRestore={(fichero, borrar) => void hacerRestore(fichero, borrar)}
       />
     </div>

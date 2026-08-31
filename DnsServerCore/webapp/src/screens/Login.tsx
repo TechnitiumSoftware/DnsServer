@@ -82,15 +82,15 @@ export function Login({
   failed auto-login leaves no alert: it falls back to the form in silence.
   */
   useEffect(() => {
-    let cancelado = false
+    let cancelled = false
     void (async () => {
       const st = await getStatus()
-      if (cancelado || !st) return
+      if (cancelled || !st) return
       setSsoEnabled(st.ssoEnabled)
       if (st.hasDefaultCredentials) void submit(undefined, { user: 'admin', pass: 'admin', auto: true })
     })()
     return () => {
-      cancelado = true
+      cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -100,16 +100,16 @@ export function Login({
     auto?: { user: string; pass: string; auto: true },
   ) {
     const totpValue = totpOverride ?? totp
-    const usuario = auto ? auto.user : user
-    const clave = auto ? auto.pass : pass
+    const enteredUser = auto ? auto.user : user
+    const enteredPass = auto ? auto.pass : pass
 
-    if (usuario === '') {
+    if (enteredUser === '') {
       setAlert({ type: 'warning', title: 'Missing!', text: 'Please enter an username.' })
       userRef.current?.focus()
       return
     }
 
-    if (clave === '') {
+    if (enteredPass === '') {
       setAlert({ type: 'warning', title: 'Missing!', text: 'Please enter a password.' })
       passRef.current?.focus()
       return
@@ -130,8 +130,8 @@ export function Login({
     const outcome = await apiRequest<Session & { status: string }>('user/login', {
       method: 'POST',
       body: {
-        user: usuario.toLowerCase(),
-        pass: clave,
+        user: enteredUser.toLowerCase(),
+        pass: enteredPass,
         totp: totpValue,
         includeInfo: 'true',
       },
@@ -152,7 +152,7 @@ export function Login({
       // auth.js:263 — logging in with the factory credentials and no 2FA forces a
       // password change before going on.
       const forcePasswordChange =
-        !session.totpEnabled && usuario.toLowerCase() === 'admin' && clave === 'admin'
+        !session.totpEnabled && enteredUser.toLowerCase() === 'admin' && enteredPass === 'admin'
       onSuccess(session, { forcePasswordChange })
       return
     }
@@ -255,7 +255,7 @@ export function Login({
 
       {/* Upstream's footer shows on its login screen too, because it hangs off
           the `body` and not the panel. See `app/pie.ts`. */}
-      <PieDeEnlaces className={styles.pie} />
+      <PieDeEnlaces className={styles.footer} />
 
       <ForgotPassword open={olvido} onOpenChange={setOlvido} />
     </div>

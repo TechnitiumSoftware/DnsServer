@@ -30,4 +30,4 @@ line they already occupied.
   .grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-.accion { margin-top: var(--s-7); }
+.action { margin-top: var(--s-7); }

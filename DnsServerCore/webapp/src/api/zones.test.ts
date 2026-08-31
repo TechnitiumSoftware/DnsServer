@@ -3,7 +3,7 @@ import {
   listZones,
   importZone,
   exportZone,
-  nuncaUsado,
+  neverUsed,
   serializarPermisos,
   getZoneOptions,
   getZonePermissions,
@@ -64,9 +64,9 @@ describe('zones', () => {
   })
 
   it('recognises the .NET minimum date as "never used"', () => {
-    expect(nuncaUsado('0001-01-01T00:00:00')).toBe(true)
-    expect(nuncaUsado('2026-08-25T13:10:29Z')).toBe(false)
-    expect(nuncaUsado('')).toBe(true)
+    expect(neverUsed('0001-01-01T00:00:00')).toBe(true)
+    expect(neverUsed('2026-08-25T13:10:29Z')).toBe(false)
+    expect(neverUsed('')).toBe(true)
   })
 
   it('importing by file goes as multipart, with the fileImportZone field', async () => {
@@ -81,17 +81,17 @@ describe('zones', () => {
     expect(spy.mock.calls[0][0]).toContain('zones/import?')
     expect(spy.mock.calls[0][0]).toContain('overwrite=true')
     expect(spy.mock.calls[0][0]).toContain('overwriteZone=false')
-    expect(spy.mock.calls[0][1]?.file?.campo).toBe('fileImportZone')
+    expect(spy.mock.calls[0][1]?.file?.field).toBe('fileImportZone')
   })
 
   it('importing by pasting the text goes as text/plain, not as multipart', async () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue({ kind: 'ok', data: {} })
-    await importZone('t', 'casa.test', { texto: '@ 3600 IN A 10.0.0.1' }, {
+    await importZone('t', 'casa.test', { text: '@ 3600 IN A 10.0.0.1' }, {
       overwrite: false,
       overwriteZone: true,
       overwriteSoaSerial: false,
     })
-    expect(spy.mock.calls[0][1]?.texto).toBe('@ 3600 IN A 10.0.0.1')
+    expect(spy.mock.calls[0][1]?.text).toBe('@ 3600 IN A 10.0.0.1')
     expect(spy.mock.calls[0][1]?.file).toBeUndefined()
   })
 
@@ -120,8 +120,8 @@ describe('zones', () => {
   it('the permissions serialise as name|view|modify|delete per row', () => {
     expect(
       serializarPermisos([
-        { nombre: 'admin', canView: true, canModify: true, canDelete: false },
-        { nombre: 'ana', canView: true, canModify: false, canDelete: false },
+        { name: 'admin', canView: true, canModify: true, canDelete: false },
+        { name: 'ana', canView: true, canModify: false, canDelete: false },
       ]),
     ).toBe('admin|true|true|false|ana|true|false|false')
   })

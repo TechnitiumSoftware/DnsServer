@@ -18,11 +18,11 @@
 .countActs { display:flex; gap: var(--s-3); }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 
-.nombre { display:block; margin-top: var(--s-3); font:var(--t-2) var(--font-mono); color:var(--faint); }
+.name { display:block; margin-top: var(--s-3); font:var(--t-2) var(--font-mono); color:var(--faint); }
 .ttl { composes: ttl from '../../ui/registro.module.css'; }
 
 .kv { composes: kv from '../../ui/kv.module.css'; }
-.clave { composes: clave from '../../ui/registro.module.css'; }
+.key { composes: key from '../../ui/registro.module.css'; }
 .verlo { composes: verlo from '../../ui/registro.module.css'; }
 
 .meta { composes: meta from '../../ui/registro.module.css'; }

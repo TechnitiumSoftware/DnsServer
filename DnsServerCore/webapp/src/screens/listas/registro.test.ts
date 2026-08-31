@@ -43,48 +43,48 @@ describe('ttlPartido', () => {
   /* In cache the server sends the TTL already composed as a STRING ("218
      (3m38s)"); in allowed and blocked it sends the number and `ttlString` apart. */
   it('it splits the cache string into a number and a human form', () => {
-    expect(ttlPartido(CACHE_DNSKEY)).toEqual({ valor: '2000', humano: '33m20s' })
+    expect(ttlPartido(CACHE_DNSKEY)).toEqual({ value: '2000', humano: '33m20s' })
   })
 
   it('it composes the allowed and blocked pair out of ttl and ttlString', () => {
-    expect(ttlPartido(ALLOWED_NS)).toEqual({ valor: '14400', humano: '4h' })
+    expect(ttlPartido(ALLOWED_NS)).toEqual({ value: '14400', humano: '4h' })
   })
 
   it('a stale cache record arrives as \"0 (0s)\" and is respected', () => {
-    expect(ttlPartido({ ...CACHE_DNSKEY, ttl: '0 (0s)' })).toEqual({ valor: '0', humano: '0s' })
+    expect(ttlPartido({ ...CACHE_DNSKEY, ttl: '0 (0s)' })).toEqual({ value: '0', humano: '0s' })
   })
 })
 
 describe('entradasRData', () => {
   it('it loses no rData field', () => {
-    const claves = entradasRData(CACHE_DNSKEY.rData).map((e) => e.clave)
+    const keys = entradasRData(CACHE_DNSKEY.rData).map((e) => e.key)
     // 6 fields, but algorithmNumber merges into algorithm: 5 rows are left.
-    expect(claves).toEqual(['Flags', 'Protocol', 'Algorithm', 'Public key', 'Key tag'])
+    expect(keys).toEqual(['Flags', 'Protocol', 'Algorithm', 'Public key', 'Key tag'])
   })
 
   it('it merges `x` with `xNumber` on a single line, without losing the number', () => {
-    const alg = entradasRData(CACHE_DNSKEY.rData).find((e) => e.clave === 'Algorithm')
-    expect(alg?.valor).toBe('RSASHA256 (8)')
+    const alg = entradasRData(CACHE_DNSKEY.rData).find((e) => e.key === 'Algorithm')
+    expect(alg?.value).toBe('RSASHA256 (8)')
   })
 
   it('it merges `x` with `xString`, which is how the cache SOA arrives', () => {
     const e = entradasRData({ refresh: 900, refreshString: '15m' })
-    expect(e).toEqual([{ clave: 'Refresh', valor: '900 (15m)', largo: false }])
+    expect(e).toEqual([{ key: 'Refresh', value: '900 (15m)', long: false }])
   })
 
   it('it merges `x` with `xIdn` showing the Unicode name and the ASCII after it', () => {
     const e = entradasRData({ nameServer: 'xn--maana-pta.test', nameServerIdn: 'mañana.test' })
-    expect(e[0].valor).toBe('mañana.test (xn--maana-pta.test)')
+    expect(e[0].value).toBe('mañana.test (xn--maana-pta.test)')
   })
 
   it('it marks the public keys as long so they can be truncated', () => {
-    const pk = entradasRData(CACHE_DNSKEY.rData).find((e) => e.clave === 'Public key')
-    expect(pk?.largo).toBe(true)
-    expect(entradasRData({ ipAddress: '10.0.0.1' })[0].largo).toBe(false)
+    const pk = entradasRData(CACHE_DNSKEY.rData).find((e) => e.key === 'Public key')
+    expect(pk?.long).toBe(true)
+    expect(entradasRData({ ipAddress: '10.0.0.1' })[0].long).toBe(false)
   })
 
   it('it humanises any key it does not know instead of hiding it', () => {
-    expect(entradasRData({ campoInventadoDelFuturo: 7 })[0].clave).toBe('Campo inventado del futuro')
+    expect(entradasRData({ campoInventadoDelFuturo: 7 })[0].key).toBe('Campo inventado del futuro')
   })
 })
 
@@ -128,8 +128,8 @@ describe('fechaCorta', () => {
 describe('extras', () => {
   it('it pulls into rows the fields that belong neither to rData nor to the grey line', () => {
     const e = extras({ ...ALLOWED_NS, comments: 'una nota', eDnsClientSubnet: '10.0.0.0/24' })
-    expect(e.map((x) => x.clave)).toContain('Comments')
-    expect(e.map((x) => x.clave)).toContain('EDNS Client Subnet')
+    expect(e.map((x) => x.key)).toContain('Comments')
+    expect(e.map((x) => x.key)).toContain('EDNS Client Subnet')
   })
 
   it('it spreads the name server health out field by field', () => {
@@ -144,21 +144,21 @@ describe('extras', () => {
         isMisconfigured: false,
       },
     })
-    expect(e.map((x) => x.clave)).toContain('Total queries')
-    expect(e.map((x) => x.clave)).toContain('Answer rate')
+    expect(e.map((x) => x.key)).toContain('Total queries')
+    expect(e.map((x) => x.key)).toContain('Answer rate')
   })
 
   /* The safety net: if the server adds a field tomorrow, it comes out anyway. */
   it('an unknown field of the record is not lost', () => {
-    const e = extras({ ...ALLOWED_NS, campoNuevo: 'valor' })
-    expect(e).toContainEqual({ clave: 'Campo nuevo', valor: 'valor', largo: false })
+    const e = extras({ ...ALLOWED_NS, campoNuevo: 'value' })
+    expect(e).toContainEqual({ key: 'Campo nuevo', value: 'value', long: false })
   })
 
   it('the fields already drawn elsewhere are not repeated here', () => {
-    const claves = extras(CACHE_DNSKEY).map((x) => x.clave)
-    expect(claves).not.toContain('Rdata')
-    expect(claves).not.toContain('Ttl')
-    expect(claves).not.toContain('Response metadata')
-    expect(claves).not.toContain('Dnssec records')
+    const keys = extras(CACHE_DNSKEY).map((x) => x.key)
+    expect(keys).not.toContain('Rdata')
+    expect(keys).not.toContain('Ttl')
+    expect(keys).not.toContain('Response metadata')
+    expect(keys).not.toContain('Dnssec records')
   })
 })

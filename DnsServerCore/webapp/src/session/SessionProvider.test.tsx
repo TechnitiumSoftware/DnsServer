@@ -14,14 +14,14 @@ function montar() {
   )
 }
 
-function permisos(overrides: Record<string, boolean> = {}) {
+function permissions(overrides: Record<string, boolean> = {}) {
   const secciones = ['Dashboard','Zones','Cache','Allowed','Blocked','Apps','DnsClient','Settings','DhcpServer','Administration','Logs']
   return Object.fromEntries(
     secciones.map((s) => [s, { canView: overrides[s] ?? true, canModify: true, canDelete: true }]),
   )
 }
 
-function sesion(extra: Record<string, unknown> = {}, permOverrides = {}) {
+function session(extra: Record<string, unknown> = {}, permOverrides = {}) {
   return {
     kind: 'ok' as const,
     data: {
@@ -35,7 +35,7 @@ function sesion(extra: Record<string, unknown> = {}, permOverrides = {}) {
         version: '15.4',
         uptimestamp: '2026-08-25T13:07:31Z',
         dnsServerDomain: 'dns.shlab.app',
-        permissions: permisos(permOverrides),
+        permissions: permissions(permOverrides),
       },
       /* The screens mounted while walking the sections ask for their own things
          through the same mock; without an empty `response`, `listZones` and
@@ -61,7 +61,7 @@ describe('SessionProvider', () => {
 
   it('with a valid stored token, it goes straight in without the login', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     expect(await screen.findByRole('navigation')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Login' })).not.toBeInTheDocument()
@@ -83,7 +83,7 @@ describe('SessionProvider', () => {
 
   it('it sets the document title in the upstream format', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     await screen.findByRole('navigation')
     await waitFor(() =>
@@ -93,7 +93,7 @@ describe('SessionProvider', () => {
 
   it('it hides the sections with no read permission', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({}, { DhcpServer: false, Administration: false }))
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session({}, { DhcpServer: false, Administration: false }))
     montar()
     await screen.findByRole('navigation')
     expect(screen.queryByRole('link', { name: 'DHCP' })).not.toBeInTheDocument()
@@ -103,7 +103,7 @@ describe('SessionProvider', () => {
 
   it('it lands on the first visible section when Dashboard is not one', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({}, { Dashboard: false }))
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session({}, { Dashboard: false }))
     montar()
     await screen.findByRole('navigation')
     expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument()
@@ -123,7 +123,7 @@ describe('SessionProvider', () => {
   */
   it('the side panel is real links, not tabs', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     await screen.findByRole('navigation')
 
@@ -142,7 +142,7 @@ describe('SessionProvider', () => {
 
   it('the active sub-section is the only one claiming to be the current page', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     await screen.findByRole('navigation')
 
@@ -164,7 +164,7 @@ describe('SessionProvider', () => {
 
   it('a section with sub-sections completes the address without leaving a trace in the history', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     window.history.replaceState(null, '', '/settings/')
     montar()
     await screen.findByRole('navigation')
@@ -190,7 +190,7 @@ describe('SessionProvider', () => {
 
   it('the upstream footer is still there with the console open, not only on the login', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     await screen.findByRole('navigation')
     // In upstream the footer hangs off the `body`: it shows on EVERY screen.
@@ -220,7 +220,7 @@ describe('SessionProvider', () => {
   */
   it('if the server rejects the session, the session ends and it returns to the login', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     await screen.findByRole('navigation')
 
@@ -241,7 +241,7 @@ describe('SessionProvider', () => {
 
   it('for an SSO user it hides changing the password and configuring 2FA', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion({ isSsoUser: true }))
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session({ isSsoUser: true }))
     montar()
     await screen.findByRole('navigation')
     await userEvent.click(screen.getByRole('button', { name: /Administrator/ }))
@@ -252,7 +252,7 @@ describe('SessionProvider', () => {
 
   it('for an ordinary user it shows them', async () => {
     localStorage.setItem('token', 'tok')
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion())
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session())
     montar()
     await screen.findByRole('navigation')
     await userEvent.click(screen.getByRole('button', { name: /Administrator/ }))

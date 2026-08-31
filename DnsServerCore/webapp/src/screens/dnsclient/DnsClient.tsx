@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PROTOCOLOS, TIPOS, prepararServidor, resolve } from '../../api/dnsclient'
+import { PROTOCOLOS, TYPES, prepararServidor, resolve } from '../../api/dnsclient'
 import { type AlertType } from '../../ui/Alert'
 import { Button } from '../../ui/Button'
 import { LabeledInput, LabeledSelect } from '../../ui/Field'
@@ -7,7 +7,7 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
 import { Detalles } from '../../ui/Detalles'
 import styles from './DnsClient.module.css'
-import { Cuerpo, Panel } from '../../ui/Panel'
+import { Body, Panel } from '../../ui/Panel'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
@@ -42,9 +42,9 @@ export function DnsClient({ token }: { token: string | null }) {
 
   async function lanzar(importar: boolean) {
     // The order is upstream's: extract first, check afterwards.
-    const preparado = prepararServidor(server, protocol)
+    const ready = prepararServidor(server, protocol)
 
-    if (preparado.server === '') {
+    if (ready.server === '') {
       setAlert({ type: 'warning', title: 'Missing!', text: 'Please enter a valid Name Server.' })
       return
     }
@@ -56,10 +56,10 @@ export function DnsClient({ token }: { token: string | null }) {
     setBusy(true)
     setAlert(null)
     const outcome = await resolve(token, {
-      server: preparado.server,
+      server: ready.server,
       domain,
       type,
-      protocol: preparado.protocol,
+      protocol: ready.protocol,
       dnssec,
       eDnsClientSubnet: ecs,
       importar,
@@ -101,18 +101,18 @@ export function DnsClient({ token }: { token: string | null }) {
       "DNS-over-" labels did not match the ones next to them.
       */}
       <div className={styles.filt}>
-        <div className={styles.ancho}>
+        <div className={styles.width}>
           <LabeledInput label="Server" mono value={server} onChange={(e) => setServer(e.target.value)} />
         </div>
         <div className={styles.medio}>
           <LabeledInput label="Domain" placeholder="example.com" mono value={domain} onChange={(e) => setDomain(e.target.value)} />
         </div>
-        <div className={styles.corto}>
+        <div className={styles.short}>
           <LabeledSelect label="Type" value={type} onChange={(e) => setType(e.target.value)}>
-            {TIPOS.map((t) => <option key={t}>{t}</option>)}
+            {TYPES.map((t) => <option key={t}>{t}</option>)}
           </LabeledSelect>
         </div>
-        <div className={styles.corto}>
+        <div className={styles.short}>
           <LabeledSelect label="DNS-over-" value={protocol} onChange={(e) => setProtocol(e.target.value)}>
             {PROTOCOLOS.map((t) => <option key={t}>{t}</option>)}
           </LabeledSelect>
@@ -137,14 +137,14 @@ export function DnsClient({ token }: { token: string | null }) {
       ) : (
         <Panel
           titulo="Response"
-          acciones={<span className={styles.meta}>{protocol} · {type}</span>}
+          actions={<span className={styles.meta}>{protocol} · {type}</span>}
           className={styles.panel}
         >
-          <Cuerpo>
+          <Body>
             <pre className={styles.out}>{salida}</pre>
 
             {crudas.length > 0 && (
-              <Detalles className={styles.crudas} resumen={`Raw Responses (${crudas.length})`}>
+              <Detalles className={styles.crudas} summary={`Raw Responses (${crudas.length})`}>
                 {crudas.map((c, i) => (
                   <pre key={i} className={styles.out}>
                     {JSON.stringify(c, null, 2)}
@@ -152,7 +152,7 @@ export function DnsClient({ token }: { token: string | null }) {
                 ))}
               </Detalles>
             )}
-          </Cuerpo>
+          </Body>
         </Panel>
       )}
     </>

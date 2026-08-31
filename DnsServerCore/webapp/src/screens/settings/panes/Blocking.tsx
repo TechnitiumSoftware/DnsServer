@@ -17,7 +17,7 @@ import {
   ajustesStyles as ajustes,
   settingsStyles as styles,
 } from '../parts'
-import { Ayuda } from '../../../ui/Form'
+import { HelpText } from '../../../ui/Form'
 import type { PaneProps } from './tipos'
 
 /*
@@ -35,7 +35,7 @@ export interface BlockingExtra {
   blockListNextUpdatedOn?: string | null
   onTemporaryDisable: () => void
   onUpdateNow: () => void
-  ocupado?: boolean
+  busy?: boolean
 }
 
 export function textoProximaActualizacion(iso: string | null | undefined): string {
@@ -88,7 +88,7 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
               <Coletilla>minutes</Coletilla>
             </div>
             <div>
-              <Button disabled={off || extra.ocupado} onClick={extra.onTemporaryDisable}>
+              <Button disabled={off || extra.busy} onClick={extra.onTemporaryDisable}>
                 Temporary Disable Now
               </Button>
             </div>
@@ -201,16 +201,16 @@ export function Blocking({ f, set, en, extra }: PaneProps & { extra: BlockingExt
             {textoProximaActualizacion(extra.blockListNextUpdatedOn)}
           </span>
           <Button
-            disabled={!en.actualizarListasAhora || extra.ocupado}
+            disabled={!en.actualizarListasAhora || extra.busy}
             onClick={extra.onUpdateNow}
           >
             Update Now
           </Button>
         </div>
-        <Ayuda>
+        <HelpText>
           Click the 'Update Now' button to reset the next update schedule and force download and
           update of the block lists.
-        </Ayuda>
+        </HelpText>
       </GroupRow>
 
       <Avisos>

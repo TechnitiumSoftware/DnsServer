@@ -12,14 +12,14 @@ hand on each button, which is the symptom of a row that does not align.
   border: 1px solid var(--line);
   border-radius: var(--r-4);
   box-shadow: var(--e-1), var(--filo);
-  margin-bottom: var(--hueco-bloque);
+  margin-bottom: var(--gap-bloque);
   flex-wrap: wrap;
 }
 
 
-.ancho { flex: 1 1 240px; min-width: 240px; }
+.width { flex: 1 1 240px; min-width: 240px; }
 .medio { flex: 1 1 200px; min-width: 200px; }
-.corto { width: 120px; }
+.short { width: 120px; }
 .ecs { width: 176px; }
 
 /* The checkbox lines up with the fields' BASELINE, not with their label: hence
@@ -29,7 +29,7 @@ hand on each button, which is the symptom of a row that does not align.
   align-items: center;
   gap: var(--s-5);
   font-size: var(--t-4);
-  min-height: var(--campo-alto);
+  min-height: var(--field-height);
   cursor: pointer;
 }
 .panel { margin-bottom: var(--s-9); }

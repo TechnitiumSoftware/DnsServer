@@ -35,7 +35,7 @@ export interface ApiOptions {
   Content-Type must NOT be set by hand: the browser sets it with its boundary.
   The fields of `body` travel inside the FormData too.
   */
-  file?: { campo: string; archivo: File }
+  file?: { field: string; archivo: File }
   /** Alternative to `file` when the caller already built the FormData. */
   form?: FormData
   /*
@@ -43,7 +43,7 @@ export interface ApiOptions {
   the file into a textarea sends the raw text with `Content-Type: text/plain`
   instead of multipart (zone.js:1281). The server tells them apart by that type.
   */
-  texto?: string
+  text?: string
 }
 
 interface Envelope {
@@ -90,14 +90,14 @@ export async function apiRequest<T = unknown>(
   if (opts.form) {
     init.method = 'POST'
     init.body = opts.form
-  } else if (opts.texto != null) {
+  } else if (opts.text != null) {
     init.method = 'POST'
     headers['Content-Type'] = 'text/plain'
-    init.body = opts.texto
+    init.body = opts.text
   } else if (opts.file) {
     const fd = new FormData()
     for (const [k, v] of Object.entries(body ?? {})) fd.append(k, v)
-    fd.append(opts.file.campo, opts.file.archivo)
+    fd.append(opts.file.field, opts.file.archivo)
     init.method = 'POST'
     init.body = fd
     // No Content-Type by hand: the browser adds the boundary.

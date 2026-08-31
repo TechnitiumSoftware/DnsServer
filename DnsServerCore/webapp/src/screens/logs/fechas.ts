@@ -13,8 +13,8 @@ export { fechaHora } from '../../lib/fechas'
 
 /** `moment(valor).toISOString()` (logs.js:411). An empty string if there is no
  *  value, which is what upstream sends when the field is blank. */
-export function aIso(valor: string): string {
-  if (valor === '') return ''
-  const d = new Date(valor)
+export function aIso(value: string): string {
+  if (value === '') return ''
+  const d = new Date(value)
   return Number.isNaN(d.getTime()) ? '' : d.toISOString()
 }

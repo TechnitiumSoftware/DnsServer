@@ -25,7 +25,7 @@ export function ForgotPassword({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      tamano="medio"
+      size="medium"
       title="Forgot Password?"
     >
       <p className={styles.parrafo}>
@@ -35,7 +35,7 @@ export function ForgotPassword({
         If you are an administrator, follow these steps to reset the &apos;admin&apos; user&apos;s
         password:
       </p>
-      <ol className={styles.pasos}>
+      <ol className={styles.steps}>
         <li>Stop the DNS Server.</li>
         <li>
           Find the DNS Server config folder and locate the <b>auth.config</b> file. The config folder

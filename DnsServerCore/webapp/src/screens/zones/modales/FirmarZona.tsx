@@ -15,7 +15,7 @@ import {
 } from './dnssec-opciones'
 import type { Aviso } from '../tipos'
 import styles from '../Zones.module.css'
-import { Ayuda, Externo } from '../../../ui/Externo'
+import { HelpText, Externo } from '../../../ui/Externo'
 import { AYUDA_DNSSEC, RFC_NSEC3_ITERACIONES, RFC_NSEC3_SAL } from '../referencias'
 import { GroupRow } from '../../../ui/Form'
 import { avisoDeFallo } from '../../../lib/aviso'
@@ -83,7 +83,7 @@ export function FirmarZona({
 }) {
   const [f, setF] = useState<Formulario>(inicial)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
@@ -91,15 +91,15 @@ export function FirmarZona({
     setAviso(null)
   }, [abierto])
 
-  const set = <K extends keyof Formulario>(k: K, valor: Formulario[K]) =>
-    setF((prev) => ({ ...prev, [k]: valor }))
+  const set = <K extends keyof Formulario>(k: K, value: Formulario[K]) =>
+    setF((prev) => ({ ...prev, [k]: value }))
 
   function cambiarAlgoritmo(algorithm: Algoritmo) {
     setF((prev) => ({ ...prev, algorithm, curve: curvaPorDefecto(algorithm) }))
   }
 
   async function firmar() {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await signZone(
       token,
       zone,
@@ -121,7 +121,7 @@ export function FirmarZona({
       },
       node,
     )
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -140,9 +140,9 @@ export function FirmarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Sign Zone - ${zone === '.' ? '<root>' : zone}`}
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void firmar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void firmar()}>
             Sign Zone
           </Button>
         </>
@@ -150,15 +150,15 @@ export function FirmarZona({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      <div className={styles.campos}>
+      <div className={styles.fields}>
         <GroupRow modal label="DNSKEY Algorithm">
           {ALGORITMOS.map((a) => (
-            <label key={a.valor} className={styles.chk}>
+            <label key={a.value} className={styles.chk}>
               <input
                 type="radio"
                 name="signAlgorithm"
-                checked={f.algorithm === a.valor}
-                onChange={() => cambiarAlgoritmo(a.valor as Algoritmo)}
+                checked={f.algorithm === a.value}
+                onChange={() => cambiarAlgoritmo(a.value as Algoritmo)}
               />
               {a.etiqueta}
             </label>
@@ -170,7 +170,7 @@ export function FirmarZona({
             {(id) => (
               <Select id={id} value={f.hashAlgorithm} onChange={(e) => set('hashAlgorithm', e.target.value)}>
                 {HASHES_RSA.map((h) => (
-                  <option key={h.valor} value={h.valor}>
+                  <option key={h.value} value={h.value}>
                     {h.etiqueta}
                   </option>
                 ))}
@@ -182,7 +182,7 @@ export function FirmarZona({
             {(id) => (
               <Select id={id} value={f.curve} onChange={(e) => set('curve', e.target.value)}>
                 {curvas.map((c) => (
-                  <option key={c.valor} value={c.valor}>
+                  <option key={c.value} value={c.value}>
                     {c.etiqueta}
                   </option>
                 ))}
@@ -193,47 +193,47 @@ export function FirmarZona({
 
         <ClaveDeFirma
           titulo="Key Signing Key (KSK)"
-          nombre="signKsk"
+          name="signKsk"
           esRsa={esRsa}
           etiquetaTamano="KSK Size"
           ayudaTamano="bits (recommended 2048)"
           etiquetaPem="KSK Private Key"
-          generacion={f.kskGeneration}
-          tamano={f.kskKeySize}
+          generation={f.kskGeneration}
+          size={f.kskKeySize}
           pem={f.pemKskPrivateKey}
-          onGeneracion={(v) => set('kskGeneration', v)}
+          onGeneration={(v) => set('kskGeneration', v)}
           onTamano={(v) => set('kskKeySize', v)}
           onPem={(v) => set('pemKskPrivateKey', v)}
         />
 
         <ClaveDeFirma
           titulo="Zone Signing Key (ZSK)"
-          nombre="signZsk"
+          name="signZsk"
           esRsa={esRsa}
           etiquetaTamano="ZSK Size"
           ayudaTamano="bits (default 1280)"
           etiquetaPem="ZSK Private Key"
-          generacion={f.zskGeneration}
-          tamano={f.zskKeySize}
+          generation={f.zskGeneration}
+          size={f.zskKeySize}
           pem={f.pemZskPrivateKey}
-          onGeneracion={(v) => set('zskGeneration', v)}
+          onGeneration={(v) => set('zskGeneration', v)}
           onTamano={(v) => set('zskKeySize', v)}
           onPem={(v) => set('pemZskPrivateKey', v)}
         />
 
         <GroupRow modal label="Proof of Non-Existence">
           {PRUEBAS_NX.map((n) => (
-            <label key={n.valor} className={styles.chk}>
+            <label key={n.value} className={styles.chk}>
               <input
                 type="radio"
                 name="signNxProof"
-                checked={f.nxProof === n.valor}
-                onChange={() => set('nxProof', n.valor as NxProof)}
+                checked={f.nxProof === n.value}
+                onChange={() => set('nxProof', n.value as NxProof)}
               />
               {n.etiqueta}
             </label>
           ))}
-          <div className={styles.ayuda}>
+          <div className={styles.help}>
             With NSEC, all the records in your zone can be discovered by anyone using &quot;zone
             walking&quot; technique. NSEC3 makes it difficult since it uses hashing with a random salt.
           </div>
@@ -248,7 +248,7 @@ export function FirmarZona({
                     placeholder="iterations"
                     id={id}
                     mono
-                    className={styles.corto}
+                    className={styles.short}
                     value={f.iterations}
                     onChange={(e) => set('iterations', e.target.value)}
                   />
@@ -256,7 +256,7 @@ export function FirmarZona({
                 </div>
               )}
             </Field>
-            <div className={styles.ayuda}>
+            <div className={styles.help}>
               The number of iterations used by NSEC3 for hashing the domain names. It is recommended
               to use 0 iterations since more iterations will increase computational costs for both
               the DNS Server and resolver while not providing much value against &quot;zone
@@ -269,7 +269,7 @@ export function FirmarZona({
                     placeholder="length"
                     id={id}
                     mono
-                    className={styles.corto}
+                    className={styles.short}
                     value={f.saltLength}
                     onChange={(e) => set('saltLength', e.target.value)}
                   />
@@ -277,7 +277,7 @@ export function FirmarZona({
                 </div>
               )}
             </Field>
-            <div className={styles.ayuda}>
+            <div className={styles.help}>
               The number of bytes of random salt to generate to be used with the NSEC3 hash
               computation. It is recommended to not use salt by setting the length to 0
               [<Externo href={RFC_NSEC3_SAL}>RFC 9276</Externo>].
@@ -292,7 +292,7 @@ export function FirmarZona({
                 placeholder="ttl"
                 id={id}
                 mono
-                className={styles.corto}
+                className={styles.short}
                 value={f.dnsKeyTtl}
                 onChange={(e) => set('dnsKeyTtl', e.target.value)}
               />
@@ -300,7 +300,7 @@ export function FirmarZona({
             </div>
           )}
         </Field>
-        <div className={styles.ayuda}>
+        <div className={styles.help}>
           The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or
           rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by
           resolvers.
@@ -313,7 +313,7 @@ export function FirmarZona({
                 placeholder="days"
                 id={id}
                 mono
-                className={styles.corto}
+                className={styles.short}
                 value={f.zskRolloverDays}
                 onChange={(e) => set('zskRolloverDays', e.target.value)}
               />
@@ -321,13 +321,13 @@ export function FirmarZona({
             </div>
           )}
         </Field>
-        <div className={styles.ayuda}>
+        <div className={styles.help}>
           The frequency at which the DNS Server must automatically rollover the Zone Signing Key
           (ZSK).
         </div>
 
         {/* The link upstream closes `modalDnssecSignZone` with. */}
-        <Ayuda href={AYUDA_DNSSEC}>Help: How To Secure Your Domain Name With DNSSEC</Ayuda>
+        <HelpText href={AYUDA_DNSSEC}>Help: How To Secure Your Domain Name With DNSSEC</HelpText>
       </div>
     </Dialog>
   )
@@ -336,52 +336,52 @@ export function FirmarZona({
 /** KSK and ZSK are the same block with different labels and defaults. */
 function ClaveDeFirma({
   titulo,
-  nombre,
+  name,
   esRsa,
   etiquetaTamano,
   ayudaTamano,
   etiquetaPem,
-  generacion,
-  tamano,
+  generation,
+  size,
   pem,
-  onGeneracion,
+  onGeneration,
   onTamano,
   onPem,
 }: {
   titulo: string
-  nombre: string
+  name: string
   esRsa: boolean
   etiquetaTamano: string
   ayudaTamano: string
   etiquetaPem: string
-  generacion: string
-  tamano: string
+  generation: string
+  size: string
   pem: string
-  onGeneracion: (v: string) => void
+  onGeneration: (v: string) => void
   onTamano: (v: string) => void
   onPem: (v: string) => void
 }) {
   return (
-    <div className={styles.grupo}>
+    <div className={styles.group}>
       <div className={styles.grupoTit}>{titulo}</div>
       {GENERACIONES.map((g) => (
-        <label key={g.valor} className={styles.chk}>
+        <label key={g.value} className={styles.chk}>
           <input
             type="radio"
-            name={nombre}
-            checked={generacion === g.valor}
-            onChange={() => onGeneracion(g.valor)}
+            name={name}
+            checked={generation === g.value}
+            onChange={() => onGeneration(g.value)}
           />
           {g.etiqueta}
         </label>
       ))}
 
       {/* The size only applies to RSA and only with automatic generation. */}
-      {esRsa && generacion === 'Automatic' && (
+      {esRsa && generation === 'Automatic' && (
         <Field label={etiquetaTamano}>
           {(id) => (
             <div className={styles.enLinea}>
-              <Select id={id} className={styles.corto} value={tamano} onChange={(e) => onTamano(e.target.value)}>
+              <Select id={id} className={styles.short} value={size} onChange={(e) => onTamano(e.target.value)}>
                 {TAMANOS_RSA.map((t) => (
                   <option key={t} value={t}>
                     {t}
@@ -394,7 +394,7 @@ function ClaveDeFirma({
         </Field>
       )}
 
-      {generacion === 'UseSpecified' && (
+      {generation === 'UseSpecified' && (
         <Field label={etiquetaPem}>
           {(id) => (
             <Textarea
@@ -408,8 +408,8 @@ function ClaveDeFirma({
           )}
         </Field>
       )}
-      {generacion === 'UseSpecified' && (
-        <div className={styles.ayuda}>Enter a private key in PEM format.</div>
+      {generation === 'UseSpecified' && (
+        <div className={styles.help}>Enter a private key in PEM format.</div>
       )}
     </div>
   )

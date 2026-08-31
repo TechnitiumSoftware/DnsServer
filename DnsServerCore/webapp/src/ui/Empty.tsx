@@ -21,23 +21,23 @@ Administration— with the same four values `.cargando` already had here.
 export function Empty({
   titulo,
   children,
-  acciones,
+  actions,
   compacto = false,
 }: {
   /** What it is that is not there. Region empty state only. */
   titulo?: string
   /** Why it is not there, or what to do so that it is. */
   children?: ReactNode
-  acciones?: ReactNode
+  actions?: ReactNode
   compacto?: boolean
 }) {
-  if (compacto) return <div className={styles.linea}>{children}</div>
+  if (compacto) return <div className={styles.line}>{children}</div>
 
   return (
     <div className={styles.caja}>
       {titulo != null && <span className={styles.titulo}>{titulo}</span>}
       {children}
-      {acciones != null && <div className={styles.acciones}>{acciones}</div>}
+      {actions != null && <div className={styles.actions}>{actions}</div>}
     </div>
   )
 }
@@ -50,10 +50,10 @@ export function Loading({
   children?: ReactNode
   compacto?: boolean
 }) {
-  return <div className={`${styles.cargando}${compacto ? ` ${styles.linea}` : ''}`}>{children}</div>
+  return <div className={`${styles.loading}${compacto ? ` ${styles.line}` : ''}`}>{children}</div>
 }
 
 /** The data never arrived. It fills the same slot as the `Loading` it replaces. */
 export function Fallo({ children }: { children: ReactNode }) {
-  return <div className={styles.cargando}>{children}</div>
+  return <div className={styles.loading}>{children}</div>
 }

@@ -1,4 +1,4 @@
-import type { Registro } from '../../api/registros'
+import type { ResourceRecord } from '../../api/registros'
 
 /*
 The records table's filter (`showEditZonePage`, zone.js:3524-3570). It is the
@@ -19,8 +19,8 @@ Three rules that are not obvious and that are replicated as they are:
      everything; with it, it lists only the wildcard. It is kept.
 */
 
-export interface Filtro {
-  nombre: string
+export interface Filter {
+  name: string
   tipo: string
 }
 
@@ -60,14 +60,14 @@ export function compilarFiltroDeNombre(
  * whatever `compilarFiltroDeNombre` returns. It needs the zone because without
  * it `@` cannot be resolved.
  */
-export function filtrar(registros: Registro[], filtro: Filtro, zone: string): Registro[] {
-  const { nombre, tipo } = filtro
-  if (nombre === '' && tipo === '') return registros
+export function filtrar(records: ResourceRecord[], filter: Filter, zone: string): ResourceRecord[] {
+  const { name, tipo } = filter
+  if (name === '' && tipo === '') return records
 
-  const { dominio, regex } = compilarFiltroDeNombre(nombre, zone)
-  const tipoBuscado = tipo === '' ? null : tipo.toUpperCase()
+  const { dominio, regex } = compilarFiltroDeNombre(name, zone)
+  const wantedType = tipo === '' ? null : tipo.toUpperCase()
 
-  return registros.filter((r) => {
+  return records.filter((r) => {
     const nombreReg = r.name.toLowerCase()
 
     if (regex == null) {
@@ -76,7 +76,7 @@ export function filtrar(registros: Registro[], filtro: Filtro, zone: string): Re
       return false
     }
 
-    if (tipoBuscado != null && r.type !== tipoBuscado) return false
+    if (wantedType != null && r.type !== wantedType) return false
     return true
   })
 }

@@ -67,10 +67,10 @@ export function ConvertirZona({
   onCerrar: () => void
   onHecho: (a: Aviso) => void
 }) {
-  const tabla = destinosDeConversion(tipoOrigen)
-  const [destino, setDestino] = useState<DestinoConversion | null>(tabla.porDefecto)
+  const table = destinosDeConversion(tipoOrigen)
+  const [destino, setDestino] = useState<DestinoConversion | null>(table.porDefecto)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
@@ -81,9 +81,9 @@ export function ConvertirZona({
   async function convertir() {
     if (destino == null) return
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await convertZone(token, zone, destino, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -99,9 +99,9 @@ export function ConvertirZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Convert Zone - ${zone === '.' ? '<root>' : zone}`}
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || destino == null} onClick={() => void convertir()}>
+          <Button variant="primary" disabled={busy || destino == null} onClick={() => void convertir()}>
             Convert Zone
           </Button>
         </>
@@ -109,14 +109,14 @@ export function ConvertirZona({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      <div className={styles.campos}>
+      <div className={styles.fields}>
         <GroupRow modal label="Convert To">
           {(['Primary', 'Forwarder', 'Catalog'] as DestinoConversion[]).map((d) => (
             <label key={d} className={styles.chk}>
               <input
                 type="radio"
                 name="convertTo"
-                disabled={!tabla.habilitados.includes(d)}
+                disabled={!table.habilitados.includes(d)}
                 checked={destino === d}
                 onChange={() => setDestino(d)}
               />

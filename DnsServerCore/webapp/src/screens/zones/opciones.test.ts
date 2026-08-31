@@ -8,7 +8,7 @@ import {
   notificacionConLista,
 } from './opciones'
 
-function opciones(cambios: Partial<OpcionesZona> = {}): OpcionesZona {
+function options(cambios: Partial<OpcionesZona> = {}): OpcionesZona {
   return {
     name: 'casa.test',
     type: 'Primary',
@@ -33,19 +33,19 @@ function opciones(cambios: Partial<OpcionesZona> = {}): OpcionesZona {
 
 describe('which tabs are visible', () => {
   it('a standalone Primary with no catalogs available does not show \"General\"', () => {
-    const e = estadoOpciones(opciones())
+    const e = estadoOpciones(options())
     expect(e.pestanas).toEqual(['Query Access', 'Zone Transfer', 'Notify', 'Dynamic Updates'])
     expect(e.pestanaInicial).toBe('Query Access')
   })
 
   it('with catalogs available \"General\" appears and is the one that comes up open', () => {
-    const e = estadoOpciones(opciones({ availableCatalogZoneNames: ['cat.test'] }))
+    const e = estadoOpciones(options({ availableCatalogZoneNames: ['cat.test'] }))
     expect(e.pestanas[0]).toBe('General')
     expect(e.pestanaInicial).toBe('General')
   })
 
   it('a Catalog opens on \"Query Access\" even when there are more tabs', () => {
-    const e = estadoOpciones(opciones({ type: 'Catalog' }))
+    const e = estadoOpciones(options({ type: 'Catalog' }))
     expect(e.pestanaInicial).toBe('Query Access')
     // A Catalog has no dynamic updates.
     expect(e.pestanas).not.toContain('Dynamic Updates')
@@ -53,19 +53,19 @@ describe('which tabs are visible', () => {
 
   it('the secondaries and the stub always open on \"General\"', () => {
     for (const type of ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog', 'Stub']) {
-      expect(estadoOpciones(opciones({ type })).pestanaInicial).toBe('General')
+      expect(estadoOpciones(options({ type })).pestanaInicial).toBe('General')
     }
   })
 
   it('a Stub has neither transfer nor notify', () => {
-    const e = estadoOpciones(opciones({ type: 'Stub' }))
+    const e = estadoOpciones(options({ type: 'Stub' }))
     expect(e.pestanas).not.toContain('Zone Transfer')
     expect(e.pestanas).not.toContain('Notify')
   })
 
   it('a catalog zone that does NOT allow overriding hides the whole tab', () => {
     const e = estadoOpciones(
-      opciones({ catalog: 'cat.test', overrideCatalogQueryAccess: false, overrideCatalogZoneTransfer: false, overrideCatalogNotify: false }),
+      options({ catalog: 'cat.test', overrideCatalogQueryAccess: false, overrideCatalogZoneTransfer: false, overrideCatalogNotify: false }),
     )
     expect(e.pestanas).not.toContain('Query Access')
     expect(e.pestanas).not.toContain('Zone Transfer')
@@ -73,20 +73,20 @@ describe('which tabs are visible', () => {
   })
 
   it('if it does allow it, the tab comes back and is editable', () => {
-    const e = estadoOpciones(opciones({ catalog: 'cat.test', overrideCatalogQueryAccess: true }))
+    const e = estadoOpciones(options({ catalog: 'cat.test', overrideCatalogQueryAccess: true }))
     expect(e.pestanas).toContain('Query Access')
     expect(e.queryAccessBloqueado).toBe(false)
   })
 
   it('a SecondaryCatalog shows Query Access and Zone Transfer, but LOCKED', () => {
-    const e = estadoOpciones(opciones({ type: 'SecondaryCatalog' }))
+    const e = estadoOpciones(options({ type: 'SecondaryCatalog' }))
     expect(e.queryAccessBloqueado).toBe(true)
     expect(e.zoneTransferBloqueado).toBe(true)
   })
 
   it('a Secondary that is a member of a secondary catalog cannot touch its primary', () => {
     const e = estadoOpciones(
-      opciones({ type: 'Secondary', catalog: 'cat.test', isSecondaryCatalogMember: true, overrideCatalogPrimaryNameServers: true }),
+      options({ type: 'Secondary', catalog: 'cat.test', isSecondaryCatalogMember: true, overrideCatalogPrimaryNameServers: true }),
     )
     expect(e.servidorPrimarioBloqueado).toBe(true)
     expect(e.catalogoFijo).toBe(true)
@@ -96,19 +96,19 @@ describe('which tabs are visible', () => {
 describe('which criteria are offered', () => {
   it('the \"Name Servers In Zone\" ones disappear on five types', () => {
     for (const type of ['Stub', 'Forwarder', 'SecondaryForwarder', 'Catalog', 'SecondaryCatalog']) {
-      expect(estadoOpciones(opciones({ type })).queryAccessConNameServers).toBe(false)
+      expect(estadoOpciones(options({ type })).queryAccessConNameServers).toBe(false)
     }
-    expect(estadoOpciones(opciones({ type: 'Primary' })).queryAccessConNameServers).toBe(true)
+    expect(estadoOpciones(options({ type: 'Primary' })).queryAccessConNameServers).toBe(true)
   })
 
   it('the update policies only exist on Primary and Forwarder', () => {
-    expect(estadoOpciones(opciones({ type: 'Primary' })).politicasDeSeguridad).toBe(true)
-    expect(estadoOpciones(opciones({ type: 'Secondary' })).politicasDeSeguridad).toBe(false)
+    expect(estadoOpciones(options({ type: 'Primary' })).securityPolicies).toBe(true)
+    expect(estadoOpciones(options({ type: 'Secondary' })).securityPolicies).toBe(false)
   })
 
   it('the separate catalog notify only exists on a Catalog', () => {
-    expect(estadoOpciones(opciones({ type: 'Catalog' })).notifySeparados).toBe(true)
-    expect(estadoOpciones(opciones({ type: 'Primary' })).notifySeparados).toBe(false)
+    expect(estadoOpciones(options({ type: 'Catalog' })).notifySeparados).toBe(true)
+    expect(estadoOpciones(options({ type: 'Primary' })).notifySeparados).toBe(false)
   })
 })
 
@@ -130,7 +130,7 @@ describe('the lists are enabled by some criteria and not by others', () => {
 })
 
 describe('the body of options/set', () => {
-  const f = () => formularioDesdeOpciones(opciones())
+  const f = () => formularioDesdeOpciones(options())
 
   it('the empty lists do NOT all travel the same', () => {
     const r = construirCuerpoOpciones(f(), 'Primary')
@@ -189,20 +189,20 @@ describe('the body of options/set', () => {
 describe('filling the form', () => {
   it('an unknown transfer protocol falls to TCP', () => {
     expect(
-      formularioDesdeOpciones(opciones({ primaryZoneTransferProtocol: 'Loquesea' })).primaryZoneTransferProtocol,
+      formularioDesdeOpciones(options({ primaryZoneTransferProtocol: 'Loquesea' })).primaryZoneTransferProtocol,
     ).toBe('Tcp')
     expect(
-      formularioDesdeOpciones(opciones({ primaryZoneTransferProtocol: 'Quic' })).primaryZoneTransferProtocol,
+      formularioDesdeOpciones(options({ primaryZoneTransferProtocol: 'Quic' })).primaryZoneTransferProtocol,
     ).toBe('Quic')
   })
 
   it('the override checkboxes are false if the zone is not in a catalog', () => {
-    const f = formularioDesdeOpciones(opciones({ overrideCatalogQueryAccess: true, catalog: null }))
+    const f = formularioDesdeOpciones(options({ overrideCatalogQueryAccess: true, catalog: null }))
     expect(f.overrideCatalogQueryAccess).toBe(false)
   })
 
   it('the lists are shown one per line', () => {
-    const f = formularioDesdeOpciones(opciones({ queryAccessNetworkACL: ['10.0.0.0/8', '192.168.0.0/16'] }))
+    const f = formularioDesdeOpciones(options({ queryAccessNetworkACL: ['10.0.0.0/8', '192.168.0.0/16'] }))
     expect(f.queryAccessNetworkACL).toBe('10.0.0.0/8\n192.168.0.0/16')
   })
 })

@@ -14,7 +14,7 @@
 /* The first column's user / group / section name opens its record. */
 .link { composes: entidadEnlace from '../../ui/Table.module.css'; word-break: break-all; }
 
-.nodo { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }
+.node { font-size: var(--t-4); padding: var(--s-3) var(--s-6); border:1px solid var(--line); border-radius: var(--r-2); background:var(--field); color:var(--ink); }
 
 /* Permissions: one card per section, with the two tables in two columns. */
 .perm { margin-bottom: var(--s-8); }
@@ -43,9 +43,9 @@
 
 .ctlLine { composes: enLinea from '../../ui/Ajustes.module.css'; }
 .suffix { composes: coletilla from '../../ui/texto.module.css'; }
-.help { composes: ayuda from '../../ui/Form.module.css'; }
-.notas { composes: avisos from '../../ui/Ajustes.module.css'; }
-.group { composes: grupo from '../../ui/Form.module.css'; }
+.help { composes: help from '../../ui/Form.module.css'; }
+.notas { composes: notices from '../../ui/Ajustes.module.css'; }
+.group { composes: group from '../../ui/Form.module.css'; }
 .area { composes: area from '../../ui/Ajustes.module.css'; }
 /* The width only: the trigger's box is set by `ui/Select`. */
 .select { max-width: 420px; }
@@ -55,7 +55,7 @@
 The editable table is `ui/TablaEditable.module.css`'s. It was written here and in
 two other modules with the same values copied by hand.
 */
-.edit { composes: tabla from '../../ui/TablaEditable.module.css'; }
+.edit { composes: table from '../../ui/TablaEditable.module.css'; }
 
 .edit input, .edit select { width:100%; }
 .tdel { width:84px; }

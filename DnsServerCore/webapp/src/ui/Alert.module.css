@@ -54,4 +54,4 @@ with `gap`, the child's margin ADDS to the gap, so 24 of margin inside a `gap` o
 and inherits; outside it does not exist and the fallback is 0, which is exactly
 what is needed.
 */
-.hueco { margin-bottom: calc(var(--hueco-bloque) - var(--hueco, 0px)); }
+.gap { margin-bottom: calc(var(--gap-bloque) - var(--gap, 0px)); }

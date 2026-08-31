@@ -26,7 +26,7 @@ export function antepasados(domain: string): string[] {
   return salida.reverse()
 }
 
-export function Arbol({
+export function Tree({
   domain,
   domainIdn,
   zones,
@@ -36,17 +36,17 @@ export function Arbol({
   domainIdn?: string
   zones: string[]
   /** `arriba` marks the navigation as upstream's [up] link. */
-  onNavegar: (domain: string, arriba?: boolean) => void
+  onNavegar: (domain: string, up?: boolean) => void
 }) {
-  const cadena = antepasados(domain)
+  const string = antepasados(domain)
   const enRaiz = domain === ''
 
   // Each ancestor nests one level more; the children hang off the current node.
-  let arbol = (
+  let tree = (
     <div className={styles.lvl}>
       {zones.map((z) => (
         <button key={z} type="button" className={styles.node} onClick={() => onNavegar(z)}>
-          <span className={styles.car}><Icono nombre="chevronDerecha" tam={12} /></span>
+          <span className={styles.car}><Icono name="chevronDerecha" tam={12} /></span>
           <span className={styles.etiqueta}>{z}</span>
         </button>
       ))}
@@ -54,29 +54,29 @@ export function Arbol({
   )
 
   if (!enRaiz) {
-    arbol = (
+    tree = (
       <div className={styles.lvl}>
         <button type="button" className={styles.node} aria-current="true" disabled>
-          <span className={styles.car}><Icono nombre="chevronAbajo" tam={12} /></span>
+          <span className={styles.car}><Icono name="chevronAbajo" tam={12} /></span>
           <span className={styles.etiqueta}>{domainIdn ?? domain}</span>
         </button>
-        {arbol}
+        {tree}
       </div>
     )
 
-    for (const padre of [...cadena].reverse()) {
-      const dentro = arbol
-      arbol = (
+    for (const padre of [...string].reverse()) {
+      const inside = tree
+      tree = (
         <div className={styles.lvl}>
           <button
             type="button"
             className={styles.node}
             onClick={() => onNavegar(padre, true)}
           >
-            <span className={styles.car}><Icono nombre="chevronAbajo" tam={12} /></span>
+            <span className={styles.car}><Icono name="chevronAbajo" tam={12} /></span>
             <span className={styles.etiqueta}>{padre}</span>
           </button>
-          {dentro}
+          {inside}
         </div>
       )
     }
@@ -91,10 +91,10 @@ export function Arbol({
         onClick={enRaiz ? undefined : () => onNavegar('', true)}
         disabled={enRaiz}
       >
-        <span className={styles.car}><Icono nombre="chevronAbajo" tam={12} /></span>
+        <span className={styles.car}><Icono name="chevronAbajo" tam={12} /></span>
         <span className={styles.etiqueta}>&lt;ROOT&gt;</span>
       </button>
-      {arbol}
+      {tree}
     </div>
   )
 }

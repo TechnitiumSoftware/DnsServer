@@ -10,14 +10,14 @@ Dashboard's period— are state buttons and are announced with `aria-pressed`. T
 look alike and are not the same thing, so the caller decides.
 */
 export function Segmentado<T extends string>({
-  opciones,
-  activa,
+  options,
+  active,
   onElegir,
   etiqueta,
   comoPestanas = false,
 }: {
-  opciones: { id: T; etiqueta: string }[]
-  activa: T
+  options: { id: T; etiqueta: string }[]
+  active: T
   onElegir: (id: T) => void
   /** The group's name, for whoever does not see the screen. */
   etiqueta: string
@@ -29,14 +29,14 @@ export function Segmentado<T extends string>({
       role={comoPestanas ? 'tablist' : 'group'}
       aria-label={etiqueta}
     >
-      {opciones.map((o) => (
+      {options.map((o) => (
         <button
           key={o.id}
           type="button"
-          className={styles.opcion}
+          className={styles.option}
           role={comoPestanas ? 'tab' : undefined}
-          aria-selected={comoPestanas ? o.id === activa : undefined}
-          aria-pressed={comoPestanas ? undefined : o.id === activa}
+          aria-selected={comoPestanas ? o.id === active : undefined}
+          aria-pressed={comoPestanas ? undefined : o.id === active}
           onClick={() => onElegir(o.id)}
         >
           {o.etiqueta}

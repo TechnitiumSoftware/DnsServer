@@ -18,7 +18,7 @@ const DINAMICA: DhcpLease = {
   leaseExpires: '2026-08-26T09:12:00Z',
 }
 
-const RESERVADA: DhcpLease = {
+const RESERVED: DhcpLease = {
   ...DINAMICA,
   type: 'Reserved',
   hardwareAddress: 'DC-A6-32-7F-44-81',
@@ -65,13 +65,13 @@ const DETALLE: DhcpScope = {
 
 const OK = { kind: 'ok' as const, data: {} }
 
-function fila(nombre: string) {
-  return within(screen.getByRole('row', { name: new RegExp(nombre) }))
+function row(name: string) {
+  return within(screen.getByRole('row', { name: new RegExp(name) }))
 }
 
 describe('DHCP › Leases', () => {
   it('it draws one row per lease and the total in the footer', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVADA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVED] })
     render(<Dhcp token="t" sub="Leases" />)
 
     expect(await screen.findByText('192.168.1.42')).toBeInTheDocument()
@@ -92,25 +92,25 @@ describe('DHCP › Leases', () => {
     vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [] })
     render(<Dhcp token="t" sub="Leases" />)
 
-    const mensaje = await screen.findByText('No Lease Found')
-    expect(mensaje.closest('table')).not.toBeNull()
+    const message = await screen.findByText('No Lease Found')
+    expect(message.closest('table')).not.toBeNull()
     expect(screen.getByText('Total Leases: 0')).toBeInTheDocument()
   })
 
   it('each row offers only the conversion its type calls for', async () => {
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVADA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [DINAMICA, RESERVED] })
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.42')
 
     expect(
-      fila('192\\.168\\.1\\.42').getByRole('button', { name: 'Convert To Reserved Lease' }),
+      row('192\\.168\\.1\\.42').getByRole('button', { name: 'Convert To Reserved Lease' }),
     ).toBeInTheDocument()
     expect(
-      fila('192\\.168\\.1\\.42').queryByRole('button', { name: 'Convert To Dynamic Lease' }),
+      row('192\\.168\\.1\\.42').queryByRole('button', { name: 'Convert To Dynamic Lease' }),
     ).not.toBeInTheDocument()
 
     expect(
-      fila('192\\.168\\.1\\.50').getByRole('button', { name: 'Convert To Dynamic Lease' }),
+      row('192\\.168\\.1\\.50').getByRole('button', { name: 'Convert To Dynamic Lease' }),
     ).toBeInTheDocument()
   })
 
@@ -140,7 +140,7 @@ describe('DHCP › Leases', () => {
 
   it('unreserving alerts with \"Unreserved!\"', async () => {
     const user = userEvent.setup()
-    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [RESERVADA] })
+    vi.spyOn(api, 'listLeases').mockResolvedValue({ kind: 'ok', data: [RESERVED] })
     vi.spyOn(api, 'convertToDynamicLease').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Leases" />)
     await screen.findByText('192.168.1.50')
@@ -257,11 +257,11 @@ describe('DHCP › Scopes', () => {
 
   it('deleting asks and removes the row without reloading the list', async () => {
     const user = userEvent.setup()
-    const lista = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
+    const list = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     const spy = vi.spyOn(api, 'deleteScope').mockResolvedValue(OK)
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
-    const llamadasIniciales = lista.mock.calls.length
+    const llamadasIniciales = list.mock.calls.length
 
     await user.click(screen.getByRole('button', { name: /^Actions for / }))
     await user.click(await screen.findByRole('button', { name: 'Delete Scope' }))
@@ -273,7 +273,7 @@ describe('DHCP › Scopes', () => {
     expect(spy).toHaveBeenCalledWith('t', 'Default', '')
     expect(await screen.findByText('Scope Deleted!')).toBeInTheDocument()
     expect(screen.getByText('No Scope Found')).toBeInTheDocument()
-    expect(lista.mock.calls).toHaveLength(llamadasIniciales)
+    expect(list.mock.calls).toHaveLength(llamadasIniciales)
   })
 
   it('without permissions neither \"Add Scope\", nor \"Enable\"/\"Disable\", nor \"Delete\" show', async () => {
@@ -416,15 +416,15 @@ describe('DHCP › Scopes — the form', () => {
 
   it('\"Cancel\" returns to the table and reloads it', async () => {
     const user = userEvent.setup()
-    const lista = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
+    const list = vi.spyOn(api, 'listScopes').mockResolvedValue({ kind: 'ok', data: [SCOPE] })
     render(<Dhcp token="t" sub="Scopes" />)
     await screen.findByText('Default')
     await user.click(screen.getByRole('button', { name: 'Add Scope' }))
-    const antes = lista.mock.calls.length
+    const antes = list.mock.calls.length
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(await screen.findByText('Total Scopes: 1')).toBeInTheDocument()
-    expect(lista.mock.calls.length).toBeGreaterThan(antes)
+    expect(list.mock.calls.length).toBeGreaterThan(antes)
   })
 })

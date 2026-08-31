@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { AJUSTES } from './ajustes.fixture'
-import { construirCuerpo, formularioDesdeAjustes, habilitado, limpiarLista, listaATexto } from './model'
+import { construirCuerpo, formularioDesdeAjustes, enabled, limpiarLista, listaATexto } from './model'
 
 const base = () => formularioDesdeAjustes(AJUSTES)
 
-function cuerpo(parcial: Partial<ReturnType<typeof base>> = {}) {
+function body(parcial: Partial<ReturnType<typeof base>> = {}) {
   const r = construirCuerpo({ ...base(), ...parcial })
   expect(r.error).toBeUndefined()
   return r.body!
@@ -63,38 +63,38 @@ describe('formularioDesdeAjustes', () => {
   })
 })
 
-describe('habilitado', () => {
+describe('enabled', () => {
   it('with no blocking, the whole Blocking sub-tab goes off', () => {
-    const en = habilitado({ ...base(), enableBlocking: false })
+    const en = enabled({ ...base(), enableBlocking: false })
     expect(en.blocking).toBe(false)
     expect(en.customBlockingAddresses).toBe(false)
     expect(en.actualizarListasAhora).toBe(false)
   })
 
   it('\"Update Now\" stays off with blocking on but no lists', () => {
-    expect(habilitado({ ...base(), enableBlocking: true, blockListUrls: '' }).actualizarListasAhora).toBe(false)
-    expect(habilitado({ ...base(), enableBlocking: true, blockListUrls: 'http://x\n' }).actualizarListasAhora).toBe(true)
+    expect(enabled({ ...base(), enableBlocking: true, blockListUrls: '' }).actualizarListasAhora).toBe(false)
+    expect(enabled({ ...base(), enableBlocking: true, blockListUrls: 'http://x\n' }).actualizarListasAhora).toBe(true)
   })
 
   it('the recursion ACL is only edited with the fourth option', () => {
-    expect(habilitado({ ...base(), recursion: 'Allow' }).recursionNetworkACL).toBe(false)
-    expect(habilitado({ ...base(), recursion: 'UseSpecifiedNetworkACL' }).recursionNetworkACL).toBe(true)
+    expect(enabled({ ...base(), recursion: 'Allow' }).recursionNetworkACL).toBe(false)
+    expect(enabled({ ...base(), recursion: 'UseSpecifiedNetworkACL' }).recursionNetworkACL).toBe(true)
   })
 
   it('the Web Service certificate is enabled by HTTPS or by its UDS', () => {
-    expect(habilitado({ ...base(), webServiceEnableTls: false, webServiceEnableTlsUnixSocket: false }).webServiceTlsCert).toBe(false)
-    expect(habilitado({ ...base(), webServiceEnableTls: false, webServiceEnableTlsUnixSocket: true }).webServiceTlsCert).toBe(true)
+    expect(enabled({ ...base(), webServiceEnableTls: false, webServiceEnableTlsUnixSocket: false }).webServiceTlsCert).toBe(false)
+    expect(enabled({ ...base(), webServiceEnableTls: false, webServiceEnableTlsUnixSocket: true }).webServiceTlsCert).toBe(true)
   })
 
   it('the reverse DNS proxy ACL is enabled by any of the five', () => {
     const f = base()
-    expect(habilitado(f).dnsReverseProxyNetworkACL).toBe(false)
-    expect(habilitado({ ...f, enableDnsOverHttp: true }).dnsReverseProxyNetworkACL).toBe(true)
+    expect(enabled(f).dnsReverseProxyNetworkACL).toBe(false)
+    expect(enabled({ ...f, enableDnsOverHttp: true }).dnsReverseProxyNetworkACL).toBe(true)
   })
 
   it('with no logging, its four options and the folder go off', () => {
-    expect(habilitado({ ...base(), loggingType: 'None' }).logging).toBe(false)
-    expect(habilitado({ ...base(), loggingType: 'FileAndConsole' }).logging).toBe(true)
+    expect(enabled({ ...base(), loggingType: 'None' }).logging).toBe(false)
+    expect(enabled({ ...base(), loggingType: 'FileAndConsole' }).logging).toBe(true)
   })
 })
 
@@ -138,10 +138,10 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
     ['forwarderConcurrency', { forwarderConcurrency: '' }, 'Please enter a value for Forwarder Concurrency.'],
   ]
 
-  it.each(casos)('%s vacío da el aviso literal de upstream', (_n, parcial, texto) => {
+  it.each(casos)('%s vacío da el aviso literal de upstream', (_n, parcial, text) => {
     const r = construirCuerpo({ ...base(), ...parcial } as ReturnType<typeof base>)
     expect(r.error?.title).toBe('Missing!')
-    expect(r.error?.text).toBe(texto)
+    expect(r.error?.text).toBe(text)
     expect(r.body).toBeUndefined()
   })
 
@@ -172,7 +172,7 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
       title: 'Missing!',
       text: 'Please enter a valid value in the text field in focus.',
       tab: 'General',
-      campo: 'qpmPrefixLimitsIPv4',
+      field: 'qpmPrefixLimitsIPv4',
     })
   })
 
@@ -185,12 +185,12 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
       title: 'Invalid Character!',
       text: "Please edit the value in the text field in focus to remove '|' character.",
       tab: 'TSIG',
-      campo: 'tsigKeys',
+      field: 'tsigKeys',
     })
   })
 
   it('an empty TSIG secret IS allowed: it is the only data-optional', () => {
-    const b = cuerpo({ tsigKeys: [{ keyName: 'k1', sharedSecret: '', algorithmName: 'hmac-sha256' }] })
+    const b = body({ tsigKeys: [{ keyName: 'k1', sharedSecret: '', algorithmName: 'hmac-sha256' }] })
     expect(b.tsigKeys).toBe('k1||hmac-sha256')
   })
 
@@ -213,7 +213,7 @@ describe('construirCuerpo — validation order of saveDnsSettings', () => {
 
 describe('construirCuerpo — body of settings/set', () => {
   it('empty lists travel as the string \"false\"', () => {
-    const b = cuerpo()
+    const b = body()
     expect(b.zoneTransferAllowedNetworks).toBe('false')
     expect(b.notifyAllowedNetworks).toBe('false')
     expect(b.blockListUrls).toBe('false')
@@ -222,49 +222,49 @@ describe('construirCuerpo — body of settings/set', () => {
   })
 
   it('empty End Points fall to their default value, not to \"false\"', () => {
-    expect(cuerpo({ dnsServerLocalEndPoints: '' }).dnsServerLocalEndPoints).toBe('0.0.0.0:53,[::]:53')
-    expect(cuerpo({ webServiceLocalAddresses: '' }).webServiceLocalAddresses).toBe('0.0.0.0,[::]')
-    expect(cuerpo({ webServiceHttpPort: '' }).webServiceHttpPort).toBe('5380')
+    expect(body({ dnsServerLocalEndPoints: '' }).dnsServerLocalEndPoints).toBe('0.0.0.0:53,[::]:53')
+    expect(body({ webServiceLocalAddresses: '' }).webServiceLocalAddresses).toBe('0.0.0.0,[::]')
+    expect(body({ webServiceHttpPort: '' }).webServiceHttpPort).toBe('5380')
   })
 
   it('the textareas are sent with commas, one entry per comma', () => {
-    const b = cuerpo({ forwarders: '1.1.1.1\n8.8.8.8\n' })
+    const b = body({ forwarders: '1.1.1.1\n8.8.8.8\n' })
     expect(b.forwarders).toBe('1.1.1.1,8.8.8.8')
   })
 
   it('the tables serialise with \"|\" between ALL the cells', () => {
-    const b = cuerpo()
+    const b = body()
     expect(b.qpmPrefixLimitsIPv4).toBe('32|600|600|24|6000|6000')
   })
 
   it('empty tables travel as \"false\"', () => {
-    const b = cuerpo({ qpmPrefixLimitsIPv4: [], qpmPrefixLimitsIPv6: [], tsigKeys: [] })
+    const b = body({ qpmPrefixLimitsIPv4: [], qpmPrefixLimitsIPv6: [], tsigKeys: [] })
     expect(b.qpmPrefixLimitsIPv4).toBe('false')
     expect(b.tsigKeys).toBe('false')
   })
 
   it('with \"No Proxy\" NO other proxy field is sent', () => {
-    const b = cuerpo()
+    const b = body()
     expect(b.proxyType).toBe('none')
     expect(b.proxyAddress).toBeUndefined()
     expect(b.proxyBypass).toBeUndefined()
   })
 
   it('with a proxy configured, an empty bypass is an empty string and not \"false\"', () => {
-    const b = cuerpo({ proxyType: 'Socks5', proxyAddress: 'p', proxyPort: '1080' })
+    const b = body({ proxyType: 'Socks5', proxyAddress: 'p', proxyPort: '1080' })
     expect(b.proxyType).toBe('socks5')
     expect(b.proxyBypass).toBe('')
   })
 
   it('the booleans travel as lowercase \"true\"/\"false\"', () => {
-    const b = cuerpo()
+    const b = body()
     expect(b.dnssecValidation).toBe('true')
     expect(b.enableUdpSocketPool).toBe('false')
   })
 
   it('it sends the fields of ALL NINE sub-tabs, not just the visible one', () => {
-    const b = cuerpo()
-    for (const clave of [
+    const b = body()
+    for (const key of [
       'dnsServerDomain',
       'webServiceHttpPort',
       'enableDnsOverTls',
@@ -275,14 +275,14 @@ describe('construirCuerpo — body of settings/set', () => {
       'forwarderProtocol',
       'loggingType',
     ]) {
-      expect(b[clave], clave).toBeDefined()
+      expect(b[key], key).toBeDefined()
     }
   })
 
   it('it returns the sanitised text upstream rewrites into the textareas', () => {
     const r = construirCuerpo({ ...base(), blockingBypassList: '10.0.0.1\n\n10.0.0.2\n' })
     // Blocking adds a trailing newline; the forwarders do not. Upstream's asymmetry.
-    expect(r.saneado?.blockingBypassList).toBe('10.0.0.1\n10.0.0.2\n')
-    expect(r.saneado?.forwarders).toBe('1.1.1.1\n8.8.8.8')
+    expect(r.sanitised?.blockingBypassList).toBe('10.0.0.1\n10.0.0.2\n')
+    expect(r.sanitised?.forwarders).toBe('1.1.1.1\n8.8.8.8')
   })
 })

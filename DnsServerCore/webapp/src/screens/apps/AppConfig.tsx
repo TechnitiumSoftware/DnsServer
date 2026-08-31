@@ -61,9 +61,9 @@ export function AppConfig({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      tamano="medio"
+      size="medium"
       title={`App Config - ${name}`}
-      acciones={
+      actions={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
             Save

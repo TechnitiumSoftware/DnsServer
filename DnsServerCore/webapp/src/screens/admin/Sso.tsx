@@ -6,7 +6,7 @@ import { Input, Select } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Loading } from '../../ui/Empty'
 import { getSsoConfig, setSsoConfig, type SsoConfig } from '../../api/admin'
-import { serializarTabla, type Celda } from './tabla'
+import { serializarTabla, type Cell } from './tabla'
 import {
   avisoDeFallo,
   Check,
@@ -53,7 +53,7 @@ interface FilaGrupo {
 }
 
 export function Sso({ token, onAviso }: Props) {
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [gruposLocales, setGruposLocales] = useState<string[]>([])
   const [enabled, setEnabled] = useState(false)
   const [authority, setAuthority] = useState('')
@@ -64,7 +64,7 @@ export function Sso({ token, onAviso }: Props) {
   const [allowSignup, setAllowSignup] = useState(false)
   const [onlyMapped, setOnlyMapped] = useState(false)
   const [groupMap, setGroupMap] = useState<FilaGrupo[]>([])
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [confirmar, setConfirmar] = useState<null | 'authority' | 'metadata'>(null)
 
   function aplicar(c: SsoConfig) {
@@ -83,9 +83,9 @@ export function Sso({ token, onAviso }: Props) {
   }
 
   const cargar = useCallback(async () => {
-    setCargando(true)
+    setLoading(true)
     const outcome = await getSsoConfig(token)
-    setCargando(false)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
@@ -122,16 +122,16 @@ export function Sso({ token, onAviso }: Props) {
       return
     }
 
-    const s = serializarTabla(scopes.map((v): Celda[] => [{ tipo: 'texto', valor: v }]))
+    const s = serializarTabla(scopes.map((v): Cell[] => [{ tipo: 'text', value: v }]))
     if (!s.ok) {
       onAviso({ type: 'warning', title: s.fallo.title, text: s.fallo.text })
       return
     }
 
     const g = serializarTabla(
-      groupMap.map((f): Celda[] => [
-        { tipo: 'texto', valor: f.remoteGroup },
-        { tipo: 'texto', valor: f.localGroup },
+      groupMap.map((f): Cell[] => [
+        { tipo: 'text', value: f.remoteGroup },
+        { tipo: 'text', value: f.localGroup },
       ]),
     )
     if (!g.ok) {
@@ -148,11 +148,11 @@ export function Sso({ token, onAviso }: Props) {
       return
     }
 
-    void enviar(s.valor === '' ? 'false' : s.valor, g.valor === '' ? 'false' : g.valor)
+    void enviar(s.value === '' ? 'false' : s.value, g.value === '' ? 'false' : g.value)
   }
 
   async function enviar(ssoScopes: string, ssoGroupMap: string) {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setSsoConfig(token, {
       ssoEnabled: String(enabled),
       ssoAuthority: authority,
@@ -164,7 +164,7 @@ export function Sso({ token, onAviso }: Props) {
       ssoAllowSignupOnlyForMappedUsers: String(onlyMapped),
       ssoGroupMap,
     })
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
@@ -178,12 +178,12 @@ export function Sso({ token, onAviso }: Props) {
     })
   }
 
-  if (cargando) return <Loading />
+  if (loading) return <Loading />
 
   return (
     <>
       <SectionHeader
-        seccion="Administration"
+        section="Administration"
         titulo="Single Sign-On (SSO)"
       />
 
@@ -202,21 +202,21 @@ export function Sso({ token, onAviso }: Props) {
           />
         </GroupRow>
 
-        <Fila
+        <SsoField
           label="Authority (Issuer)"
           help="The OpenID Connect (OIDC) Authority URL."
           value={authority}
           placeholder="https://auth.example.com"
           onChange={setAuthority}
         />
-        <Fila
+        <SsoField
           label="Client ID"
           help="The OpenID Connect (OIDC) Client ID."
           value={clientId}
           placeholder="client id"
           onChange={setClientId}
         />
-        <Fila
+        <SsoField
           label="Client Secret"
           help="The OpenID Connect (OIDC) Client Secret."
           value={clientSecret}
@@ -224,7 +224,7 @@ export function Sso({ token, onAviso }: Props) {
           type="password"
           onChange={setClientSecret}
         />
-        <Fila
+        <SsoField
           label="Metadata Address (Optional)"
           help="The OpenID Connect (OIDC) metadata discovery URL to be used instead of the default one. Configure this option only if the Single Sign-On (SSO) provider uses a different discovery URL."
           value={metadata}
@@ -235,7 +235,7 @@ export function Sso({ token, onAviso }: Props) {
         <GroupRow label="Scopes">
                 <TablaEditable
           className={styles.edit}
-                  cabecera={
+                  header={
                     <>
                       <th>Scope Name</th>
                       <th className={styles.tdel} />
@@ -250,14 +250,14 @@ export function Sso({ token, onAviso }: Props) {
                           aria-label={`Scope Name ${i + 1}`}
                           value={s}
                           onChange={(e) =>
-                            setScopes((lista) => lista.map((v, j) => (j === i ? e.target.value : v)))
+                            setScopes((list) => list.map((v, j) => (j === i ? e.target.value : v)))
                           }
                         />
                       </td>
                       <td className={styles.tdel}>
                         <Button
                           variant="danger"
-                          onClick={() => setScopes((lista) => lista.filter((_, j) => j !== i))}
+                          onClick={() => setScopes((list) => list.filter((_, j) => j !== i))}
                         >
                           Delete
                         </Button>
@@ -266,7 +266,7 @@ export function Sso({ token, onAviso }: Props) {
                   ))}
                 </TablaEditable>
                 <div>
-                  <Button onClick={() => setScopes((lista) => [...lista, ''])}>Add</Button>
+                  <Button onClick={() => setScopes((list) => [...list, ''])}>Add</Button>
                 </div>
                 <div className={styles.help}>
                   Enter the scopes to be sent to the Single Sign-On (SSO) provider. The scopes{' '}
@@ -306,7 +306,7 @@ export function Sso({ token, onAviso }: Props) {
         <GroupRow label="Group Map (Optional)">
                 <TablaEditable
           className={styles.edit}
-                  cabecera={
+                  header={
                     <>
                       <th>Remote Group</th>
                       <th>Local Group</th>
@@ -322,8 +322,8 @@ export function Sso({ token, onAviso }: Props) {
                           aria-label={`Remote Group ${i + 1}`}
                           value={f.remoteGroup}
                           onChange={(e) =>
-                            setGroupMap((lista) =>
-                              lista.map((x, j) =>
+                            setGroupMap((list) =>
+                              list.map((x, j) =>
                                 j === i ? { ...x, remoteGroup: e.target.value } : x,
                               ),
                             )
@@ -336,8 +336,8 @@ export function Sso({ token, onAviso }: Props) {
                           aria-label={`Local Group ${i + 1}`}
                           value={f.localGroup}
                           onChange={(e) =>
-                            setGroupMap((lista) =>
-                              lista.map((x, j) => (j === i ? { ...x, localGroup: e.target.value } : x)),
+                            setGroupMap((list) =>
+                              list.map((x, j) => (j === i ? { ...x, localGroup: e.target.value } : x)),
                             )
                           }
                         >
@@ -351,7 +351,7 @@ export function Sso({ token, onAviso }: Props) {
                       <td className={styles.tdel}>
                         <Button
                           variant="danger"
-                          onClick={() => setGroupMap((lista) => lista.filter((_, j) => j !== i))}
+                          onClick={() => setGroupMap((list) => list.filter((_, j) => j !== i))}
                         >
                           Delete
                         </Button>
@@ -362,8 +362,8 @@ export function Sso({ token, onAviso }: Props) {
                 <div>
                   <Button
                     onClick={() =>
-                      setGroupMap((lista) => [
-                        ...lista,
+                      setGroupMap((list) => [
+                        ...list,
                         { remoteGroup: '', localGroup: gruposLocales[0] ?? '' },
                       ])
                     }
@@ -448,7 +448,7 @@ export function Sso({ token, onAviso }: Props) {
       </Panel>
 
       <div className={styles.bar}>
-        <Button variant="primary" disabled={ocupado} onClick={() => guardar()}>
+        <Button variant="primary" disabled={busy} onClick={() => guardar()}>
           Save Config
         </Button>
       </div>
@@ -456,7 +456,7 @@ export function Sso({ token, onAviso }: Props) {
       <Confirmar
         abierto={confirmar === 'authority'}
         titulo="Save Config"
-        texto="WARNING! The SSO Authority must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
+        text="WARNING! The SSO Authority must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
         etiqueta="OK"
         variante="primary"
         onCerrar={() => setConfirmar(null)}
@@ -468,7 +468,7 @@ export function Sso({ token, onAviso }: Props) {
       <Confirmar
         abierto={confirmar === 'metadata'}
         titulo="Save Config"
-        texto="WARNING! The Metadata Address must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
+        text="WARNING! The Metadata Address must use a 'https' URL scheme for production environment. Are you sure you want to proceed with using a 'http' URL scheme?"
         etiqueta="OK"
         variante="primary"
         onCerrar={() => setConfirmar(null)}
@@ -487,7 +487,7 @@ what belongs to it: the `Input` and its width. This used to be a FOURTH copy of
 the row —the other three were in the Settings, DHCP and Administration parts—
 each with its own `useId` and its own layout.
 */
-function Fila({
+function SsoField({
   label,
   help,
   value,

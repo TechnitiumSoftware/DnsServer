@@ -108,8 +108,8 @@ describe('apiRequest', () => {
 describe('multipart uploads', () => {
   it('sends FormData and does NOT set Content-Type by hand', async () => {
     const spy = mockFetch({ status: 'ok' })
-    const archivo = new File(['zona'], 'casa.test.zone', { type: 'text/plain' })
-    await apiRequest('zones/import', { token: 't', body: { zone: 'casa.test' }, file: { campo: 'fileZone', archivo } })
+    const archivo = new File(['zone-file'], 'casa.test.zone', { type: 'text/plain' })
+    await apiRequest('zones/import', { token: 't', body: { zone: 'casa.test' }, file: { field: 'fileZone', archivo } })
     const [url, init] = spy.mock.calls[0]
     expect(url).toBe('/api/zones/import')
     expect(init.method).toBe('POST')
@@ -121,7 +121,7 @@ describe('multipart uploads', () => {
   it('the ordinary fields travel inside the FormData, not in the query', async () => {
     const spy = mockFetch({ status: 'ok' })
     const archivo = new File(['x'], 'a.txt')
-    await apiRequest('zones/import', { body: { zone: 'casa.test', overwrite: 'true' }, file: { campo: 'f', archivo } })
+    await apiRequest('zones/import', { body: { zone: 'casa.test', overwrite: 'true' }, file: { field: 'f', archivo } })
     const [url, init] = spy.mock.calls[0]
     expect(url).not.toContain('?')
     const fd = init.body as FormData

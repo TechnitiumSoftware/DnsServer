@@ -124,8 +124,8 @@ describe('Sessions — "Create Token"', () => {
     await elegir(user, screen.getByLabelText('Username'), 'testuser')
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
-    const llamada = spy.mock.calls.find((c) => c[0] === 'admin/sessions/createToken')
-    expect(llamada?.[1]).toEqual({ token: 'tok', body: { user: 'testuser', tokenName: 'orbiter' } })
+    const call = spy.mock.calls.find((c) => c[0] === 'admin/sessions/createToken')
+    expect(call?.[1]).toEqual({ token: 'tok', body: { user: 'testuser', tokenName: 'orbiter' } })
     expect(await screen.findByText('API token was created successfully.')).toBeInTheDocument()
     expect(screen.getByLabelText('Token')).toHaveValue('abc123')
   })

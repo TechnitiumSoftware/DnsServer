@@ -23,7 +23,7 @@ paddings, a `<b>` that was sometimes there) and three of loading.
   margin-bottom: var(--s-3);
 }
 
-.acciones {
+.actions {
   margin-top: var(--s-9);
   display: flex;
   gap: var(--s-5);
@@ -32,21 +32,21 @@ paddings, a `<b>` that was sometimes there) and three of loading.
 }
 
 /* Empty state inside a panel: one line, no box, not competing with it. */
-.linea {
+.line {
   color: var(--faint);
   font-size: var(--t-4);
   padding: var(--s-7) 0;
 }
 
 /* Loading: same place and same weight as the empty state it will replace. */
-.cargando {
+.loading {
   padding: var(--s-12);
   text-align: center;
   color: var(--faint);
   font-size: var(--t-4);
 }
 
-.cargando.linea {
+.loading.line {
   padding: var(--s-7) 0;
   text-align: left;
 }

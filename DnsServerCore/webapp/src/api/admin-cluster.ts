@@ -123,7 +123,7 @@ export function updateIpAddress(
 /** `saveClusterOptions` (cluster.js:874). Only the primary can save it. */
 export function setClusterOptions(
   token: string | null,
-  opciones: {
+  options: {
     heartbeatRefreshIntervalSeconds: string
     heartbeatRetryIntervalSeconds: string
     configRefreshIntervalSeconds: string
@@ -131,7 +131,7 @@ export function setClusterOptions(
   },
   node: string,
 ): Promise<ClusterOutcome> {
-  return apiRequest('admin/cluster/primary/setOptions', { token, body: { ...opciones, node } })
+  return apiRequest('admin/cluster/primary/setOptions', { token, body: { ...options, node } })
 }
 
 /** `deleteCluster` (cluster.js:975). */

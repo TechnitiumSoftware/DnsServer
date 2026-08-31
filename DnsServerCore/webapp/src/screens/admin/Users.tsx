@@ -24,9 +24,9 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
-import { nuncaUsado } from '../../api/zones'
+import { neverUsed } from '../../api/zones'
 import { Avisador } from '../../ui/Avisador'
 
 /*
@@ -50,18 +50,18 @@ interface Props {
   onAviso: (a: Aviso) => void
 }
 
-type Accion =
+type Action =
   | { tipo: 'disable'; user: AdminUser }
   | { tipo: '2fa'; user: AdminUser }
   | { tipo: 'delete'; user: AdminUser }
 
 /** The date of a login, or "Never" if it is .NET's sentinel. */
-function acceso(iso: string, direccion: string): string {
-  return nuncaUsado(iso) ? 'Never' : `${fechaHora(iso)} from ${direccion}`
+function acceso(iso: string, address: string): string {
+  return neverUsed(iso) ? 'Never' : `${fechaHora(iso)} from ${address}`
 }
 
 /* `sortTable('tbodyAdminUsers', 0..6)`. */
-const CLAVES: Claves<AdminUser> = {
+const KEYS: Keys<AdminUser> = {
   username: (u) => u.username,
   display: (u) => u.displayName,
   type: (u) => (u.isSsoUser ? 'Remote/SSO' : 'Local'),
@@ -72,17 +72,17 @@ const CLAVES: Claves<AdminUser> = {
 }
 
 export function Users({ token, cluster, onAviso }: Props) {
-  const [usuarios, setUsuarios] = useState<AdminUser[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [users, setUsuarios] = useState<AdminUser[]>([])
+  const [loading, setLoading] = useState(true)
   const [anadir, setAnadir] = useState(false)
   const [reset, setReset] = useState<string | null>(null)
   const [detalle, setDetalle] = useState<string | null>(null)
-  const [accion, setAccion] = useState<Accion | null>(null)
+  const [action, setAction] = useState<Action | null>(null)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
+    setLoading(true)
     const outcome = await listUsers(token)
-    setCargando(false)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setUsuarios([])
@@ -96,21 +96,21 @@ export function Users({ token, cluster, onAviso }: Props) {
     void cargar()
   }, [cargar])
 
-  const { filas: usuariosVisibles, orden, alternar } = useOrden(CLAVES, usuarios)
+  const { rows: usuariosVisibles, orden, alternar } = useOrden(KEYS, users)
 
   function reemplazar(u: AdminUser) {
-    setUsuarios((lista) => lista.map((x) => (x.username === u.username ? u : x)))
+    setUsuarios((list) => list.map((x) => (x.username === u.username ? u : x)))
   }
 
   /** Changing the username from the modal leaves the row with no match by
    *  `username`; upstream replaces it by position. Here it is done by the index
    *  of the user that was opened, which is the same thing. */
-  function reemplazarPor(anterior: string, u: AdminUser) {
-    setUsuarios((lista) => lista.map((x) => (x.username === anterior ? u : x)))
+  function reemplazarPor(previous: string, u: AdminUser) {
+    setUsuarios((list) => list.map((x) => (x.username === previous ? u : x)))
   }
 
   async function cambiar(u: AdminUser, body: Record<string, string>, aviso: Aviso) {
-    setAccion(null)
+    setAction(null)
     const outcome = await setUser(token, { user: u.username, ...body })
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
@@ -121,45 +121,45 @@ export function Users({ token, cluster, onAviso }: Props) {
   }
 
   async function borrar(u: AdminUser) {
-    setAccion(null)
+    setAction(null)
     const outcome = await deleteUser(token, u.username)
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
       return
     }
-    setUsuarios((lista) => lista.filter((x) => x.username !== u.username))
+    setUsuarios((list) => list.filter((x) => x.username !== u.username))
     onAviso({ type: 'success', title: 'User Deleted!', text: 'User account was deleted successfully.' })
   }
 
   return (
     <>
       <SectionHeader
-        seccion="Administration"
+        section="Administration"
         titulo="Users"
-        acciones={<><Button variant="primary" onClick={() => setAnadir(true)}>
+        actions={<><Button variant="primary" onClick={() => setAnadir(true)}>
             Add User
           </Button></>}
       />
 
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
-          <Tabla
-            cabecera={
+          <Table
+            header={
               <>
-                <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
-                <Th campo="display" orden={orden} onOrdenar={alternar}>Display Name</Th>
-                <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
-                <Th campo="totp" orden={orden} onOrdenar={alternar}>2FA Status</Th>
-                <Th campo="status" orden={orden} onOrdenar={alternar}>Status</Th>
-                <Th campo="recent" orden={orden} onOrdenar={alternar}>Recent Login</Th>
-                <Th campo="previous" orden={orden} onOrdenar={alternar}>Previous Login</Th>
+                <Th field="username" orden={orden} onOrdenar={alternar}>Username</Th>
+                <Th field="display" orden={orden} onOrdenar={alternar}>Display Name</Th>
+                <Th field="type" orden={orden} onOrdenar={alternar}>Type</Th>
+                <Th field="totp" orden={orden} onOrdenar={alternar}>2FA Status</Th>
+                <Th field="status" orden={orden} onOrdenar={alternar}>Status</Th>
+                <Th field="recent" orden={orden} onOrdenar={alternar}>Recent Login</Th>
+                <Th field="previous" orden={orden} onOrdenar={alternar}>Previous Login</Th>
                 <th className={tbl.celdaAcciones} />
               </>
             }
-            vacia={usuariosVisibles.length === 0}
-            vacio="No User Found"
+            isEmpty={usuariosVisibles.length === 0}
+            emptyText="No User Found"
             columnas={8}
           >
             {usuariosVisibles.map((u) => (
@@ -203,15 +203,15 @@ export function Users({ token, cluster, onAviso }: Props) {
                 <td className={styles.mono}>{acceso(u.recentSessionLoggedOn, u.recentSessionRemoteAddress)}</td>
                 <td className={styles.mono}>{acceso(u.previousSessionLoggedOn, u.previousSessionRemoteAddress)}</td>
                 <td className={tbl.celdaAcciones}>
-                  <div className={tbl.acciones}>
+                  <div className={tbl.actions}>
                     <AccionFila
                       icono="ficha"
-                      nombre="View Details"
+                      name="View Details"
                       onClick={() => setDetalle(u.username)}
                     />
                     <AccionFila
                       icono="energia"
-                      nombre={u.disabled ? 'Enable User' : 'Disable User'}
+                      name={u.disabled ? 'Enable User' : 'Disable User'}
                       onClick={() =>
                         u.disabled
                           ? void cambiar(u, { disabled: 'false' }, {
@@ -219,7 +219,7 @@ export function Users({ token, cluster, onAviso }: Props) {
                               title: 'User Enabled!',
                               text: `User [${u.username}] account was enabled successfully.`,
                             })
-                          : setAccion({ tipo: 'disable', user: u })
+                          : setAction({ tipo: 'disable', user: u })
                       }
                     />
                     <Menu etiqueta={`Actions for ${u.username}`}>
@@ -231,12 +231,12 @@ export function Users({ token, cluster, onAviso }: Props) {
                             </button>
                           )}
                           {!u.isSsoUser && u.totpEnabled && (
-                            <button type="button" onClick={() => { cerrar(); setAccion({ tipo: '2fa', user: u }) }}>
+                            <button type="button" onClick={() => { cerrar(); setAction({ tipo: '2fa', user: u }) }}>
                               Disable 2FA
                             </button>
                           )}
                           <Separador />
-                          <button type="button" data-variant="danger" onClick={() => { cerrar(); setAccion({ tipo: 'delete', user: u }) }}>
+                          <button type="button" data-variant="danger" onClick={() => { cerrar(); setAction({ tipo: 'delete', user: u }) }}>
                             Delete User
                           </button>
                         </>
@@ -246,52 +246,52 @@ export function Users({ token, cluster, onAviso }: Props) {
                 </td>
               </tr>
             ))}
-          </Tabla>
+          </Table>
           <div className={styles.count}>
-            <span>{`Total Users: ${usuarios.length}`}</span>
+            <span>{`Total Users: ${users.length}`}</span>
           </div>
         </>
       )}
 
       <Confirmar
-        abierto={accion?.tipo === 'disable'}
+        abierto={action?.tipo === 'disable'}
         titulo="Disable User"
-        texto={`Are you sure you want to disable the user [${accion?.user.username ?? ''}] account?`}
+        text={`Are you sure you want to disable the user [${action?.user.username ?? ''}] account?`}
         etiqueta="Disable"
-        onCerrar={() => setAccion(null)}
+        onCerrar={() => setAction(null)}
         onConfirmar={() =>
-          accion?.tipo === 'disable' &&
-          void cambiar(accion.user, { disabled: 'true' }, {
+          action?.tipo === 'disable' &&
+          void cambiar(action.user, { disabled: 'true' }, {
             type: 'success',
             title: 'User Disabled!',
-            text: `User [${accion.user.username}] account was disabled successfully.`,
+            text: `User [${action.user.username}] account was disabled successfully.`,
           })
         }
       />
 
       <Confirmar
-        abierto={accion?.tipo === '2fa'}
+        abierto={action?.tipo === '2fa'}
         titulo="Disable 2FA"
-        texto={`Are you sure you want to disable Two-factor authentication (2FA) for user [${accion?.user.username ?? ''}] ?`}
+        text={`Are you sure you want to disable Two-factor authentication (2FA) for user [${action?.user.username ?? ''}] ?`}
         etiqueta="Disable"
-        onCerrar={() => setAccion(null)}
+        onCerrar={() => setAction(null)}
         onConfirmar={() =>
-          accion?.tipo === '2fa' &&
-          void cambiar(accion.user, { totpEnabled: 'false' }, {
+          action?.tipo === '2fa' &&
+          void cambiar(action.user, { totpEnabled: 'false' }, {
             type: 'success',
             title: '2FA Disabled!',
-            text: `Two-factor authentication was disabled successfully for user [${accion.user.username}].`,
+            text: `Two-factor authentication was disabled successfully for user [${action.user.username}].`,
           })
         }
       />
 
       <Confirmar
-        abierto={accion?.tipo === 'delete'}
+        abierto={action?.tipo === 'delete'}
         titulo="Delete User"
-        texto={`Are you sure you want to delete the user [${accion?.user.username ?? ''}] account?`}
+        text={`Are you sure you want to delete the user [${action?.user.username ?? ''}] account?`}
         etiqueta="Delete"
-        onCerrar={() => setAccion(null)}
-        onConfirmar={() => accion?.tipo === 'delete' && void borrar(accion.user)}
+        onCerrar={() => setAction(null)}
+        onConfirmar={() => action?.tipo === 'delete' && void borrar(action.user)}
       />
 
       <AnadirUsuario
@@ -299,7 +299,7 @@ export function Users({ token, cluster, onAviso }: Props) {
         token={token}
         onCerrar={() => setAnadir(false)}
         onAnadido={(u) => {
-          setUsuarios((lista) => [u, ...lista])
+          setUsuarios((list) => [u, ...list])
           onAviso({ type: 'success', title: 'User Added!', text: 'User was added successfully.' })
         }}
       />
@@ -341,11 +341,11 @@ function AnadirUsuario({
   onAnadido: (u: AdminUser) => void
 }) {
   const [displayName, setDisplayName] = useState('')
-  const [usuario, setUsuario] = useState('')
+  const [user, setUsuario] = useState('')
   const [pass, setPass] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
@@ -357,7 +357,7 @@ function AnadirUsuario({
   }, [abierto])
 
   async function anadir() {
-    if (usuario === '') {
+    if (user === '') {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter an username to add user.' })
       return
     }
@@ -378,9 +378,9 @@ function AnadirUsuario({
       return
     }
 
-    setOcupado(true)
-    const outcome = await createUser(token, displayName, usuario, pass)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await createUser(token, displayName, user, pass)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -395,9 +395,9 @@ function AnadirUsuario({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Add User"
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void anadir()}>
+          <Button variant="primary" disabled={busy} onClick={() => void anadir()}>
             Add
           </Button>
         </>
@@ -421,7 +421,7 @@ function AnadirUsuario({
             id={id}
             placeholder="username"
             maxLength={255}
-            value={usuario}
+            value={user}
             onChange={(e) => setUsuario(e.target.value)}
           />
         )}
@@ -474,7 +474,7 @@ function ResetearContrasena({
   const [nueva, setNueva] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function guardar() {
     if (nueva === '') {
@@ -494,9 +494,9 @@ function ResetearContrasena({
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await resetUserPassword(token, username, nueva)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -511,9 +511,9 @@ function ResetearContrasena({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Reset Password"
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
             Reset
           </Button>
         </>

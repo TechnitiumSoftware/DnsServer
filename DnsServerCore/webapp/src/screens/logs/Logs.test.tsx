@@ -46,7 +46,7 @@ const SIN_QUERY_LOGS: InstalledApp = {
   dnsApps: [{ ...DETALLE, classPath: 'NoData.App', isQueryLogs: false }],
 }
 
-const ENTRADA: QueryLogEntry = {
+const ENTRY: QueryLogEntry = {
   rowNumber: 10,
   timestamp: '2026-08-26T05:32:14.1836952Z',
   clientIpAddress: '127.0.0.1',
@@ -60,14 +60,14 @@ const ENTRADA: QueryLogEntry = {
   answer: 'A 140.82.121.3',
 }
 
-function pagina(parcial: Partial<QueryLogPage> = {}): QueryLogPage {
-  return { pageNumber: 1, totalPages: 1, totalEntries: 1, entries: [ENTRADA], ...parcial }
+function page(parcial: Partial<QueryLogPage> = {}): QueryLogPage {
+  return { pageNumber: 1, totalPages: 1, totalEntries: 1, entries: [ENTRY], ...parcial }
 }
 
-function conApps(lista: InstalledApp[]) {
+function conApps(list: InstalledApp[]) {
   return vi
     .spyOn(apps, 'listApps')
-    .mockResolvedValue({ kind: 'ok', data: { status: 'ok', response: { apps: lista } } } as never)
+    .mockResolvedValue({ kind: 'ok', data: { status: 'ok', response: { apps: list } } } as never)
 }
 
 describe('Logs › View Logs', () => {
@@ -235,7 +235,7 @@ describe('Logs › Query Logs — the form', () => {
     conApps([APP])
     const spy = vi
       .spyOn(api, 'queryLogs')
-      .mockResolvedValue({ kind: 'ok', data: { response: pagina() } } as never)
+      .mockResolvedValue({ kind: 'ok', data: { response: page() } } as never)
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
 
@@ -331,7 +331,7 @@ describe('Logs › Query Logs — the form', () => {
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
-      data: { response: pagina() },
+      data: { response: page() },
     } as never)
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -356,7 +356,7 @@ describe('Logs › Query Logs — the form', () => {
       conApps([APP])
       const spy = vi.spyOn(api, 'queryLogs').mockResolvedValue({
         kind: 'ok',
-        data: { response: pagina() },
+        data: { response: page() },
       } as never)
       render(<Logs token="t" sub="Query Logs" />)
       await vi.waitFor(() => expect(screen.queryByLabelText('App Name')).toBeInTheDocument())
@@ -382,7 +382,7 @@ describe('Logs › Query Logs — the table', () => {
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
-      data: { response: pagina() },
+      data: { response: page() },
     } as never)
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -398,7 +398,7 @@ describe('Logs › Query Logs — the table', () => {
     conApps([APP])
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
-      data: { response: pagina({ entries: [], totalEntries: 0 }) },
+      data: { response: page({ entries: [], totalEntries: 0 }) },
     } as never)
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -413,10 +413,10 @@ describe('Logs › Query Logs — the table', () => {
     vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
       data: {
-        response: pagina({
+        response: page({
           entries: [
             {
-              ...ENTRADA,
+              ...ENTRY,
               rowNumber: 1,
               qname: '',
               qtype: null,
@@ -432,8 +432,8 @@ describe('Logs › Query Logs — the table', () => {
     await screen.findByLabelText('App Name')
     await user.click(screen.getByRole('button', { name: 'Query' }))
 
-    const fila = within(await screen.findByRole('row', { name: /127\.0\.0\.1/ }))
-    expect(fila.getByText('.')).toBeInTheDocument()
+    const row = within(await screen.findByRole('row', { name: /127\.0\.0\.1/ }))
+    expect(row.getByText('.')).toBeInTheDocument()
     // Without `responseRtt` the bracket with the milliseconds is not drawn.
     expect(screen.queryByText(/ ms\)/)).not.toBeInTheDocument()
   })
@@ -443,7 +443,7 @@ describe('Logs › Query Logs — the table', () => {
     conApps([APP])
     const spy = vi.spyOn(api, 'queryLogs').mockResolvedValue({
       kind: 'ok',
-      data: { response: pagina({ pageNumber: 1, totalPages: 5, totalEntries: 100 }) },
+      data: { response: page({ pageNumber: 1, totalPages: 5, totalEntries: 100 }) },
     } as never)
     render(<Logs token="t" sub="Query Logs" />)
     await screen.findByLabelText('App Name')
@@ -479,8 +479,8 @@ describe('Query Logs — piezas puras', () => {
         totalPages: 5,
         totalEntries: 48312,
         entries: [
-          { ...ENTRADA, rowNumber: 26 },
-          { ...ENTRADA, rowNumber: 50 },
+          { ...ENTRY, rowNumber: 26 },
+          { ...ENTRY, rowNumber: 50 },
         ],
       }),
     ).toBe('26-50 (2) of 48312 logs (page 2 of 5)')
@@ -499,7 +499,7 @@ describe('Query Logs — piezas puras', () => {
 
   it('the row colour is decided by the RCODE and, within it, the response type', () => {
     const c = (rcode: string, responseType: string) =>
-      claseFila({ ...ENTRADA, rcode, responseType })
+      claseFila({ ...ENTRY, rcode, responseType })
 
     expect(c('ServerFailure', 'Recursive')).not.toBe('')
     expect(c('NxDomain', 'Blocked')).toBe(c('NoError', 'UpstreamBlockedCached'))

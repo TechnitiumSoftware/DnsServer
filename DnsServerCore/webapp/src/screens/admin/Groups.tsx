@@ -22,7 +22,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { Avisador } from '../../ui/Avisador'
 
@@ -44,22 +44,22 @@ interface Props {
 }
 
 /* `sortTable('tbodyAdminGroups', 0..1)`. */
-const CLAVES: Claves<AdminGroup> = {
+const KEYS: Keys<AdminGroup> = {
   name: (g) => g.name,
   description: (g) => g.description,
 }
 
 export function Groups({ token, onAviso }: Props) {
-  const [grupos, setGrupos] = useState<AdminGroup[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [groups, setGrupos] = useState<AdminGroup[]>([])
+  const [loading, setLoading] = useState(true)
   const [anadir, setAnadir] = useState(false)
   const [detalle, setDetalle] = useState<string | null>(null)
   const [porBorrar, setPorBorrar] = useState<AdminGroup | null>(null)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
+    setLoading(true)
     const outcome = await listGroups(token)
-    setCargando(false)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setGrupos([])
@@ -73,7 +73,7 @@ export function Groups({ token, onAviso }: Props) {
     void cargar()
   }, [cargar])
 
-  const { filas: gruposVisibles, orden, alternar } = useOrden(CLAVES, grupos)
+  const { rows: gruposVisibles, orden, alternar } = useOrden(KEYS, groups)
 
   async function borrar(g: AdminGroup) {
     setPorBorrar(null)
@@ -82,34 +82,34 @@ export function Groups({ token, onAviso }: Props) {
       onAviso(avisoDeFallo(outcome))
       return
     }
-    setGrupos((lista) => lista.filter((x) => x.name !== g.name))
+    setGrupos((list) => list.filter((x) => x.name !== g.name))
     onAviso({ type: 'success', title: 'Group Deleted!', text: 'Group was deleted successfully.' })
   }
 
   return (
     <>
       <SectionHeader
-        seccion="Administration"
+        section="Administration"
         titulo="Groups"
-        acciones={<><Button variant="primary" onClick={() => setAnadir(true)}>
+        actions={<><Button variant="primary" onClick={() => setAnadir(true)}>
             Add Group
           </Button></>}
       />
 
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
-          <Tabla
-            cabecera={
+          <Table
+            header={
               <>
-                <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
-                <Th campo="description" orden={orden} onOrdenar={alternar}>Description</Th>
+                <Th field="name" orden={orden} onOrdenar={alternar}>Name</Th>
+                <Th field="description" orden={orden} onOrdenar={alternar}>Description</Th>
                 <th className={tbl.celdaAcciones} />
               </>
             }
-            vacia={gruposVisibles.length === 0}
-            vacio="No Group Found"
+            isEmpty={gruposVisibles.length === 0}
+            emptyText="No Group Found"
             columnas={3}
           >
             {gruposVisibles.map((g) => (
@@ -124,16 +124,16 @@ export function Groups({ token, onAviso }: Props) {
                   </button>
                 </td>
                 <td>
-                  {g.description.split('\n').map((linea, i) => (
+                  {g.description.split('\n').map((line, i) => (
                     // eslint-disable-next-line react/no-array-index-key
-                    <div key={i}>{linea}</div>
+                    <div key={i}>{line}</div>
                   ))}
                 </td>
                 <td className={tbl.celdaAcciones}>
-                  <div className={tbl.acciones}>
+                  <div className={tbl.actions}>
                     <AccionFila
                       icono="ficha"
-                      nombre="View Details"
+                      name="View Details"
                       onClick={() => setDetalle(g.name)}
                     />
                     <Menu etiqueta={`Actions for ${g.name}`}>
@@ -147,9 +147,9 @@ export function Groups({ token, onAviso }: Props) {
                 </td>
               </tr>
             ))}
-          </Tabla>
+          </Table>
           <div className={styles.count}>
-            <span>{`Total Groups: ${grupos.length}`}</span>
+            <span>{`Total Groups: ${groups.length}`}</span>
           </div>
         </>
       )}
@@ -157,7 +157,7 @@ export function Groups({ token, onAviso }: Props) {
       <Confirmar
         abierto={porBorrar !== null}
         titulo="Delete Group"
-        texto={`Are you sure you want to delete the group [${porBorrar?.name ?? ''}] ?`}
+        text={`Are you sure you want to delete the group [${porBorrar?.name ?? ''}] ?`}
         etiqueta="Delete"
         onCerrar={() => setPorBorrar(null)}
         onConfirmar={() => porBorrar && void borrar(porBorrar)}
@@ -168,18 +168,18 @@ export function Groups({ token, onAviso }: Props) {
         token={token}
         onCerrar={() => setAnadir(false)}
         onAnadido={(g) => {
-          setGrupos((lista) => [g, ...lista])
+          setGrupos((list) => [g, ...list])
           onAviso({ type: 'success', title: 'Group Added!', text: 'Group was added successfully.' })
         }}
       />
 
       {detalle != null && (
         <DetalleGrupo
-          nombre={detalle}
+          name={detalle}
           token={token}
           onCerrar={() => setDetalle(null)}
-          onGuardado={(g) => {
-            setGrupos((lista) => lista.map((x) => (x.name === detalle ? g : x)))
+          onSaved={(g) => {
+            setGrupos((list) => list.map((x) => (x.name === detalle ? g : x)))
             onAviso({
               type: 'success',
               title: 'Group Saved!',
@@ -204,27 +204,27 @@ function AnadirGrupo({
   onCerrar: () => void
   onAnadido: (g: AdminGroup) => void
 }) {
-  const [nombre, setNombre] = useState('')
-  const [descripcion, setDescripcion] = useState('')
+  const [name, setNombre] = useState('')
+  const [description, setDescription] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
     setAviso(null)
     setNombre('')
-    setDescripcion('')
+    setDescription('')
   }, [abierto])
 
   async function anadir() {
-    if (nombre === '') {
+    if (name === '') {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a name to add group.' })
       return
     }
 
-    setOcupado(true)
-    const outcome = await createGroup(token, nombre, descripcion)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await createGroup(token, name, description)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -239,9 +239,9 @@ function AnadirGrupo({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Add Group"
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void anadir()}>
+          <Button variant="primary" disabled={busy} onClick={() => void anadir()}>
             Add
           </Button>
         </>
@@ -254,7 +254,7 @@ function AnadirGrupo({
             id={id}
             placeholder="group name"
             maxLength={255}
-            value={nombre}
+            value={name}
             onChange={(e) => setNombre(e.target.value)}
           />
         )}
@@ -267,8 +267,8 @@ function AnadirGrupo({
             className={styles.area}
             rows={5}
             maxLength={255}
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
         )}
       </MRow>
@@ -278,29 +278,29 @@ function AnadirGrupo({
 
 /** `showGroupDetailsModal` / `saveGroupDetails` (auth.js:1798-1902). */
 function DetalleGrupo({
-  nombre,
+  name,
   token,
   onCerrar,
-  onGuardado,
+  onSaved,
 }: {
-  nombre: string
+  name: string
   token: string | null
   onCerrar: () => void
-  onGuardado: (g: AdminGroup) => void
+  onSaved: (g: AdminGroup) => void
 }) {
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [nuevoNombre, setNuevoNombre] = useState('')
-  const [descripcion, setDescripcion] = useState('')
+  const [description, setDescription] = useState('')
   const [miembros, setMiembros] = useState('')
-  const [usuarios, setUsuarios] = useState<string[]>([])
+  const [users, setUsuarios] = useState<string[]>([])
   const [addUser, setAddUser] = useState(OPCION_BLANK)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
-    const outcome = await getGroup(token, nombre)
-    setCargando(false)
+    setLoading(true)
+    const outcome = await getGroup(token, name)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -308,32 +308,32 @@ function DetalleGrupo({
     }
     const d = outcome.data.response
     setNuevoNombre(d.name)
-    setDescripcion(d.description)
+    setDescription(d.description)
     setMiembros(d.members.map((m) => `${m}\n`).join(''))
     setUsuarios(d.users ?? [])
     setAddUser(OPCION_BLANK)
-  }, [token, nombre])
+  }, [token, name])
 
   useEffect(() => {
     void cargar()
   }, [cargar])
 
   async function guardar() {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setGroup(
       token,
-      nombre,
-      descripcion,
+      name,
+      description,
       limpiarLista(miembros),
-      nuevoNombre !== nombre ? nuevoNombre : undefined,
+      nuevoNombre !== name ? nuevoNombre : undefined,
     )
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
       return
     }
-    onGuardado(outcome.data.response)
+    onSaved(outcome.data.response)
     onCerrar()
   }
 
@@ -342,16 +342,16 @@ function DetalleGrupo({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Group Details"
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
             Save
           </Button>
         </>
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
@@ -374,8 +374,8 @@ function DetalleGrupo({
                 className={styles.area}
                 rows={3}
                 maxLength={255}
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             )}
           </MRow>
@@ -404,7 +404,7 @@ function DetalleGrupo({
               >
                 <option value={OPCION_BLANK} />
                 <option value={OPCION_NONE}>None</option>
-                {usuarios.map((u) => (
+                {users.map((u) => (
                   <option key={u} value={u}>
                     {u}
                   </option>

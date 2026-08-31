@@ -69,12 +69,12 @@ describe('Menu', () => {
     render(
       <>
         <Ejemplo comoFila />
-        <p>fuera</p>
+        <p>outside</p>
       </>,
     )
     await userEvent.click(screen.getByRole('button', { name: 'Opciones' }))
     expect(screen.getByRole('menu')).toBeInTheDocument()
-    fireEvent.mouseDown(screen.getByText('fuera'))
+    fireEvent.mouseDown(screen.getByText('outside'))
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 })

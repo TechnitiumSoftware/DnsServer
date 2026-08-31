@@ -31,11 +31,11 @@ export function Tsig({ f, set }: PaneProps) {
           {
             key: 'algorithmName',
             label: 'Algorithm',
-            render: (fila, set, id, nombre) => (
+            render: (row, set, id, name) => (
               <Select
                 id={id}
-                aria-label={nombre}
-                value={fila.algorithmName}
+                aria-label={name}
+                value={row.algorithmName}
                 onChange={(e) => set({ algorithmName: e.target.value })}
               >
                 {ALGORITMOS_TSIG.map((a) => (
@@ -47,8 +47,8 @@ export function Tsig({ f, set }: PaneProps) {
             ),
           },
         ]}
-        filas={f.tsigKeys}
-        onChange={(filas) => set({ tsigKeys: filas })}
+        rows={f.tsigKeys}
+        onChange={(rows) => set({ tsigKeys: rows })}
         nueva={() => ({ keyName: '', sharedSecret: '', algorithmName: 'hmac-sha256' })}
         help="The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key."
       />

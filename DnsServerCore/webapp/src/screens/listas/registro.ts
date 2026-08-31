@@ -19,14 +19,14 @@ so as not to repeat the same datum twice (WebServiceZonesApi.cs:68-860):
   `nameServer`+ `nameServerIdn`     -> "mañana.test (xn--maana-pta.test)"
 */
 
-export interface Entrada {
-  clave: string
-  valor: string
+export interface Entry {
+  key: string
+  value: string
   /** A DNSKEY public key blows the width apart: the screen truncates it. */
-  largo: boolean
+  long: boolean
 }
 
-const LARGO = 64
+const LONG = 64
 
 /** Names upstream and the design use that do not come from humanising the key. */
 const ETIQUETAS: Record<string, string> = {
@@ -48,16 +48,16 @@ const ETIQUETAS: Record<string, string> = {
 }
 
 /** `algorithmNumber` -> «Algorithm number»; `flags` -> «Flags». */
-function humanizar(clave: string): string {
-  if (ETIQUETAS[clave]) return ETIQUETAS[clave]
-  const palabras = clave
+function humanizar(key: string): string {
+  if (ETIQUETAS[key]) return ETIQUETAS[key]
+  const palabras = key
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .toLowerCase()
   return palabras.charAt(0).toUpperCase() + palabras.slice(1)
 }
 
-function texto(v: unknown): string {
+function text(v: unknown): string {
   if (v == null) return ''
   if (typeof v === 'string') return v
   if (typeof v === 'boolean') return v ? 'true' : 'false'
@@ -65,8 +65,8 @@ function texto(v: unknown): string {
   return JSON.stringify(v)
 }
 
-function entrada(clave: string, valor: string): Entrada {
-  return { clave, valor, largo: valor.length > LARGO }
+function entry(key: string, value: string): Entry {
+  return { key, value, long: value.length > LONG }
 }
 
 const SUFIJOS = ['String', 'Number', 'Idn'] as const
@@ -75,35 +75,35 @@ const SUFIJOS = ['String', 'Number', 'Idn'] as const
  * Turns a flat object into key/value rows, merging the `x`/`xString`,
  * `x`/`xNumber` and `x`/`xIdn` pairs.
  */
-function filas(obj: Record<string, unknown>): Entrada[] {
-  const salida: Entrada[] = []
+function rows(obj: Record<string, unknown>): Entry[] {
+  const salida: Entry[] = []
 
-  for (const clave of Object.keys(obj)) {
+  for (const key of Object.keys(obj)) {
     // The derived keys are drawn next to their base, not on their own.
-    const derivada = SUFIJOS.some(
-      (s) => clave.endsWith(s) && clave.length > s.length && clave.slice(0, -s.length) in obj,
+    const derived = SUFIJOS.some(
+      (s) => key.endsWith(s) && key.length > s.length && key.slice(0, -s.length) in obj,
     )
-    if (derivada) continue
+    if (derived) continue
 
-    let valor = texto(obj[clave])
+    let value = text(obj[key])
 
-    const idn = obj[`${clave}Idn`]
+    const idn = obj[`${key}Idn`]
     if (idn != null) {
       // The Unicode is the readable one; the ASCII is what travels down the wire.
-      valor = `${texto(idn)} (${valor})`
+      value = `${text(idn)} (${value})`
     } else {
-      const compuesto = obj[`${clave}String`] ?? obj[`${clave}Number`]
-      if (compuesto != null) valor = `${valor} (${texto(compuesto)})`
+      const compuesto = obj[`${key}String`] ?? obj[`${key}Number`]
+      if (compuesto != null) value = `${value} (${text(compuesto)})`
     }
 
-    salida.push(entrada(humanizar(clave), valor))
+    salida.push(entry(humanizar(key), value))
   }
 
   return salida
 }
 
-export function entradasRData(rData: Record<string, unknown>): Entrada[] {
-  return filas(rData ?? {})
+export function entradasRData(rData: Record<string, unknown>): Entry[] {
+  return rows(rData ?? {})
 }
 
 /*
@@ -111,12 +111,12 @@ The TTL arrives in two different shapes depending on the list (see
 `zonelists.ts`). It is normalised to the pair the design asks for: the number,
 and its human form beside it.
 */
-export function ttlPartido(r: RegistroDns): { valor: string; humano: string } {
+export function ttlPartido(r: RegistroDns): { value: string; humano: string } {
   if (typeof r.ttl === 'string') {
     const m = /^(\S+)\s+\((.*)\)$/.exec(r.ttl)
-    return m ? { valor: m[1], humano: m[2] } : { valor: r.ttl, humano: '' }
+    return m ? { value: m[1], humano: m[2] } : { value: r.ttl, humano: '' }
   }
-  return { valor: String(r.ttl), humano: r.ttlString ?? '' }
+  return { value: String(r.ttl), humano: r.ttlString ?? '' }
 }
 
 /*
@@ -135,34 +135,34 @@ The grey line of each row. In cache it carries where the record came from; in
 allowed and blocked, the record's state in the zone.
 */
 export function meta(r: RegistroDns): string[] {
-  const partes: string[] = []
+  const parts: string[] = []
 
-  if (r.disabled) partes.push('disabled')
+  if (r.disabled) parts.push('disabled')
 
   const rm = r.responseMetadata
   if (rm) {
-    partes.push(`via ${rm.nameServer ?? '—'}`)
-    if (rm.protocol) partes.push(rm.protocol)
-    if (rm.datagramSize) partes.push(rm.datagramSize)
-    if (rm.roundTripTime) partes.push(rm.roundTripTime)
+    parts.push(`via ${rm.nameServer ?? '—'}`)
+    if (rm.protocol) parts.push(rm.protocol)
+    if (rm.datagramSize) parts.push(rm.datagramSize)
+    if (rm.roundTripTime) parts.push(rm.roundTripTime)
   } else if (r.dnssecStatus) {
     // In cache the DNSSEC state has a column of its own; here it does not, so it goes here.
-    partes.push(`DNSSEC ${r.dnssecStatus}`)
+    parts.push(`DNSSEC ${r.dnssecStatus}`)
   }
 
   // The vocabulary is upstream's: "Last Modified", "Last Used" and "(never)"
   // (zone.js:4179-4188), here on a single line instead of three.
-  const modificado = fechaCorta(r.lastModified)
-  if (modificado) partes.push(`modified ${modificado}`)
+  const modified = fechaCorta(r.lastModified)
+  if (modified) parts.push(`modified ${modified}`)
 
-  const usado = fechaCorta(r.lastUsedOn)
-  partes.push(usado ? `used ${usado}` : 'never used')
+  const used = fechaCorta(r.lastUsedOn)
+  parts.push(used ? `used ${used}` : 'never used')
 
   if (r.expiryTtl != null) {
-    partes.push(r.expiryTtl > 0 ? `expires in ${r.expiryTtlString ?? r.expiryTtl}` : 'no expiry')
+    parts.push(r.expiryTtl > 0 ? `expires in ${r.expiryTtlString ?? r.expiryTtl}` : 'no expiry')
   }
 
-  return partes
+  return parts
 }
 
 /*
@@ -189,18 +189,18 @@ const YA_PINTADOS = new Set([
   'disabled',
 ])
 
-export function extras(r: RegistroDns): Entrada[] {
+export function extras(r: RegistroDns): Entry[] {
   const resto: Record<string, unknown> = {}
-  for (const clave of Object.keys(r)) {
-    if (!YA_PINTADOS.has(clave)) resto[clave] = r[clave]
+  for (const key of Object.keys(r)) {
+    if (!YA_PINTADOS.has(key)) resto[key] = r[key]
   }
 
-  const salida = filas(resto)
+  const salida = rows(resto)
 
   // The name server's health is an object: it is spread out field by field
   // so it reads, instead of landing as JSON inside a cell.
   if (r.nameServerMetadata) {
-    salida.push(...filas(r.nameServerMetadata as unknown as Record<string, unknown>))
+    salida.push(...rows(r.nameServerMetadata as unknown as Record<string, unknown>))
   }
 
   return salida

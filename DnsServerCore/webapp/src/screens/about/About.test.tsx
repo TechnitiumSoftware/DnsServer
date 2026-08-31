@@ -30,7 +30,7 @@ describe('About', () => {
     const destinos = new Set(
       screen.getAllByRole('link').map((a) => a.getAttribute('href')),
     )
-    for (const esperado of [
+    for (const expected of [
       'https://go.technitium.com/?id=24', // GNU GPL v3.0
       'https://github.com/TechnitiumSoftware/DnsServer',
       'https://go.technitium.com/?id=23', // What's New / change log
@@ -42,7 +42,7 @@ describe('About', () => {
       'https://www.reddit.com/r/technitium/',
       'https://go.technitium.com/?id=35', // Donate
     ]) {
-      expect(destinos, `falta ${esperado}`).toContain(esperado)
+      expect(destinos, `falta ${expected}`).toContain(expected)
     }
   })
 

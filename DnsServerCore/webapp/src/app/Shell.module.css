@@ -23,12 +23,12 @@ operated daily (Dashboard … DNS Client), what gets configured (Settings, DHCP,
 Administration) and what gets consulted (Logs, About).
 */
 .slist { padding: var(--s-9) var(--s-6); display:flex; flex-direction:column; gap: var(--s-1); }
-.grupo { display:flex; flex-direction:column; gap: var(--s-1); }
-.grupo + .grupo { margin-top: var(--s-9); }
+.group { display:flex; flex-direction:column; gap: var(--s-1); }
+.group + .group { margin-top: var(--s-9); }
 .s { display:flex; text-decoration:none; align-items:center; gap: var(--s-7); padding: var(--s-6) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; width:100%; transition: background var(--t-rapido), color var(--t-rapido); }
 .s:hover { background:var(--hover); color:var(--ink); }
-.s[data-activa='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; box-shadow: var(--filo-fuerte); }
-.s[data-activa='true'] .ico { opacity:1; }
+.s[data-active='true'] { background:var(--acc); color:var(--on-acc); font-weight: 550; box-shadow: var(--filo-fuerte); }
+.s[data-active='true'] .ico { opacity:1; }
 .ico { display:inline-flex; flex:none; opacity:.85; }
 .sub { display:flex; flex-direction:column; gap: var(--s-1); margin: var(--s-3) 0 var(--s-5) var(--s-11); padding-left: var(--s-7); border-left:1px solid var(--line); }
 .s2 { display:block; text-decoration:none; padding: var(--s-4) var(--s-7); border-radius: var(--r-2); font:400 var(--t-4)/1.3 var(--font-ui); color:var(--mute); background:none; border:0; cursor:pointer; text-align:left; white-space:nowrap; transition: background var(--t-rapido), color var(--t-rapido); }

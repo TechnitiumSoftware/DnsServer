@@ -58,9 +58,9 @@ The dropdown lives in `ui/Select`: it is no longer a native `<select>`, so it do
 not take `SelectHTMLAttributes` but its list of options. It is re-exported from
 here because the screens ask for it alongside the rest of the fields.
 */
-import { Select, type Opcion } from './Select'
+import { Select, type Option } from './Select'
 
-export { Select, type Opcion }
+export { Select, type Option }
 
 /** A dropdown with an associated label. Phases 6 and 7 asked for it. */
 export function LabeledSelect({

@@ -5,7 +5,7 @@
 /* Breadcrumbs: back to the list from a zone */
 
 /* Barra de filtros */
-.filt { display:flex; gap: var(--s-7); align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--hueco-bloque); }
+.filt { display:flex; gap: var(--s-7); align-items:flex-end; flex-wrap:wrap; margin-bottom: var(--gap-bloque); }
 .filtAncho { flex:1; min-width:220px; }
 .filtMedio { width:190px; }
 .filtCorto { width:120px; }
@@ -13,7 +13,7 @@
 /* Count and pagination */
 /* The count is `ui/recuento.module.css`'s: see there for why. */
 .count { composes: barra encima from '../../ui/recuento.module.css'; }
-.countPie { margin-top: var(--hueco-grupo); margin-bottom: 0; }
+.countPie { margin-top: var(--gap-group); margin-bottom: 0; }
 .mono { composes: mono from '../../ui/texto.module.css'; }
 
 /* Tabla */
@@ -28,7 +28,7 @@
 
 .kv { composes: kv from '../../ui/kv.module.css'; }
 .val { font:var(--t-4)/1.45 var(--font-mono); color:var(--ink); word-break:break-word; }
-.clave { composes: clave from '../../ui/registro.module.css'; }
+.key { composes: key from '../../ui/registro.module.css'; }
 .verlo { composes: verlo from '../../ui/registro.module.css'; }
 .meta { composes: meta from '../../ui/registro.module.css'; }
 
@@ -38,7 +38,7 @@
 .salida { margin: 0; padding: var(--s-8) var(--s-8); background:var(--field); border:1px solid var(--line); border-radius: var(--r-3); font:var(--t-3)/1.7 var(--font-mono); color:var(--mute); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow:auto; }
 
 /* Formularios de modal */
-.campos { display:flex; flex-direction:column; gap: var(--s-8); }
+.fields { display:flex; flex-direction:column; gap: var(--s-8); }
 .enLinea { composes: enLinea from '../../ui/Ajustes.module.css'; }
 .sufijo { composes: coletilla from '../../ui/texto.module.css'; }
 /* The same row as `ui/Check.module.css`, which is where the minimum height
@@ -46,10 +46,10 @@
 .chk { composes: check from '../../ui/Check.module.css'; }
 /* The same role as the `.help` of Settings, DHCP and Administration: same colour
    and same line height. With `--faint` it read at 4.64:1 and the others at 5.90:1. */
-.ayuda { font-size: var(--t-3); color:var(--mute); line-height:1.55; }
-.grupo { border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-8); display:flex; flex-direction:column; gap: var(--s-7); }
+.help { font-size: var(--t-3); color:var(--mute); line-height:1.55; }
+.group { border:1px solid var(--line); border-radius: var(--r-3); padding: var(--s-8); display:flex; flex-direction:column; gap: var(--s-7); }
 .grupoTit { font-size: var(--t-2); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); font-weight: 600; }
-.corto { width:110px; }
+.short { width:110px; }
 .medio { width:190px; }
 .area { min-height:110px; resize:vertical; }
 .areaAlta { min-height:180px; resize:vertical; }

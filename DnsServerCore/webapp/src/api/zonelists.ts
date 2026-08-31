@@ -40,8 +40,8 @@ JavaScript and that govern the screen:
      blocked; it does NOT send it on the rest.
 */
 
-export type Lista = 'cache' | 'allowed' | 'blocked'
-export type ListaDominios = Extract<Lista, 'allowed' | 'blocked'>
+export type List = 'cache' | 'allowed' | 'blocked'
+export type ListaDominios = Extract<List, 'allowed' | 'blocked'>
 
 /** Metadata of the DNS response that left the record in the cache. */
 export interface ResponseMetadata {
@@ -89,7 +89,7 @@ export interface RegistroDns {
   // En ambas
   glueRecords?: string[]
   lastUsedOn?: string
-  [campo: string]: unknown
+  [field: string]: unknown
 }
 
 export interface NodoLista {
@@ -140,7 +140,7 @@ as an alert. With `null` that text would be lost, and losing a text is losing
 behaviour.
 */
 export async function listarNodo(
-  lista: Lista,
+  list: List,
   token: string | null,
   domain: string,
   direction?: 'up',
@@ -149,7 +149,7 @@ export async function listarNodo(
   const body: Record<string, string> = { domain, node }
   if (direction != null) body.direction = direction
 
-  const outcome = await apiRequest<{ response: NodoLista }>(`${lista}/list`, { token, body })
+  const outcome = await apiRequest<{ response: NodoLista }>(`${list}/list`, { token, body })
   return outcome.kind === 'ok' ? { kind: 'ok', data: outcome.data.response } : outcome
 }
 
@@ -169,25 +169,25 @@ export function borrarNodoCache(
 
 /** `allowZone` / `blockZone`. */
 export function anadirDominio(
-  lista: ListaDominios,
+  list: ListaDominios,
   token: string | null,
   domain: string,
 ): Promise<ApiOutcome> {
-  return apiRequest(`${lista}/add`, { token, body: { domain } })
+  return apiRequest(`${list}/add`, { token, body: { domain } })
 }
 
 /** `deleteAllowedZone` / `deleteBlockedZone`. */
 export function borrarDominio(
-  lista: ListaDominios,
+  list: ListaDominios,
   token: string | null,
   domain: string,
 ): Promise<ApiOutcome> {
-  return apiRequest(`${lista}/delete`, { token, body: { domain } })
+  return apiRequest(`${list}/delete`, { token, body: { domain } })
 }
 
 /** `flushAllowedZone` / `flushBlockedZone`. Sin `node`, a diferencia de cache. */
-export function vaciarLista(lista: ListaDominios, token: string | null): Promise<ApiOutcome> {
-  return apiRequest(`${lista}/flush`, { token })
+export function vaciarLista(list: ListaDominios, token: string | null): Promise<ApiOutcome> {
+  return apiRequest(`${list}/flush`, { token })
 }
 
 /*
@@ -197,12 +197,12 @@ named differently in each list. The server splits on commas
 `limpiarLista`.
 */
 export function importarDominios(
-  lista: ListaDominios,
+  list: ListaDominios,
   token: string | null,
-  zonas: string,
+  zones: string,
 ): Promise<ApiOutcome> {
-  const campo = lista === 'allowed' ? 'allowedZones' : 'blockedZones'
-  return apiRequest(`${lista}/import`, { token, method: 'POST', body: { [campo]: zonas } })
+  const field = list === 'allowed' ? 'allowedZones' : 'blockedZones'
+  return apiRequest(`${list}/import`, { token, method: 'POST', body: { [field]: zones } })
 }
 
 /*
@@ -212,8 +212,8 @@ that is why it cannot go by XHR and is opened in a window with a single-use
 token.
 */
 export function exportarDominios(
-  lista: ListaDominios,
+  list: ListaDominios,
   token: string | null,
 ): Promise<{ ok: boolean; url?: string }> {
-  return openDownload(token, `${lista}/export`)
+  return openDownload(token, `${list}/export`)
 }

@@ -10,9 +10,9 @@ afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-function servidor(usuarios = [USUARIO_ADMIN, USUARIO_NUEVO], detalle = DETALLE_USUARIO) {
+function servidor(users = [USUARIO_ADMIN, USUARIO_NUEVO], detalle = DETALLE_USUARIO) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string, opts) => {
-    if (path === 'admin/users/list') return ok({ response: { users: usuarios }, server: 'x' })
+    if (path === 'admin/users/list') return ok({ response: { users: users }, server: 'x' })
     if (path === 'admin/users/get') return ok({ response: detalle, server: 'x' })
     if (path === 'admin/users/set') {
       const body = (opts?.body ?? {}) as Record<string, string>
@@ -351,9 +351,9 @@ describe('Users — the details modal', () => {
     render(<Users {...props} />)
 
     await user.click(await screen.findByRole('button', { name: 'View Details' }))
-    const campo = await screen.findByLabelText('Username')
-    await user.clear(campo)
-    await user.type(campo, 'otro')
+    const field = await screen.findByLabelText('Username')
+    await user.clear(field)
+    await user.type(field, 'otro')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/users/set')?.[1]?.body as Record<string, string>

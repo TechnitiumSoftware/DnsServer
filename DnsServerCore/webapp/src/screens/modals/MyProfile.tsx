@@ -8,7 +8,7 @@ import { CeldaAgente, CeldaSesion, CeldaUltimaVez } from '../../ui/Sesion'
 import { deleteSession, type SessionRow } from '../../api/user'
 import styles from './MyProfile.module.css'
 import tbl from '../../ui/Table.module.css'
-import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
@@ -34,10 +34,10 @@ interface Profile {
 }
 
 /* `sortTable('tbodyMyProfileMemberOf', 0)`. */
-const CLAVES_GRUPO: Claves<string> = { group: (g) => g }
+const CLAVES_GRUPO: Keys<string> = { group: (g) => g }
 
 /* `sortTable('tbodyMyProfileActiveSessions', 0..3)`. */
-const CLAVES: Claves<Profile['sessions'][number]> = {
+const KEYS: Keys<Profile['sessions'][number]> = {
   type: (r) => `${r.type}${r.tokenName ? ` (${r.tokenName})` : ''}${r.isCurrentSession ? ' current' : ''}`,
   lastSeen: (r) => fechaHora(r.lastSeen),
   address: (r) => r.lastSeenRemoteAddress,
@@ -56,8 +56,8 @@ export function MyProfile({
   onSaved?: (displayName: string) => void
 }) {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const { filas: sesionesVisibles, orden, alternar } = useOrden(CLAVES, profile?.sessions ?? [])
-  const grupos = useOrden(CLAVES_GRUPO, profile?.memberOfGroups ?? [])
+  const { rows: sesionesVisibles, orden, alternar } = useOrden(KEYS, profile?.sessions ?? [])
+  const groups = useOrden(CLAVES_GRUPO, profile?.memberOfGroups ?? [])
   const [displayName, setDisplayName] = useState('')
   const [timeout, setTimeoutSeconds] = useState('')
   const [alert, setAlert] = useState<{ type: AlertType; title: string; text: string } | null>(null)
@@ -130,9 +130,9 @@ export function MyProfile({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      tamano="ancho"
+      size="wide"
       title="My Profile"
-      acciones={
+      actions={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void save()}>
             Save
@@ -178,38 +178,38 @@ export function MyProfile({
             module had its own with a fourth cell density and without the panel
             that wraps it, so the same sessions table looked two different ways
             depending on whether it opened from "My Profile" or "User Details". */}
-        <Tabla
+        <Table
           className={styles.estrecha}
-          cabecera={
-            <Th campo="group" orden={grupos.orden} onOrdenar={grupos.alternar}>Group</Th>
+          header={
+            <Th field="group" orden={groups.orden} onOrdenar={groups.alternar}>Group</Th>
           }
-          vacia={grupos.filas.length === 0}
-          vacio="No Group Found"
+          isEmpty={groups.rows.length === 0}
+          emptyText="No Group Found"
           columnas={1}
         >
-          {grupos.filas.map((g) => (
+          {groups.rows.map((g) => (
             <tr key={g}>
               <td>{g}</td>
             </tr>
           ))}
-        </Tabla>
+        </Table>
         <div className={styles.total}>{`Total Groups: ${profile?.memberOfGroups?.length ?? 0}`}</div>
       </div>
 
       <div>
         <div className={styles.caption}>Active Sessions</div>
-        <Tabla
-          cabecera={
+        <Table
+          header={
             <>
-              <Th campo="type" orden={orden} onOrdenar={alternar}>Session</Th>
-              <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-              <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+              <Th field="type" orden={orden} onOrdenar={alternar}>Session</Th>
+              <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+              <Th field="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
               {/* Upstream has it (`index.html`, the `tbodyMyProfileActiveSessions`
                   table: Session · Last Seen · Remote Address · User Agent) and here
                   it had been lost: it was the only one of the console's three
                   sessions tables without it, and it is the one that says WHERE each
                   session is open from. */}
-              <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+              <Th field="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
               <th className={tbl.celdaAcciones} />
             </>
           }
@@ -217,17 +217,17 @@ export function MyProfile({
           {sesionesVisibles.map((row) => (
             <tr key={row.partialToken}>
               <td>
-                <CeldaSesion sesion={row} />
+                <CeldaSesion session={row} />
               </td>
               <td>
-                <CeldaUltimaVez fecha={fechaHora(row.lastSeen)} hace={desdeAhora(row.lastSeen)} />
+                <CeldaUltimaVez date={fechaHora(row.lastSeen)} hace={desdeAhora(row.lastSeen)} />
               </td>
               <td className={styles.mono}>{row.lastSeenRemoteAddress}</td>
               <td>
                 <CeldaAgente>{row.lastSeenUserAgent}</CeldaAgente>
               </td>
               <td className={tbl.celdaAcciones}>
-                <div className={tbl.acciones}>
+                <div className={tbl.actions}>
                   {/* In a dropdown, as in the other two sessions tables and as in
                       upstream (`auth.js`, `deleteMySession`). */}
                   <Menu etiqueta={`Actions for ${row.partialToken}`}>
@@ -245,14 +245,14 @@ export function MyProfile({
               </td>
             </tr>
           ))}
-        </Tabla>
+        </Table>
         <div className={styles.total}>Total Sessions: {profile?.sessions?.length ?? 0}</div>
       </div>
 
       <Confirmar
         abierto={porBorrar !== null}
         titulo="Delete Session"
-        texto={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
+        text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
         etiqueta="Delete Session"
         onCerrar={() => setPorBorrar(null)}
         onConfirmar={() => porBorrar && borrarSesion(porBorrar)}

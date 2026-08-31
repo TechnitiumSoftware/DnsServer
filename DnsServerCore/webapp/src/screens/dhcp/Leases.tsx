@@ -16,7 +16,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
@@ -50,7 +50,7 @@ export interface LeasesProps {
 }
 
 /* `sortTable('tableDhcpLeasesBody', 0..6)`. */
-const CLAVES: Claves<DhcpLease> = {
+const KEYS: Keys<DhcpLease> = {
   scope: (l) => l.scope,
   mac: (l) => l.hardwareAddress,
   address: (l) => l.address,
@@ -63,7 +63,7 @@ const CLAVES: Claves<DhcpLease> = {
 export function Leases({ token, node = '', canModify = true, canDelete = true }: LeasesProps) {
   const [leases, setLeases] = useState<DhcpLease[] | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [confirmar, setConfirmar] = useState<{ tipo: 'reserve' | 'dynamic'; i: number } | null>(null)
   const [quitar, setQuitar] = useState<number | null>(null)
   const [avisoModal, setAvisoModal] = useState<Aviso | null>(null)
@@ -93,19 +93,19 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
 
   // The hook goes BEFORE any return: otherwise it would stop being called as soon
   // as the table is loading.
-  const { filas: leasesVisibles, orden, alternar } = useOrden(CLAVES, leases ?? [])
+  const { rows: leasesVisibles, orden, alternar } = useOrden(KEYS, leases ?? [])
 
   async function convertir(i: number, tipo: 'reserve' | 'dynamic') {
     const lease = leases?.[i]
     setConfirmar(null)
     if (lease == null) return
 
-    setOcupado(true)
+    setBusy(true)
     const outcome =
       tipo === 'reserve'
         ? await convertToReservedLease(token, lease.scope, lease.clientIdentifier, node)
         : await convertToDynamicLease(token, lease.scope, lease.clientIdentifier, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') return
 
@@ -132,9 +132,9 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
     const lease = i == null ? null : leases?.[i]
     if (i == null || lease == null) return
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await removeLease(token, lease.scope, lease.clientIdentifier, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAvisoModal(avisoDeFallo(outcome))
@@ -155,28 +155,28 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
   return (
     <div className={styles.wrap}>
       <SectionHeader
-        seccion="DHCP"
+        section="DHCP"
         titulo="Leases"
-        acciones={<><Button onClick={() => void cargar()}>Refresh</Button></>}
+        actions={<><Button onClick={() => void cargar()}>Refresh</Button></>}
       />
 
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      <Tabla
-        cabecera={
+      <Table
+        header={
           <>
-            <Th campo="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
-            <Th campo="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
-            <Th campo="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
-            <Th campo="type" orden={orden} onOrdenar={alternar} nombre="Type" />
-            <Th campo="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
-            <Th campo="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
-            <Th campo="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
+            <Th field="scope" orden={orden} onOrdenar={alternar}>Scope</Th>
+            <Th field="mac" orden={orden} onOrdenar={alternar}>MAC Address</Th>
+            <Th field="address" orden={orden} onOrdenar={alternar}>IP Address</Th>
+            <Th field="type" orden={orden} onOrdenar={alternar} name="Type" />
+            <Th field="host" orden={orden} onOrdenar={alternar}>Host Name</Th>
+            <Th field="obtained" orden={orden} onOrdenar={alternar}>Lease Obtained</Th>
+            <Th field="expires" orden={orden} onOrdenar={alternar}>Lease Expires</Th>
             <th className={tbl.celdaAcciones} />
           </>
         }
-        vacia={leasesVisibles.length === 0}
-        vacio="No Lease Found"
+        isEmpty={leasesVisibles.length === 0}
+        emptyText="No Lease Found"
         columnas={8}
       >
         {leasesVisibles.map((l, i) => (
@@ -190,21 +190,21 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
               </Tag>
             </td>
             <td className={styles.mono}>{l.hostName}</td>
-            <td className={styles.fecha}>{fechaMinuto(l.leaseObtained)}</td>
-            <td className={styles.fecha}>{fechaMinuto(l.leaseExpires)}</td>
+            <td className={styles.date}>{fechaMinuto(l.leaseObtained)}</td>
+            <td className={styles.date}>{fechaMinuto(l.leaseExpires)}</td>
             <td className={tbl.celdaAcciones}>
-              <div className={tbl.acciones}>
+              <div className={tbl.actions}>
                 {/* dhcp.js:63-64 — which of the two conversions is offered
                     depends on the lease's current type. */}
                 {canModify && (
                   <AccionFila
                     icono="convertir"
-                    nombre={
+                    name={
                       l.type === 'Dynamic'
                         ? 'Convert To Reserved Lease'
                         : 'Convert To Dynamic Lease'
                     }
-                    disabled={ocupado}
+                    disabled={busy}
                     onClick={() =>
                       setConfirmar({ tipo: l.type === 'Dynamic' ? 'reserve' : 'dynamic', i })
                     }
@@ -216,7 +216,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
                       <button
                         type="button"
                         data-variant="danger"
-                        disabled={ocupado}
+                        disabled={busy}
                         onClick={() => { cerrar(); setAvisoModal(null); setQuitar(i) }}
                       >
                         Remove Lease
@@ -228,7 +228,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
             </td>
           </tr>
         ))}
-      </Tabla>
+      </Table>
 
       <div className={styles.total}>
         {/* The footer is the count and nothing else. When there are no rows,
@@ -241,14 +241,14 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
       <Confirmar
         abierto={confirmar !== null}
         titulo={confirmar?.tipo === 'dynamic' ? 'Convert To Dynamic Lease' : 'Convert To Reserved Lease'}
-        texto={
+        text={
           confirmar?.tipo === 'dynamic'
             ? 'Are you sure you want to convert the reserved lease to dynamic lease?'
             : 'Are you sure you want to convert the dynamic lease to reserved lease?'
         }
         etiqueta="Convert"
         variante="primary"
-        ocupado={ocupado}
+        busy={busy}
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => confirmar && void convertir(confirmar.i, confirmar.tipo)}
       />
@@ -259,9 +259,9 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         open={quitar !== null}
         onOpenChange={(o) => !o && setQuitar(null)}
         title="Remove Lease?"
-        acciones={
+        actions={
           <>
-            <Button variant="danger" disabled={ocupado} onClick={() => void quitarLease()}>
+            <Button variant="danger" disabled={busy} onClick={() => void quitarLease()}>
               Remove
             </Button>
           </>
@@ -286,7 +286,7 @@ export function Leases({ token, node = '', canModify = true, canDelete = true }:
         <p className={styles.parrafo}>
           Follow the recommendations below to avoid such a case that requires removing a DHCP lease:
         </p>
-        <ul className={styles.lista}>
+        <ul className={styles.list}>
           <li>
             Use a shorter lease time such that a dynamically allocated lease expires quickly when the
             client exits the network.

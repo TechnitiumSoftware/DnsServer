@@ -15,7 +15,7 @@ half-updated as soon as somebody touches one.
 sidebar section, so it is already reachable.
 */
 export interface EnlaceDePie {
-  texto: string
+  text: string
   href: string
   /*
   An alternative accessible name, only when the visible one collides with another
@@ -25,15 +25,15 @@ export interface EnlaceDePie {
   different places. The name starts with the visible text, which is what the
   "label in name" criterion requires.
   */
-  nombre?: string
+  name?: string
 }
 
-export const PIE: EnlaceDePie[] = [
-  { texto: 'Technitium', href: 'https://technitium.com/' },
-  { texto: 'Blog', href: 'https://blog.technitium.com/' },
-  { texto: 'Donate', href: 'https://go.technitium.com/?id=35' },
-  { texto: 'DNS Client', href: 'https://dnsclient.net/', nombre: 'DNS Client at dnsclient.net' },
-  { texto: 'GitHub', href: 'https://github.com/TechnitiumSoftware/DnsServer' },
+export const FOOTER: EnlaceDePie[] = [
+  { text: 'Technitium', href: 'https://technitium.com/' },
+  { text: 'Blog', href: 'https://blog.technitium.com/' },
+  { text: 'Donate', href: 'https://go.technitium.com/?id=35' },
+  { text: 'DNS Client', href: 'https://dnsclient.net/', name: 'DNS Client at dnsclient.net' },
+  { text: 'GitHub', href: 'https://github.com/TechnitiumSoftware/DnsServer' },
 ]
 
 /*
@@ -47,8 +47,8 @@ destinations and this is an authorship credit. Put in the same row, with the sam
 pipes, it would read as one more Technitium site.
 */
 export const CREDITO_TEMA = {
-  texto: 'agarmoli',
+  text: 'agarmoli',
   href: 'https://github.com/agarmoli',
   /* Starts with the visible text, which is what "label in name" requires. */
-  nombre: 'agarmoli on GitHub',
+  name: 'agarmoli on GitHub',
 }

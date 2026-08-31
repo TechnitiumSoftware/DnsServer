@@ -27,9 +27,9 @@ export function Externo({ href, children }: { href: string; children: ReactNode 
  * The help line. It is not a link inside a sentence, so WCAG's target-size
  * exception does not apply to it: it carries a box of its own.
  */
-export function Ayuda({ href, children }: { href: string; children: ReactNode }) {
+export function HelpText({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <div className={styles.ayuda}>
+    <div className={styles.help}>
       <Externo href={href}>{children}</Externo>
     </div>
   )

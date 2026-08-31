@@ -49,9 +49,9 @@ export function SessionProvider() {
   useEffect(() => {
     avisarSiCaducaLaSesion(() => {
       localStorage.removeItem('token')
-      setState((anterior) =>
-        anterior.phase === 'login'
-          ? anterior
+      setState((previous) =>
+        previous.phase === 'login'
+          ? previous
           : {
               phase: 'login',
               alert: { type: 'danger', title: 'Error!', text: 'Session expired. Please login again.' },

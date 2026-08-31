@@ -1,4 +1,4 @@
-import { dominioCompleto, identidadRegistro, type Registro } from '../../api/registros'
+import { dominioCompleto, identidadRegistro, type ResourceRecord } from '../../api/registros'
 import { limpiarLista } from '../../api/zonelists'
 import { serializarTabla } from '../../lib/tabla-serie'
 
@@ -32,8 +32,8 @@ export const TIPOS_REGISTRO = [
 ] as const
 
 export interface ParametroSvcb {
-  clave: string
-  valor: string
+  key: string
+  value: string
 }
 
 export interface FormularioRegistro {
@@ -45,7 +45,7 @@ export interface FormularioRegistro {
   expiryTtl: string
 
   /** The "Value" field shared by A, AAAA, CNAME, PTR, DNAME, ANAME and Unknown. */
-  valor: string
+  value: string
   ptr: boolean
   createPtrZone: boolean
 
@@ -130,7 +130,7 @@ export interface FormularioRegistro {
 export function formularioVacio(): FormularioRegistro {
   return {
     name: '', type: 'A', ttl: '3600', overwrite: false, comments: '', expiryTtl: '',
-    valor: '', ptr: false, createPtrZone: false,
+    value: '', ptr: false, createPtrZone: false,
     nsNameServer: '', nsGlue: '',
     soaPrimaryNameServer: '', soaResponsiblePerson: '', soaSerial: '', soaRefresh: '',
     soaRetry: '', soaExpire: '', soaMinimum: '', soaUseSerialDateScheme: false,
@@ -159,7 +159,7 @@ export function formularioVacio(): FormularioRegistro {
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
 /** Fills the form with an existing record, for editing. */
-export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRegistro {
+export function formularioDesdeRegistro(r: ResourceRecord, zone: string): FormularioRegistro {
   const f = formularioVacio()
   const d = r.rData
 
@@ -172,14 +172,14 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
   switch (r.type.toUpperCase()) {
     case 'A':
     case 'AAAA':
-      f.valor = s(d.ipAddress)
+      f.value = s(d.ipAddress)
       break
     case 'NS':
       f.nsNameServer = s(d.nameServer)
       f.nsGlue = (r.glueRecords ?? []).join('\n')
       break
     case 'CNAME':
-      f.valor = s(d.cname)
+      f.value = s(d.cname)
       break
     case 'SOA':
       f.soaPrimaryNameServer = s(d.primaryNameServer)
@@ -192,7 +192,7 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
       f.soaUseSerialDateScheme = d.useSerialDateScheme === true
       break
     case 'PTR':
-      f.valor = s(d.ptrName)
+      f.value = s(d.ptrName)
       break
     case 'MX':
       f.mxPreference = s(d.preference)
@@ -221,7 +221,7 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
       f.naptrReplacement = s(d.replacement)
       break
     case 'DNAME':
-      f.valor = s(d.dname)
+      f.value = s(d.dname)
       break
     case 'DS':
       f.dsKeyTag = s(d.keyTag)
@@ -245,7 +245,7 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
       f.svcbPriority = s(d.svcPriority)
       f.svcbTargetName = s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName)
       const params = (d.svcParams ?? {}) as Record<string, unknown>
-      f.svcbParams = Object.entries(params).map(([clave, valor]) => ({ clave, valor: s(valor) }))
+      f.svcbParams = Object.entries(params).map(([key, value]) => ({ key, value: s(value) }))
       f.svcbAutoIpv4Hint = d.autoIpv4Hint === true
       f.svcbAutoIpv6Hint = d.autoIpv6Hint === true
       break
@@ -261,7 +261,7 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
       f.caaValue = s(d.value)
       break
     case 'ANAME':
-      f.valor = s(d.aname)
+      f.value = s(d.aname)
       break
     case 'FWD':
       f.forwarderProtocol = s(d.protocol)
@@ -281,7 +281,7 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
       break
     default:
       f.unknownType = r.type
-      f.valor = s(d.value)
+      f.value = s(d.value)
       break
   }
 
@@ -290,18 +290,18 @@ export function formularioDesdeRegistro(r: Registro, zone: string): FormularioRe
 
 /** A local copy so as not to import circularly from `registro-vista`. */
 function nombreRelativo(nombreCompleto: string, zone: string): string {
-  const nombre = nombreCompleto === '' ? '.' : nombreCompleto
-  const minus = nombre.toLowerCase()
+  const name = nombreCompleto === '' ? '.' : nombreCompleto
+  const minus = name.toLowerCase()
   if (minus === zone.toLowerCase()) return '@'
   const i = minus.lastIndexOf(`.${zone.toLowerCase()}`)
-  return i > -1 ? nombre.substring(0, i) : nombre
+  return i > -1 ? name.substring(0, i) : name
 }
 
 export interface ErrorRegistro {
   title: string
   text: string
   /** Which field receives the focus, just as upstream does. */
-  campo: keyof FormularioRegistro
+  field: keyof FormularioRegistro
 }
 
 export type ResultadoRegistro =
@@ -312,7 +312,7 @@ export interface ContextoRegistro {
   zone: string
   modo: ModoRegistro
   /** Only on edit: the record being touched. */
-  original?: Registro
+  original?: ResourceRecord
   /** `zoneHasSvcbAutoHint`: whether some SVCB's hints have to be redone. */
   updateSvcbHints: boolean
 }
@@ -326,17 +326,17 @@ part does belong here: the shared function returns the empty one and the caller
 decides.
 */
 export function serializarSvcParams(
-  filas: ParametroSvcb[],
-): { valor: string } | { error: ErrorRegistro } {
+  rows: ParametroSvcb[],
+): { value: string } | { error: ErrorRegistro } {
   const r = serializarTabla(
-    filas.map((fila) =>
-      [fila.clave, fila.valor].map((valor) => ({ tipo: 'texto' as const, valor })),
+    rows.map((row) =>
+      [row.key, row.value].map((value) => ({ tipo: 'text' as const, value })),
     ),
   )
   if (!r.ok) {
-    return { error: { title: r.fallo.title, text: r.fallo.text, campo: 'svcbParams' } }
+    return { error: { title: r.fallo.title, text: r.fallo.text, field: 'svcbParams' } }
   }
-  return { valor: r.valor.length === 0 ? 'false' : r.valor }
+  return { value: r.value.length === 0 ? 'false' : r.value }
 }
 
 export function construirCuerpoRegistro(
@@ -345,12 +345,12 @@ export function construirCuerpoRegistro(
 ): ResultadoRegistro {
   const alta = ctx.modo === 'add'
   const verbo = alta ? 'add' : 'update'
-  const falta = (text: string, campo: keyof FormularioRegistro): ResultadoRegistro => ({
-    error: { title: 'Missing!', text, campo },
+  const falta = (text: string, field: keyof FormularioRegistro): ResultadoRegistro => ({
+    error: { title: 'Missing!', text, field },
   })
 
   // The identity of the record being edited: the "old" half of the body.
-  const viejo = ctx.original
+  const old = ctx.original
     ? identidadRegistro(ctx.original, { updateSvcbHints: ctx.updateSvcbHints })
     : {}
 
@@ -360,11 +360,11 @@ export function construirCuerpoRegistro(
   switch (f.type.toUpperCase()) {
     case 'A':
     case 'AAAA': {
-      if (f.valor === '') return falta(`Please enter an IP address to ${verbo} the record.`, 'valor')
-      if (alta) p.ipAddress = f.valor
+      if (f.value === '') return falta(`Please enter an IP address to ${verbo} the record.`, 'value')
+      if (alta) p.ipAddress = f.value
       else {
-        p.ipAddress = viejo.ipAddress ?? ''
-        p.newIpAddress = f.valor
+        p.ipAddress = old.ipAddress ?? ''
+        p.newIpAddress = f.value
       }
       p.ptr = String(f.ptr)
       p.createPtrZone = String(f.createPtrZone)
@@ -378,7 +378,7 @@ export function construirCuerpoRegistro(
       }
       if (alta) p.nameServer = f.nsNameServer
       else {
-        p.nameServer = viejo.nameServer ?? ''
+        p.nameServer = old.nameServer ?? ''
         p.newNameServer = f.nsNameServer
       }
       p.glue = limpiarLista(f.nsGlue)
@@ -394,8 +394,8 @@ export function construirCuerpoRegistro(
           'name',
         )
       }
-      if (f.valor === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'valor')
-      p.cname = f.valor
+      if (f.value === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'value')
+      p.cname = f.value
       break
     }
 
@@ -425,11 +425,11 @@ export function construirCuerpoRegistro(
     }
 
     case 'PTR': {
-      if (f.valor === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'valor')
-      if (alta) p.ptrName = f.valor
+      if (f.value === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'value')
+      if (alta) p.ptrName = f.value
       else {
-        p.ptrName = viejo.ptrName ?? ''
-        p.newPtrName = f.valor
+        p.ptrName = old.ptrName ?? ''
+        p.newPtrName = f.value
       }
       break
     }
@@ -444,9 +444,9 @@ export function construirCuerpoRegistro(
         p.preference = preferencia
         p.exchange = f.mxExchange
       } else {
-        p.preference = viejo.preference ?? ''
+        p.preference = old.preference ?? ''
         p.newPreference = preferencia
-        p.exchange = viejo.exchange ?? ''
+        p.exchange = old.exchange ?? ''
         p.newExchange = f.mxExchange
       }
       break
@@ -458,7 +458,7 @@ export function construirCuerpoRegistro(
         p.text = f.txt
         p.splitText = String(f.txtSplitText)
       } else {
-        p.characterStringsBase64 = viejo.characterStringsBase64 ?? ''
+        p.characterStringsBase64 = old.characterStringsBase64 ?? ''
         p.newText = f.txt
         p.newSplitText = String(f.txtSplitText)
       }
@@ -473,9 +473,9 @@ export function construirCuerpoRegistro(
         p.mailbox = buzon
         p.txtDomain = dominioTxt
       } else {
-        p.mailbox = viejo.mailbox ?? ''
+        p.mailbox = old.mailbox ?? ''
         p.newMailbox = buzon
-        p.txtDomain = viejo.txtDomain ?? ''
+        p.txtDomain = old.txtDomain ?? ''
         p.newTxtDomain = dominioTxt
       }
       break
@@ -498,13 +498,13 @@ export function construirCuerpoRegistro(
         p.port = f.srvPort
         p.target = f.srvTarget
       } else {
-        p.priority = viejo.priority ?? ''
+        p.priority = old.priority ?? ''
         p.newPriority = f.srvPriority
-        p.weight = viejo.weight ?? ''
+        p.weight = old.weight ?? ''
         p.newWeight = f.srvWeight
-        p.port = viejo.port ?? ''
+        p.port = old.port ?? ''
         p.newPort = f.srvPort
-        p.target = viejo.target ?? ''
+        p.target = old.target ?? ''
         p.newTarget = f.srvTarget
       }
       break
@@ -523,25 +523,25 @@ export function construirCuerpoRegistro(
         p.naptrReplacement = f.naptrReplacement
       } else {
         // Only on EDIT does an empty replacement fall to the root. On add, it does not.
-        p.naptrOrder = viejo.naptrOrder ?? ''
+        p.naptrOrder = old.naptrOrder ?? ''
         p.naptrNewOrder = f.naptrOrder
-        p.naptrPreference = viejo.naptrPreference ?? ''
+        p.naptrPreference = old.naptrPreference ?? ''
         p.naptrNewPreference = f.naptrPreference
-        p.naptrFlags = viejo.naptrFlags ?? ''
+        p.naptrFlags = old.naptrFlags ?? ''
         p.naptrNewFlags = f.naptrFlags
-        p.naptrServices = viejo.naptrServices ?? ''
+        p.naptrServices = old.naptrServices ?? ''
         p.naptrNewServices = f.naptrServices
-        p.naptrRegexp = viejo.naptrRegexp ?? ''
+        p.naptrRegexp = old.naptrRegexp ?? ''
         p.naptrNewRegexp = f.naptrRegexp
-        p.naptrReplacement = viejo.naptrReplacement ?? ''
+        p.naptrReplacement = old.naptrReplacement ?? ''
         p.naptrNewReplacement = f.naptrReplacement === '' ? '.' : f.naptrReplacement
       }
       break
     }
 
     case 'DNAME': {
-      if (f.valor === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'valor')
-      p.dname = f.valor
+      if (f.value === '') return falta(`Please enter a domain name to ${verbo} the record.`, 'value')
+      p.dname = f.value
       break
     }
 
@@ -571,13 +571,13 @@ export function construirCuerpoRegistro(
         p.digestType = f.dsDigestType
         p.digest = f.dsDigest
       } else {
-        p.keyTag = viejo.keyTag ?? ''
-        p.algorithm = viejo.algorithm ?? ''
-        p.digestType = viejo.digestType ?? ''
+        p.keyTag = old.keyTag ?? ''
+        p.algorithm = old.algorithm ?? ''
+        p.digestType = old.digestType ?? ''
         p.newKeyTag = f.dsKeyTag
         p.newAlgorithm = f.dsAlgorithm
         p.newDigestType = f.dsDigestType
-        p.digest = viejo.digest ?? ''
+        p.digest = old.digest ?? ''
         p.newDigest = f.dsDigest
       }
       break
@@ -602,11 +602,11 @@ export function construirCuerpoRegistro(
         p.sshfpFingerprintType = f.sshfpFingerprintType
         p.sshfpFingerprint = f.sshfpFingerprint
       } else {
-        p.sshfpAlgorithm = viejo.sshfpAlgorithm ?? ''
+        p.sshfpAlgorithm = old.sshfpAlgorithm ?? ''
         p.newSshfpAlgorithm = f.sshfpAlgorithm
-        p.sshfpFingerprintType = viejo.sshfpFingerprintType ?? ''
+        p.sshfpFingerprintType = old.sshfpFingerprintType ?? ''
         p.newSshfpFingerprintType = f.sshfpFingerprintType
-        p.sshfpFingerprint = viejo.sshfpFingerprint ?? ''
+        p.sshfpFingerprint = old.sshfpFingerprint ?? ''
         p.newSshfpFingerprint = f.sshfpFingerprint
       }
       break
@@ -646,13 +646,13 @@ export function construirCuerpoRegistro(
         p.tlsaMatchingType = f.tlsaMatchingType
         p.tlsaCertificateAssociationData = f.tlsaCertificateAssociationData
       } else {
-        p.tlsaCertificateUsage = viejo.tlsaCertificateUsage ?? ''
+        p.tlsaCertificateUsage = old.tlsaCertificateUsage ?? ''
         p.newTlsaCertificateUsage = f.tlsaCertificateUsage
-        p.tlsaSelector = viejo.tlsaSelector ?? ''
+        p.tlsaSelector = old.tlsaSelector ?? ''
         p.newTlsaSelector = f.tlsaSelector
-        p.tlsaMatchingType = viejo.tlsaMatchingType ?? ''
+        p.tlsaMatchingType = old.tlsaMatchingType ?? ''
         p.newTlsaMatchingType = f.tlsaMatchingType
-        p.tlsaCertificateAssociationData = viejo.tlsaCertificateAssociationData ?? ''
+        p.tlsaCertificateAssociationData = old.tlsaCertificateAssociationData ?? ''
         p.newTlsaCertificateAssociationData = f.tlsaCertificateAssociationData
       }
       break
@@ -673,14 +673,14 @@ export function construirCuerpoRegistro(
       if (alta) {
         p.svcPriority = f.svcbPriority
         p.svcTargetName = f.svcbTargetName
-        p.svcParams = params.valor
+        p.svcParams = params.value
       } else {
-        p.svcPriority = viejo.svcPriority ?? ''
+        p.svcPriority = old.svcPriority ?? ''
         p.newSvcPriority = f.svcbPriority
-        p.svcTargetName = viejo.svcTargetName ?? ''
+        p.svcTargetName = old.svcTargetName ?? ''
         p.newSvcTargetName = f.svcbTargetName
-        p.svcParams = viejo.svcParams ?? 'false'
-        p.newSvcParams = params.valor
+        p.svcParams = old.svcParams ?? 'false'
+        p.newSvcParams = params.value
       }
       p.autoIpv4Hint = String(f.svcbAutoIpv4Hint)
       p.autoIpv6Hint = String(f.svcbAutoIpv6Hint)
@@ -697,11 +697,11 @@ export function construirCuerpoRegistro(
         p.uriWeight = f.uriWeight
         p.uri = f.uri
       } else {
-        p.uriPriority = viejo.uriPriority ?? ''
+        p.uriPriority = old.uriPriority ?? ''
         p.newUriPriority = f.uriPriority
-        p.uriWeight = viejo.uriWeight ?? ''
+        p.uriWeight = old.uriWeight ?? ''
         p.newUriWeight = f.uriWeight
-        p.uri = viejo.uri ?? ''
+        p.uri = old.uri ?? ''
         p.newUri = f.uri
       }
       break
@@ -720,22 +720,22 @@ export function construirCuerpoRegistro(
         p.tag = tag
         p.value = f.caaValue
       } else {
-        p.flags = viejo.flags ?? ''
-        p.tag = viejo.tag ?? ''
+        p.flags = old.flags ?? ''
+        p.tag = old.tag ?? ''
         p.newFlags = flags
         p.newTag = tag
-        p.value = viejo.value ?? ''
+        p.value = old.value ?? ''
         p.newValue = f.caaValue
       }
       break
     }
 
     case 'ANAME': {
-      if (f.valor === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'valor')
-      if (alta) p.aname = f.valor
+      if (f.value === '') return falta(`Please enter a suitable value to ${verbo} the record.`, 'value')
+      if (alta) p.aname = f.value
       else {
-        p.aname = viejo.aname ?? ''
-        p.newAName = f.valor
+        p.aname = old.aname ?? ''
+        p.newAName = f.value
       }
       break
     }
@@ -753,9 +753,9 @@ export function construirCuerpoRegistro(
         p.protocol = f.forwarderProtocol
         p.forwarder = reenviador
       } else {
-        p.protocol = viejo.protocol ?? ''
+        p.protocol = old.protocol ?? ''
         p.newProtocol = f.forwarderProtocol
-        p.forwarder = viejo.forwarder ?? ''
+        p.forwarder = old.forwarder ?? ''
         p.newForwarder = reenviador
       }
       p.forwarderPriority = f.forwarderPriority
@@ -804,8 +804,8 @@ export function construirCuerpoRegistro(
         p.recordData = f.recordData
       } else {
         // On edit, the name and the class come from the record and are NOT validated.
-        p.appName = viejo.appName ?? ''
-        p.classPath = viejo.classPath ?? ''
+        p.appName = old.appName ?? ''
+        p.classPath = old.classPath ?? ''
         p.recordData = f.recordData
       }
       break
@@ -823,18 +823,18 @@ export function construirCuerpoRegistro(
       And the "resoure" above is a typo of upstream's that is kept: they are
       contract, not prose of ours.
       */
-      if (f.valor === '') {
+      if (f.value === '') {
         return falta(
           alta
             ? 'Please enter a hex value as the RDATA to add record.'
             : 'Please enter a hex value as the RDATA to update the record.',
-          'valor',
+          'value',
         )
       }
-      if (alta) p.rdata = f.valor
+      if (alta) p.rdata = f.value
       else {
-        p.rdata = viejo.rdata ?? ''
-        p.newRData = f.valor
+        p.rdata = old.rdata ?? ''
+        p.newRData = f.value
       }
       break
     }

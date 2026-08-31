@@ -26,7 +26,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { Avisador } from '../../ui/Avisador'
 
@@ -55,7 +55,7 @@ interface Props {
 
 /* `sortTable('tbodyAdminSessions', 0..4)`. The "Session" cell is read as it is
    drawn: the token's name if it has one, the partial token and its type. */
-const CLAVES: Claves<AdminSession> = {
+const KEYS: Keys<AdminSession> = {
   username: (s) => s.username,
   session: (s) =>
     [s.tokenName ?? '', `[${s.partialToken}]`, s.isCurrentSession ? '(current)' : '', s.type]
@@ -67,18 +67,18 @@ const CLAVES: Claves<AdminSession> = {
 }
 
 export function Sessions({ token, cluster, onAviso }: Props) {
-  const [nodo, setNodo] = useState('')
-  const [sesiones, setSesiones] = useState<AdminSession[]>([])
+  const [node, setNodo] = useState('')
+  const [sessions, setSesiones] = useState<AdminSession[]>([])
   const [servidor, setServidor] = useState('')
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [porBorrar, setPorBorrar] = useState<AdminSession | null>(null)
   const [crear, setCrear] = useState(false)
   const [verUsuario, setVerUsuario] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
-    const outcome = await listSessions(token, nodo)
-    setCargando(false)
+    setLoading(true)
+    const outcome = await listSessions(token, node)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setSesiones([])
@@ -87,27 +87,27 @@ export function Sessions({ token, cluster, onAviso }: Props) {
     }
     setSesiones(outcome.data.response.sessions)
     setServidor(outcome.data.server)
-  }, [token, nodo, onAviso])
+  }, [token, node, onAviso])
 
   useEffect(() => {
     void cargar()
   }, [cargar])
 
-  const { filas: sesionesVisibles, orden, alternar } = useOrden(CLAVES, sesiones)
+  const { rows: sesionesVisibles, orden, alternar } = useOrden(KEYS, sessions)
 
   const primario = primaryNodeName(cluster)
   const puedeCrearToken = primario === '' || primario === servidor
 
   async function borrar(s: AdminSession) {
     setPorBorrar(null)
-    const node = s.type === 'ApiToken' ? primario : nodo
-    const outcome = await deleteAdminSession(token, s.partialToken, node)
+    const target = s.type === 'ApiToken' ? primario : node
+    const outcome = await deleteAdminSession(token, s.partialToken, target)
 
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
       return
     }
-    setSesiones((lista) => lista.filter((x) => x.partialToken !== s.partialToken))
+    setSesiones((list) => list.filter((x) => x.partialToken !== s.partialToken))
     onAviso({
       type: 'success',
       title: 'Session Deleted!',
@@ -118,33 +118,33 @@ export function Sessions({ token, cluster, onAviso }: Props) {
   return (
     <>
       <SectionHeader
-        seccion="Administration"
+        section="Administration"
         titulo="Sessions"
-        acciones={<>{puedeCrearToken && (
+        actions={<>{puedeCrearToken && (
             <Button variant="primary" onClick={() => setCrear(true)}>
               Create Token
             </Button>
           )}
-          <SelectorNodo cluster={cluster} value={nodo} onChange={setNodo} label="Cluster Node" /></>}
+          <SelectorNodo cluster={cluster} value={node} onChange={setNodo} label="Cluster Node" /></>}
       />
 
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
-          <Tabla
-            cabecera={
+          <Table
+            header={
               <>
-                <Th campo="username" orden={orden} onOrdenar={alternar}>Username</Th>
-                <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
-                <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-                <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+                <Th field="username" orden={orden} onOrdenar={alternar}>Username</Th>
+                <Th field="session" orden={orden} onOrdenar={alternar}>Session</Th>
+                <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                <Th field="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+                <Th field="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
                 <th className={tbl.celdaAcciones} />
               </>
             }
-            vacia={sesionesVisibles.length === 0}
-            vacio="No Session Found"
+            isEmpty={sesionesVisibles.length === 0}
+            emptyText="No Session Found"
             columnas={6}
           >
             {sesionesVisibles.map((s) => (
@@ -159,20 +159,20 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                   </button>
                 </td>
                 <td>
-                  <CeldaSesion sesion={s} />
+                  <CeldaSesion session={s} />
                 </td>
                 <td className={styles.nowrap}>
-                  <CeldaUltimaVez fecha={fechaHora(s.lastSeen)} hace={desdeAhora(s.lastSeen)} />
+                  <CeldaUltimaVez date={fechaHora(s.lastSeen)} hace={desdeAhora(s.lastSeen)} />
                 </td>
                 <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
                 <td>
                   <CeldaAgente>{s.lastSeenUserAgent}</CeldaAgente>
                 </td>
                 <td className={tbl.celdaAcciones}>
-                  <div className={tbl.acciones}>
+                  <div className={tbl.actions}>
                     <AccionFila
                       icono="ficha"
-                      nombre="View Details"
+                      name="View Details"
                       onClick={() => setVerUsuario(s.username)}
                     />
                     <Menu etiqueta={`Actions for ${s.partialToken}`}>
@@ -186,9 +186,9 @@ export function Sessions({ token, cluster, onAviso }: Props) {
                 </td>
               </tr>
             ))}
-          </Tabla>
+          </Table>
           <div className={styles.count}>
-            <span>{`Total Sessions: ${sesiones.length}`}</span>
+            <span>{`Total Sessions: ${sessions.length}`}</span>
           </div>
         </>
       )}
@@ -196,7 +196,7 @@ export function Sessions({ token, cluster, onAviso }: Props) {
       <Confirmar
         abierto={porBorrar !== null}
         titulo="Delete Session"
-        texto={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
+        text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
         etiqueta="Delete"
         onCerrar={() => setPorBorrar(null)}
         onConfirmar={() => porBorrar && void borrar(porBorrar)}
@@ -206,7 +206,7 @@ export function Sessions({ token, cluster, onAviso }: Props) {
         abierto={crear}
         token={token}
         onCerrar={() => setCrear(false)}
-        onCreado={() => void cargar()}
+        onCreated={() => void cargar()}
       />
 
       {/* It is mounted only when needed so its load starts from scratch every
@@ -237,31 +237,31 @@ function CrearApiToken({
   abierto,
   token,
   onCerrar,
-  onCreado,
+  onCreated,
 }: {
   abierto: boolean
   token: string | null
   onCerrar: () => void
-  onCreado: () => void
+  onCreated: () => void
 }) {
-  const [usuarios, setUsuarios] = useState<string[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [usuario, setUsuario] = useState('')
-  const [nombre, setNombre] = useState('')
-  const [creado, setCreado] = useState<CreatedApiToken | null>(null)
+  const [users, setUsuarios] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [user, setUsuario] = useState('')
+  const [name, setNombre] = useState('')
+  const [created, setCreated] = useState<CreatedApiToken | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
     let vivo = true
-    setCargando(true)
+    setLoading(true)
     setAviso(null)
-    setCreado(null)
+    setCreated(null)
     setNombre('')
     void listUsers(token).then((outcome) => {
       if (!vivo) return
-      setCargando(false)
+      setLoading(false)
       if (outcome.kind !== 'ok') {
         setAviso(avisoDeFallo(outcome))
         return
@@ -276,31 +276,31 @@ function CrearApiToken({
   }, [abierto, token])
 
   async function crear() {
-    if (usuario === '') {
+    if (user === '') {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please select a username.' })
       return
     }
-    if (nombre === '') {
+    if (name === '') {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a token name.' })
       return
     }
 
-    setOcupado(true)
-    const outcome = await createApiToken(token, usuario, nombre)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await createApiToken(token, user, name)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
       return
     }
 
-    setCreado(outcome.data.response)
+    setCreated(outcome.data.response)
     setAviso({
       type: 'success',
       title: 'Token Created!',
       text: 'API token was created successfully.',
     })
-    onCreado()
+    onCreated()
   }
 
   return (
@@ -308,10 +308,10 @@ function CrearApiToken({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title="Create API Token"
-      acciones={
+      actions={
         <>
-          {creado == null && (
-            <Button variant="primary" disabled={ocupado || cargando} onClick={() => void crear()}>
+          {created == null && (
+            <Button variant="primary" disabled={busy || loading} onClick={() => void crear()}>
               Create
             </Button>
           )}
@@ -320,15 +320,15 @@ function CrearApiToken({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      {creado != null ? (
+      {created != null ? (
         <div className={styles.salida}>
-          <MRow label="Username">{(id) => <Input id={id} value={creado.username} readOnly />}</MRow>
+          <MRow label="Username">{(id) => <Input id={id} value={created.username} readOnly />}</MRow>
           <MRow label="Token Name">
-            {(id) => <Input id={id} value={creado.tokenName} readOnly />}
+            {(id) => <Input id={id} value={created.tokenName} readOnly />}
           </MRow>
-          <MRow label="Token">{(id) => <Input id={id} mono value={creado.token} readOnly />}</MRow>
+          <MRow label="Token">{(id) => <Input id={id} mono value={created.token} readOnly />}</MRow>
         </div>
-      ) : cargando ? (
+      ) : loading ? (
         <Loading />
       ) : (
         <>
@@ -337,10 +337,10 @@ function CrearApiToken({
               <Select
                 id={id}
                 className={styles.select}
-                value={usuario}
+                value={user}
                 onChange={(e) => setUsuario(e.target.value)}
               >
-                {usuarios.map((u) => (
+                {users.map((u) => (
                   <option key={u} value={u}>
                     {u}
                   </option>
@@ -352,7 +352,7 @@ function CrearApiToken({
             {(id) => (
               <Input
                 id={id}
-                value={nombre}
+                value={name}
                 maxLength={255}
                 onChange={(e) => setNombre(e.target.value)}
               />

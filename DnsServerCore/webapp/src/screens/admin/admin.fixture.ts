@@ -80,13 +80,13 @@ export const DETALLE_USUARIO: AdminUserDetails = {
   groups: ['Administrators', 'DHCP Administrators', 'DNS Administrators'],
 }
 
-export const GRUPOS: AdminGroup[] = [
+export const GROUPS: AdminGroup[] = [
   { name: 'Administrators', description: 'Super administrators' },
   { name: 'DHCP Administrators', description: 'DHCP service administrators' },
   { name: 'DNS Administrators', description: 'DNS service administrators' },
 ]
 
-export const PERMISOS: SectionPermission[] = [
+export const PERMISSIONS: SectionPermission[] = [
   {
     section: 'Dashboard',
     userPermissions: [],

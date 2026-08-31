@@ -42,7 +42,7 @@ const PLAZOS: { minutos: number; rotulo: string }[] = [
 
 interface Pendiente {
   titulo: string
-  texto: string
+  text: string
   etiqueta: string
   variante: 'primary' | 'danger'
   hacer: () => Promise<void>
@@ -55,9 +55,9 @@ export function MenuBloqueo({
   token: string | null
   onAviso: (a: { type: AlertType; title: string; text: string }) => void
 }) {
-  const [activo, setActivo] = useState<boolean | null>(null)
+  const [active, setActivo] = useState<boolean | null>(null)
   const [pendiente, setPendiente] = useState<Pendiente | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function mirarEstado() {
     setActivo(null)
@@ -68,7 +68,7 @@ export function MenuBloqueo({
   function conmutar(encender: boolean): Pendiente {
     return {
       titulo: encender ? 'Enable Blocking' : 'Disable Blocking',
-      texto: `Are you sure you want to ${encender ? 'enable' : 'disable'} blocking?`,
+      text: `Are you sure you want to ${encender ? 'enable' : 'disable'} blocking?`,
       etiqueta: encender ? 'Enable' : 'Disable',
       variante: encender ? 'primary' : 'danger',
       hacer: async () => {
@@ -89,7 +89,7 @@ export function MenuBloqueo({
   function porUnRato(minutos: number): Pendiente {
     return {
       titulo: 'Temporarily Disable Blocking',
-      texto: `Are you sure to temporarily disable blocking for ${minutos} minute(s)?`,
+      text: `Are you sure to temporarily disable blocking for ${minutos} minute(s)?`,
       etiqueta: 'Disable',
       variante: 'danger',
       hacer: async () => {
@@ -107,7 +107,7 @@ export function MenuBloqueo({
 
   async function confirmar() {
     if (pendiente == null) return
-    setOcupado(true)
+    setBusy(true)
     try {
       await pendiente.hacer()
       setPendiente(null)
@@ -115,7 +115,7 @@ export function MenuBloqueo({
       onAviso({ type: 'danger', title: 'Error!', text: (e as Error).message })
       setPendiente(null)
     } finally {
-      setOcupado(false)
+      setBusy(false)
     }
   }
 
@@ -124,12 +124,12 @@ export function MenuBloqueo({
       <Menu etiqueta="Blocking options" rotulo="Blocking" onAbrir={() => void mirarEstado()}>
         {(cerrar) => (
           <>
-            {activo === false && (
+            {active === false && (
               <button role="menuitem" onClick={() => { cerrar(); setPendiente(conmutar(true)) }}>
                 Enable Blocking
               </button>
             )}
-            {activo === true && (
+            {active === true && (
               <button role="menuitem" onClick={() => { cerrar(); setPendiente(conmutar(false)) }}>
                 Disable Blocking
               </button>
@@ -150,10 +150,10 @@ export function MenuBloqueo({
       <Confirmar
         abierto={pendiente != null}
         titulo={pendiente?.titulo ?? ''}
-        texto={pendiente?.texto ?? ''}
+        text={pendiente?.text ?? ''}
         etiqueta={pendiente?.etiqueta ?? ''}
         variante={pendiente?.variante}
-        ocupado={ocupado}
+        busy={busy}
         onCerrar={() => setPendiente(null)}
         onConfirmar={() => void confirmar()}
       />

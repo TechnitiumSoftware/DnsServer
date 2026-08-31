@@ -28,7 +28,7 @@ export type NombreIcono =
   | 'dashboard' | 'zones' | 'cache' | 'allowed' | 'blocked' | 'apps'
   | 'dnsclient' | 'settings' | 'dhcp' | 'admin' | 'logs' | 'about'
   | 'chevronAbajo' | 'chevronDerecha' | 'chevronIzquierda'
-  | 'primera' | 'ultima' | 'cerrar' | 'menu' | 'mas' | 'orden' | 'atras' | 'check'
+  | 'first' | 'last' | 'cerrar' | 'menu' | 'mas' | 'orden' | 'atras' | 'check'
   | 'editar' | 'energia' | 'ficha' | 'convertir'
 
 const TRAZADOS: Record<NombreIcono, ReactElement> = {
@@ -144,13 +144,13 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
   chevronAbajo: <path d="m6 9 6 6 6-6" />,
   chevronDerecha: <path d="m9 6 6 6-6 6" />,
   chevronIzquierda: <path d="m15 6-6 6 6 6" />,
-  primera: (
+  first: (
     <>
       <path d="m17 6-6 6 6 6" />
       <path d="M7.5 6v12" />
     </>
   ),
-  ultima: (
+  last: (
     <>
       <path d="m7 6 6 6-6 6" />
       <path d="M16.5 6v12" />
@@ -223,10 +223,10 @@ const TRAZADOS: Record<NombreIcono, ReactElement> = {
 }
 
 export function Icono({
-  nombre,
+  name,
   tam = 16,
   ...rest
-}: { nombre: NombreIcono; tam?: number } & Omit<SVGProps<SVGSVGElement>, 'ref'>) {
+}: { name: NombreIcono; tam?: number } & Omit<SVGProps<SVGSVGElement>, 'ref'>) {
   return (
     <svg
       width={tam}
@@ -237,7 +237,7 @@ export function Icono({
       {...TRAZO}
       {...rest}
     >
-      {TRAZADOS[nombre]}
+      {TRAZADOS[name]}
     </svg>
   )
 }

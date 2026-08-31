@@ -56,7 +56,7 @@ export async function openDownload(
   `logs/export` (logs.js:696). The server ignores it, but the URL that gets
   opened is not the same, so where it goes and where it does not is replicated.
   */
-  opciones: { ts?: boolean } = {},
+  options: { ts?: boolean } = {},
 ): Promise<{ ok: boolean; url?: string }> {
   const outcome = await apiRequest<{ response: { token: string } }>('user/createSingleUseToken', {
     token,
@@ -67,7 +67,7 @@ export async function openDownload(
     ...params,
     token: outcome.data.response.token,
   })
-  if (opciones.ts === true) {
+  if (options.ts === true) {
     query.set('ts', String(performance.timeOrigin + performance.now()))
   }
   const url = urlApi(`api/${path}?${query.toString()}`)

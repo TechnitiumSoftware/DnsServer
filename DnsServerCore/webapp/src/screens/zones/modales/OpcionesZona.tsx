@@ -64,15 +64,15 @@ export function OpcionesZona({
   const [f, setF] = useState<FormularioOpciones | null>(null)
   const [pestana, setPestana] = useState<PestanaOpciones>('General')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [cargando, setCargando] = useState(false)
-  const [ocupado, setOcupado] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
     setAviso(null)
-    setCargando(true)
+    setLoading(true)
     void getZoneOptions(token, zone, node).then((r) => {
-      setCargando(false)
+      setLoading(false)
       if (r == null) {
         setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
@@ -85,8 +85,8 @@ export function OpcionesZona({
 
   const e: EstadoOpciones | null = respuesta ? estadoOpciones(respuesta) : null
 
-  const set = <K extends keyof FormularioOpciones>(k: K, valor: FormularioOpciones[K]) =>
-    setF((prev) => (prev == null ? prev : { ...prev, [k]: valor }))
+  const set = <K extends keyof FormularioOpciones>(k: K, value: FormularioOpciones[K]) =>
+    setF((prev) => (prev == null ? prev : { ...prev, [k]: value }))
 
   async function guardar() {
     if (f == null || respuesta == null) return
@@ -98,9 +98,9 @@ export function OpcionesZona({
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setZoneOptions(token, { zone, ...r.body }, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -118,11 +118,11 @@ export function OpcionesZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      tamano="medio"
+      size="medium"
       title={`Zone Options - ${zone === '.' ? '<root>' : zone}`}
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || f == null} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy || f == null} onClick={() => void guardar()}>
             Save
           </Button>
         </>
@@ -130,7 +130,7 @@ export function OpcionesZona({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      {cargando || f == null || e == null ? (
+      {loading || f == null || e == null ? (
         <Loading>Loading zone options…</Loading>
       ) : (
         <>
@@ -139,15 +139,15 @@ export function OpcionesZona({
           <Segmentado
             comoPestanas
             etiqueta="Zone options"
-            opciones={PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => ({
+            options={PESTANAS.filter((t) => e.pestanas.includes(t.id)).map((t) => ({
               id: t.id,
               etiqueta: t.etiqueta,
             }))}
-            activa={pestana}
+            active={pestana}
             onElegir={setPestana}
           />
 
-          <div className={styles.campos}>
+          <div className={styles.fields}>
             {pestana === 'General' && (
               <>
                 {e.catalogo && (
@@ -229,7 +229,7 @@ export function OpcionesZona({
                         />
                       )}
                     </Field>
-                    <div className={styles.ayuda}>
+                    <div className={styles.help}>
                       {e.servidorPrimarioObligatorio
                         ? 'Enter the primary name server addresses to sync the zone from.'
                         : 'Enter the primary name server addresses to sync the zone from. When unspecified, the SOA Primary Name Server will be resolved and used.'}
@@ -238,13 +238,13 @@ export function OpcionesZona({
                     {e.protocoloXfr && (
                       <GroupRow modal label="Zone Transfer Protocol">
                         {PROTOCOLOS_XFR.map((x) => (
-                          <label key={x.valor} className={styles.chk}>
+                          <label key={x.value} className={styles.chk}>
                             <input
                               type="radio"
                               name="zoneOptionsXfr"
                               disabled={e.servidorPrimarioBloqueado}
-                              checked={f.primaryZoneTransferProtocol === x.valor}
-                              onChange={() => set('primaryZoneTransferProtocol', x.valor)}
+                              checked={f.primaryZoneTransferProtocol === x.value}
+                              onChange={() => set('primaryZoneTransferProtocol', x.value)}
                             />
                             {x.etiqueta}
                           </label>
@@ -290,14 +290,14 @@ export function OpcionesZona({
 
             {pestana === 'Query Access' && (
               <Criterio
-                nombre="zoneOptionsQueryAccess"
-                opciones={ACCESOS_CONSULTA.filter(
-                  (o) => e.queryAccessConNameServers || !o.valor.includes('ZoneNameServers'),
+                name="zoneOptionsQueryAccess"
+                options={ACCESOS_CONSULTA.filter(
+                  (o) => e.queryAccessConNameServers || !o.value.includes('ZoneNameServers'),
                 )}
-                valor={f.queryAccess}
-                bloqueado={e.queryAccessBloqueado}
+                value={f.queryAccess}
+                locked={e.queryAccessBloqueado}
                 onCambio={(v) => set('queryAccess', v)}
-                lista={f.queryAccessNetworkACL}
+                list={f.queryAccessNetworkACL}
                 listaEtiqueta="Network Access Control List (ACL)"
                 listaEditable={aclEditable(f.queryAccess) && !e.queryAccessBloqueado}
                 onLista={(v) => set('queryAccessNetworkACL', v)}
@@ -307,14 +307,14 @@ export function OpcionesZona({
             {pestana === 'Zone Transfer' && (
               <>
                 <Criterio
-                  nombre="zoneOptionsZoneTransfer"
-                  opciones={TRANSFERENCIAS.filter(
-                    (o) => e.zoneTransferConNameServers || !o.valor.includes('ZoneNameServers'),
+                  name="zoneOptionsZoneTransfer"
+                  options={TRANSFERENCIAS.filter(
+                    (o) => e.zoneTransferConNameServers || !o.value.includes('ZoneNameServers'),
                   )}
-                  valor={f.zoneTransfer}
-                  bloqueado={e.zoneTransferBloqueado}
+                  value={f.zoneTransfer}
+                  locked={e.zoneTransferBloqueado}
                   onCambio={(v) => set('zoneTransfer', v)}
-                  lista={f.zoneTransferNetworkACL}
+                  list={f.zoneTransferNetworkACL}
                   listaEtiqueta="Network Access Control List (ACL)"
                   listaEditable={aclEditable(f.zoneTransfer) && !e.zoneTransferBloqueado}
                   onLista={(v) => set('zoneTransferNetworkACL', v)}
@@ -341,8 +341,8 @@ export function OpcionesZona({
                       onChange={(ev) => {
                         const v = ev.target.value
                         if (v === '') return
-                        const actual = f.zoneTransferTsigKeyNames
-                        set('zoneTransferTsigKeyNames', actual === '' ? v : `${actual}\n${v}`)
+                        const current = f.zoneTransferTsigKeyNames
+                        set('zoneTransferTsigKeyNames', current === '' ? v : `${current}\n${v}`)
                       }}
                     >
                       <option value="" />
@@ -361,18 +361,18 @@ export function OpcionesZona({
             {pestana === 'Notify' && (
               <>
                 <Criterio
-                  nombre="zoneOptionsNotify"
-                  opciones={NOTIFICACIONES.filter((o) => {
-                    if (o.valor === 'SeparateNameServersForCatalogAndMemberZones') return e.notifySeparados
-                    if (o.valor === 'ZoneNameServers' || o.valor === 'BothZoneAndSpecifiedNameServers') {
+                  name="zoneOptionsNotify"
+                  options={NOTIFICACIONES.filter((o) => {
+                    if (o.value === 'SeparateNameServersForCatalogAndMemberZones') return e.notifySeparados
+                    if (o.value === 'ZoneNameServers' || o.value === 'BothZoneAndSpecifiedNameServers') {
                       return e.notifyConNameServers
                     }
                     return true
                   })}
-                  valor={f.notify}
-                  bloqueado={false}
+                  value={f.notify}
+                  locked={false}
                   onCambio={(v) => set('notify', v)}
-                  lista={f.notifyNameServers}
+                  list={f.notifyNameServers}
                   listaEtiqueta="Specified Name Servers"
                   listaEditable={notificacionConLista(f.notify)}
                   onLista={(v) => set('notifyNameServers', v)}
@@ -402,27 +402,27 @@ export function OpcionesZona({
             {pestana === 'Dynamic Updates' && (
               <>
                 <Criterio
-                  nombre="zoneOptionsUpdate"
-                  opciones={ACTUALIZACIONES.filter(
-                    (o) => e.updateConNameServers || !o.valor.includes('ZoneNameServers'),
+                  name="zoneOptionsUpdate"
+                  options={ACTUALIZACIONES.filter(
+                    (o) => e.updateConNameServers || !o.value.includes('ZoneNameServers'),
                   )}
-                  valor={f.update}
-                  bloqueado={false}
+                  value={f.update}
+                  locked={false}
                   onCambio={(v) => set('update', v)}
-                  lista={f.updateNetworkACL}
+                  list={f.updateNetworkACL}
                   listaEtiqueta="Network Access Control List (ACL)"
                   listaEditable={aclEditable(f.update)}
                   onLista={(v) => set('updateNetworkACL', v)}
                 />
 
-                {e.politicasDeSeguridad && (
-                  <div className={styles.grupo}>
+                {e.securityPolicies && (
+                  <div className={styles.group}>
                     <div className={styles.grupoTit}>Security Policy</div>
-                    {f.updateSecurityPolicies.map((fila, i) => (
+                    {f.updateSecurityPolicies.map((row, i) => (
                       <div key={i} className={styles.enLinea}>
                         <Select
                           aria-label={`TSIG key name ${i + 1}`}
-                          value={fila.tsigKeyName}
+                          value={row.tsigKeyName}
                           onChange={(ev) =>
                             set(
                               'updateSecurityPolicies',
@@ -442,7 +442,7 @@ export function OpcionesZona({
                         <Input
                           mono
                           aria-label={`Domain ${i + 1}`}
-                          value={fila.domain}
+                          value={row.domain}
                           onChange={(ev) =>
                             set(
                               'updateSecurityPolicies',
@@ -455,7 +455,7 @@ export function OpcionesZona({
                         <Input
                           mono
                           aria-label={`Allowed types ${i + 1}`}
-                          value={fila.allowedTypes}
+                          value={row.allowedTypes}
                           onChange={(ev) =>
                             set(
                               'updateSecurityPolicies',
@@ -506,22 +506,22 @@ export function OpcionesZona({
  * can only be touched with some of them.
  */
 function Criterio({
-  nombre,
-  opciones,
-  valor,
-  bloqueado,
+  name,
+  options,
+  value,
+  locked,
   onCambio,
-  lista,
+  list,
   listaEtiqueta,
   listaEditable,
   onLista,
 }: {
-  nombre: string
-  opciones: { valor: string; etiqueta: string }[]
-  valor: string
-  bloqueado: boolean
+  name: string
+  options: { value: string; etiqueta: string }[]
+  value: string
+  locked: boolean
   onCambio: (v: string) => void
-  lista: string
+  list: string
   listaEtiqueta: string
   listaEditable: boolean
   onLista: (v: string) => void
@@ -529,14 +529,14 @@ function Criterio({
   return (
     <>
       <div className={frm.mrowCtl}>
-        {opciones.map((o) => (
-          <label key={o.valor} className={styles.chk}>
+        {options.map((o) => (
+          <label key={o.value} className={styles.chk}>
             <input
               type="radio"
-              name={nombre}
-              disabled={bloqueado}
-              checked={valor === o.valor}
-              onChange={() => onCambio(o.valor)}
+              name={name}
+              disabled={locked}
+              checked={value === o.value}
+              onChange={() => onCambio(o.value)}
             />
             {o.etiqueta}
           </label>
@@ -549,7 +549,7 @@ function Criterio({
             mono
             className={styles.area}
             disabled={!listaEditable}
-            value={lista}
+            value={list}
             onChange={(ev) => onLista(ev.target.value)}
           />
         )}

@@ -13,8 +13,8 @@
 .pbLista { padding: var(--s-5); }
 
 .logfiles { display: flex; flex-direction: column; gap: var(--s-1); }
-.logfile { composes: fila from '../../ui/lista.module.css'; justify-content: space-between; }
-.logfile .nombre { font-family: var(--font-mono); }
+.logfile { composes: row from '../../ui/lista.module.css'; justify-content: space-between; }
+.logfile .name { font-family: var(--font-mono); }
 .sz { composes: anotacionMinima from '../../ui/texto.module.css'; }
 .out {
   margin: 0; padding: var(--s-8); background: var(--field); border: 1px solid var(--line);
@@ -35,9 +35,9 @@
 .frow:last-child { border-bottom: 0; }
 .frowLabel { font-size: var(--t-4); color: var(--ink); font-weight: 600; padding-top: var(--s-4); }
 .frowCtl { display: flex; align-items: flex-end; gap: var(--s-8); flex-wrap: wrap; }
-.campo { display: flex; flex-direction: column; gap: var(--s-3); }
-.campo label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
-.campo input, .campo select { width: 100%; }
+.field { display: flex; flex-direction: column; gap: var(--s-3); }
+.field label { font-size: var(--t-2); color: var(--mute); font-weight: 550; }
+.field input, .field select { width: 100%; }
 
 /* The count is `ui/recuento.module.css`'s: see there for why. */
 .count { composes: barra encima from '../../ui/recuento.module.css'; }

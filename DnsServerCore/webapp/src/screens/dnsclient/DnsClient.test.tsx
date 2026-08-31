@@ -60,9 +60,9 @@ describe('DNS Client', () => {
     await userEvent.type(screen.getByLabelText('Domain'), 'casa.test')
     await userEvent.click(screen.getByRole('button', { name: 'Resolve' }))
 
-    const resumen = await screen.findByText('Raw Responses (3)')
+    const summary = await screen.findByText('Raw Responses (3)')
     // Collapsed, as in upstream: the final answer is what gets looked at first.
-    expect(resumen.closest('details')).not.toHaveAttribute('open')
+    expect(summary.closest('details')).not.toHaveAttribute('open')
   })
 
   it('with no raw responses there is no panel to open', async () => {

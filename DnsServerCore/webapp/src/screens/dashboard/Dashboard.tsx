@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   ETIQUETA_RANGO, RANGOS, getDashboardStats,
-  type DashboardStats, type Rango, type Stats, type TipoTop, type TopEntry,
+  type DashboardStats, type Range, type Stats, type TipoTop, type TopEntry,
 } from '../../api/dashboard'
 import { Chart } from './Chart'
 import { TopStats } from './TopStats'
@@ -9,7 +9,7 @@ import type { ChartData } from '../../api/dashboard'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Dashboard.module.css'
-import { Cuerpo, Panel } from '../../ui/Panel'
+import { Body, Panel } from '../../ui/Panel'
 import { Button } from '../../ui/Button'
 import { type AlertType } from '../../ui/Alert'
 import { MenuBloqueo } from './MenuBloqueo'
@@ -67,9 +67,9 @@ The percentage carries no locale, neither in upstream nor here: it is
 `toFixed(2)`, which always writes the dot (main.js:2652-2676). And with zero
 queries it is a literal "0%", not "0.00%".
 */
-export function porcentaje(valor: number, total: number): string {
+export function percentage(value: number, total: number): string {
   if (total === 0) return '0%'
-  return ((valor * 100) / total).toFixed(2) + '%'
+  return ((value * 100) / total).toFixed(2) + '%'
 }
 
 /** A chart with no value other than zero is not drawn: an empty canvas takes up
@@ -82,26 +82,26 @@ export function tieneDatos(d?: { datasets?: { data: number[] }[] }): boolean {
 function Reparto({ titulo, data }: { titulo: string; data: ChartData }) {
   return (
     <Panel titulo={titulo} className={styles.panel}>
-      <Cuerpo>
+      <Body>
         {tieneDatos(data) ? (
-          <Chart tipo="doughnut" data={data} alto={190} aria={titulo} />
+          <Chart tipo="doughnut" data={data} height={190} aria={titulo} />
         ) : (
           <Empty compacto>No data for this period.</Empty>
         )}
-      </Cuerpo>
+      </Body>
     </Panel>
   )
 }
 
 function Top({
   titulo,
-  filas,
+  rows,
   esCliente = false,
   onMore,
   antesDeMore,
 }: {
   titulo: string
-  filas: TopEntry[]
+  rows: TopEntry[]
   /** A client also shows the domain it resolved and whether it was rate limited. */
   esCliente?: boolean
   onMore: () => void
@@ -113,7 +113,7 @@ function Top({
     <Panel
       titulo={titulo}
       className={styles.panel}
-      acciones={
+      actions={
         <div className={styles.accionesPanel}>
           {antesDeMore}
           {/* It was a bare `<button>`, with no class: the browser drew it with
@@ -125,11 +125,11 @@ function Top({
         </div>
       }
     >
-      <Cuerpo className={styles.pbAjustado}>
-        {filas.length === 0 && <Empty compacto>No data for this period.</Empty>}
-        {filas.slice(0, 5).map((f, i) => (
+      <Body className={styles.pbAjustado}>
+        {rows.length === 0 && <Empty compacto>No data for this period.</Empty>}
+        {rows.slice(0, 5).map((f, i) => (
           <div
-            className={`${styles.toprow}${f.rateLimited ? ` ${styles.limitada}` : ''}`}
+            className={`${styles.toprow}${f.rateLimited ? ` ${styles.limited}` : ''}`}
             key={`${f.name}|${i}`}
           >
             <span className={styles.n}>
@@ -144,15 +144,15 @@ function Top({
             <span className={styles.c}>{num(f.hits)}</span>
           </div>
         ))}
-      </Cuerpo>
+      </Body>
     </Panel>
   )
 }
 
 export function Dashboard({ token }: { token: string | null }) {
-  const [rango, setRango] = useState<Rango>('LastHour')
-  const [datos, setDatos] = useState<DashboardStats | null>(null)
-  const [cargando, setCargando] = useState(true)
+  const [range, setRango] = useState<Range>('LastHour')
+  const [data, setDatos] = useState<DashboardStats | null>(null)
+  const [loading, setLoading] = useState(true)
   const [top, setTop] = useState<TipoTop | null>(null)
   const [aviso, setAviso] = useState<{ type: AlertType; title: string; text: string } | null>(null)
   /*
@@ -166,17 +166,17 @@ export function Dashboard({ token }: { token: string | null }) {
   const [pedido, setPedido] = useState<{ start: string; end: string } | null>(null)
 
   useEffect(() => {
-    let cancelado = false
+    let cancelled = false
     // With "Custom" chosen and no dates yet there is nothing to ask for.
-    if (rango === 'Custom' && pedido == null) {
-      setCargando(false)
+    if (range === 'Custom' && pedido == null) {
+      setLoading(false)
       return
     }
-    setCargando(true)
+    setLoading(true)
     void (async () => {
-      const r = await getDashboardStats(token, rango, pedido ?? undefined)
-      if (cancelado) return
-      setCargando(false)
+      const r = await getDashboardStats(token, range, pedido ?? undefined)
+      if (cancelled) return
+      setLoading(false)
       if (r.kind === 'ok') {
         setDatos(r.data)
         return
@@ -191,9 +191,9 @@ export function Dashboard({ token }: { token: string | null }) {
       setAviso(avisoDeFallo(r))
     })()
     return () => {
-      cancelado = true
+      cancelled = true
     }
-  }, [token, rango, pedido])
+  }, [token, range, pedido])
 
   function mostrarRango() {
     const falta = loQueFalta(inicio, fin)
@@ -205,18 +205,18 @@ export function Dashboard({ token }: { token: string | null }) {
     setPedido(instantesDelRango(inicio, fin))
   }
 
-  const s = datos?.stats
+  const s = data?.stats
   const total = s?.totalQueries ?? 0
 
   return (
     <>
       <SectionHeader
         titulo="Dashboard"
-        acciones={
+        actions={
           <Segmentado
             etiqueta="Period"
-            opciones={RANGOS.map((r) => ({ id: r, etiqueta: ETIQUETA_RANGO[r] }))}
-            activa={rango}
+            options={RANGOS.map((r) => ({ id: r, etiqueta: ETIQUETA_RANGO[r] }))}
+            active={range}
             onElegir={(r) => {
               setRango(r)
               if (r !== 'Custom') setPedido(null)
@@ -225,7 +225,7 @@ export function Dashboard({ token }: { token: string | null }) {
         }
       />
 
-      {rango === 'Custom' && (
+      {range === 'Custom' && (
         <div className={styles.rangoPropio}>
           <label>
             Start
@@ -247,7 +247,7 @@ export function Dashboard({ token }: { token: string | null }) {
         {METRICAS.map((m) => (
           <div className={styles.tile} key={m.k} style={{ ['--tc' as string]: m.color }}>
             <div className={styles.v}>{s ? num(s[m.k]) : '—'}</div>
-            <div className={styles.p}>{m.pct && s ? porcentaje(s[m.k], total) : ' '}</div>
+            <div className={styles.p}>{m.pct && s ? percentage(s[m.k], total) : ' '}</div>
             <div className={styles.k}>{m.label}</div>
           </div>
         ))}
@@ -256,25 +256,25 @@ export function Dashboard({ token }: { token: string | null }) {
       <div className={styles.grid}>
         <div className={styles.col}>
           <Panel titulo="Queries" className={styles.panel}>
-            <Cuerpo>
-              {cargando && <Loading compacto />}
-              {!cargando && datos && tieneDatos(datos.mainChartData) && (
-                <Chart tipo="line" data={datos.mainChartData} aria="Queries over time" />
+            <Body>
+              {loading && <Loading compacto />}
+              {!loading && data && tieneDatos(data.mainChartData) && (
+                <Chart tipo="line" data={data.mainChartData} aria="Queries over time" />
               )}
-              {!cargando && (!datos || !tieneDatos(datos.mainChartData)) && (
+              {!loading && (!data || !tieneDatos(data.mainChartData)) && (
                 <Empty compacto>No queries for this period.</Empty>
               )}
-            </Cuerpo>
+            </Body>
           </Panel>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <Top
               titulo="Top Domains"
-              filas={datos?.topDomains ?? []}
+              rows={data?.topDomains ?? []}
               onMore={() => setTop('TopDomains')}
             />
             <Top
               titulo="Top Blocked Domains"
-              filas={datos?.topBlockedDomains ?? []}
+              rows={data?.topBlockedDomains ?? []}
               onMore={() => setTop('TopBlockedDomains')}
               antesDeMore={<MenuBloqueo token={token} onAviso={setAviso} />}
             />
@@ -283,7 +283,7 @@ export function Dashboard({ token }: { token: string | null }) {
 
         <div className={styles.col}>
           <Panel titulo="Server" className={styles.panel}>
-            <Cuerpo>
+            <Body>
               <div className={styles.counters} data-testid="contadores">
                 {CONTADORES.map((c) => (
                   <div className={styles.cnt} key={c.k}>
@@ -292,25 +292,25 @@ export function Dashboard({ token }: { token: string | null }) {
                   </div>
                 ))}
               </div>
-            </Cuerpo>
+            </Body>
           </Panel>
-          {datos && (
+          {data && (
             <>
-              <Reparto titulo="Query Response Types" data={datos.queryResponseChartData} />
-              <Reparto titulo="Query Types" data={datos.queryTypeChartData} />
-              <Reparto titulo="Protocol Types" data={datos.protocolTypeChartData} />
+              <Reparto titulo="Query Response Types" data={data.queryResponseChartData} />
+              <Reparto titulo="Query Types" data={data.queryTypeChartData} />
+              <Reparto titulo="Protocol Types" data={data.protocolTypeChartData} />
             </>
           )}
           <Top
             titulo="Top Clients"
-            filas={datos?.topClients ?? []}
+            rows={data?.topClients ?? []}
             esCliente
             onMore={() => setTop('TopClients')}
           />
         </div>
       </div>
 
-      <TopStats tipo={top} rango={rango} token={token} onCerrar={() => setTop(null)} />
+      <TopStats tipo={top} range={range} token={token} onCerrar={() => setTop(null)} />
     </>
   )
 }

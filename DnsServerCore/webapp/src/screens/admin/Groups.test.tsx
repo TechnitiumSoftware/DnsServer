@@ -3,16 +3,16 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Groups } from './Groups'
 import * as client from '../../api/client'
-import { GRUPOS } from './admin.fixture'
+import { GROUPS } from './admin.fixture'
 import { elegir } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-function servidor(grupos = GRUPOS, detalle?: Record<string, unknown>) {
+function servidor(groups = GROUPS, detalle?: Record<string, unknown>) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
-    if (path === 'admin/groups/list') return ok({ response: { groups: grupos }, server: 'x' })
+    if (path === 'admin/groups/list') return ok({ response: { groups: groups }, server: 'x' })
     if (path === 'admin/groups/get') {
       return ok({
         response: detalle ?? {
@@ -45,10 +45,10 @@ describe('Groups — the table', () => {
   })
 
   it('a description with newlines is drawn over several lines', async () => {
-    servidor([{ name: 'Ops', description: 'primera\nsegunda' }])
+    servidor([{ name: 'Ops', description: 'first line\nsecond line' }])
     render(<Groups {...props} />)
-    expect(await screen.findByText('primera')).toBeInTheDocument()
-    expect(screen.getByText('segunda')).toBeInTheDocument()
+    expect(await screen.findByText('first line')).toBeInTheDocument()
+    expect(screen.getByText('second line')).toBeInTheDocument()
   })
 
   it('with no groups the total says zero', async () => {
@@ -134,9 +134,9 @@ describe('Groups — the details modal', () => {
     render(<Groups {...props} />)
 
     await user.click((await screen.findAllByRole('button', { name: 'View Details' }))[0])
-    const nombre = await screen.findByLabelText('Name')
-    await user.clear(nombre)
-    await user.type(nombre, 'Otros')
+    const name = await screen.findByLabelText('Name')
+    await user.clear(name)
+    await user.type(name, 'Otros')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     const body = spy.mock.calls.find((c) => c[0] === 'admin/groups/set')?.[1]?.body as Record<string, string>

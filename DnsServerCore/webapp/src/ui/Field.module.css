@@ -19,7 +19,7 @@ the cursor is.
 }
 
 .input {
-  min-height: var(--campo-alto);
+  min-height: var(--field-height);
   font-size: var(--t-4);
   padding: var(--s-5) var(--s-7);
   border: 1px solid var(--line);

@@ -98,7 +98,7 @@ export const ZONAS_POR_PAGINA = [10, 25, 50, 100, 250, 500] as const
 
 export async function listZones(
   token: string | null,
-  opciones: {
+  options: {
     filterName?: string
     filterType?: string
     pageNumber?: number
@@ -112,7 +112,7 @@ export async function listZones(
     pageNumber = 1,
     zonesPerPage = 10,
     node = '',
-  } = opciones
+  } = options
   const outcome = await apiRequest<{ response: ListaZonas }>('zones/list', {
     token,
     body: {
@@ -146,7 +146,7 @@ export async function listZones(
 }
 
 /** "never" when the date is .NET's minimum, which is what upstream shows. */
-export function nuncaUsado(iso: string): boolean {
+export function neverUsed(iso: string): boolean {
   return !iso || iso.startsWith('0001-01-01')
 }
 
@@ -166,7 +166,7 @@ export function createZone(
   return apiRequest<{ response: { domain: string } }>(`zones/create?${query.toString()}`, {
     token,
     method: 'POST',
-    ...(archivo ? { file: { campo: 'fileImportZone', archivo } } : {}),
+    ...(archivo ? { file: { field: 'fileImportZone', archivo } } : {}),
   })
 }
 
@@ -356,11 +356,11 @@ export async function getZonePermissions(
  * booleans of each row, all joined by `|` into a single string.
  */
 export function serializarPermisos(
-  filas: { nombre: string; canView: boolean; canModify: boolean; canDelete: boolean }[],
+  rows: { name: string; canView: boolean; canModify: boolean; canDelete: boolean }[],
 ): string {
   const salida: string[] = []
-  for (const f of filas) {
-    salida.push(f.nombre, String(f.canView), String(f.canModify), String(f.canDelete))
+  for (const f of rows) {
+    salida.push(f.name, String(f.canView), String(f.canModify), String(f.canDelete))
   }
   return salida.join('|')
 }
@@ -398,23 +398,23 @@ export interface OpcionesImportacion {
 export function importZone(
   token: string | null,
   zone: string,
-  fuente: { archivo: File } | { texto: string },
-  opciones: OpcionesImportacion,
+  fuente: { archivo: File } | { text: string },
+  options: OpcionesImportacion,
   node = '',
 ): Promise<ApiOutcome> {
   const query = new URLSearchParams({
     zone,
-    overwrite: String(opciones.overwrite),
-    overwriteZone: String(opciones.overwriteZone),
-    overwriteSoaSerial: String(opciones.overwriteSoaSerial),
+    overwrite: String(options.overwrite),
+    overwriteZone: String(options.overwriteZone),
+    overwriteSoaSerial: String(options.overwriteSoaSerial),
     node,
   })
-  const ruta = `zones/import?${query.toString()}`
+  const route = `zones/import?${query.toString()}`
 
   if ('archivo' in fuente) {
-    return apiRequest(ruta, { token, method: 'POST', file: { campo: 'fileImportZone', archivo: fuente.archivo } })
+    return apiRequest(route, { token, method: 'POST', file: { field: 'fileImportZone', archivo: fuente.archivo } })
   }
-  return apiRequest(ruta, { token, method: 'POST', texto: fuente.texto })
+  return apiRequest(route, { token, method: 'POST', text: fuente.text })
 }
 
 /**

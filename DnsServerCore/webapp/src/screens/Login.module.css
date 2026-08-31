@@ -38,4 +38,4 @@
 .oLogin { margin: var(--s-8) 0 var(--s-7); text-align: center; font-size: var(--t-3); color: var(--faint); }
 
 /* The footer, under the card and centred: it belongs to the page, not the form. */
-.pie { font-size: var(--t-3); line-height: 2; text-align: center; }
+.footer { font-size: var(--t-3); line-height: 2; text-align: center; }

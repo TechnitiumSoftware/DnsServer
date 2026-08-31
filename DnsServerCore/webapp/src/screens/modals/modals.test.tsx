@@ -25,14 +25,14 @@ describe('Change Password', () => {
 
   it('it requires the new one before the confirmation: the order is contract', async () => {
     abrir()
-    await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
+    await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter new password.')).toBeInTheDocument()
   })
 
   it('it requires the confirmation', async () => {
     abrir()
-    await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
+    await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Please enter confirm password.')).toBeInTheDocument()
@@ -40,7 +40,7 @@ describe('Change Password', () => {
 
   it('it warns that they do not match under the Mismatch! title', async () => {
     abrir()
-    await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
+    await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'otra')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -52,17 +52,17 @@ describe('Change Password', () => {
     const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(ok())
     abrir(false)
     expect(screen.queryByLabelText('OTP')).not.toBeInTheDocument()
-    await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
+    await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'nueva')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(spy.mock.calls[0][0]).toBe('user/changePassword')
-    expect(spy.mock.calls[0][1]?.body).toEqual({ pass: 'vieja', newPass: 'nueva', totp: '' })
+    expect(spy.mock.calls[0][1]?.body).toEqual({ pass: 'old-one', newPass: 'nueva', totp: '' })
   })
 
   it('with 2FA on it requires the 6 digits', async () => {
     abrir(true)
-    await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
+    await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'nueva')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -74,7 +74,7 @@ describe('Change Password', () => {
   it('it confirms the change with the literal text', async () => {
     vi.spyOn(client, 'apiRequest').mockResolvedValue(ok())
     abrir()
-    await userEvent.type(screen.getByLabelText('Current Password'), 'vieja')
+    await userEvent.type(screen.getByLabelText('Current Password'), 'old-one')
     await userEvent.type(screen.getByLabelText('New Password'), 'nueva')
     await userEvent.type(screen.getByLabelText('Confirm Password'), 'nueva')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -162,8 +162,8 @@ describe('My Profile', () => {
     expect(screen.getByText('Total Groups: 2')).toBeInTheDocument()
     expect(screen.getByText('Administrators')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    const llamada = spy.mock.calls.find((c) => c[0] === 'user/profile/set')
-    expect(llamada?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800', displayName: 'Administrator' })
+    const call = spy.mock.calls.find((c) => c[0] === 'user/profile/set')
+    expect(call?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800', displayName: 'Administrator' })
   })
 
   it('it disables the name for an SSO user and does NOT send it', async () => {
@@ -174,8 +174,8 @@ describe('My Profile', () => {
     expect(screen.getByLabelText('Display Name')).toBeDisabled()
     expect(screen.getByLabelText('2FA Status')).toHaveValue('SSO Managed')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-    const llamada = spy.mock.calls.find((c) => c[0] === 'user/profile/set')
-    expect(llamada?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800' })
+    const call = spy.mock.calls.find((c) => c[0] === 'user/profile/set')
+    expect(call?.[1]?.body).toEqual({ sessionTimeoutSeconds: '1800' })
   })
 })
 

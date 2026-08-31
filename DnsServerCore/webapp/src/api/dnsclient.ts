@@ -6,7 +6,7 @@ import { apiRequest, type ApiOutcome } from './client'
 the "Resolve" and "Import" buttons share a call.
 */
 
-export const TIPOS = ['A','NS','CNAME','SOA','PTR','MX','TXT','RP','AAAA','SRV','NAPTR','DNAME','DS','SSHFP','RRSIG','NSEC','DNSKEY','NSEC3','NSEC3PARAM','TLSA','ZONEMD','SVCB','HTTPS','URI','CAA','ANY','AXFR','ANAME'] as const
+export const TYPES = ['A','NS','CNAME','SOA','PTR','MX','TXT','RP','AAAA','SRV','NAPTR','DNAME','DS','SSHFP','RRSIG','NSEC','DNSKEY','NSEC3','NSEC3PARAM','TLSA','ZONEMD','SVCB','HTTPS','URI','CAA','ANY','AXFR','ANAME'] as const
 export const PROTOCOLOS = ['UDP','TCP','TLS','HTTPS','QUIC'] as const
 
 /*

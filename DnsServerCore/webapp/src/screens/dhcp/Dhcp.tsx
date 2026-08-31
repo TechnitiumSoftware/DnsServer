@@ -43,9 +43,9 @@ export function Dhcp({
   node = '',
 }: DhcpProps) {
   const pedida = (sub ?? 'Leases') as Subpestana
-  const activa: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Leases'
+  const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Leases'
 
-  return activa === 'Scopes' ? (
+  return active === 'Scopes' ? (
     <Scopes token={token} node={node} canModify={canModify} canDelete={canDelete} />
   ) : (
     <Leases token={token} node={node} canModify={canModify} canDelete={canDelete} />

@@ -1,8 +1,8 @@
 import { Tag } from '../../ui/Tag'
 import { useState } from 'react'
-import type { Registro } from '../../api/registros'
-import { celdasDeRegistro, pieDeRegistro, type Celda } from './registro-vista'
-import { Tabla } from '../../ui/Table'
+import type { ResourceRecord } from '../../api/registros'
+import { celdasDeRegistro, pieDeRegistro, type Cell } from './registro-vista'
+import { Table } from '../../ui/Table'
 import styles from './Zones.module.css'
 
 /*
@@ -27,17 +27,17 @@ const LARGOS = [
 
 const CORTE = 64
 
-function Valor({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+function Value({ etiqueta, value }: { etiqueta: string; value: string }) {
   const [entero, setEntero] = useState(false)
-  const truncable = LARGOS.includes(etiqueta) && valor.length > CORTE
+  const truncable = LARGOS.includes(etiqueta) && value.length > CORTE
 
   if (!truncable || entero) {
-    return <span className={styles.clave}>{valor}</span>
+    return <span className={styles.key}>{value}</span>
   }
 
   return (
     <>
-      <span className={styles.clave}>{valor.slice(0, CORTE)}… </span>
+      <span className={styles.key}>{value.slice(0, CORTE)}… </span>
       <button type="button" className={styles.verlo} onClick={() => setEntero(true)}>
         show full
       </button>
@@ -45,51 +45,51 @@ function Valor({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   )
 }
 
-function Bloque({ celda }: { celda: Celda }) {
-  switch (celda.clase) {
-    case 'valor':
-      return <div className={styles.val}>{celda.texto}</div>
+function Bloque({ cell }: { cell: Cell }) {
+  switch (cell.clase) {
+    case 'value':
+      return <div className={styles.val}>{cell.text}</div>
 
-    case 'lineas':
+    case 'lines':
       return (
         <div className={styles.val}>
-          {celda.lineas.map((l, i) => (
+          {cell.lines.map((l, i) => (
             <div key={i}>{l}</div>
           ))}
         </div>
       )
 
-    case 'tabla':
+    case 'table':
       return (
-        <Tabla
-          cabecera={
+        <Table
+          header={
             <>
-              {celda.cabeceras.map((c) => (
+              {cell.cabeceras.map((c) => (
                 <th key={c}>{c}</th>
               ))}
             </>
           }
         >
-          {celda.filas.map((fila, i) => (
+          {cell.rows.map((row, i) => (
             <tr key={i}>
-              {fila.map((v, j) => (
+              {row.map((v, j) => (
                 <td key={j} className={styles.mono}>
                   {v}
                 </td>
               ))}
             </tr>
           ))}
-        </Tabla>
+        </Table>
       )
 
-    case 'pares':
+    case 'pairs':
       return (
         <dl className={styles.kv}>
-          {celda.pares.map((p) => (
+          {cell.pares.map((p) => (
             <div key={p.etiqueta} style={{ display: 'contents' }}>
               <dt>{p.etiqueta}</dt>
               <dd>
-                <Valor etiqueta={p.etiqueta} valor={p.valor} />
+                <Value etiqueta={p.etiqueta} value={p.value} />
               </dd>
             </div>
           ))}
@@ -99,25 +99,25 @@ function Bloque({ celda }: { celda: Celda }) {
 }
 
 export function CeldaDatos({
-  registro,
+  record,
   notifyFailedFor,
 }: {
-  registro: Registro
+  record: ResourceRecord
   /** The name servers the notify failed for. */
   notifyFailedFor?: string[]
 }) {
-  const celdas = celdasDeRegistro(registro)
-  const pie = pieDeRegistro(registro)
+  const cells = celdasDeRegistro(record)
+  const footer = pieDeRegistro(record)
 
   // Only on NS, and only if THAT server is in the zone's failure list.
   const notifyFallido =
-    registro.type === 'NS' &&
-    (notifyFailedFor ?? []).includes(String(registro.rData.nameServer ?? ''))
+    record.type === 'NS' &&
+    (notifyFailedFor ?? []).includes(String(record.rData.nameServer ?? ''))
 
   return (
     <>
-      {celdas.map((c, i) => (
-        <Bloque key={i} celda={c} />
+      {cells.map((c, i) => (
+        <Bloque key={i} cell={c} />
       ))}
 
       {notifyFallido && (
@@ -127,15 +127,15 @@ export function CeldaDatos({
       )}
 
       <div className={styles.meta}>
-        {pie.map((p) => (
+        {footer.map((p) => (
           <div key={p.etiqueta}>
-            <b>{p.etiqueta}</b> {p.valor}
+            <b>{p.etiqueta}</b> {p.value}
           </div>
         ))}
-        {registro.comments != null && registro.comments.length > 0 && (
+        {record.comments != null && record.comments.length > 0 && (
           <div>
             <b>Comments:</b>
-            <pre className={styles.salida}>{registro.comments}</pre>
+            <pre className={styles.salida}>{record.comments}</pre>
           </div>
         )}
       </div>

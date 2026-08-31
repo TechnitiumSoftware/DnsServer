@@ -3,11 +3,11 @@ import { Alert } from './Alert'
 import { Button } from './Button'
 import { Empty } from './Empty'
 import { Input, Textarea } from './Field'
-import { Ayuda, GroupRow, Row } from './Form'
+import { HelpText, GroupRow, Row } from './Form'
 import { Panel } from './Panel'
 import { TablaEditable } from './TablaEditable'
 import check from './Check.module.css'
-import texto from './texto.module.css'
+import text from './texto.module.css'
 import styles from './Ajustes.module.css'
 
 /*
@@ -118,7 +118,7 @@ export function AreaRow({
 
 /** The suffix that follows a control: "seconds", "MB", "(0 to disable)". */
 export function Coletilla({ children }: { children: ReactNode }) {
-  return <span className={texto.coletilla}>{children}</span>
+  return <span className={text.coletilla}>{children}</span>
 }
 
 export interface OpcionRadio {
@@ -158,9 +158,9 @@ export function Radios({
               disabled={disabled}
               onChange={() => onChange(o.value)}
             />
-            <span className={check.texto}>{o.label}</span>
+            <span className={check.text}>{o.label}</span>
           </label>
-          {o.help && <div className={check.ayuda}>{o.help}</div>}
+          {o.help && <div className={check.help}>{o.help}</div>}
         </div>
       ))}
     </>
@@ -169,7 +169,7 @@ export function Radios({
 
 /** Several loose blocks carrying the panel body's inset. */
 export function Avisos({ children }: { children: ReactNode }) {
-  return <div className={styles.avisos}>{children}</div>
+  return <div className={styles.notices}>{children}</div>
 }
 
 /*
@@ -221,7 +221,7 @@ export interface Columna<T> {
   min?: number
   max?: number
   /** Cuando la celda no es un campo de texto: el desplegable de algoritmo de TSIG. */
-  render?: (fila: T, set: (parcial: Partial<T>) => void, id: string, nombre: string) => ReactNode
+  render?: (row: T, set: (parcial: Partial<T>) => void, id: string, name: string) => ReactNode
 }
 
 /*
@@ -247,7 +247,7 @@ cannot be resolved.
 export function EditableTable<T extends Record<string, string>>({
   label,
   columnas,
-  filas,
+  rows,
   onChange,
   nueva,
   help,
@@ -256,18 +256,18 @@ export function EditableTable<T extends Record<string, string>>({
 }: {
   label: string
   columnas: Columna<T>[]
-  filas: T[]
-  onChange: (filas: T[]) => void
+  rows: T[]
+  onChange: (rows: T[]) => void
   nueva: () => T
   help?: ReactNode
   disabled?: boolean
-  idCelda?: (fila: number, columna: string) => string
+  idCelda?: (row: number, columna: string) => string
 }) {
   return (
     <GroupRow label={label}>
       <TablaEditable
         className={styles.editable}
-        cabecera={
+        header={
           <>
             {columnas.map((c) => (
               <th key={c.key}>{c.label}</th>
@@ -276,9 +276,9 @@ export function EditableTable<T extends Record<string, string>>({
           </>
         }
       >
-        {filas.map((fila, i) => {
+        {rows.map((row, i) => {
           const set = (parcial: Partial<T>) =>
-            onChange(filas.map((r, j) => (j === i ? { ...r, ...parcial } : r)))
+            onChange(rows.map((r, j) => (j === i ? { ...r, ...parcial } : r)))
           return (
             // Rows have no stable identity in upstream: they are numbered with
             // a random number. The index is the same criterion.
@@ -286,20 +286,20 @@ export function EditableTable<T extends Record<string, string>>({
             <tr key={i}>
               {columnas.map((c) => {
                 const id = idCelda?.(i, c.key)
-                const nombre = `${label} ${i + 1} ${c.label}`
+                const name = `${label} ${i + 1} ${c.label}`
                 return (
                   <td key={c.key}>
                     {c.render ? (
-                      c.render(fila, set, id ?? '', nombre)
+                      c.render(row, set, id ?? '', name)
                     ) : (
                       <Input
                         id={id}
-                        aria-label={nombre}
+                        aria-label={name}
                         type={c.type ?? 'text'}
                         min={c.min}
                         max={c.max}
                         disabled={disabled}
-                        value={fila[c.key]}
+                        value={row[c.key]}
                         onChange={(e) => set({ [c.key]: e.target.value } as Partial<T>)}
                       />
                     )}
@@ -310,7 +310,7 @@ export function EditableTable<T extends Record<string, string>>({
                 <Button
                   variant="danger"
                   disabled={disabled}
-                  onClick={() => onChange(filas.filter((_, j) => j !== i))}
+                  onClick={() => onChange(rows.filter((_, j) => j !== i))}
                 >
                   Delete
                 </Button>
@@ -321,17 +321,17 @@ export function EditableTable<T extends Record<string, string>>({
       </TablaEditable>
       {/* With no rows, the table showed the headers and nothing beneath: blank
           does not say "there are none", it says "I do not know". */}
-      {filas.length === 0 && <Empty compacto>No entries.</Empty>}
+      {rows.length === 0 && <Empty compacto>No entries.</Empty>}
       <div>
-        <Button disabled={disabled} onClick={() => onChange([...filas, nueva()])}>
+        <Button disabled={disabled} onClick={() => onChange([...rows, nueva()])}>
           Add
         </Button>
       </div>
-      {help && <Ayuda>{help}</Ayuda>}
+      {help && <HelpText>{help}</HelpText>}
     </GroupRow>
   )
 }
 
 export { Check } from './Check'
-export { Ayuda, GroupRow, Row }
+export { HelpText, GroupRow, Row }
 export { styles as ajustesStyles }

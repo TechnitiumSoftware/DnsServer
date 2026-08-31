@@ -11,20 +11,20 @@ what `selectOptions` was not checking, that the list really does open.
 */
 export async function elegir(user: UserEvent, disparador: HTMLElement, etiqueta: string | RegExp) {
   await user.click(disparador)
-  const lista = await screen.findByRole('listbox')
-  await user.click(within(lista).getByRole('option', { name: etiqueta }))
+  const list = await screen.findByRole('listbox')
+  await user.click(within(list).getByRole('option', { name: etiqueta }))
 }
 
 /** The same, finding the trigger by its label. */
-export async function elegirEn(user: UserEvent, campo: string | RegExp, etiqueta: string | RegExp) {
-  await elegir(user, screen.getByLabelText(campo), etiqueta)
+export async function elegirEn(user: UserEvent, field: string | RegExp, etiqueta: string | RegExp) {
+  await elegir(user, screen.getByLabelText(field), etiqueta)
 }
 
 /** The options a dropdown offers, in order. It opens it and closes it again. */
 export async function opcionesDe(user: UserEvent, disparador: HTMLElement): Promise<string[]> {
   await user.click(disparador)
-  const lista = await screen.findByRole('listbox')
-  const textos = within(lista)
+  const list = await screen.findByRole('listbox')
+  const textos = within(list)
     .getAllByRole('option')
     .map((o) => o.textContent?.trim() ?? '')
   await user.keyboard('{Escape}')

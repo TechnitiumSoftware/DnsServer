@@ -26,60 +26,60 @@ Settings— and that is why the failure returns the index and the caller transla
 it.
 */
 
-export type Celda =
+export type Cell =
   /** `data-optional` in upstream: the cell that is allowed to be empty. */
-  | { tipo: 'texto'; valor: string; opcional?: boolean }
-  | { tipo: 'casilla'; valor: boolean }
+  | { tipo: 'text'; value: string; opcional?: boolean }
+  | { tipo: 'casilla'; value: boolean }
 
 export interface FalloTabla {
   title: string
   text: string
   /** Index of the row and of the column of the field that has to be focused. */
-  fila: number
+  row: number
   columna: number
 }
 
-export type ResultadoTabla = { ok: true; valor: string } | { ok: false; fallo: FalloTabla }
+export type ResultadoTabla = { ok: true; value: string } | { ok: false; fallo: FalloTabla }
 
-export function serializarTabla(filas: readonly (readonly Celda[])[]): ResultadoTabla {
+export function serializarTabla(rows: readonly (readonly Cell[])[]): ResultadoTabla {
   const salida: string[] = []
 
-  for (let i = 0; i < filas.length; i++) {
-    for (let j = 0; j < filas[i].length; j++) {
-      const celda = filas[i][j]
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = 0; j < rows[i].length; j++) {
+      const cell = rows[i][j]
 
-      if (celda.tipo === 'casilla') {
-        salida.push(celda.valor ? 'true' : 'false')
+      if (cell.tipo === 'casilla') {
+        salida.push(cell.value ? 'true' : 'false')
         continue
       }
 
-      if (celda.valor === '' && celda.opcional !== true) {
+      if (cell.value === '' && cell.opcional !== true) {
         return {
           ok: false,
           fallo: {
             title: 'Missing!',
             text: 'Please enter a valid value in the text field in focus.',
-            fila: i,
+            row: i,
             columna: j,
           },
         }
       }
 
-      if (celda.valor.includes('|')) {
+      if (cell.value.includes('|')) {
         return {
           ok: false,
           fallo: {
             title: 'Invalid Character!',
             text: "Please edit the value in the text field in focus to remove '|' character.",
-            fila: i,
+            row: i,
             columna: j,
           },
         }
       }
 
-      salida.push(celda.valor)
+      salida.push(cell.value)
     }
   }
 
-  return { ok: true, valor: salida.join('|') }
+  return { ok: true, value: salida.join('|') }
 }

@@ -40,9 +40,9 @@ export function Logs({
   node = '',
 }: LogsProps) {
   const pedida = (sub ?? 'View Logs') as Subpestana
-  const activa: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'View Logs'
+  const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'View Logs'
 
-  return activa === 'Query Logs' ? (
+  return active === 'Query Logs' ? (
     <QueryLogs token={token} node={node} />
   ) : (
     <ViewLogs

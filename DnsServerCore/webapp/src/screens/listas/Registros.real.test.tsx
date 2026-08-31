@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Registros } from './Registros'
+import { ResourceRecords } from './Registros'
 import type { NodoLista, RegistroDns } from '../../api/zonelists'
 import muestra from './muestra-real.json'
 
@@ -21,7 +21,7 @@ and `expiryTtl` appear. To capture it again: see the curl block in
 CONVENCIONES.md.
 */
 
-const NODOS = muestra as unknown as Record<string, NodoLista>
+const NODES = muestra as unknown as Record<string, NodoLista>
 
 /** Every scalar value of an object, in depth. */
 function hojas(o: unknown): string[] {
@@ -32,17 +32,17 @@ function hojas(o: unknown): string[] {
   return [String(o)]
 }
 
-async function pintarTodo(nodo: NodoLista, conDnssec: boolean) {
+async function pintarTodo(node: NodoLista, conDnssec: boolean) {
   const { container } = render(
-    <Registros records={nodo.records} conDnssec={conDnssec} nodo={nodo.domain} />,
+    <ResourceRecords records={node.records} conDnssec={conDnssec} node={node.domain} />,
   )
   // The long values come out truncated: they are all expanded before looking.
   for (const b of screen.queryAllByRole('button', { name: 'show full' })) {
     await userEvent.click(b)
   }
   // And the DNSSEC signatures and the glue records live behind their button.
-  for (const nombre of ['RRSIG', 'Glue']) {
-    for (const b of screen.queryAllByRole('button', { name: nombre })) {
+  for (const name of ['RRSIG', 'Glue']) {
+    for (const b of screen.queryAllByRole('button', { name: name })) {
       await userEvent.click(b)
     }
   }
@@ -50,23 +50,23 @@ async function pintarTodo(nodo: NodoLista, conDnssec: boolean) {
 }
 
 describe('the table loses nothing from the real JSON', () => {
-  for (const [nombre, nodo] of Object.entries(NODOS)) {
-    const conDnssec = nombre.startsWith('cache')
+  for (const [name, node] of Object.entries(NODES)) {
+    const conDnssec = name.startsWith('cache')
 
-    it(`${nombre}: cada valor de rData sale en la tabla`, async () => {
-      const c = await pintarTodo(nodo, conDnssec)
-      const texto = c.textContent ?? ''
-      for (const r of nodo.records) {
+    it(`${name}: cada valor de rData sale en la tabla`, async () => {
+      const c = await pintarTodo(node, conDnssec)
+      const text = c.textContent ?? ''
+      for (const r of node.records) {
         for (const v of hojas(r.rData)) {
-          expect(texto, `falta ${v} de un ${r.type}`).toContain(v)
+          expect(text, `falta ${v} de un ${r.type}`).toContain(v)
         }
       }
     })
 
-    it(`${nombre}: los metadatos y las firmas también`, async () => {
-      const c = await pintarTodo(nodo, conDnssec)
-      const texto = c.textContent ?? ''
-      for (const r of nodo.records as RegistroDns[]) {
+    it(`${name}: los metadatos y las firmas también`, async () => {
+      const c = await pintarTodo(node, conDnssec)
+      const text = c.textContent ?? ''
+      for (const r of node.records as RegistroDns[]) {
         for (const v of [
           ...hojas(r.responseMetadata),
           ...hojas(r.nameServerMetadata),
@@ -74,23 +74,23 @@ describe('the table loses nothing from the real JSON', () => {
           ...hojas(r.glueRecords),
           ...hojas(r.eDnsClientSubnet),
         ]) {
-          expect(texto, `falta ${v} de un ${r.type}`).toContain(v)
+          expect(text, `falta ${v} de un ${r.type}`).toContain(v)
         }
-        if (r.dnssecStatus) expect(texto).toContain(r.dnssecStatus)
+        if (r.dnssecStatus) expect(text).toContain(r.dnssecStatus)
       }
     })
 
-    it(`${nombre}: el TTL sale con su número y su forma humana`, async () => {
-      const c = await pintarTodo(nodo, conDnssec)
-      const texto = c.textContent ?? ''
-      for (const r of nodo.records as RegistroDns[]) {
+    it(`${name}: el TTL sale con su número y su forma humana`, async () => {
+      const c = await pintarTodo(node, conDnssec)
+      const text = c.textContent ?? ''
+      for (const r of node.records as RegistroDns[]) {
         if (typeof r.ttl === 'string') {
           const [num, humano] = r.ttl.replace(')', '').split(' (')
-          expect(texto).toContain(num)
-          expect(texto).toContain(humano)
+          expect(text).toContain(num)
+          expect(text).toContain(humano)
         } else {
-          expect(texto).toContain(String(r.ttl))
-          if (r.ttlString) expect(texto).toContain(r.ttlString)
+          expect(text).toContain(String(r.ttl))
+          if (r.ttlString) expect(text).toContain(r.ttlString)
         }
       }
     })
@@ -104,24 +104,24 @@ test reminds them.
 */
 describe('the three fields that are stated differently', () => {
   it('the full timestamp is trimmed to minutes, but kept whole in the title', async () => {
-    const nodo = NODOS.cacheTechnitium
-    const c = await pintarTodo(nodo, true)
-    const completa = (nodo.records[0] as RegistroDns).lastUsedOn!
+    const node = NODES.cacheTechnitium
+    const c = await pintarTodo(node, true)
+    const completa = (node.records[0] as RegistroDns).lastUsedOn!
     expect(c.textContent).toContain(completa.slice(0, 16).replace('T', ' '))
     expect(c.querySelector(`[title="${completa}"]`)).not.toBeNull()
   })
 
   it('`expiryTtl: 0` is stated as "no expiry", which is what it means', async () => {
-    const nodo = NODOS.allowed
-    expect((nodo.records[0] as RegistroDns).expiryTtl).toBe(0)
-    const c = await pintarTodo(nodo, false)
+    const node = NODES.allowed
+    expect((node.records[0] as RegistroDns).expiryTtl).toBe(0)
+    const c = await pintarTodo(node, false)
     expect(c.textContent).toContain('no expiry')
   })
 
   it('`disabled: false` is not stated: it is only marked when true', async () => {
-    const nodo = NODOS.allowed
-    expect((nodo.records[0] as RegistroDns).disabled).toBe(false)
-    const c = await pintarTodo(nodo, false)
+    const node = NODES.allowed
+    expect((node.records[0] as RegistroDns).disabled).toBe(false)
+    const c = await pintarTodo(node, false)
     expect(c.textContent).not.toContain('disabled')
   })
 })
@@ -133,13 +133,13 @@ and this test proves it over a real record.
 */
 describe('a field the server adds tomorrow', () => {
   it('it appears without touching anything', async () => {
-    const base = NODOS.cacheExample.records[0] as RegistroDns
-    const nodo: NodoLista = {
+    const base = NODES.cacheExample.records[0] as RegistroDns
+    const node: NodoLista = {
       domain: 'example.com',
       zones: [],
       records: [{ ...base, campoDelFuturo: 'valor-inesperado' }],
     }
-    const c = await pintarTodo(nodo, true)
+    const c = await pintarTodo(node, true)
     expect(c.textContent).toContain('Campo del futuro')
     expect(c.textContent).toContain('valor-inesperado')
   })

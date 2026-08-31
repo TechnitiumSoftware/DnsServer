@@ -72,7 +72,7 @@ export function ChangePassword({
       open={open}
       onOpenChange={onOpenChange}
       title="Change Password"
-      acciones={
+      actions={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void save()}>
             Save

@@ -1,5 +1,5 @@
 import type { DnsSettings } from '../../api/settings'
-import { serializarTabla, type Celda } from '../../lib/tabla-serie'
+import { serializarTabla, type Cell } from '../../lib/tabla-serie'
 
 /*
 The model of the Settings form.
@@ -199,15 +199,15 @@ intermediate DOM normalising anything, so `\n` is emitted directly. Copying the
 literal `\r\n` would send `forwarders=1.1.1.1%0D,8.8.8.8%0D` to the server, which
 is exactly what upstream does NOT send.
 */
-export function listaATexto(lista: readonly string[] | number[] | null | undefined): string {
-  if (lista == null) return ''
-  return (lista as readonly (string | number)[]).map((v) => `${v}\n`).join('')
+export function listaATexto(list: readonly string[] | number[] | null | undefined): string {
+  if (list == null) return ''
+  return (list as readonly (string | number)[]).map((v) => `${v}\n`).join('')
 }
 
 /** `cleanTextList` (common.js:326): newlines to commas, repeated commas
  *  collapsed and the ones at the ends stripped. */
-export function limpiarLista(texto: string): string {
-  let t = texto.replace(/\n/g, ',')
+export function limpiarLista(text: string): string {
+  let t = text.replace(/\n/g, ',')
   while (t.indexOf(',,') !== -1) t = t.replace(/,,/g, ',')
   if (t.startsWith(',')) t = t.substring(1)
   if (t.endsWith(',')) t = t.substring(0, t.length - 1)
@@ -396,7 +396,7 @@ function tipoProxy(tipo: string | undefined): string {
    instead of mutating them per event, the rule lives in one place and cannot
    fall out of sync, which is what happens to upstream today with
    `chkEnableDnsOverHttp3` (see this phase's report).                         */
-export function habilitado(f: SettingsForm) {
+export function enabled(f: SettingsForm) {
   const tlsWeb = f.webServiceEnableTls || f.webServiceEnableTlsUnixSocket
   const proxyInverso =
     f.enableEDnsClientSubnetSourceAddress ||
@@ -455,14 +455,14 @@ export interface ErrorValidacion {
   /** The sub-tab the field is in, so it can be jumped to. */
   tab: string
   /** The control's `name`, to give it back the focus as upstream does. */
-  campo: string
+  field: string
 }
 
 export interface ResultadoCuerpo {
   error?: ErrorValidacion
   body?: Record<string, string>
   /** Textareas upstream rewrites with the sanitised list. */
-  saneado?: Partial<SettingsForm>
+  sanitised?: Partial<SettingsForm>
 }
 
 /*
@@ -475,21 +475,21 @@ Only `sharedSecret` carries `data-optional` in upstream, so only it allows empty
 each cell says so through its `opcional`.
 */
 function serializarConUbicacion(
-  filas: Celda[][],
+  rows: Cell[][],
   tab: string,
-  campo: string,
-): { valor: string } | { error: ErrorValidacion } {
-  const r = serializarTabla(filas)
-  if (r.ok) return { valor: r.valor }
-  return { error: { title: r.fallo.title, text: r.fallo.text, tab, campo } }
+  field: string,
+): { value: string } | { error: ErrorValidacion } {
+  const r = serializarTabla(rows)
+  if (r.ok) return { value: r.value }
+  return { error: { title: r.fallo.title, text: r.fallo.text, tab, field } }
 }
 
 export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   const body: Record<string, string> = { node }
-  const saneado: Partial<SettingsForm> = {}
+  const sanitised: Partial<SettingsForm> = {}
 
-  const falta = (text: string, tab: string, campo: string): ResultadoCuerpo => ({
-    error: { title: 'Missing!', text, tab, campo },
+  const falta = (text: string, tab: string, field: string): ResultadoCuerpo => ({
+    error: { title: 'Missing!', text, tab, field },
   })
 
   // ── General: local parameters
@@ -501,7 +501,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   if (dnsServerLocalEndPoints.length === 0 || dnsServerLocalEndPoints === ',') {
     dnsServerLocalEndPoints = '0.0.0.0:53,[::]:53'
   } else {
-    saneado.dnsServerLocalEndPoints = dnsServerLocalEndPoints.replace(/,/g, '\n')
+    sanitised.dnsServerLocalEndPoints = dnsServerLocalEndPoints.replace(/,/g, '\n')
   }
 
   const v4 = limpiarLista(f.dnsServerIPv4SourceAddresses)
@@ -515,8 +515,8 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   // ── General: valores por defecto
   const zta = limpiarLista(f.zoneTransferAllowedNetworks)
   const nan = limpiarLista(f.notifyAllowedNetworks)
-  if (!(zta.length === 0 || zta === ',')) saneado.zoneTransferAllowedNetworks = zta.replace(/,/g, '\n') + '\n'
-  if (!(nan.length === 0 || nan === ',')) saneado.notifyAllowedNetworks = nan.replace(/,/g, '\n') + '\n'
+  if (!(zta.length === 0 || zta === ',')) sanitised.zoneTransferAllowedNetworks = zta.replace(/,/g, '\n') + '\n'
+  if (!(nan.length === 0 || nan === ',')) sanitised.notifyAllowedNetworks = nan.replace(/,/g, '\n') + '\n'
 
   body.defaultRecordTtl = f.defaultRecordTtl
   body.defaultNsRecordTtl = f.defaultNsRecordTtl
@@ -532,7 +532,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
 
   // ── General: IPv6 y socket pool
   const spep = limpiarLista(f.socketPoolExcludedPorts)
-  if (!(spep.length === 0 || spep === ',')) saneado.socketPoolExcludedPorts = spep.replace(/,/g, '\n') + '\n'
+  if (!(spep.length === 0 || spep === ',')) sanitised.socketPoolExcludedPorts = spep.replace(/,/g, '\n') + '\n'
 
   body.ipv6Mode = f.ipv6Mode
   body.enableUdpSocketPool = String(f.enableUdpSocketPool)
@@ -557,9 +557,9 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   // ── General: QPM
   const qpm4 = serializarConUbicacion(
     f.qpmPrefixLimitsIPv4.map((r) => [
-      { tipo: 'texto' as const, valor: r.prefix },
-      { tipo: 'texto' as const, valor: r.udpLimit },
-      { tipo: 'texto' as const, valor: r.tcpLimit },
+      { tipo: 'text' as const, value: r.prefix },
+      { tipo: 'text' as const, value: r.udpLimit },
+      { tipo: 'text' as const, value: r.tcpLimit },
     ]),
     'General',
     'qpmPrefixLimitsIPv4',
@@ -568,9 +568,9 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
 
   const qpm6 = serializarConUbicacion(
     f.qpmPrefixLimitsIPv6.map((r) => [
-      { tipo: 'texto' as const, valor: r.prefix },
-      { tipo: 'texto' as const, valor: r.udpLimit },
-      { tipo: 'texto' as const, valor: r.tcpLimit },
+      { tipo: 'text' as const, value: r.prefix },
+      { tipo: 'text' as const, value: r.udpLimit },
+      { tipo: 'text' as const, value: r.tcpLimit },
     ]),
     'General',
     'qpmPrefixLimitsIPv6',
@@ -593,7 +593,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   }
 
   const qbl = limpiarLista(f.qpmLimitBypassList)
-  if (!(qbl.length === 0 || qbl === ',')) saneado.qpmLimitBypassList = qbl.replace(/,/g, '\n') + '\n'
+  if (!(qbl.length === 0 || qbl === ',')) sanitised.qpmLimitBypassList = qbl.replace(/,/g, '\n') + '\n'
 
   // ── General: avanzado
   const obligatorios: [keyof SettingsForm, string, string][] = [
@@ -607,8 +607,8 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['udpReceiveBufferSizeKB', 'Please enter a value for UDP Receive Buffer Size.', 'udpReceiveBufferSizeKB'],
     ['maxConcurrentResolutionsPerCore', 'Please enter a value for Max Concurrent Resolutions.', 'maxConcurrentResolutionsPerCore'],
   ]
-  for (const [clave, texto, campo] of obligatorios) {
-    if (f[clave] === '') return falta(texto, 'General', campo)
+  for (const [key, text, field] of obligatorios) {
+    if (f[key] === '') return falta(text, 'General', field)
   }
 
   body.udpPayloadSize = f.udpPayloadSize
@@ -618,8 +618,8 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.eDnsClientSubnetIPv6PrefixLength = f.eDnsClientSubnetIPv6PrefixLength
   body.eDnsClientSubnetIpv4Override = f.eDnsClientSubnetIpv4Override
   body.eDnsClientSubnetIpv6Override = f.eDnsClientSubnetIpv6Override
-  body.qpmPrefixLimitsIPv4 = qpm4.valor.length === 0 ? 'false' : qpm4.valor
-  body.qpmPrefixLimitsIPv6 = qpm6.valor.length === 0 ? 'false' : qpm6.valor
+  body.qpmPrefixLimitsIPv4 = qpm4.value.length === 0 ? 'false' : qpm4.value
+  body.qpmPrefixLimitsIPv6 = qpm6.value.length === 0 ? 'false' : qpm6.value
   body.qpmLimitSampleMinutes = f.qpmLimitSampleMinutes
   body.qpmLimitUdpTruncationPercentage = f.qpmLimitUdpTruncationPercentage
   body.qpmLimitBypassList = qbl.length === 0 || qbl === ',' ? 'false' : qbl
@@ -636,11 +636,11 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   // ── Web Service (no validation: the empty ones fall to their default value)
   let wsla = limpiarLista(f.webServiceLocalAddresses)
   if (wsla.length === 0 || wsla === ',') wsla = '0.0.0.0,[::]'
-  else saneado.webServiceLocalAddresses = wsla.replace(/,/g, '\n')
+  else sanitised.webServiceLocalAddresses = wsla.replace(/,/g, '\n')
 
   const wsrpa = limpiarLista(f.webServiceReverseProxyAddresses)
   if (!(wsrpa.length === 0 || wsrpa === ',')) {
-    saneado.webServiceReverseProxyAddresses = wsrpa.replace(/,/g, '\n')
+    sanitised.webServiceReverseProxyAddresses = wsrpa.replace(/,/g, '\n')
   }
 
   body.webServiceLocalAddresses = wsla
@@ -669,13 +669,13 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['dnsOverHttpsPort', 'Please enter a value for DNS-over-HTTPS Port.', 'dnsOverHttpsPort'],
     ['dnsOverQuicPort', 'Please enter a value for DNS-over-QUIC Port.', 'dnsOverQuicPort'],
   ]
-  for (const [clave, texto, campo] of puertos) {
-    if (f[clave] === '') return falta(texto, 'Optional Protocols', campo)
+  for (const [key, text, field] of puertos) {
+    if (f[key] === '') return falta(text, 'Optional Protocols', field)
   }
 
   const drpa = limpiarLista(f.dnsReverseProxyNetworkACL)
   if (!(drpa.length === 0 || drpa === ',')) {
-    saneado.dnsReverseProxyNetworkACL = drpa.replace(/,/g, '\n')
+    sanitised.dnsReverseProxyNetworkACL = drpa.replace(/,/g, '\n')
   }
 
   body.enableEDnsClientSubnetSourceAddress = String(f.enableEDnsClientSubnetSourceAddress)
@@ -705,19 +705,19 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   // ── TSIG
   const tsig = serializarConUbicacion(
     f.tsigKeys.map((k) => [
-      { tipo: 'texto' as const, valor: k.keyName },
-      { tipo: 'texto' as const, valor: k.sharedSecret, opcional: true },
-      { tipo: 'texto' as const, valor: k.algorithmName },
+      { tipo: 'text' as const, value: k.keyName },
+      { tipo: 'text' as const, value: k.sharedSecret, opcional: true },
+      { tipo: 'text' as const, value: k.algorithmName },
     ]),
     'TSIG',
     'tsigKeys',
   )
   if ('error' in tsig) return { error: tsig.error }
-  body.tsigKeys = tsig.valor.length === 0 ? 'false' : tsig.valor
+  body.tsigKeys = tsig.value.length === 0 ? 'false' : tsig.value
 
   // ── Recursion
   const racl = limpiarLista(f.recursionNetworkACL)
-  if (!(racl.length === 0 || racl === ',')) saneado.recursionNetworkACL = racl.replace(/,/g, '\n')
+  if (!(racl.length === 0 || racl === ',')) sanitised.recursionNetworkACL = racl.replace(/,/g, '\n')
 
   const resolutor: [keyof SettingsForm, string, string][] = [
     ['resolverRetries', 'Please enter a value for Resolver Retries.', 'resolverRetries'],
@@ -725,8 +725,8 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['resolverConcurrency', 'Please enter a value for Resolver Concurrency.', 'resolverConcurrency'],
     ['resolverMaxStackCount', 'Please enter a value for Resolver Max Stack Count.', 'resolverMaxStackCount'],
   ]
-  for (const [clave, texto, campo] of resolutor) {
-    if (f[clave] === '') return falta(texto, 'Recursion', campo)
+  for (const [key, text, field] of resolutor) {
+    if (f[key] === '') return falta(text, 'Recursion', field)
   }
 
   body.recursion = f.recursion
@@ -751,8 +751,8 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     ['cachePrefetchSampleIntervalInMinutes', 'Please enter cache auto prefetch sample interval value.', 'cachePrefetchSampleIntervalInMinutes'],
     ['cachePrefetchSampleEligibilityHitsPerHour', 'Please enter cache auto prefetch sample eligibility value.', 'cachePrefetchSampleEligibilityHitsPerHour'],
   ]
-  for (const [clave, texto, campo] of cache) {
-    if (f[clave] === '') return falta(texto, 'Cache', campo)
+  for (const [key, text, field] of cache) {
+    if (f[key] === '') return falta(text, 'Cache', field)
   }
 
   body.saveCache = String(f.saveCache)
@@ -773,13 +773,13 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
 
   // ── Blocking (no validation in upstream)
   const bbl = limpiarLista(f.blockingBypassList)
-  if (!(bbl.length === 0 || bbl === ',')) saneado.blockingBypassList = bbl.replace(/,/g, '\n') + '\n'
+  if (!(bbl.length === 0 || bbl === ',')) sanitised.blockingBypassList = bbl.replace(/,/g, '\n') + '\n'
 
   const cba = limpiarLista(f.customBlockingAddresses)
-  if (!(cba.length === 0 || cba === ',')) saneado.customBlockingAddresses = cba.replace(/,/g, '\n') + '\n'
+  if (!(cba.length === 0 || cba === ',')) sanitised.customBlockingAddresses = cba.replace(/,/g, '\n') + '\n'
 
   const blu = limpiarLista(f.blockListUrls)
-  if (!(blu.length === 0 || blu === ',')) saneado.blockListUrls = blu.replace(/,/g, '\n') + '\n'
+  if (!(blu.length === 0 || blu === ',')) sanitised.blockListUrls = blu.replace(/,/g, '\n') + '\n'
 
   body.enableBlocking = String(f.enableBlocking)
   body.allowTxtBlockingReport = String(f.allowTxtBlockingReport)
@@ -802,7 +802,7 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
     }
     const pb = limpiarLista(f.proxyBypassList)
     // main.js:2145 — here empty is NOT "false", it is an empty string.
-    if (!(pb.length === 0 || pb === ',')) saneado.proxyBypassList = pb.replace(/,/g, '\n')
+    if (!(pb.length === 0 || pb === ',')) sanitised.proxyBypassList = pb.replace(/,/g, '\n')
 
     proxy.proxyAddress = f.proxyAddress
     proxy.proxyPort = f.proxyPort
@@ -812,15 +812,15 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   }
 
   const fwd = limpiarLista(f.forwarders)
-  if (!(fwd.length === 0 || fwd === ',')) saneado.forwarders = fwd.replace(/,/g, '\n')
+  if (!(fwd.length === 0 || fwd === ',')) sanitised.forwarders = fwd.replace(/,/g, '\n')
 
   const reenvio: [keyof SettingsForm, string, string][] = [
     ['forwarderRetries', 'Please enter a value for Forwarder Retries.', 'forwarderRetries'],
     ['forwarderTimeout', 'Please enter a value for Forwarder Timeout.', 'forwarderTimeout'],
     ['forwarderConcurrency', 'Please enter a value for Forwarder Concurrency.', 'forwarderConcurrency'],
   ]
-  for (const [clave, texto, campo] of reenvio) {
-    if (f[clave] === '') return falta(texto, 'Proxy & Forwarders', campo)
+  for (const [key, text, field] of reenvio) {
+    if (f[key] === '') return falta(text, 'Proxy & Forwarders', field)
   }
 
   Object.assign(body, proxy)
@@ -842,5 +842,5 @@ export function construirCuerpo(f: SettingsForm, node = ''): ResultadoCuerpo {
   body.enableInMemoryStats = String(f.enableInMemoryStats)
   body.maxStatFileDays = f.maxStatFileDays
 
-  return { body, saneado }
+  return { body, sanitised }
 }

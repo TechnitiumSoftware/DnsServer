@@ -34,7 +34,7 @@ function cuatroDigitos(n: number): string {
   return String(n).padStart(4, '0')
 }
 
-function partes(iso: string): Date | null {
+function parts(iso: string): Date | null {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? null : d
 }
@@ -42,7 +42,7 @@ function partes(iso: string): Date | null {
 /** `format("YYYY-MM-DD HH:mm:ss")` en hora local. */
 export function fechaHora(iso: string | null | undefined): string {
   if (iso == null) return ''
-  const d = partes(iso)
+  const d = parts(iso)
   if (d == null) return ''
   return (
     `${cuatroDigitos(d.getFullYear())}-${dosDigitos(d.getMonth() + 1)}-${dosDigitos(d.getDate())} ` +
@@ -53,7 +53,7 @@ export function fechaHora(iso: string | null | undefined): string {
 /** `format("YYYY-MM-DD HH:mm")` in local time. The Cluster table uses it. */
 export function fechaMinuto(iso: string | null | undefined): string {
   if (iso == null) return ''
-  const d = partes(iso)
+  const d = parts(iso)
   if (d == null) return ''
   return (
     `${cuatroDigitos(d.getFullYear())}-${dosDigitos(d.getMonth() + 1)}-${dosDigitos(d.getDate())} ` +
@@ -76,7 +76,7 @@ function comoMeses(dias: number): number {
  *  tested without depending on the clock. */
 export function desdeAhora(iso: string | null | undefined, ahora: number = Date.now()): string {
   if (iso == null) return ''
-  const d = partes(iso)
+  const d = parts(iso)
   if (d == null) return ''
 
   const ms = d.getTime() - ahora
@@ -90,21 +90,21 @@ export function desdeAhora(iso: string | null | undefined, ahora: number = Date.
   const meses = Math.round(comoMeses(abs / 86400000))
   const anos = Math.round(comoMeses(abs / 86400000) / 12)
 
-  let texto: string
-  if (segundos <= UMBRAL.ss) texto = 'a few seconds'
-  else if (segundos < UMBRAL.s) texto = `${segundos} seconds`
-  else if (minutos <= 1) texto = 'a minute'
-  else if (minutos < UMBRAL.m) texto = `${minutos} minutes`
-  else if (horas <= 1) texto = 'an hour'
-  else if (horas < UMBRAL.h) texto = `${horas} hours`
-  else if (dias <= 1) texto = 'a day'
-  else if (dias < UMBRAL.d) texto = `${dias} days`
-  else if (meses <= 1) texto = 'a month'
-  else if (meses < UMBRAL.M) texto = `${meses} months`
-  else if (anos <= 1) texto = 'a year'
-  else texto = `${anos} years`
+  let text: string
+  if (segundos <= UMBRAL.ss) text = 'a few seconds'
+  else if (segundos < UMBRAL.s) text = `${segundos} seconds`
+  else if (minutos <= 1) text = 'a minute'
+  else if (minutos < UMBRAL.m) text = `${minutos} minutes`
+  else if (horas <= 1) text = 'an hour'
+  else if (horas < UMBRAL.h) text = `${horas} hours`
+  else if (dias <= 1) text = 'a day'
+  else if (dias < UMBRAL.d) text = `${dias} days`
+  else if (meses <= 1) text = 'a month'
+  else if (meses < UMBRAL.M) text = `${meses} months`
+  else if (anos <= 1) text = 'a year'
+  else text = `${anos} years`
 
-  return futuro ? `in ${texto}` : `${texto} ago`
+  return futuro ? `in ${text}` : `${text} ago`
 }
 
 /** `date (time ago)`, which is how upstream composes the ones carrying both. */

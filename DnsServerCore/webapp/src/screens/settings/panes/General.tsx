@@ -359,8 +359,8 @@ export function General({ f, set, en }: PaneProps) {
             { key: 'udpLimit', label: 'UDP Limit', type: 'number' },
             { key: 'tcpLimit', label: 'TCP Limit', type: 'number' },
           ]}
-          filas={f.qpmPrefixLimitsIPv4}
-          onChange={(filas) => set({ qpmPrefixLimitsIPv4: filas })}
+          rows={f.qpmPrefixLimitsIPv4}
+          onChange={(rows) => set({ qpmPrefixLimitsIPv4: rows })}
           nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
           help={
             <>
@@ -378,8 +378,8 @@ export function General({ f, set, en }: PaneProps) {
             { key: 'udpLimit', label: 'UDP Limit', type: 'number' },
             { key: 'tcpLimit', label: 'TCP Limit', type: 'number' },
           ]}
-          filas={f.qpmPrefixLimitsIPv6}
-          onChange={(filas) => set({ qpmPrefixLimitsIPv6: filas })}
+          rows={f.qpmPrefixLimitsIPv6}
+          onChange={(rows) => set({ qpmPrefixLimitsIPv6: rows })}
           nueva={() => ({ prefix: '', udpLimit: '', tcpLimit: '' })}
           help={
             <>

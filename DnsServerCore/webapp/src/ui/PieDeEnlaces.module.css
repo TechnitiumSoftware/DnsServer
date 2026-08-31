@@ -12,21 +12,21 @@ tight against the edge and on login it is centred under the card. That comes fro
 the caller's `className`.
 */
 
-.pie { color: var(--faint); }
+.footer { color: var(--faint); }
 
 /* The name does not break —"DNS Client" was falling onto two lines— but a break
    is still possible: the separator sits loose between the anchors, with its
    spaces, exactly as upstream has it. Putting `nowrap` on the wrapper instead of
    on the link left the list without a single break opportunity and the sidebar
    overflowed by 47 px horizontally. */
-.pie a {
+.footer a {
   color: var(--faint);
   text-decoration: none;
   white-space: nowrap;
   padding: var(--s-2) var(--s-1);
 }
 
-.pie a:hover { color: var(--ink); text-decoration: underline; }
+.footer a:hover { color: var(--ink); text-decoration: underline; }
 
 .sep { color: var(--line); }
 

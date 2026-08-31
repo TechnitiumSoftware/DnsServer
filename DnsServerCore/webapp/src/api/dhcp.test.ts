@@ -58,8 +58,8 @@ describe('api/dhcp — leases', () => {
 
     const leases = await listLeases('tok')
 
-    const llamada = spy.mock.calls.find((c) => c[0] === 'dhcp/leases/list')!
-    expect(llamada[1]).toMatchObject({ token: 'tok', body: { node: '' } })
+    const call = spy.mock.calls.find((c) => c[0] === 'dhcp/leases/list')!
+    expect(call[1]).toMatchObject({ token: 'tok', body: { node: '' } })
     expect(leases.kind === 'ok' && leases.data).toHaveLength(1)
   })
 
@@ -87,13 +87,13 @@ describe('api/dhcp — leases', () => {
     await convertToReservedLease('tok', 'Default', '1-AA')
     await convertToDynamicLease('tok', 'Default', '1-AA')
 
-    const cuerpo = { name: 'Default', clientIdentifier: '1-AA', node: '' }
-    expect(spy.mock.calls.find((c) => c[0] === 'dhcp/leases/remove')![1]?.body).toEqual(cuerpo)
+    const body = { name: 'Default', clientIdentifier: '1-AA', node: '' }
+    expect(spy.mock.calls.find((c) => c[0] === 'dhcp/leases/remove')![1]?.body).toEqual(body)
     expect(spy.mock.calls.find((c) => c[0] === 'dhcp/leases/convertToReserved')![1]?.body).toEqual(
-      cuerpo,
+      body,
     )
     expect(spy.mock.calls.find((c) => c[0] === 'dhcp/leases/convertToDynamic')![1]?.body).toEqual(
-      cuerpo,
+      body,
     )
   })
 })
@@ -147,11 +147,11 @@ describe('api/dhcp — scopes', () => {
 
     await setScope('tok', { name: 'Default' }, 'nodo-1')
 
-    const llamada = spy.mock.calls.find((c) => String(c[0]).startsWith('dhcp/scopes/set'))!
-    expect(llamada[0]).toBe('dhcp/scopes/set?node=nodo-1')
-    expect(llamada[1]).toMatchObject({ method: 'POST', body: { name: 'Default' } })
+    const call = spy.mock.calls.find((c) => String(c[0]).startsWith('dhcp/scopes/set'))!
+    expect(call[0]).toBe('dhcp/scopes/set?node=nodo-1')
+    expect(call[1]).toMatchObject({ method: 'POST', body: { name: 'Default' } })
     // The node is NOT duplicated in the body.
-    expect(llamada[1]?.body).not.toHaveProperty('node')
+    expect(call[1]?.body).not.toHaveProperty('node')
   })
 
   it('enable, disable and delete send the name and the node', async () => {
@@ -161,8 +161,8 @@ describe('api/dhcp — scopes', () => {
     await disableScope('tok', 'Default')
     await deleteScope('tok', 'Default')
 
-    for (const ruta of ['dhcp/scopes/enable', 'dhcp/scopes/disable', 'dhcp/scopes/delete']) {
-      expect(spy.mock.calls.find((c) => c[0] === ruta)![1]?.body).toEqual({
+    for (const route of ['dhcp/scopes/enable', 'dhcp/scopes/disable', 'dhcp/scopes/delete']) {
+      expect(spy.mock.calls.find((c) => c[0] === route)![1]?.body).toEqual({
         name: 'Default',
         node: '',
       })

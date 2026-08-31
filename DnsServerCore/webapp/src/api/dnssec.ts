@@ -348,26 +348,26 @@ called and the success alert is drawn all the same.
   NSEC3   → NSEC             convertToNSEC
 */
 export type PlanNxProof =
-  | { accion: 'ninguna' }
-  | { accion: 'convertToNSEC' }
-  | { accion: 'convertToNSEC3'; iterations: string; saltLength: string }
-  | { accion: 'updateNSEC3Params'; iterations: string; saltLength: string }
+  | { action: 'ninguna' }
+  | { action: 'convertToNSEC' }
+  | { action: 'convertToNSEC3'; iterations: string; saltLength: string }
+  | { action: 'updateNSEC3Params'; iterations: string; saltLength: string }
 
 export function planNxProof(
-  actual: NxProof,
+  current: NxProof,
   elegido: NxProof,
   actuales: { iterations: string; saltLength: string },
   nuevos: { iterations: string; saltLength: string },
 ): PlanNxProof {
-  if (actual === 'NSEC') {
-    if (elegido === 'NSEC') return { accion: 'ninguna' }
-    return { accion: 'convertToNSEC3', ...nuevos }
+  if (current === 'NSEC') {
+    if (elegido === 'NSEC') return { action: 'ninguna' }
+    return { action: 'convertToNSEC3', ...nuevos }
   }
 
-  if (elegido === 'NSEC') return { accion: 'convertToNSEC' }
+  if (elegido === 'NSEC') return { action: 'convertToNSEC' }
 
   if (actuales.iterations === nuevos.iterations && actuales.saltLength === nuevos.saltLength) {
-    return { accion: 'ninguna' }
+    return { action: 'ninguna' }
   }
-  return { accion: 'updateNSEC3Params', ...nuevos }
+  return { action: 'updateNSEC3Params', ...nuevos }
 }

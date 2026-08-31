@@ -1,4 +1,4 @@
-import type { Registro } from '../../api/registros'
+import type { ResourceRecord } from '../../api/registros'
 import { fechaConAntiguedad, fechaHora, fechaMinuto } from '../../lib/fechas'
 
 /*
@@ -23,80 +23,80 @@ Rules that are replicated and not "fixed":
     of showing it empty.
 */
 
-export type Celda =
-  | { clase: 'valor'; texto: string }
-  | { clase: 'pares'; pares: { etiqueta: string; valor: string }[] }
-  | { clase: 'lineas'; lineas: string[] }
-  | { clase: 'tabla'; cabeceras: string[]; filas: string[][] }
+export type Cell =
+  | { clase: 'value'; text: string }
+  | { clase: 'pairs'; pares: { etiqueta: string; value: string }[] }
+  | { clase: 'lines'; lines: string[] }
+  | { clase: 'table'; cabeceras: string[]; rows: string[][] }
 
 const s = (v: unknown): string => (v == null ? '' : String(v))
 
 /** `algorithm (algorithmNumber)`, which upstream composes in four places. */
-function conNumero(nombre: unknown, numero: unknown): string {
-  return `${s(nombre)} (${s(numero)})`
+function conNumero(name: unknown, number: unknown): string {
+  return `${s(name)} (${s(number)})`
 }
 
 /**
  * The escaping of a TXT before drawing it: backslashes, carriage returns and
  * newlines are shown as sequences, and quotes are escaped (zone.js:3778 and 3789).
  */
-export function escaparTxt(texto: string): string {
-  return texto
+export function escaparTxt(text: string): string {
+  return text
     .replace(/\\/g, '\\\\')
     .replace(/\r/g, '\\r')
     .replace(/\n/g, '\\n')
     .replace(/"/g, '\\"')
 }
 
-export function celdasDeRegistro(r: Registro): Celda[] {
+export function celdasDeRegistro(r: ResourceRecord): Cell[] {
   const d = r.rData
-  const salida: Celda[] = []
+  const salida: Cell[] = []
 
   switch (r.type.toUpperCase()) {
     case 'A':
     case 'AAAA':
-      salida.push({ clase: 'valor', texto: s(d.ipAddress) })
+      salida.push({ clase: 'value', text: s(d.ipAddress) })
       break
 
     case 'NS': {
-      const pares = [{ etiqueta: 'Name Server:', valor: s(d.nameServer) }]
+      const pares = [{ etiqueta: 'Name Server:', value: s(d.nameServer) }]
       if (r.glueRecords != null) {
-        pares.push({ etiqueta: 'Glue Addresses:', valor: r.glueRecords.join(', ') })
+        pares.push({ etiqueta: 'Glue Addresses:', value: r.glueRecords.join(', ') })
       }
-      salida.push({ clase: 'pares', pares })
+      salida.push({ clase: 'pairs', pares })
       break
     }
 
     case 'CNAME':
-      salida.push({ clase: 'valor', texto: s(d.cname) })
+      salida.push({ clase: 'value', text: s(d.cname) })
       break
 
     case 'SOA':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Primary Name Server:', valor: s(d.primaryNameServer) },
-          { etiqueta: 'Responsible Person:', valor: s(d.responsiblePerson) },
-          { etiqueta: 'Serial:', valor: s(d.serial) },
-          { etiqueta: 'Refresh:', valor: `${s(d.refresh)} (${s(d.refreshString)})` },
-          { etiqueta: 'Retry:', valor: `${s(d.retry)} (${s(d.retryString)})` },
-          { etiqueta: 'Expire:', valor: `${s(d.expire)} (${s(d.expireString)})` },
-          { etiqueta: 'Minimum:', valor: `${s(d.minimum)} (${s(d.minimumString)})` },
-          { etiqueta: 'Use Serial Date Scheme:', valor: String(d.useSerialDateScheme === true) },
+          { etiqueta: 'Primary Name Server:', value: s(d.primaryNameServer) },
+          { etiqueta: 'Responsible Person:', value: s(d.responsiblePerson) },
+          { etiqueta: 'Serial:', value: s(d.serial) },
+          { etiqueta: 'Refresh:', value: `${s(d.refresh)} (${s(d.refreshString)})` },
+          { etiqueta: 'Retry:', value: `${s(d.retry)} (${s(d.retryString)})` },
+          { etiqueta: 'Expire:', value: `${s(d.expire)} (${s(d.expireString)})` },
+          { etiqueta: 'Minimum:', value: `${s(d.minimum)} (${s(d.minimumString)})` },
+          { etiqueta: 'Use Serial Date Scheme:', value: String(d.useSerialDateScheme === true) },
         ],
       })
       break
 
     case 'PTR':
-      salida.push({ clase: 'valor', texto: s(d.ptrName) })
+      salida.push({ clase: 'value', text: s(d.ptrName) })
       break
 
     case 'MX':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Preference:', valor: s(d.preference) },
-          { etiqueta: 'Exchange:', valor: s(d.exchange) },
+          { etiqueta: 'Preference:', value: s(d.preference) },
+          { etiqueta: 'Exchange:', value: s(d.exchange) },
         ],
       })
       break
@@ -105,220 +105,220 @@ export function celdasDeRegistro(r: Registro): Celda[] {
       // Split, each string goes in quotes and on a line of its own.
       if (d.splitText === true) {
         const cadenas = (d.characterStrings ?? []) as string[]
-        salida.push({ clase: 'lineas', lineas: cadenas.map((c) => `"${escaparTxt(c)}"`) })
+        salida.push({ clase: 'lines', lines: cadenas.map((c) => `"${escaparTxt(c)}"`) })
       } else {
-        salida.push({ clase: 'valor', texto: escaparTxt(s(d.text)) })
+        salida.push({ clase: 'value', text: escaparTxt(s(d.text)) })
       }
       break
     }
 
     case 'RP':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Mailbox:', valor: s(d.mailbox) },
-          { etiqueta: 'TXT Domain:', valor: s(d.txtDomain) },
+          { etiqueta: 'Mailbox:', value: s(d.mailbox) },
+          { etiqueta: 'TXT Domain:', value: s(d.txtDomain) },
         ],
       })
       break
 
     case 'SRV':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Priority:', valor: s(d.priority) },
-          { etiqueta: 'Weight:', valor: s(d.weight) },
-          { etiqueta: 'Port:', valor: s(d.port) },
-          { etiqueta: 'Target:', valor: s(d.target) },
+          { etiqueta: 'Priority:', value: s(d.priority) },
+          { etiqueta: 'Weight:', value: s(d.weight) },
+          { etiqueta: 'Port:', value: s(d.port) },
+          { etiqueta: 'Target:', value: s(d.target) },
         ],
       })
       break
 
     case 'NAPTR':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Order:', valor: s(d.order) },
-          { etiqueta: 'Preference:', valor: s(d.preference) },
-          { etiqueta: 'Flags:', valor: s(d.flags) },
-          { etiqueta: 'Services:', valor: s(d.services) },
-          { etiqueta: 'Regular Expression:', valor: s(d.regexp) },
-          { etiqueta: 'Replacement:', valor: s(d.replacement) },
+          { etiqueta: 'Order:', value: s(d.order) },
+          { etiqueta: 'Preference:', value: s(d.preference) },
+          { etiqueta: 'Flags:', value: s(d.flags) },
+          { etiqueta: 'Services:', value: s(d.services) },
+          { etiqueta: 'Regular Expression:', value: s(d.regexp) },
+          { etiqueta: 'Replacement:', value: s(d.replacement) },
         ],
       })
       break
 
     case 'DNAME':
-      salida.push({ clase: 'valor', texto: s(d.dname) })
+      salida.push({ clase: 'value', text: s(d.dname) })
       break
 
     case 'APL': {
       const prefijos = (d.addressPrefixes ?? []) as Record<string, unknown>[]
       salida.push({
-        clase: 'tabla',
+        clase: 'table',
         cabeceras: ['Family', 'Negation', 'AFD Part', 'Prefix'],
-        filas: prefijos.map((p) => [s(p.addressFamily), s(p.negation), s(p.afdPart), s(p.prefix)]),
+        rows: prefijos.map((p) => [s(p.addressFamily), s(p.negation), s(p.afdPart), s(p.prefix)]),
       })
       break
     }
 
     case 'DS':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Key Tag:', valor: s(d.keyTag) },
-          { etiqueta: 'Algorithm:', valor: conNumero(d.algorithm, d.algorithmNumber) },
-          { etiqueta: 'Digest Type:', valor: conNumero(d.digestType, d.digestTypeNumber) },
-          { etiqueta: 'Digest:', valor: s(d.digest) },
+          { etiqueta: 'Key Tag:', value: s(d.keyTag) },
+          { etiqueta: 'Algorithm:', value: conNumero(d.algorithm, d.algorithmNumber) },
+          { etiqueta: 'Digest Type:', value: conNumero(d.digestType, d.digestTypeNumber) },
+          { etiqueta: 'Digest:', value: s(d.digest) },
         ],
       })
       break
 
     case 'SSHFP':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Algorithm:', valor: s(d.algorithm) },
-          { etiqueta: 'Fingerprint Type:', valor: s(d.fingerprintType) },
-          { etiqueta: 'Fingerprint:', valor: s(d.fingerprint) },
+          { etiqueta: 'Algorithm:', value: s(d.algorithm) },
+          { etiqueta: 'Fingerprint Type:', value: s(d.fingerprintType) },
+          { etiqueta: 'Fingerprint:', value: s(d.fingerprint) },
         ],
       })
       break
 
     case 'RRSIG':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Type Covered:', valor: s(d.typeCovered) },
-          { etiqueta: 'Algorithm:', valor: conNumero(d.algorithm, d.algorithmNumber) },
-          { etiqueta: 'Labels:', valor: s(d.labels) },
-          { etiqueta: 'Original TTL:', valor: s(d.originalTtl) },
-          { etiqueta: 'Signature Expiration:', valor: s(d.signatureExpiration) },
-          { etiqueta: 'Signature Inception:', valor: s(d.signatureInception) },
-          { etiqueta: 'Key Tag:', valor: s(d.keyTag) },
-          { etiqueta: "Signer's Name:", valor: s(d.signersName) },
-          { etiqueta: 'Signature:', valor: s(d.signature) },
+          { etiqueta: 'Type Covered:', value: s(d.typeCovered) },
+          { etiqueta: 'Algorithm:', value: conNumero(d.algorithm, d.algorithmNumber) },
+          { etiqueta: 'Labels:', value: s(d.labels) },
+          { etiqueta: 'Original TTL:', value: s(d.originalTtl) },
+          { etiqueta: 'Signature Expiration:', value: s(d.signatureExpiration) },
+          { etiqueta: 'Signature Inception:', value: s(d.signatureInception) },
+          { etiqueta: 'Key Tag:', value: s(d.keyTag) },
+          { etiqueta: "Signer's Name:", value: s(d.signersName) },
+          { etiqueta: 'Signature:', value: s(d.signature) },
         ],
       })
       break
 
     case 'NSEC':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Next Domain Name:', valor: s(d.nextDomainName) },
-          { etiqueta: 'Types:', valor: ((d.types ?? []) as string[]).join(', ') },
+          { etiqueta: 'Next Domain Name:', value: s(d.nextDomainName) },
+          { etiqueta: 'Types:', value: ((d.types ?? []) as string[]).join(', ') },
         ],
       })
       break
 
     case 'DNSKEY': {
       const pares = [
-        { etiqueta: 'Flags:', valor: s(d.flags) },
-        { etiqueta: 'Protocol:', valor: s(d.protocol) },
-        { etiqueta: 'Algorithm:', valor: conNumero(d.algorithm, d.algorithmNumber) },
-        { etiqueta: 'Public Key:', valor: s(d.publicKey) },
+        { etiqueta: 'Flags:', value: s(d.flags) },
+        { etiqueta: 'Protocol:', value: s(d.protocol) },
+        { etiqueta: 'Algorithm:', value: conNumero(d.algorithm, d.algorithmNumber) },
+        { etiqueta: 'Public Key:', value: s(d.publicKey) },
       ]
 
       if (d.dnsKeyState != null) {
-        let estado = s(d.dnsKeyState)
-        if (d.dnsKeyStateReadyBy != null) estado += ` (ready by: ${fechaMinuto(s(d.dnsKeyStateReadyBy))})`
-        else if (d.dnsKeyStateActiveBy != null) estado += ` (active by: ${fechaMinuto(s(d.dnsKeyStateActiveBy))})`
-        pares.push({ etiqueta: 'Key State:', valor: estado })
+        let state = s(d.dnsKeyState)
+        if (d.dnsKeyStateReadyBy != null) state += ` (ready by: ${fechaMinuto(s(d.dnsKeyStateReadyBy))})`
+        else if (d.dnsKeyStateActiveBy != null) state += ` (active by: ${fechaMinuto(s(d.dnsKeyStateActiveBy))})`
+        pares.push({ etiqueta: 'Key State:', value: state })
       }
 
-      pares.push({ etiqueta: 'Computed Key Tag:', valor: s(d.computedKeyTag) })
+      pares.push({ etiqueta: 'Computed Key Tag:', value: s(d.computedKeyTag) })
 
       if (d.computedDigests != null) {
         const digests = d.computedDigests as Record<string, unknown>[]
         pares.push({
           etiqueta: 'Computed Digests:',
-          valor: digests.map((x) => `${s(x.digestType)}: ${s(x.digest)}`).join('\n'),
+          value: digests.map((x) => `${s(x.digestType)}: ${s(x.digest)}`).join('\n'),
         })
       }
 
-      salida.push({ clase: 'pares', pares })
+      salida.push({ clase: 'pairs', pares })
       break
     }
 
     case 'NSEC3':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Hash Algorithm:', valor: s(d.hashAlgorithm) },
-          { etiqueta: 'Flags:', valor: s(d.flags) },
-          { etiqueta: 'Iterations:', valor: s(d.iterations) },
-          { etiqueta: 'Salt:', valor: s(d.salt) },
-          { etiqueta: 'Next Hashed Owner Name:', valor: s(d.nextHashedOwnerName) },
-          { etiqueta: 'Types:', valor: ((d.types ?? []) as string[]).join(', ') },
+          { etiqueta: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
+          { etiqueta: 'Flags:', value: s(d.flags) },
+          { etiqueta: 'Iterations:', value: s(d.iterations) },
+          { etiqueta: 'Salt:', value: s(d.salt) },
+          { etiqueta: 'Next Hashed Owner Name:', value: s(d.nextHashedOwnerName) },
+          { etiqueta: 'Types:', value: ((d.types ?? []) as string[]).join(', ') },
         ],
       })
       break
 
     case 'NSEC3PARAM':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Hash Algorithm:', valor: s(d.hashAlgorithm) },
-          { etiqueta: 'Flags:', valor: s(d.flags) },
-          { etiqueta: 'Iterations:', valor: s(d.iterations) },
-          { etiqueta: 'Salt:', valor: s(d.salt) },
+          { etiqueta: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
+          { etiqueta: 'Flags:', value: s(d.flags) },
+          { etiqueta: 'Iterations:', value: s(d.iterations) },
+          { etiqueta: 'Salt:', value: s(d.salt) },
         ],
       })
       break
 
     case 'TLSA':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Certificate Usage:', valor: s(d.certificateUsage) },
-          { etiqueta: 'Selector:', valor: s(d.selector) },
-          { etiqueta: 'Matching Type:', valor: s(d.matchingType) },
-          { etiqueta: 'Certificate Association Data:', valor: s(d.certificateAssociationData) },
+          { etiqueta: 'Certificate Usage:', value: s(d.certificateUsage) },
+          { etiqueta: 'Selector:', value: s(d.selector) },
+          { etiqueta: 'Matching Type:', value: s(d.matchingType) },
+          { etiqueta: 'Certificate Association Data:', value: s(d.certificateAssociationData) },
         ],
       })
       break
 
     case 'ZONEMD':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Serial:', valor: s(d.serial) },
-          { etiqueta: 'Scheme:', valor: s(d.scheme) },
-          { etiqueta: 'Hash Algorithm:', valor: s(d.hashAlgorithm) },
-          { etiqueta: 'Digest:', valor: s(d.digest) },
+          { etiqueta: 'Serial:', value: s(d.serial) },
+          { etiqueta: 'Scheme:', value: s(d.scheme) },
+          { etiqueta: 'Hash Algorithm:', value: s(d.hashAlgorithm) },
+          { etiqueta: 'Digest:', value: s(d.digest) },
         ],
       })
       break
 
     case 'SVCB':
     case 'HTTPS': {
-      const prioridad = s(d.svcPriority)
+      const priority = s(d.svcPriority)
       const modo = String(d.svcPriority) === '0' ? ' (alias mode)' : ' (service mode)'
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Priority:', valor: prioridad + modo },
-          { etiqueta: 'Target Name:', valor: s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName) },
+          { etiqueta: 'Priority:', value: priority + modo },
+          { etiqueta: 'Target Name:', value: s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName) },
         ],
       })
 
       const params = (d.svcParams ?? {}) as Record<string, unknown>
-      const filas: string[][] = []
-      for (const [clave, valor] of Object.entries(params)) {
-        if (clave === 'ipv4hint' && d.autoIpv4Hint === true) continue
-        if (clave === 'ipv6hint' && d.autoIpv6Hint === true) continue
-        filas.push([clave, s(valor)])
+      const rows: string[][] = []
+      for (const [key, value] of Object.entries(params)) {
+        if (key === 'ipv4hint' && d.autoIpv4Hint === true) continue
+        if (key === 'ipv6hint' && d.autoIpv6Hint === true) continue
+        rows.push([key, s(value)])
       }
       if (Object.keys(params).length > 0) {
-        salida.push({ clase: 'tabla', cabeceras: ['Key', 'Value'], filas })
+        salida.push({ clase: 'table', cabeceras: ['Key', 'Value'], rows })
       }
 
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Use Automatic IPv4 Hint:', valor: String(d.autoIpv4Hint === true) },
-          { etiqueta: 'Use Automatic IPv6 Hint:', valor: String(d.autoIpv6Hint === true) },
+          { etiqueta: 'Use Automatic IPv4 Hint:', value: String(d.autoIpv4Hint === true) },
+          { etiqueta: 'Use Automatic IPv6 Hint:', value: String(d.autoIpv6Hint === true) },
         ],
       })
       break
@@ -326,73 +326,73 @@ export function celdasDeRegistro(r: Registro): Celda[] {
 
     case 'URI':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Priority:', valor: s(d.priority) },
-          { etiqueta: 'Weight:', valor: s(d.weight) },
-          { etiqueta: 'URI:', valor: s(d.uri) },
+          { etiqueta: 'Priority:', value: s(d.priority) },
+          { etiqueta: 'Weight:', value: s(d.weight) },
+          { etiqueta: 'URI:', value: s(d.uri) },
         ],
       })
       break
 
     case 'CAA':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Flags:', valor: s(d.flags) },
-          { etiqueta: 'Tag:', valor: s(d.tag) },
-          { etiqueta: 'Authority:', valor: s(d.value) },
+          { etiqueta: 'Flags:', value: s(d.flags) },
+          { etiqueta: 'Tag:', value: s(d.tag) },
+          { etiqueta: 'Authority:', value: s(d.value) },
         ],
       })
       break
 
     case 'ANAME':
-      salida.push({ clase: 'valor', texto: s(d.aname) })
+      salida.push({ clase: 'value', text: s(d.aname) })
       break
 
     case 'FWD': {
       const pares = [
-        { etiqueta: 'Protocol:', valor: s(d.protocol) },
-        { etiqueta: 'Forwarder:', valor: s(d.forwarder) },
-        { etiqueta: 'Priority:', valor: s(d.priority) },
-        { etiqueta: 'Enable DNSSEC Validation:', valor: String(d.dnssecValidation === true) },
-        { etiqueta: 'Proxy Type:', valor: s(d.proxyType) },
+        { etiqueta: 'Protocol:', value: s(d.protocol) },
+        { etiqueta: 'Forwarder:', value: s(d.forwarder) },
+        { etiqueta: 'Priority:', value: s(d.priority) },
+        { etiqueta: 'Enable DNSSEC Validation:', value: String(d.dnssecValidation === true) },
+        { etiqueta: 'Proxy Type:', value: s(d.proxyType) },
       ]
       if (d.proxyType === 'Http' || d.proxyType === 'Socks5') {
         pares.push(
-          { etiqueta: 'Proxy Address:', valor: s(d.proxyAddress) },
-          { etiqueta: 'Proxy Port:', valor: s(d.proxyPort) },
-          { etiqueta: 'Proxy Username:', valor: s(d.proxyUsername) },
-          { etiqueta: 'Proxy Password:', valor: s(d.proxyPassword) },
+          { etiqueta: 'Proxy Address:', value: s(d.proxyAddress) },
+          { etiqueta: 'Proxy Port:', value: s(d.proxyPort) },
+          { etiqueta: 'Proxy Username:', value: s(d.proxyUsername) },
+          { etiqueta: 'Proxy Password:', value: s(d.proxyPassword) },
         )
       }
-      salida.push({ clase: 'pares', pares })
+      salida.push({ clase: 'pairs', pares })
       break
     }
 
     case 'APP':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'App Name:', valor: s(d.appName) },
-          { etiqueta: 'Class Path:', valor: s(d.classPath) },
-          { etiqueta: 'Record Data:', valor: s(d.data) },
+          { etiqueta: 'App Name:', value: s(d.appName) },
+          { etiqueta: 'Class Path:', value: s(d.classPath) },
+          { etiqueta: 'Record Data:', value: s(d.data) },
         ],
       })
       break
 
     case 'ALIAS':
       salida.push({
-        clase: 'pares',
+        clase: 'pairs',
         pares: [
-          { etiqueta: 'Type:', valor: s(d.type) },
-          { etiqueta: 'Alias:', valor: s(d.alias) },
+          { etiqueta: 'Type:', value: s(d.type) },
+          { etiqueta: 'Alias:', value: s(d.alias) },
         ],
       })
       break
 
     default:
-      salida.push({ clase: 'pares', pares: [{ etiqueta: 'RDATA:', valor: s(d.value) }] })
+      salida.push({ clase: 'pairs', pares: [{ etiqueta: 'RDATA:', value: s(d.value) }] })
       break
   }
 
@@ -404,24 +404,24 @@ export function celdasDeRegistro(r: Registro): Celda[] {
  * `0001-01-01T00:00:00` is "never" and a last modification with that date is
  * **not shown at all**.
  */
-export function pieDeRegistro(r: Registro, ahora?: number): { etiqueta: string; valor: string }[] {
-  const pares: { etiqueta: string; valor: string }[] = []
+export function pieDeRegistro(r: ResourceRecord, ahora?: number): { etiqueta: string; value: string }[] {
+  const pares: { etiqueta: string; value: string }[] = []
 
   if (r.expiryTtl > 0) {
     const caduca = new Date(new Date(r.lastModified).getTime() + r.expiryTtl * 1000)
-    pares.push({ etiqueta: 'Expiry TTL:', valor: `${r.expiryTtl} (${r.expiryTtlString})` })
-    pares.push({ etiqueta: 'Expires On:', valor: fechaConAntiguedad(caduca.toISOString(), ahora) })
+    pares.push({ etiqueta: 'Expiry TTL:', value: `${r.expiryTtl} (${r.expiryTtlString})` })
+    pares.push({ etiqueta: 'Expires On:', value: fechaConAntiguedad(caduca.toISOString(), ahora) })
   }
 
   // `0001-01-01T00:00:00` is "never", and there upstream does NOT put the age.
   const nunca = r.lastUsedOn === '0001-01-01T00:00:00'
   pares.push({
     etiqueta: 'Last Used:',
-    valor: nunca ? `${fechaHora(r.lastUsedOn)} (never)` : fechaConAntiguedad(r.lastUsedOn, ahora),
+    value: nunca ? `${fechaHora(r.lastUsedOn)} (never)` : fechaConAntiguedad(r.lastUsedOn, ahora),
   })
 
   if (r.lastModified !== '0001-01-01T00:00:00' && r.lastModified !== '0001-01-01T00:00:00Z') {
-    pares.push({ etiqueta: 'Last Modified:', valor: fechaConAntiguedad(r.lastModified, ahora) })
+    pares.push({ etiqueta: 'Last Modified:', value: fechaConAntiguedad(r.lastModified, ahora) })
   }
 
   return pares
@@ -429,11 +429,11 @@ export function pieDeRegistro(r: Registro, ahora?: number): { etiqueta: string; 
 
 /** The name that is shown: relative to the zone, and `@` at the apex. */
 export function nombreRelativo(nombreCompleto: string, zone: string): string {
-  const nombre = nombreCompleto === '' ? '.' : nombreCompleto
-  const minus = nombre.toLowerCase()
+  const name = nombreCompleto === '' ? '.' : nombreCompleto
+  const minus = name.toLowerCase()
   if (minus === zone.toLowerCase()) return '@'
   const i = minus.lastIndexOf(`.${zone.toLowerCase()}`)
-  return i > -1 ? nombre.substring(0, i) : nombre
+  return i > -1 ? name.substring(0, i) : name
 }
 
 /* ── Acciones por fila ─────────────────────────────────────────────────── */
@@ -442,7 +442,7 @@ export interface AccionesDeFila {
   /** La columna entera desaparece. */
   ocultas: boolean
   /** They show but Enable/Disable/Delete are off; Edit is not. */
-  soloEdicion: boolean
+  editingOnly: boolean
 }
 
 /**
@@ -457,27 +457,27 @@ export function accionesDeFila(tipoZona: string, tipoRegistro: string): Acciones
     case 'SecondaryForwarder':
     case 'SecondaryCatalog':
     case 'Stub':
-      return { ocultas: true, soloEdicion: false }
+      return { ocultas: true, editingOnly: false }
 
     case 'Catalog':
       return tipoRegistro === 'SOA'
-        ? { ocultas: false, soloEdicion: true }
-        : { ocultas: true, soloEdicion: false }
+        ? { ocultas: false, editingOnly: true }
+        : { ocultas: true, editingOnly: false }
 
     default:
-      if (tipoRegistro === 'SOA') return { ocultas: false, soloEdicion: true }
+      if (tipoRegistro === 'SOA') return { ocultas: false, editingOnly: true }
       if (['DNSKEY', 'RRSIG', 'NSEC', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].includes(tipoRegistro)) {
-        return { ocultas: true, soloEdicion: false }
+        return { ocultas: true, editingOnly: false }
       }
-      return { ocultas: false, soloEdicion: false }
+      return { ocultas: false, editingOnly: false }
   }
 }
 
 /** The five types "Hide DNSSEC Records" hides (zone.js:3446-3460). */
 export const TIPOS_DNSSEC = ['RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM']
 
-export function ocultarDnssec(registros: Registro[]): Registro[] {
-  return registros.filter((r) => !TIPOS_DNSSEC.includes(r.type.toUpperCase()))
+export function ocultarDnssec(records: ResourceRecord[]): ResourceRecord[] {
+  return records.filter((r) => !TIPOS_DNSSEC.includes(r.type.toUpperCase()))
 }
 
 /* ── Fechas ───────────────────────────────────────────────────────────── */

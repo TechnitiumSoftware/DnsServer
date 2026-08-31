@@ -32,25 +32,25 @@ export type TipoAlta =
   | 'SecondaryRoot'
 
 export interface TipoDeAlta {
-  valor: TipoAlta
+  value: TipoAlta
   etiqueta: string
   /** An external reference upstream draws in brackets after the label. */
-  referencia?: { texto: string; href: string }
+  referencia?: { text: string; href: string }
 }
 
 export const TIPOS_ALTA: TipoDeAlta[] = [
-  { valor: 'Primary', etiqueta: 'Primary Zone (default)' },
-  { valor: 'Secondary', etiqueta: 'Secondary Zone' },
-  { valor: 'Stub', etiqueta: 'Stub Zone' },
-  { valor: 'Forwarder', etiqueta: 'Conditional Forwarder Zone' },
-  { valor: 'SecondaryForwarder', etiqueta: 'Secondary Conditional Forwarder Zone' },
-  { valor: 'Catalog', etiqueta: 'Catalog Zone' },
-  { valor: 'SecondaryCatalog', etiqueta: 'Secondary Catalog Zone' },
+  { value: 'Primary', etiqueta: 'Primary Zone (default)' },
+  { value: 'Secondary', etiqueta: 'Secondary Zone' },
+  { value: 'Stub', etiqueta: 'Stub Zone' },
+  { value: 'Forwarder', etiqueta: 'Conditional Forwarder Zone' },
+  { value: 'SecondaryForwarder', etiqueta: 'Secondary Conditional Forwarder Zone' },
+  { value: 'Catalog', etiqueta: 'Catalog Zone' },
+  { value: 'SecondaryCatalog', etiqueta: 'Secondary Catalog Zone' },
   {
-    valor: 'SecondaryRoot',
+    value: 'SecondaryRoot',
     etiqueta: 'Secondary ROOT Zone',
     // Upstream links the RFC from the type's own label.
-    referencia: { texto: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
+    referencia: { text: 'RFC 8806', href: 'https://datatracker.ietf.org/doc/rfc8806/' },
   },
 ]
 
@@ -59,24 +59,24 @@ export const RAICES =
   '199.9.14.201,192.33.4.12,199.7.91.13,192.5.5.241,192.112.36.4,193.0.14.129,192.0.47.132,192.0.32.132,[2001:500:200::b],[2001:500:2::c],[2001:500:2d::d],[2001:500:2f::f],[2001:500:12::d0d],[2001:7fd::1],[2620:0:2830:202::132],[2620:0:2d0:202::132]'
 
 export const PROTOCOLOS_TRANSFERENCIA = [
-  { valor: 'Tcp', etiqueta: 'XFR-over-TCP (default)' },
-  { valor: 'Tls', etiqueta: 'XFR-over-TLS' },
-  { valor: 'Quic', etiqueta: 'XFR-over-QUIC' },
+  { value: 'Tcp', etiqueta: 'XFR-over-TCP (default)' },
+  { value: 'Tls', etiqueta: 'XFR-over-TLS' },
+  { value: 'Quic', etiqueta: 'XFR-over-QUIC' },
 ]
 
 export const PROTOCOLOS_FORWARDER = [
-  { valor: 'Udp', etiqueta: 'DNS-over-UDP (default)' },
-  { valor: 'Tcp', etiqueta: 'DNS-over-TCP' },
-  { valor: 'Tls', etiqueta: 'DNS-over-TLS' },
-  { valor: 'Https', etiqueta: 'DNS-over-HTTPS' },
-  { valor: 'Quic', etiqueta: 'DNS-over-QUIC' },
+  { value: 'Udp', etiqueta: 'DNS-over-UDP (default)' },
+  { value: 'Tcp', etiqueta: 'DNS-over-TCP' },
+  { value: 'Tls', etiqueta: 'DNS-over-TLS' },
+  { value: 'Https', etiqueta: 'DNS-over-HTTPS' },
+  { value: 'Quic', etiqueta: 'DNS-over-QUIC' },
 ]
 
 export const TIPOS_PROXY = [
-  { valor: 'NoProxy', etiqueta: 'No Proxy' },
-  { valor: 'DefaultProxy', etiqueta: 'Default Proxy (default)' },
-  { valor: 'Http', etiqueta: 'HTTP Proxy' },
-  { valor: 'Socks5', etiqueta: 'SOCKS5 Proxy' },
+  { value: 'NoProxy', etiqueta: 'No Proxy' },
+  { value: 'DefaultProxy', etiqueta: 'Default Proxy (default)' },
+  { value: 'Http', etiqueta: 'HTTP Proxy' },
+  { value: 'Socks5', etiqueta: 'SOCKS5 Proxy' },
 ]
 
 export interface FormularioAlta {
@@ -128,7 +128,7 @@ export interface ErrorAlta {
   title: string
   text: string
   /** Which field receives the focus, just as upstream does. */
-  campo: keyof FormularioAlta
+  field: keyof FormularioAlta
 }
 
 export type ResultadoAlta = { error: ErrorAlta } | { parametros: Record<string, string> }
@@ -238,7 +238,7 @@ export function proxyEditable(proxyType: string): boolean {
 export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
   if (f.zone === '') {
     return {
-      error: { title: 'Missing!', text: 'Please enter a domain name to add zone.', campo: 'zone' },
+      error: { title: 'Missing!', text: 'Please enter a domain name to add zone.', field: 'zone' },
     }
   }
 
@@ -276,7 +276,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
           error: {
             title: 'Missing!',
             text: 'Please enter a forwarder server address to add zone.',
-            campo: 'forwarder',
+            field: 'forwarder',
           },
         }
       }
@@ -296,7 +296,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
               error: {
                 title: 'Missing!',
                 text: 'Please enter a domain name or IP address for Proxy Server Address to add zone.',
-                campo: 'proxyAddress',
+                field: 'proxyAddress',
               },
             }
           }
@@ -305,7 +305,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
               error: {
                 title: 'Missing!',
                 text: 'Please enter a port number for Proxy Server Port to add zone.',
-                campo: 'proxyPort',
+                field: 'proxyPort',
               },
             }
           }
@@ -328,7 +328,7 @@ export function construirParametrosAlta(f: FormularioAlta): ResultadoAlta {
           error: {
             title: 'Missing!',
             text: 'Please enter at least one primary name server address to proceed.',
-            campo: 'primaryNameServerAddresses',
+            field: 'primaryNameServerAddresses',
           },
         }
       }

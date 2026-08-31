@@ -9,10 +9,10 @@ and protocol. Verified against v15.4.
 */
 
 export const RANGOS = ['LastHour', 'LastDay', 'LastWeek', 'LastMonth', 'LastYear', 'Custom'] as const
-export type Rango = (typeof RANGOS)[number]
+export type Range = (typeof RANGOS)[number]
 
 /** Upstream's literal labels for each range. */
-export const ETIQUETA_RANGO: Record<Rango, string> = {
+export const ETIQUETA_RANGO: Record<Range, string> = {
   LastHour: 'Last Hour',
   LastDay: 'Last Day',
   LastWeek: 'Last Week',
@@ -76,13 +76,13 @@ export interface DashboardStats {
 
 export async function getDashboardStats(
   token: string | null,
-  type: Rango = 'LastHour',
-  rango?: { start: string; end: string },
+  type: Range = 'LastHour',
+  range?: { start: string; end: string },
 ): Promise<ApiOutcome<DashboardStats>> {
   const body: Record<string, string> = { type }
-  if (type === 'Custom' && rango) {
-    body.start = rango.start
-    body.end = rango.end
+  if (type === 'Custom' && range) {
+    body.start = range.start
+    body.end = range.end
   }
   const outcome = await apiRequest<{ response: DashboardStats }>('dashboard/stats/get', { token, body })
   /*
@@ -102,7 +102,7 @@ export type TipoTop = 'TopClients' | 'TopDomains' | 'TopBlockedDomains'
 
 export async function getTop(
   token: string | null,
-  statsType: Rango,
+  statsType: Range,
   type: TipoTop,
   limit = 1000,
 ): Promise<TopEntry[]> {

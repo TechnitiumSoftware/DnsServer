@@ -25,7 +25,7 @@ function servidor(overrides: Record<string, unknown> = {}, respuestaSet?: Record
 
 const props = { token: 'tok', onAviso: vi.fn() }
 
-const cuerpo = (spy: ReturnType<typeof servidor>) =>
+const body = (spy: ReturnType<typeof servidor>) =>
   spy.mock.calls.find((c) => c[0] === 'admin/sso/set')?.[1]?.body as Record<string, string>
 
 describe('SSO — carga', () => {
@@ -51,7 +51,7 @@ describe('SSO — carga', () => {
 
     expect(await screen.findByLabelText('Client Secret')).toHaveValue('************')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
-    expect(cuerpo(spy).ssoClientSecret).toBe('************')
+    expect(body(spy).ssoClientSecret).toBe('************')
   })
 })
 
@@ -63,7 +63,7 @@ describe('SSO — validaciones', () => {
 
     await screen.findByLabelText('Authority (Issuer)')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
-    expect(cuerpo(spy).ssoEnabled).toBe('false')
+    expect(body(spy).ssoEnabled).toBe('false')
   })
 
   it('with SSO on the order is authority, client and secret', async () => {
@@ -146,7 +146,7 @@ describe('SSO — the send', () => {
 
     await screen.findByLabelText('Scope Name 1')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
-    expect(cuerpo(spy).ssoScopes).toBe('openid|profile|email')
+    expect(body(spy).ssoScopes).toBe('openid|profile|email')
   })
 
   it('an empty list travels as the string \"false\", not empty', async () => {
@@ -156,8 +156,8 @@ describe('SSO — the send', () => {
 
     await screen.findByLabelText('Authority (Issuer)')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
-    expect(cuerpo(spy).ssoScopes).toBe('false')
-    expect(cuerpo(spy).ssoGroupMap).toBe('false')
+    expect(body(spy).ssoScopes).toBe('false')
+    expect(body(spy).ssoGroupMap).toBe('false')
   })
 
   it('the group map travels with both columns per row', async () => {
@@ -167,7 +167,7 @@ describe('SSO — the send', () => {
 
     expect(await screen.findByLabelText('Remote Group 1')).toHaveValue('dns-admins')
     await user.click(screen.getByRole('button', { name: 'Save Config' }))
-    expect(cuerpo(spy).ssoGroupMap).toBe('dns-admins|Administrators')
+    expect(body(spy).ssoGroupMap).toBe('dns-admins|Administrators')
   })
 
   it('it alerts with the upstream literal on saving', async () => {
@@ -215,7 +215,7 @@ describe('SSO — the two `http:` confirmations', () => {
     expect(spy.mock.calls.find((c) => c[0] === 'admin/sso/set')).toBeUndefined()
 
     await user.click(screen.getByRole('button', { name: 'OK' }))
-    expect(cuerpo(spy).ssoAuthority).toBe('http://id.test')
+    expect(body(spy).ssoAuthority).toBe('http://id.test')
   })
 
   it('cancelling the confirmation sends nothing', async () => {
@@ -245,6 +245,6 @@ describe('SSO — the two `http:` confirmations', () => {
     ).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'OK' }))
-    expect(cuerpo(spy)).toBeTruthy()
+    expect(body(spy)).toBeTruthy()
   })
 })

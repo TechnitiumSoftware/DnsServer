@@ -2,9 +2,9 @@ import { Chip, Tag } from '../../ui/Tag'
 import { Button } from '../../ui/Button'
 import { useState } from 'react'
 import type { RegistroDns } from '../../api/zonelists'
-import { entradasRData, extras, meta, ttlPartido, type Entrada } from './registro'
+import { entradasRData, extras, meta, ttlPartido, type Entry } from './registro'
 import tbl from '../../ui/Table.module.css'
-import { Tabla } from '../../ui/Table'
+import { Table } from '../../ui/Table'
 import styles from './Listas.module.css'
 
 /*
@@ -19,14 +19,14 @@ just as badly as the rest.
 // The same cut-off as in Zones: it was 48 here and 64 there, for the same control.
 const CORTE = 64
 
-function Valor({ e }: { e: Entrada }) {
+function Value({ e }: { e: Entry }) {
   const [abierto, setAbierto] = useState(false)
 
-  if (!e.largo || abierto) return <span className={styles.clave}>{e.valor}</span>
+  if (!e.long || abierto) return <span className={styles.key}>{e.value}</span>
 
   return (
     <>
-      <span className={styles.clave}>{e.valor.slice(0, CORTE)}…</span>{' '}
+      <span className={styles.key}>{e.value.slice(0, CORTE)}…</span>{' '}
       <button type="button" className={styles.verlo} onClick={() => setAbierto(true)}>
         show full
       </button>
@@ -34,15 +34,15 @@ function Valor({ e }: { e: Entrada }) {
   )
 }
 
-function Kv({ entradas }: { entradas: Entrada[] }) {
+function Kv({ entradas }: { entradas: Entry[] }) {
   if (entradas.length === 0) return null
   return (
     <dl className={styles.kv}>
       {entradas.map((e) => (
-        <div key={e.clave} style={{ display: 'contents' }}>
-          <dt>{e.clave}</dt>
+        <div key={e.key} style={{ display: 'contents' }}>
+          <dt>{e.key}</dt>
           <dd>
-            <Valor e={e} />
+            <Value e={e} />
           </dd>
         </div>
       ))}
@@ -50,23 +50,23 @@ function Kv({ entradas }: { entradas: Entrada[] }) {
   )
 }
 
-function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo: string }) {
+function Row({ r, conDnssec, node }: { r: RegistroDns; conDnssec: boolean; node: string }) {
   const [firmas, setFirmas] = useState(false)
   const [glue, setGlue] = useState(false)
 
   const ttl = ttlPartido(r)
-  const nombre = r.nameIdn ?? r.name
+  const name = r.nameIdn ?? r.name
   // The name always matches the open node; it is only said when it does NOT.
-  const nombreDistinto = r.name !== nodo && nombre !== nodo
+  const nombreDistinto = r.name !== node && name !== node
 
   return (
     <tr>
       <td>
         <Chip>{r.type}</Chip>
-        {nombreDistinto && <span className={styles.nombre}>{nombre === '' ? '<ROOT>' : nombre}</span>}
+        {nombreDistinto && <span className={styles.name}>{name === '' ? '<ROOT>' : name}</span>}
       </td>
       <td className={styles.ttl}>
-        {ttl.valor} {ttl.humano && <small>({ttl.humano})</small>}
+        {ttl.value} {ttl.humano && <small>({ttl.humano})</small>}
       </td>
       <td>
         <Kv entradas={[...entradasRData(r.rData), ...extras(r)]} />
@@ -86,7 +86,7 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
         </td>
       )}
       <td className={tbl.celdaAcciones}>
-        <div className={tbl.acciones}>
+        <div className={tbl.actions}>
           {r.glueRecords && (
             <Button
               size="sm"
@@ -111,19 +111,19 @@ function Fila({ r, conDnssec, nodo }: { r: RegistroDns; conDnssec: boolean; nodo
   )
 }
 
-export function Registros({
+export function ResourceRecords({
   records,
   conDnssec,
-  nodo,
+  node,
 }: {
   records: RegistroDns[]
   /** The DNSSEC column belongs to Cache only; elsewhere it drops to the grey line. */
   conDnssec: boolean
-  nodo: string
+  node: string
 }) {
   return (
-    <Tabla
-      cabecera={
+    <Table
+      header={
         <>
           <th style={{ width: 110 }}>Type</th>
           <th style={{ width: 120 }}>TTL</th>
@@ -136,8 +136,8 @@ export function Registros({
       }
     >
       {records.map((r, i) => (
-        <Fila key={`${r.name}|${r.type}|${i}`} r={r} conDnssec={conDnssec} nodo={nodo} />
+        <Row key={`${r.name}|${r.type}|${i}`} r={r} conDnssec={conDnssec} node={node} />
       ))}
-    </Tabla>
+    </Table>
   )
 }

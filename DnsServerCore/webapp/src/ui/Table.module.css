@@ -18,11 +18,11 @@ is given a body —panel, border and corners— instead of being left floating.
   box-shadow: var(--e-1), var(--filo);
 }
 
-.tabla { border-collapse: collapse; width: 100%; }
+.table { border-collapse: collapse; width: 100%; }
 
 /* The header sits on the raised step: it separates the labels from the data
    without needing another rule line. */
-.tabla thead th {
+.table thead th {
   background: var(--pan2);
   text-align: left;
   /* The same label as a panel title: see `--rotulo-*` in tokens. The table
@@ -37,10 +37,10 @@ is given a body —panel, border and corners— instead of being left floating.
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
   /* A single height for every header; see `--fila-cabecera`. */
-  height: var(--fila-cabecera);
+  height: var(--row-header);
 }
 
-.tabla td {
+.table td {
   padding: var(--s-6) var(--s-7);
   border-bottom: 1px solid var(--line2);
   vertical-align: middle;
@@ -48,10 +48,10 @@ is given a body —panel, border and corners— instead of being left floating.
 }
 
 /* The last row carries no line: the panel border closes it. */
-.tabla tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:last-child td { border-bottom: 0; }
 
-.tabla tbody tr { transition: background var(--t-rapido); }
-.tabla tbody tr:hover { background: var(--hover); }
+.table tbody tr { transition: background var(--t-rapido); }
+.table tbody tr:hover { background: var(--hover); }
 
 /*
 Columns have rules, and until now they did not: all ten were left-aligned,
@@ -101,7 +101,7 @@ out Zones' monospacing. It is the same trap already noted in `Menu.module.css`.
 
 /* Numbers: right-aligned and with fixed-width digits, so the units line up one
    above the other. */
-.numero {
+.number {
   text-align: right;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -124,7 +124,7 @@ ever applied: the row came out with the data colour and the height of a normal
 cell. Only the centring showed, which is the one of the three rules that clashes
 with nothing.
 */
-.tabla td.sinFilas {
+.table td.sinFilas {
   text-align: center;
   color: var(--faint);
   padding: var(--s-11) var(--s-7);
@@ -216,7 +216,7 @@ Grouped into a segmented control with a single border and dividers inside, the
 row has ONE place where you act, and that place is visible. It also takes less
 space and copes with one row having three actions and the next one five.
 */
-.acciones {
+.actions {
   display: inline-flex;
   align-items: stretch;
   border: 1px solid var(--line);
@@ -234,8 +234,8 @@ rounded box per row, glued to a flat group. Measured in the same cell: "Zone
 Options" and "Disable Zone" with radius 0 and transparent background, and the
 `⋮` with radius 6 and `rgb(33,37,41)`.
 */
-.acciones > *,
-.acciones > * > button {
+.actions > *,
+.actions > * > button {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -246,17 +246,17 @@ Options" and "Disable Zone" with radius 0 and transparent background, and the
   font-size: var(--t-4);
 }
 
-.acciones > * + * { border-left: 1px solid var(--line) !important; }
+.actions > * + * { border-left: 1px solid var(--line) !important; }
 
-.acciones > *:hover:not(:disabled),
-.acciones > * > button:hover:not(:disabled) { background: var(--hover-fuerte) !important; }
-.acciones > *:disabled,
-.acciones > * > button:disabled { color: var(--faint); }
+.actions > *:hover:not(:disabled),
+.actions > * > button:hover:not(:disabled) { background: var(--hover-fuerte) !important; }
+.actions > *:disabled,
+.actions > * > button:disabled { color: var(--faint); }
 
 /* Delete keeps its colour, but inside the group: it is not filled with red,
    because a row with a red block turns the table into an alarm. */
-.acciones > [data-variant='danger'] { color: var(--dan); font-weight: 500; }
-.acciones > [data-variant='danger']:hover:not(:disabled) {
+.actions > [data-variant='danger'] { color: var(--dan); font-weight: 500; }
+.actions > [data-variant='danger']:hover:not(:disabled) {
   background: var(--dan-fill) !important;
   color: var(--on-dan);
 }
@@ -274,8 +274,8 @@ reader announce it just the same— and in `title`, which is the tooltip on hove
 And the `⋮` menu carries EVERY action with its text, delete included, so no name
 lives only inside a drawing.
 */
-.acciones > [data-icono='true'],
-.acciones > * > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
+.actions > [data-icono='true'],
+.actions > * > [data-icono='true'] { padding-left: var(--s-6); padding-right: var(--s-6); }
 
 /* The row-selection checkbox is 18 px: it is clicked from anywhere in its cell. */
 .celdaCheck {

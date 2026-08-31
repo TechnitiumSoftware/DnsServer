@@ -62,8 +62,8 @@ describe('MenuBloqueo', () => {
   it('switching off for a while confirms first and sends the minutes', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({ enableBlocking: true } as never)
     const spy = vi.spyOn(api, 'temporaryDisableBlocking').mockResolvedValue('2026-08-31T08:00:00Z')
-    const avisos: { title: string; text: string }[] = []
-    render(<MenuBloqueo token="t" onAviso={(a) => avisos.push(a)} />)
+    const notices: { title: string; text: string }[] = []
+    render(<MenuBloqueo token="t" onAviso={(a) => notices.push(a)} />)
     await abrir()
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Disable Blocking For 15 Minutes' }))
 
@@ -75,7 +75,7 @@ describe('MenuBloqueo', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Disable' }))
     expect(spy).toHaveBeenCalledWith('t', '15')
-    expect(avisos).toEqual([
+    expect(notices).toEqual([
       {
         type: 'success',
         title: 'Blocking Disabled!',
@@ -99,13 +99,13 @@ describe('MenuBloqueo', () => {
     const spy = vi
       .spyOn(api, 'setSettings')
       .mockResolvedValue({ kind: 'ok', data: { status: 'ok', response: {} } } as never)
-    const avisos: { title: string; text: string }[] = []
-    render(<MenuBloqueo token="t" onAviso={(a) => avisos.push(a)} />)
+    const notices: { title: string; text: string }[] = []
+    render(<MenuBloqueo token="t" onAviso={(a) => notices.push(a)} />)
     await abrir()
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Enable Blocking' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Enable' }))
     expect(spy).toHaveBeenCalledWith('t', { enableBlocking: 'true' })
-    expect(avisos[0]).toEqual({
+    expect(notices[0]).toEqual({
       type: 'success',
       title: 'Blocking Enabled!',
       text: 'Blocking was enabled successfully.',

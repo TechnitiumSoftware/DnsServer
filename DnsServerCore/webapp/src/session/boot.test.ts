@@ -22,7 +22,7 @@ describe('readBootIntent', () => {
   })
 
   it('the fragment error wins over any stored token', () => {
-    localStorage.setItem('token', 'guardado')
+    localStorage.setItem('token', 'stored')
     setHash('#error=' + encodeURIComponent('Boom'))
     expect(readBootIntent().kind).toBe('show-error')
   })
@@ -40,8 +40,8 @@ describe('readBootIntent', () => {
   })
 
   it('it falls back to localStorage when there is no cookie', () => {
-    localStorage.setItem('token', 'guardado')
-    expect(readBootIntent()).toEqual({ kind: 'try-token', token: 'guardado' })
+    localStorage.setItem('token', 'stored')
+    expect(readBootIntent()).toEqual({ kind: 'try-token', token: 'stored' })
   })
 
   it('with nothing, it goes to the login', () => {

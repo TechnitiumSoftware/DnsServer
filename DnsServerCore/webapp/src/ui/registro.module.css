@@ -18,7 +18,7 @@ they read.
 
 /* A public key or a hex string: it breaks by characters, not by words, because
    it has none. */
-.clave {
+.key {
   word-break: break-all;
   color: var(--mute);
 }

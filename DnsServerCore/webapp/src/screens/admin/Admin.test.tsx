@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Admin, SUBPESTANAS } from './Admin'
 import * as client from '../../api/client'
-import { CLUSTER_SIN_INICIAR, GRUPOS, PERMISOS, SESION_ADMIN, SSO, USUARIO_ADMIN } from './admin.fixture'
+import { CLUSTER_SIN_INICIAR, GROUPS, PERMISSIONS, SESION_ADMIN, SSO, USUARIO_ADMIN } from './admin.fixture'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -16,9 +16,9 @@ function servidor() {
       case 'admin/users/list':
         return ok({ response: { users: [USUARIO_ADMIN] }, server: 'x' })
       case 'admin/groups/list':
-        return ok({ response: { groups: GRUPOS }, server: 'x' })
+        return ok({ response: { groups: GROUPS }, server: 'x' })
       case 'admin/permissions/list':
-        return ok({ response: { permissions: PERMISOS }, server: 'x' })
+        return ok({ response: { permissions: PERMISSIONS }, server: 'x' })
       case 'admin/sso/get':
         return ok({ response: SSO, server: 'x' })
       case 'admin/cluster/state':
@@ -70,7 +70,7 @@ describe('Admin — the sub-navigation belongs to the Shell', () => {
   it('if the cluster state fails, the section keeps working', async () => {
     vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
       if (path === 'admin/cluster/state') return { kind: 'error' as const, message: 'boom' }
-      if (path === 'admin/groups/list') return ok({ response: { groups: GRUPOS }, server: 'x' })
+      if (path === 'admin/groups/list') return ok({ response: { groups: GROUPS }, server: 'x' })
       return ok({ response: {}, server: 'x' })
     })
     render(<Admin token="tok" sub="Groups" />)

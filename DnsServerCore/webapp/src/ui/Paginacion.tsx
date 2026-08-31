@@ -1,6 +1,6 @@
 import { Icono } from './Icono'
 import styles from './Pagination.module.css'
-import type { Paginacion as Ventana } from '../lib/paginacion'
+import type { Pagination as Ventana } from '../lib/paginacion'
 
 /*
 The page bar: first, previous, the window of ten, next and last.
@@ -15,59 +15,59 @@ asked for: the zone list and Query Logs send `-1` and let the server resolve it
 —which is what upstream does— and a zone's records compute it client-side because
 they have them all. That is why `ultima` is a parameter and not hard-coded.
 */
-export function Paginacion({
+export function Pagination({
   ventana,
-  actual,
-  ultima,
+  current,
+  last,
   onIr,
 }: {
   ventana: Ventana
-  actual: number
+  current: number
   /** Which number to ask for as "last". `-1` lets the server resolve it. */
-  ultima: number
-  onIr: (pagina: number) => void
+  last: number
+  onIr: (page: number) => void
 }) {
   return (
     <span className={styles.pg}>
       {ventana.primera && (
         <button type="button" className={styles.pgb} aria-label="First" onClick={() => onIr(1)}>
-          <Icono nombre="primera" tam={14} />
+          <Icono name="first" tam={14} />
         </button>
       )}
-      {ventana.anterior != null && (
+      {ventana.previous != null && (
         <button
           type="button"
           className={styles.pgb}
           aria-label="Previous"
-          onClick={() => onIr(ventana.anterior!)}
+          onClick={() => onIr(ventana.previous!)}
         >
-          <Icono nombre="chevronIzquierda" tam={14} />
+          <Icono name="chevronIzquierda" tam={14} />
         </button>
       )}
-      {ventana.paginas.map((p) => (
+      {ventana.pages.map((p) => (
         <button
           key={p}
           type="button"
           className={styles.pgb}
-          aria-current={p === actual}
+          aria-current={p === current}
           onClick={() => onIr(p)}
         >
           {p}
         </button>
       ))}
-      {ventana.siguiente != null && (
+      {ventana.next != null && (
         <button
           type="button"
           className={styles.pgb}
           aria-label="Next"
-          onClick={() => onIr(ventana.siguiente!)}
+          onClick={() => onIr(ventana.next!)}
         >
-          <Icono nombre="chevronDerecha" tam={14} />
+          <Icono name="chevronDerecha" tam={14} />
         </button>
       )}
-      {ventana.ultima && (
-        <button type="button" className={styles.pgb} aria-label="Last" onClick={() => onIr(ultima)}>
-          <Icono nombre="ultima" tam={14} />
+      {ventana.last && (
+        <button type="button" className={styles.pgb} aria-label="Last" onClick={() => onIr(last)}>
+          <Icono name="last" tam={14} />
         </button>
       )}
     </span>

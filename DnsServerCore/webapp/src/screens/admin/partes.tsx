@@ -50,15 +50,15 @@ export function SelectorNodo({
   label: string
 }) {
   if (!cluster?.clusterInitialized) return null
-  const nodos = cluster.clusterNodes ?? []
+  const nodes = cluster.clusterNodes ?? []
   return (
     <Select
-      className={styles.nodo}
+      className={styles.node}
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
-      {nodos.map((n) => (
+      {nodes.map((n) => (
         <option key={n.name} value={n.name}>
           {`${n.name} (${n.type.toLowerCase()})`}
         </option>

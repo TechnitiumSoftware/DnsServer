@@ -23,16 +23,16 @@ export function Dialog({
   onOpenChange,
   title,
   children,
-  acciones,
+  actions,
   cerrar = 'Close',
-  tamano = 'formulario',
+  size = 'form',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   children: ReactNode
   /** The buttons that do something. The dismiss one is not passed: Dialog adds it. */
-  acciones?: ReactNode
+  actions?: ReactNode
   /** Label for the dismiss button. `Cancel` when the modal is a question. */
   cerrar?: string
   /**
@@ -49,25 +49,25 @@ export function Dialog({
    * The steps are upstream's, which did decide modal by modal; the figures are
    * lower because our typography runs tighter.
    */
-  tamano?: 'compacto' | 'formulario' | 'medio' | 'ancho'
+  size?: 'compact' | 'form' | 'medium' | 'wide'
 }) {
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className={styles.overlay} />
         <RadixDialog.Content
-          className={`${styles.content} ${styles[tamano]}`}
-          data-tamano={tamano}
+          className={`${styles.content} ${styles[size]}`}
+          data-size={size}
         >
           <div className={styles.head}>
             <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
             <RadixDialog.Close className={styles.close} aria-label="Close">
-              <Icono nombre="cerrar" tam={16} />
+              <Icono name="cerrar" tam={16} />
             </RadixDialog.Close>
           </div>
           <div className={styles.body}>{children}</div>
           <div className={styles.foot}>
-            {acciones}
+            {actions}
             <Button onClick={() => onOpenChange(false)}>{cerrar}</Button>
           </div>
         </RadixDialog.Content>

@@ -11,9 +11,9 @@ import {
   type SectionPermission,
 } from '../../api/admin'
 import { primaryNodeName, type ClusterState } from '../../api/admin-cluster'
-import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Celda } from './tabla'
+import { anadirALaTabla, OPCION_BLANK, OPCION_NONE, serializarTabla, type Cell } from './tabla'
 import { avisoDeFallo, MRow, adminStyles as styles, type Aviso } from './partes'
-import { Th, useOrden, type Claves } from '../../ui/Table'
+import { Th, useOrden, type Keys } from '../../ui/Table'
 import { Select } from '../../ui/Select'
 import { TablaEditable } from '../../ui/TablaEditable'
 import { Avisador } from '../../ui/Avisador'
@@ -44,13 +44,13 @@ interface Props {
 
 export function Permissions({ token, cluster, onAviso }: Props) {
   const [secciones, setSecciones] = useState<SectionPermission[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [editar, setEditar] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
+    setLoading(true)
     const outcome = await listPermissions(token)
-    setCargando(false)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setSecciones([])
@@ -67,11 +67,11 @@ export function Permissions({ token, cluster, onAviso }: Props) {
   return (
     <>
       <SectionHeader
-        seccion="Administration"
+        section="Administration"
         titulo="Permissions"
       />
 
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
@@ -83,7 +83,7 @@ export function Permissions({ token, cluster, onAviso }: Props) {
               key={s.section}
               className={styles.perm}
               titulo={s.section}
-              acciones={
+              actions={
                 <Button size="sm" onClick={() => setEditar(s.section)}>
                   Edit Permissions
                 </Button>
@@ -108,9 +108,9 @@ export function Permissions({ token, cluster, onAviso }: Props) {
                     s.userPermissions.map((p) => (
                       <div className={styles.prow} key={p.username}>
                         <span className={styles.who}>{p.username}</span>
-                        <Marca activo={p.canView} etiqueta={`${s.section} ${p.username} View`} />
-                        <Marca activo={p.canModify} etiqueta={`${s.section} ${p.username} Modify`} />
-                        <Marca activo={p.canDelete} etiqueta={`${s.section} ${p.username} Delete`} />
+                        <Brand active={p.canView} etiqueta={`${s.section} ${p.username} View`} />
+                        <Brand active={p.canModify} etiqueta={`${s.section} ${p.username} Modify`} />
+                        <Brand active={p.canDelete} etiqueta={`${s.section} ${p.username} Delete`} />
                       </div>
                     ))
                   )}
@@ -134,9 +134,9 @@ export function Permissions({ token, cluster, onAviso }: Props) {
                     s.groupPermissions.map((p) => (
                       <div className={styles.prow} key={p.name}>
                         <span className={styles.who}>{p.name}</span>
-                        <Marca activo={p.canView} etiqueta={`${s.section} ${p.name} View`} />
-                        <Marca activo={p.canModify} etiqueta={`${s.section} ${p.name} Modify`} />
-                        <Marca activo={p.canDelete} etiqueta={`${s.section} ${p.name} Delete`} />
+                        <Brand active={p.canView} etiqueta={`${s.section} ${p.name} View`} />
+                        <Brand active={p.canModify} etiqueta={`${s.section} ${p.name} Modify`} />
+                        <Brand active={p.canDelete} etiqueta={`${s.section} ${p.name} Delete`} />
                       </div>
                     ))
                   )}
@@ -152,12 +152,12 @@ export function Permissions({ token, cluster, onAviso }: Props) {
 
       {editar != null && (
         <EditarPermisos
-          seccion={editar}
+          section={editar}
           token={token}
           nodoPrimario={primaryNodeName(cluster)}
           onCerrar={() => setEditar(null)}
-          onGuardado={(p) => {
-            setSecciones((lista) => lista.map((x) => (x.section === p.section ? p : x)))
+          onSaved={(p) => {
+            setSecciones((list) => list.map((x) => (x.section === p.section ? p : x)))
             onAviso({
               type: 'success',
               title: 'Permissions Saved!',
@@ -170,21 +170,21 @@ export function Permissions({ token, cluster, onAviso }: Props) {
   )
 }
 
-function Marca({ activo, etiqueta }: { activo: boolean; etiqueta: string }) {
+function Brand({ active, etiqueta }: { active: boolean; etiqueta: string }) {
   return (
     <input
       type="checkbox"
       className={styles.pchk}
       aria-label={etiqueta}
-      checked={activo}
+      checked={active}
       disabled
       readOnly
     />
   )
 }
 
-interface Fila {
-  nombre: string
+interface Row {
+  name: string
   canView: boolean
   canModify: boolean
   canDelete: boolean
@@ -192,32 +192,32 @@ interface Fila {
 
 /** `showEditSectionPermissionsModal` / `saveSectionPermissions`. */
 function EditarPermisos({
-  seccion,
+  section,
   token,
   nodoPrimario,
   onCerrar,
-  onGuardado,
+  onSaved,
 }: {
-  seccion: string
+  section: string
   token: string | null
   nodoPrimario: string
   onCerrar: () => void
-  onGuardado: (p: SectionPermission) => void
+  onSaved: (p: SectionPermission) => void
 }) {
-  const [cargando, setCargando] = useState(true)
-  const [usuarios, setUsuarios] = useState<readonly Fila[]>([])
-  const [grupos, setGrupos] = useState<readonly Fila[]>([])
+  const [loading, setLoading] = useState(true)
+  const [users, setUsuarios] = useState<readonly Row[]>([])
+  const [groups, setGrupos] = useState<readonly Row[]>([])
   const [listaUsuarios, setListaUsuarios] = useState<string[]>([])
   const [listaGrupos, setListaGrupos] = useState<string[]>([])
   const [addUser, setAddUser] = useState(OPCION_BLANK)
   const [addGroup, setAddGroup] = useState(OPCION_BLANK)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
-    const outcome = await getPermission(token, seccion)
-    setCargando(false)
+    setLoading(true)
+    const outcome = await getPermission(token, section)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -226,7 +226,7 @@ function EditarPermisos({
     const d = outcome.data.response
     setUsuarios(
       d.userPermissions.map((p) => ({
-        nombre: p.username,
+        name: p.username,
         canView: p.canView,
         canModify: p.canModify,
         canDelete: p.canDelete,
@@ -234,7 +234,7 @@ function EditarPermisos({
     )
     setGrupos(
       d.groupPermissions.map((p) => ({
-        nombre: p.name,
+        name: p.name,
         canView: p.canView,
         canModify: p.canModify,
         canDelete: p.canDelete,
@@ -244,41 +244,41 @@ function EditarPermisos({
     setListaGrupos(d.groups ?? [])
     setAddUser(OPCION_BLANK)
     setAddGroup(OPCION_BLANK)
-  }, [token, seccion])
+  }, [token, section])
 
   useEffect(() => {
     void cargar()
   }, [cargar])
 
   async function guardar() {
-    const serie = (filas: readonly Fila[]): Celda[][] =>
-      filas.map((f) => [
-        { tipo: 'texto', valor: f.nombre },
-        { tipo: 'casilla', valor: f.canView },
-        { tipo: 'casilla', valor: f.canModify },
-        { tipo: 'casilla', valor: f.canDelete },
+    const serie = (rows: readonly Row[]): Cell[][] =>
+      rows.map((f) => [
+        { tipo: 'text', value: f.name },
+        { tipo: 'casilla', value: f.canView },
+        { tipo: 'casilla', value: f.canModify },
+        { tipo: 'casilla', value: f.canDelete },
       ])
 
-    const u = serializarTabla(serie(usuarios))
+    const u = serializarTabla(serie(users))
     if (!u.ok) {
       setAviso({ type: 'warning', title: u.fallo.title, text: u.fallo.text })
       return
     }
-    const g = serializarTabla(serie(grupos))
+    const g = serializarTabla(serie(groups))
     if (!g.ok) {
       setAviso({ type: 'warning', title: g.fallo.title, text: g.fallo.text })
       return
     }
 
-    setOcupado(true)
-    const outcome = await setPermissions(token, seccion, u.valor, g.valor, nodoPrimario)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await setPermissions(token, section, u.value, g.value, nodoPrimario)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
       return
     }
-    onGuardado(outcome.data.response)
+    onSaved(outcome.data.response)
     onCerrar()
   }
 
@@ -286,30 +286,30 @@ function EditarPermisos({
     <Dialog
       open
       onOpenChange={(o) => !o && onCerrar()}
-      title={`Edit Permissions - ${seccion}`}
+      title={`Edit Permissions - ${section}`}
       /* The SAME dialog opened from a zone already went wide, and from here
          it went to 560: two widths for the same thing. It is not that it was
          cramped —the table shrinks and fits in all three sizes, measured— it is
          that its two entrances had to look the same. It goes with the title fix,
          which had also drifted between the two. */
-      tamano="medio"
-      acciones={
+      size="medium"
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
             Save
           </Button>
         </>
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
           <TablaPermisos
             titulo="User Permissions"
-            cabecera="Username"
-            filas={usuarios}
+            header="Username"
+            rows={users}
             onChange={setUsuarios}
           />
           <MRow label="Add User">
@@ -336,8 +336,8 @@ function EditarPermisos({
 
           <TablaPermisos
             titulo="Group Permissions"
-            cabecera="Group"
-            filas={grupos}
+            header="Group"
+            rows={groups}
             onChange={setGrupos}
           />
           <MRow label="Add Group">
@@ -367,33 +367,33 @@ function EditarPermisos({
   )
 }
 
-const nuevaFila = (nombre: string): Fila => ({
-  nombre,
+const nuevaFila = (name: string): Row => ({
+  name,
   canView: false,
   canModify: false,
   canDelete: false,
 })
 
 /* `sortTable('tbodyEditPermissionsUser'|'Group', 0)`. */
-const CLAVES_PERMISO: Claves<Fila> = { nombre: (f) => f.nombre }
+const CLAVES_PERMISO: Keys<Row> = { name: (f) => f.name }
 
 function TablaPermisos({
   titulo,
-  cabecera,
-  filas,
+  header,
+  rows,
   onChange,
 }: {
   titulo: string
-  cabecera: string
-  filas: readonly Fila[]
-  onChange: (f: readonly Fila[]) => void
+  header: string
+  rows: readonly Row[]
+  onChange: (f: readonly Row[]) => void
 }) {
-  const { filas: visibles, orden, alternar } = useOrden(CLAVES_PERMISO, filas as Fila[])
+  const { rows: visibles, orden, alternar } = useOrden(CLAVES_PERMISO, rows as Row[])
 
   // The checkbox writes over the ORIGINAL list: the sorting only changes the
   // order things are drawn in, not the data's.
-  function set(fila: Fila, parcial: Partial<Fila>) {
-    onChange(filas.map((f) => (f.nombre === fila.nombre ? { ...f, ...parcial } : f)))
+  function set(row: Row, parcial: Partial<Row>) {
+    onChange(rows.map((f) => (f.name === row.name ? { ...f, ...parcial } : f)))
   }
 
   return (
@@ -404,9 +404,9 @@ function TablaPermisos({
       <div>
         <TablaEditable
       className={styles.edit}
-          cabecera={
+          header={
             <>
-              <Th campo="nombre" orden={orden} onOrdenar={alternar}>{cabecera}</Th>
+              <Th field="nombre" orden={orden} onOrdenar={alternar}>{header}</Th>
               <th>View</th>
               <th>Modify</th>
               <th>Delete</th>
@@ -415,13 +415,13 @@ function TablaPermisos({
           }
         >
           {visibles.map((f) => (
-            <tr key={f.nombre}>
-              <td className={styles.who}>{f.nombre}</td>
+            <tr key={f.name}>
+              <td className={styles.who}>{f.name}</td>
               <td>
                 <input
                   type="checkbox"
                   className={styles.chkPerm}
-                  aria-label={`${f.nombre} View`}
+                  aria-label={`${f.name} View`}
                   checked={f.canView}
                   onChange={(e) => set(f, { canView: e.target.checked })}
                 />
@@ -430,7 +430,7 @@ function TablaPermisos({
                 <input
                   type="checkbox"
                   className={styles.chkPerm}
-                  aria-label={`${f.nombre} Modify`}
+                  aria-label={`${f.name} Modify`}
                   checked={f.canModify}
                   onChange={(e) => set(f, { canModify: e.target.checked })}
                 />
@@ -439,13 +439,13 @@ function TablaPermisos({
                 <input
                   type="checkbox"
                   className={styles.chkPerm}
-                  aria-label={`${f.nombre} Delete`}
+                  aria-label={`${f.name} Delete`}
                   checked={f.canDelete}
                   onChange={(e) => set(f, { canDelete: e.target.checked })}
                 />
               </td>
               <td className={styles.tdel}>
-                <Button onClick={() => onChange(filas.filter((x) => x.nombre !== f.nombre))}>Remove</Button>
+                <Button onClick={() => onChange(rows.filter((x) => x.name !== f.name))}>Remove</Button>
               </td>
             </tr>
           ))}

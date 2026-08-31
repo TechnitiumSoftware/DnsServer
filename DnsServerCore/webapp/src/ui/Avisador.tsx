@@ -24,7 +24,7 @@ between independent blocks— and the one three quarters of them already had.
 export function Avisador({ aviso, onCerrar }: { aviso: Aviso | null; onCerrar: () => void }) {
   if (aviso == null) return null
   return (
-    <div className={styles.hueco}>
+    <div className={styles.gap}>
       <Alert type={aviso.type} title={aviso.title} onDismiss={onCerrar}>
         {aviso.text}
       </Alert>

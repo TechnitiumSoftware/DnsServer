@@ -141,7 +141,7 @@ describe('cluster — actions on nodes', () => {
 })
 
 describe('primaryNodeName', () => {
-  const nodo = (name: string, type: string) => ({
+  const node = (name: string, type: string) => ({
     id: 1,
     name,
     url: 'https://x',
@@ -159,7 +159,7 @@ describe('primaryNodeName', () => {
       version: '15.4',
       dnsServerDomain: 'x',
       clusterInitialized: false,
-      clusterNodes: [nodo('ns1', 'Primary')],
+      clusterNodes: [node('ns1', 'Primary')],
     } as ClusterState
     expect(primaryNodeName(s)).toBe('')
   })
@@ -169,7 +169,7 @@ describe('primaryNodeName', () => {
       version: '15.4',
       dnsServerDomain: 'x',
       clusterInitialized: true,
-      clusterNodes: [nodo('ns2', 'Secondary'), nodo('ns1', 'Primary')],
+      clusterNodes: [node('ns2', 'Secondary'), node('ns1', 'Primary')],
     } as ClusterState
     expect(primaryNodeName(s)).toBe('ns1')
   })

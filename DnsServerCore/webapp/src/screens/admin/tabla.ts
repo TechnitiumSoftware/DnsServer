@@ -7,7 +7,7 @@ The serialisation itself is NOT here: it is upstream's `serializeTableData`
 in `lib/tabla-serie`. It is re-exported so Administration's four sub-tabs keep
 asking for it through this door.
 */
-export { serializarTabla, type Celda, type FalloTabla, type ResultadoTabla } from '../../lib/tabla-serie'
+export { serializarTabla, type Cell, type FalloTabla, type ResultadoTabla } from '../../lib/tabla-serie'
 
 /*
 Administration's four "Add User" / "Add Group" dropdowns. All four behave the
@@ -19,26 +19,26 @@ export const OPCION_NONE = 'none'
 
 /** Variant over a textarea: "Member Of" and "Members". Upstream compares line by
  *  line and guarantees the trailing newline. */
-export function anadirALaLista(texto: string, seleccion: string): string {
-  if (seleccion === OPCION_BLANK) return texto
-  if (seleccion === OPCION_NONE) return ''
+export function anadirALaLista(text: string, selection: string): string {
+  if (selection === OPCION_BLANK) return text
+  if (selection === OPCION_NONE) return ''
 
-  if (texto.split('\n').includes(seleccion)) return texto
+  if (text.split('\n').includes(selection)) return text
 
-  let salida = texto
+  let salida = text
   if (salida.length > 0 && !salida.endsWith('\n')) salida += '\n'
-  return `${salida}${seleccion}\n`
+  return `${salida}${selection}\n`
 }
 
 /** Variant over a permissions table: it adds the row with the three permissions
  *  false, or empties the table with `none`. */
-export function anadirALaTabla<T extends { nombre: string }>(
-  filas: readonly T[],
-  seleccion: string,
-  nueva: (nombre: string) => T,
+export function anadirALaTabla<T extends { name: string }>(
+  rows: readonly T[],
+  selection: string,
+  nueva: (name: string) => T,
 ): readonly T[] {
-  if (seleccion === OPCION_BLANK) return filas
-  if (seleccion === OPCION_NONE) return []
-  if (filas.some((f) => f.nombre === seleccion)) return filas
-  return [...filas, nueva(seleccion)]
+  if (selection === OPCION_BLANK) return rows
+  if (selection === OPCION_NONE) return []
+  if (rows.some((f) => f.name === selection)) return rows
+  return [...rows, nueva(selection)]
 }

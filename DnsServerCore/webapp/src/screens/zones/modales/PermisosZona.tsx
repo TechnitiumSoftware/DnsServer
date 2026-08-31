@@ -5,7 +5,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Field, Select } from '../../../ui/Field'
 import { Loading } from '../../../ui/Empty'
 import type { Aviso } from '../tipos'
-import { Tabla } from '../../../ui/Table'
+import { Table } from '../../../ui/Table'
 import styles from '../Zones.module.css'
 import { avisoDeFallo } from '../../../lib/aviso'
 import { Avisador } from '../../../ui/Avisador'
@@ -22,8 +22,8 @@ The "add" dropdown carries two phantom entries from upstream —an empty one and
 one that says "None"— that add nobody. They are kept.
 */
 
-interface Fila {
-  nombre: string
+interface Row {
+  name: string
   canView: boolean
   canModify: boolean
   canDelete: boolean
@@ -54,20 +54,20 @@ export function PermisosZona({
   const [titulo, setTitulo] = useState(
     `Edit Permissions - Zones / ${zone === '.' ? '<root>' : zone}`,
   )
-  const [usuarios, setUsuarios] = useState<Fila[]>([])
-  const [grupos, setGrupos] = useState<Fila[]>([])
+  const [users, setUsuarios] = useState<Row[]>([])
+  const [groups, setGrupos] = useState<Row[]>([])
   const [usuariosDisponibles, setUsuariosDisponibles] = useState<string[]>([])
   const [gruposDisponibles, setGruposDisponibles] = useState<string[]>([])
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [cargando, setCargando] = useState(false)
-  const [ocupado, setOcupado] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
     setAviso(null)
-    setCargando(true)
+    setLoading(true)
     void getZonePermissions(token, zone, node).then((r) => {
-      setCargando(false)
+      setLoading(false)
       if (r == null) {
         setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
@@ -75,7 +75,7 @@ export function PermisosZona({
       setTitulo(`Edit Permissions - ${r.section} / ${r.subItem === '.' ? '<root>' : r.subItem}`)
       setUsuarios(
         r.userPermissions.map((p) => ({
-          nombre: p.username,
+          name: p.username,
           canView: p.canView,
           canModify: p.canModify,
           canDelete: p.canDelete,
@@ -83,7 +83,7 @@ export function PermisosZona({
       )
       setGrupos(
         r.groupPermissions.map((p) => ({
-          nombre: p.name,
+          name: p.name,
           canView: p.canView,
           canModify: p.canModify,
           canDelete: p.canDelete,
@@ -95,15 +95,15 @@ export function PermisosZona({
   }, [abierto, token, zone, node])
 
   async function guardar() {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setZonePermissions(
       token,
       zone,
-      serializarPermisos(usuarios),
-      serializarPermisos(grupos),
+      serializarPermisos(users),
+      serializarPermisos(groups),
       node,
     )
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -118,12 +118,12 @@ export function PermisosZona({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      tamano="medio"
+      size="medium"
       title={titulo}
-      acciones={
+      actions={
         <>
           {canModify && (
-            <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
+            <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
               Save
             </Button>
           )}
@@ -132,20 +132,20 @@ export function PermisosZona({
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      {cargando ? (
+      {loading ? (
         <Loading>Loading permissions…</Loading>
       ) : (
-        <div className={styles.campos}>
+        <div className={styles.fields}>
           <TablaPermisos
             titulo="User Permissions"
-            filas={usuarios}
+            rows={users}
             disponibles={usuariosDisponibles}
             etiquetaAnadir="Add User"
             onCambiar={setUsuarios}
           />
           <TablaPermisos
             titulo="Group Permissions"
-            filas={grupos}
+            rows={groups}
             disponibles={gruposDisponibles}
             etiquetaAnadir="Add Group"
             onCambiar={setGrupos}
@@ -158,31 +158,31 @@ export function PermisosZona({
 
 function TablaPermisos({
   titulo,
-  filas,
+  rows,
   disponibles,
   etiquetaAnadir,
   onCambiar,
 }: {
   titulo: string
-  filas: Fila[]
+  rows: Row[]
   disponibles: string[]
   etiquetaAnadir: string
-  onCambiar: (f: Fila[]) => void
+  onCambiar: (f: Row[]) => void
 }) {
-  const sinAsignar = disponibles.filter((d) => !filas.some((f) => f.nombre === d))
+  const sinAsignar = disponibles.filter((d) => !rows.some((f) => f.name === d))
 
-  const cambiar = (i: number, clave: keyof Fila, valor: boolean) =>
-    onCambiar(filas.map((f, j) => (j === i ? { ...f, [clave]: valor } : f)))
+  const cambiar = (i: number, key: keyof Row, value: boolean) =>
+    onCambiar(rows.map((f, j) => (j === i ? { ...f, [key]: value } : f)))
 
   return (
-    <div className={styles.grupo}>
+    <div className={styles.group}>
       <div className={styles.grupoTit}>{titulo}</div>
 
-      {filas.length === 0 ? (
-        <div className={styles.ayuda}>No permissions assigned.</div>
+      {rows.length === 0 ? (
+        <div className={styles.help}>No permissions assigned.</div>
       ) : (
-        <Tabla
-          cabecera={
+        <Table
+          header={
             <>
               <th>Name</th>
               <th style={{ width: 70 }}>View</th>
@@ -192,31 +192,31 @@ function TablaPermisos({
             </>
           }
         >
-          {filas.map((f, i) => (
-            <tr key={f.nombre}>
-              <td className={styles.mono}>{f.nombre}</td>
-              {(['canView', 'canModify', 'canDelete'] as const).map((clave) => (
-                <td key={clave}>
+          {rows.map((f, i) => (
+            <tr key={f.name}>
+              <td className={styles.mono}>{f.name}</td>
+              {(['canView', 'canModify', 'canDelete'] as const).map((key) => (
+                <td key={key}>
                   <input
                     type="checkbox"
                     className={styles.chkPerm}
-                    aria-label={`${clave} for ${f.nombre}`}
-                    checked={f[clave]}
-                    onChange={(e) => cambiar(i, clave, e.target.checked)}
+                    aria-label={`${key} for ${f.name}`}
+                    checked={f[key]}
+                    onChange={(e) => cambiar(i, key, e.target.checked)}
                   />
                 </td>
               ))}
               <td>
                 <Button
                   size="sm"
-                  onClick={() => onCambiar(filas.filter((_, j) => j !== i))}
+                  onClick={() => onCambiar(rows.filter((_, j) => j !== i))}
                 >
                   Remove
                 </Button>
               </td>
             </tr>
           ))}
-        </Tabla>
+        </Table>
       )}
 
       <Field label={etiquetaAnadir}>
@@ -228,7 +228,7 @@ function TablaPermisos({
               const v = e.target.value
               // Upstream's two phantom entries add nobody.
               if (v === '' || v === 'none') return
-              onCambiar([...filas, { nombre: v, canView: true, canModify: false, canDelete: false }])
+              onCambiar([...rows, { name: v, canView: true, canModify: false, canDelete: false }])
             }}
           >
             <option value="" />

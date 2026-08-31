@@ -43,14 +43,14 @@ here are state, to the same effect:
 export function ScopeForm({
   titulo,
   inicial,
-  ocupado,
+  busy,
   onGuardar,
   onCancelar,
   onAviso,
 }: {
   titulo: 'Add Scope' | 'Edit Scope'
   inicial: Form
-  ocupado: boolean
+  busy: boolean
   onGuardar: (body: Record<string, string>) => void
   onCancelar: () => void
   onAviso: (e: ErrorScope) => void
@@ -62,18 +62,18 @@ export function ScopeForm({
   }
 
   function guardar() {
-    const resultado = construirCuerpo(f)
-    if ('error' in resultado) {
-      onAviso(resultado.error)
-      document.getElementById(resultado.error.focus)?.focus()
+    const result = construirCuerpo(f)
+    if ('error' in result) {
+      onAviso(result.error)
+      document.getElementById(result.error.focus)?.focus()
       return
     }
-    onGuardar(resultado.body)
+    onGuardar(result.body)
   }
 
   return (
     <div>
-      <SectionHeader seccion="DHCP" titulo={titulo} />
+      <SectionHeader section="DHCP" titulo={titulo} />
 
       <Block title="Scope">
         <TextRow
@@ -297,14 +297,14 @@ export function ScopeForm({
       <Block title="Static Routes">
         <EditableTable
           label="Static Routes"
-          idCelda={(fila, columna) => idCelda('staticRoutes', fila, columna)}
+          idCelda={(row, columna) => idCelda('staticRoutes', row, columna)}
           columnas={[
             { key: 'destination', label: 'Destination' },
             { key: 'subnetMask', label: 'Subnet Mask' },
             { key: 'router', label: 'Router' },
           ]}
-          filas={f.staticRoutes}
-          onChange={(filas) => set({ staticRoutes: filas })}
+          rows={f.staticRoutes}
+          onChange={(rows) => set({ staticRoutes: rows })}
           nueva={() => ({ destination: '', subnetMask: '', router: '' })}
           help="The static routes to be used by the clients for accessing specified destination networks. (Option 121)"
         />
@@ -340,13 +340,13 @@ export function ScopeForm({
       <Block title="Vendor Specific Information">
         <EditableTable
           label="Vendor Specific Information"
-          idCelda={(fila, columna) => idCelda('vendorInfo', fila, columna)}
+          idCelda={(row, columna) => idCelda('vendorInfo', row, columna)}
           columnas={[
             { key: 'identifier', label: 'Vendor Class Identifier' },
             { key: 'information', label: 'Vendor Specific Information' },
           ]}
-          filas={f.vendorInfo}
-          onChange={(filas) => set({ vendorInfo: filas })}
+          rows={f.vendorInfo}
+          onChange={(rows) => set({ vendorInfo: rows })}
           nueva={() => ({ identifier: '', information: '' })}
           help={
             <>
@@ -386,13 +386,13 @@ export function ScopeForm({
       <Block title="Generic DHCP Options">
         <EditableTable
           label="Generic DHCP Options"
-          idCelda={(fila, columna) => idCelda('genericOptions', fila, columna)}
+          idCelda={(row, columna) => idCelda('genericOptions', row, columna)}
           columnas={[
             { key: 'code', label: 'Code', type: 'number', min: 0, max: 255 },
             { key: 'value', label: 'Hex Value' },
           ]}
-          filas={f.genericOptions}
-          onChange={(filas) => set({ genericOptions: filas })}
+          rows={f.genericOptions}
+          onChange={(rows) => set({ genericOptions: rows })}
           nueva={() => ({ code: '', value: '' })}
           help={
             <>
@@ -408,13 +408,13 @@ export function ScopeForm({
       <Block title="Exclusions">
         <EditableTable
           label="Exclusions"
-          idCelda={(fila, columna) => idCelda('exclusions', fila, columna)}
+          idCelda={(row, columna) => idCelda('exclusions', row, columna)}
           columnas={[
             { key: 'startingAddress', label: 'Starting Address' },
             { key: 'endingAddress', label: 'Ending Address' },
           ]}
-          filas={f.exclusions}
-          onChange={(filas) => set({ exclusions: filas })}
+          rows={f.exclusions}
+          onChange={(rows) => set({ exclusions: rows })}
           nueva={() => ({ startingAddress: '', endingAddress: '' })}
           help="The IP address range that must be excluded or not assigned dynamically to any client by the DHCP server."
         />
@@ -471,22 +471,22 @@ export function ScopeForm({
       <Block title="Reserved Leases">
         <EditableTable
           label="Reserved Leases"
-          idCelda={(fila, columna) => idCelda('reservedLeases', fila, columna)}
+          idCelda={(row, columna) => idCelda('reservedLeases', row, columna)}
           columnas={[
             { key: 'hostName', label: 'Host Name' },
             { key: 'hardwareAddress', label: 'MAC Address' },
             { key: 'address', label: 'IP Address' },
             { key: 'comments', label: 'Comments' },
           ]}
-          filas={f.reservedLeases}
-          onChange={(filas) => set({ reservedLeases: filas })}
+          rows={f.reservedLeases}
+          onChange={(rows) => set({ reservedLeases: rows })}
           nueva={() => ({ hostName: '', hardwareAddress: '', address: '', comments: '' })}
           help="The reserved IP addresses to be assigned to specific clients based on their MAC address. Set a hostname to override the client's hostname."
         />
       </Block>
 
       <div className={styles.bar}>
-        <Button variant="primary" disabled={ocupado} onClick={guardar}>
+        <Button variant="primary" disabled={busy} onClick={guardar}>
           Save
         </Button>
         <Button onClick={onCancelar}>Cancel</Button>

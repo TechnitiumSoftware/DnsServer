@@ -20,7 +20,7 @@ is also what upstream does, using `div.panel` with its title and no `fieldset`.
 */
 export function Panel({
   titulo,
-  acciones,
+  actions,
   agrupa = false,
   children,
   className,
@@ -35,7 +35,7 @@ export function Panel({
   */
   titulo?: ReactNode
   /** What goes on the right of the header. */
-  acciones?: ReactNode
+  actions?: ReactNode
   /*
   Announce the panel as a named GROUP. Only where it really does group related
   controls —the Settings and DHCP blocks, which are what used to be a `fieldset`—;
@@ -59,11 +59,11 @@ export function Panel({
 
   return (
     <div className={clases} role={agrupa ? 'group' : undefined} aria-labelledby={agrupa ? id : undefined}>
-      <div className={styles.cabecera}>
+      <div className={styles.header}>
         <h2 className={styles.titulo} id={id}>
           {titulo}
         </h2>
-        {acciones}
+        {actions}
       </div>
       {children}
     </div>
@@ -81,6 +81,6 @@ blocks, whose rows bring their own padding, and the tables—.
 `className` is for the variants that do exist: the log viewer tightens its list
 and the Dashboard's "Top" panel trims the air above.
 */
-export function Cuerpo({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={[styles.cuerpo, className].filter(Boolean).join(' ')}>{children}</div>
+export function Body({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={[styles.body, className].filter(Boolean).join(' ')}>{children}</div>
 }

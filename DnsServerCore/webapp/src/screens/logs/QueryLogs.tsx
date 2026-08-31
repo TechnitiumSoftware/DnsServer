@@ -18,10 +18,10 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { aIso, fechaHora } from './fechas'
 import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
-import { Tabla } from '../../ui/Table'
+import { Table } from '../../ui/Table'
 import styles from './Logs.module.css'
 import { ventanaDePaginas } from '../../lib/paginacion'
-import { Paginacion } from '../../ui/Paginacion'
+import { Pagination } from '../../ui/Paginacion'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
@@ -77,8 +77,8 @@ interface Filtros {
 function filtrosPorDefecto(appName: string, classPath: string): Filtros {
   let entriesPerPage: string = ENTRIES_PER_PAGE[0]
   try {
-    const guardado = localStorage.getItem(CLAVE_ENTRIES_PER_PAGE)
-    if (guardado != null) entriesPerPage = guardado
+    const saved = localStorage.getItem(CLAVE_ENTRIES_PER_PAGE)
+    if (saved != null) entriesPerPage = saved
   } catch {
     /* Without localStorage the form's default value is used. */
   }
@@ -115,21 +115,21 @@ export function appsConQueryLogs(apps: InstalledApp[]): { name: string; classPat
 /** A row's background (logs.js:452-508): the RCODE rules, and within it the
  *  response type. It is the table's only colour signal. */
 export function claseFila(entry: QueryLogEntry): string {
-  const bloqueada = ['blocked', 'upstreamblocked', 'upstreamblockedcached']
+  const locked = ['blocked', 'upstreamblocked', 'upstreamblockedcached']
   const tipo = entry.responseType.toLowerCase()
 
   switch (entry.rcode.toLowerCase()) {
     case 'serverfailure':
       return styles.rServerFailure
     case 'nxdomain':
-      return bloqueada.includes(tipo) ? styles.rBlocked : styles.rNxDomain
+      return locked.includes(tipo) ? styles.rBlocked : styles.rNxDomain
     case 'refused':
       return styles.rRefused
     default:
       if (tipo === 'authoritative') return styles.rAuthoritative
       if (tipo === 'recursive') return styles.rRecursive
       if (tipo === 'cached') return styles.rCached
-      if (bloqueada.includes(tipo)) return styles.rBlocked
+      if (locked.includes(tipo)) return styles.rBlocked
       return ''
   }
 }
@@ -138,8 +138,8 @@ export function claseFila(entry: QueryLogEntry): string {
 export function textoEstado(p: QueryLogPage): string {
   if (p.entries.length === 0) return '0 logs'
   const primera = p.entries[0].rowNumber
-  const ultima = p.entries[p.entries.length - 1].rowNumber
-  return `${primera}-${ultima} (${p.entries.length}) of ${p.totalEntries} logs (page ${p.pageNumber} of ${p.totalPages})`
+  const last = p.entries[p.entries.length - 1].rowNumber
+  return `${primera}-${last} (${p.entries.length}) of ${p.totalEntries} logs (page ${p.pageNumber} of ${p.totalPages})`
 }
 
 /*
@@ -149,7 +149,7 @@ The ten pages centred on the current one. It was a letter-for-letter copy of
 own. The name is kept because this screen's tests use it.
 */
 export function rangoPaginas(pageNumber: number, totalPages: number): number[] {
-  return ventanaDePaginas(pageNumber, totalPages).paginas
+  return ventanaDePaginas(pageNumber, totalPages).pages
 }
 
 export interface QueryLogsProps {
@@ -160,9 +160,9 @@ export interface QueryLogsProps {
 export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   const [apps, setApps] = useState<{ name: string; classPaths: string[] }[] | null>(null)
   const [f, setF] = useState<Filtros>(() => filtrosPorDefecto('', ''))
-  const [pagina, setPagina] = useState<QueryLogPage | null>(null)
+  const [page, setPagina] = useState<QueryLogPage | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [live, setLive] = useState(false)
 
   const desde = useRef<HTMLInputElement>(null)
@@ -194,10 +194,10 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         setAviso(avisoDeFallo(outcome))
         return
       }
-      const lista = appsConQueryLogs(outcome.data.response.apps ?? [])
-      setApps(lista)
-      const primero = lista[0]
-      setF(filtrosPorDefecto(primero?.name ?? '', primero?.classPaths[0] ?? ''))
+      const list = appsConQueryLogs(outcome.data.response.apps ?? [])
+      setApps(list)
+      const first = list[0]
+      setF(filtrosPorDefecto(first?.name ?? '', first?.classPaths[0] ?? ''))
     })()
     return () => {
       vivo = false
@@ -275,9 +275,9 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         return
       }
 
-      if (!enVivo) setOcupado(true)
+      if (!enVivo) setBusy(true)
       const outcome = await queryLogs(token, parametros(filtros, pageNumber))
-      if (!enVivo) setOcupado(false)
+      if (!enVivo) setBusy(false)
 
       if (outcome.kind !== 'ok') {
         if (!enVivo) {
@@ -299,18 +299,18 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   /* logs.js:610 — while "Live Update" is checked, it repeats every 2 s. */
   useEffect(() => {
     if (!live) return
-    let cancelado = false
+    let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
 
     async function ciclo() {
       await consultarRef.current('1', true)
-      if (cancelado) return
+      if (cancelled) return
       timer = setTimeout(() => void ciclo(), 2000)
     }
     void ciclo()
 
     return () => {
-      cancelado = true
+      cancelled = true
       if (timer !== undefined) clearTimeout(timer)
     }
   }, [live])
@@ -326,12 +326,12 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   }
 
   function reiniciar() {
-    const primero = apps?.[0]
-    setF(filtrosPorDefecto(primero?.name ?? '', primero?.classPaths[0] ?? ''))
+    const first = apps?.[0]
+    setF(filtrosPorDefecto(first?.name ?? '', first?.classPaths[0] ?? ''))
   }
 
-  function alternarLive(marcado: boolean) {
-    if (marcado) {
+  function alternarLive(checked: boolean) {
+    if (checked) {
       // logs.js:34-42 — pins page and order, and empties the date range.
       set({ pageNumber: '1', descendingOrder: 'true', start: '', end: '' })
       setLive(true)
@@ -363,15 +363,15 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     await exportLogsCsv(token, parametros(f, f.pageNumber))
-    setOcupado(false)
+    setBusy(false)
   }
 
-  function guardarEntradasPorPagina(valor: string) {
-    set({ entriesPerPage: valor })
+  function guardarEntradasPorPagina(value: string) {
+    set({ entriesPerPage: value })
     try {
-      localStorage.setItem(CLAVE_ENTRIES_PER_PAGE, valor)
+      localStorage.setItem(CLAVE_ENTRIES_PER_PAGE, value)
     } catch {
       /* Without localStorage it is not remembered; the filter still works. */
     }
@@ -383,10 +383,10 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
   return (
     <div className={styles.wrap}>
       <SectionHeader
-        seccion="Logs"
+        section="Logs"
         titulo="Query Logs"
         etiquetas={f.appName !== '' ? <Tag>app: {f.appName}</Tag> : undefined}
-        acciones={<>
+        actions={<>
           <label className={styles.check}>
             <input
               type="checkbox"
@@ -397,12 +397,12 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
           </label>
           <Button
             variant="primary"
-            disabled={ocupado || live}
+            disabled={busy || live}
             onClick={() => void consultar(f.pageNumber, false)}
           >
             Query
           </Button>
-          <Button disabled={ocupado} onClick={() => void exportar()}>
+          <Button disabled={busy} onClick={() => void exportar()}>
             Export
           </Button>
           <Button onClick={reiniciar}>Reset</Button>
@@ -417,7 +417,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
           <div className={styles.frow}>
             <div className={styles.frowLabel}>Source</div>
             <div className={styles.frowCtl}>
-              <div className={styles.campo} style={{ width: 220 }}>
+              <div className={styles.field} style={{ width: 220 }}>
                 <label htmlFor="ql-appName">App Name</label>
                 <Select
                   id="ql-appName"
@@ -432,7 +432,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   ))}
                 </Select>
               </div>
-              <div className={styles.campo} style={{ width: 220 }}>
+              <div className={styles.field} style={{ width: 220 }}>
                 <label htmlFor="ql-classPath">Class Path</label>
                 <Select
                   id="ql-classPath"
@@ -453,7 +453,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
           <div className={styles.frow}>
             <div className={styles.frowLabel}>Period</div>
             <div className={styles.frowCtl}>
-              <div className={styles.campo} style={{ width: 200 }}>
+              <div className={styles.field} style={{ width: 200 }}>
                 <label htmlFor="ql-start">From</label>
                 <Input
                   id="ql-start"
@@ -464,7 +464,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   onChange={(e) => set({ start: e.target.value })}
                 />
               </div>
-              <div className={styles.campo} style={{ width: 200 }}>
+              <div className={styles.field} style={{ width: 200 }}>
                 <label htmlFor="ql-end">To</label>
                 <Input
                   id="ql-end"
@@ -475,7 +475,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   onChange={(e) => set({ end: e.target.value })}
                 />
               </div>
-              <div className={styles.campo} style={{ width: 140 }}>
+              <div className={styles.field} style={{ width: 140 }}>
                 <label htmlFor="ql-order">Order</label>
                 <Select
                   id="ql-order"
@@ -493,7 +493,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
           <div className={styles.frow}>
             <div className={styles.frowLabel}>Query</div>
             <div className={styles.frowCtl}>
-              <div className={styles.campo} style={{ width: 260 }}>
+              <div className={styles.field} style={{ width: 260 }}>
                 <label htmlFor="ql-qname">Domain</label>
                 <Input
                   id="ql-qname"
@@ -503,7 +503,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   onChange={(e) => set({ qname: e.target.value })}
                 />
               </div>
-              <div className={styles.campo} style={{ width: 130 }}>
+              <div className={styles.field} style={{ width: 130 }}>
                 <label htmlFor="ql-qtype">Type</label>
                 <Input
                   id="ql-qtype"
@@ -512,7 +512,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   onChange={(e) => set({ qtype: e.target.value })}
                 />
               </div>
-              <div className={styles.campo} style={{ width: 110 }}>
+              <div className={styles.field} style={{ width: 110 }}>
                 <label htmlFor="ql-qclass">Class</label>
                 <Select
                   id="ql-qclass"
@@ -526,7 +526,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   ))}
                 </Select>
               </div>
-              <div className={styles.campo} style={{ width: 180 }}>
+              <div className={styles.field} style={{ width: 180 }}>
                 <label htmlFor="ql-clientIpAddress">Client IP Address</label>
                 <Input
                   id="ql-clientIpAddress"
@@ -541,7 +541,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
           <div className={styles.frow}>
             <div className={styles.frowLabel}>Response</div>
             <div className={styles.frowCtl}>
-              <div className={styles.campo} style={{ width: 150 }}>
+              <div className={styles.field} style={{ width: 150 }}>
                 <label htmlFor="ql-protocol">Protocol</label>
                 <Select
                   id="ql-protocol"
@@ -555,7 +555,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   ))}
                 </Select>
               </div>
-              <div className={styles.campo} style={{ width: 200 }}>
+              <div className={styles.field} style={{ width: 200 }}>
                 <label htmlFor="ql-responseType">Response Type</label>
                 <Select
                   id="ql-responseType"
@@ -569,7 +569,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   ))}
                 </Select>
               </div>
-              <div className={styles.campo} style={{ width: 160 }}>
+              <div className={styles.field} style={{ width: 160 }}>
                 <label htmlFor="ql-rcode">RCODE</label>
                 <Select
                   id="ql-rcode"
@@ -583,7 +583,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   ))}
                 </Select>
               </div>
-              <div className={styles.campo} style={{ width: 110 }}>
+              <div className={styles.field} style={{ width: 110 }}>
                 <label htmlFor="ql-pageNumber">Page Number</label>
                 <Input
                   id="ql-pageNumber"
@@ -593,7 +593,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                   onChange={(e) => set({ pageNumber: e.target.value })}
                 />
               </div>
-              <div className={styles.campo} style={{ width: 130 }}>
+              <div className={styles.field} style={{ width: 130 }}>
                 <label htmlFor="ql-entriesPerPage">Logs Per Page</label>
                 <Select
                   id="ql-entriesPerPage"
@@ -612,21 +612,21 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
         </div>
       </div>
 
-      {pagina != null && (
+      {page != null && (
         <>
           <div className={styles.count}>
-            <span>{textoEstado(pagina)}</span>
+            <span>{textoEstado(page)}</span>
             {/* logs.js:589 — "Last" is asked for with -1; the server resolves it. */}
-            <Paginacion
-              ventana={ventanaDePaginas(pagina.pageNumber, pagina.totalPages)}
-              actual={pagina.pageNumber}
-              ultima={-1}
+            <Pagination
+              ventana={ventanaDePaginas(page.pageNumber, page.totalPages)}
+              current={page.pageNumber}
+              last={-1}
               onIr={(n) => void consultar(String(n), false)}
             />
           </div>
 
-          <Tabla
-            cabecera={
+          <Table
+            header={
               <>
                 <th>#</th>
                 <th>Timestamp</th>
@@ -641,7 +641,7 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
               </>
             }
           >
-            {pagina.entries.map((e) => (
+            {page.entries.map((e) => (
               <tr key={e.rowNumber} className={claseFila(e)}>
                 <td className={styles.mono}>{e.rowNumber}</td>
                 <td className={`${styles.mono} ${styles.nowrap}`}>{fechaHora(e.timestamp)}</td>
@@ -663,10 +663,10 @@ export function QueryLogs({ token, node = '' }: QueryLogsProps) {
                 <td className={`${styles.mono} ${styles.romper}`}>{e.answer ?? ''}</td>
               </tr>
             ))}
-          </Tabla>
+          </Table>
 
           <div className={styles.count}>
-            <span>{textoEstado(pagina)}</span>
+            <span>{textoEstado(page)}</span>
           </div>
         </>
       )}

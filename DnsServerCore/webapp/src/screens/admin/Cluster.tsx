@@ -35,7 +35,7 @@ import {
   type Aviso,
 } from './partes'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu, Separador } from '../../ui/Menu'
 import { GroupRow } from '../../ui/Form'
 import { Avisador } from '../../ui/Avisador'
@@ -80,17 +80,17 @@ type Modal =
   | { tipo: 'new' }
   | { tipo: 'join' }
   | { tipo: 'options' }
-  | { tipo: 'editSelf'; nodo: ClusterNode }
-  | { tipo: 'editPrimary'; nodo: ClusterNode }
-  | { tipo: 'remove'; nodo: ClusterNode }
-  | { tipo: 'promote'; nodo: ClusterNode }
+  | { tipo: 'editSelf'; node: ClusterNode }
+  | { tipo: 'editPrimary'; node: ClusterNode }
+  | { tipo: 'remove'; node: ClusterNode }
+  | { tipo: 'promote'; node: ClusterNode }
   | { tipo: 'leave' }
   | { tipo: 'delete' }
   | { tipo: 'resync' }
 
 /* `sortTable('tbodyAdminCluster', 0..7)`. The three dates are read by their ISO:
    the cell draws the date and the "time ago", and both sort the same. */
-const CLAVES: Claves<ClusterNode> = {
+const KEYS: Keys<ClusterNode> = {
   name: (n) => n.name,
   ip: (n) => n.ipAddresses.join(' '),
   url: (n) => n.url,
@@ -102,15 +102,15 @@ const CLAVES: Claves<ClusterNode> = {
 }
 
 export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
-  const [nodo, setNodo] = useState('')
-  const [estado, setEstado] = useState<ClusterState | null>(cluster)
-  const [cargando, setCargando] = useState(true)
+  const [node, setNodo] = useState('')
+  const [state, setEstado] = useState<ClusterState | null>(cluster)
+  const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<Modal | null>(null)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
-    const outcome = await getClusterState(token, { node: nodo })
-    setCargando(false)
+    setLoading(true)
+    const outcome = await getClusterState(token, { node: node })
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
@@ -118,7 +118,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
     }
     setEstado(outcome.data.response)
     onCluster(outcome.data.response)
-  }, [token, nodo, onCluster, onAviso])
+  }, [token, node, onCluster, onAviso])
 
   useEffect(() => {
     void cargar()
@@ -130,15 +130,15 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
     onCluster(s)
   }
 
-  const nodos = estado?.clusterNodes ?? []
-  const { filas: nodosVisibles, orden, alternar } = useOrden(CLAVES, nodos)
-  const tipoPropio = nodos.find((n) => n.state === 'Self')?.type
-  const inicializado = estado?.clusterInitialized === true
+  const nodes = state?.clusterNodes ?? []
+  const { rows: nodosVisibles, orden, alternar } = useOrden(KEYS, nodes)
+  const tipoPropio = nodes.find((n) => n.state === 'Self')?.type
+  const initialised = state?.clusterInitialized === true
   const esPrimario = tipoPropio === 'Primary'
 
   async function lanzarResync() {
     setModal(null)
-    const outcome = await resyncCluster(token, nodo)
+    const outcome = await resyncCluster(token, node)
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
       return
@@ -153,35 +153,35 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
   return (
     <>
       <SectionHeader
-        seccion="Administration"
+        section="Administration"
         titulo="Cluster"
-        acciones={<>{inicializado && !esPrimario && (
+        actions={<>{initialised && !esPrimario && (
             <Button variant="primary" onClick={() => setModal({ tipo: 'resync' })}>
               Resync
             </Button>
           )}
-          {inicializado && (
+          {initialised && (
             <Button variant="primary" onClick={() => setModal({ tipo: 'options' })}>
               Options
             </Button>
           )}
-          {inicializado && !esPrimario && (
+          {initialised && !esPrimario && (
             <Button onClick={() => setModal({ tipo: 'leave' })}>Leave Cluster</Button>
           )}
-          {inicializado && esPrimario && (
+          {initialised && esPrimario && (
             <Button variant="danger" onClick={() => setModal({ tipo: 'delete' })}>
               Delete Cluster
             </Button>
           )}
-          <SelectorNodo cluster={estado} value={nodo} onChange={setNodo} label="Cluster Node" /></>}
+          <SelectorNodo cluster={state} value={node} onChange={setNodo} label="Cluster Node" /></>}
       />
 
-      {cargando ? (
+      {loading ? (
         <Loading />
-      ) : !inicializado ? (
+      ) : !initialised ? (
         <Empty
           titulo="Cluster Not Initialized"
-          acciones={
+          actions={
             <>
               <Button variant="primary" onClick={() => setModal({ tipo: 'new' })}>
                 New Cluster
@@ -194,22 +194,22 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
         </Empty>
       ) : (
         <>
-          <Tabla
-            cabecera={
+          <Table
+            header={
               <>
-                <Th campo="name" orden={orden} onOrdenar={alternar}>Node Name</Th>
-                <Th campo="ip" orden={orden} onOrdenar={alternar}>IP Address</Th>
-                <Th campo="url" orden={orden} onOrdenar={alternar}>URL</Th>
-                <Th campo="type" orden={orden} onOrdenar={alternar}>Type</Th>
-                <Th campo="state" orden={orden} onOrdenar={alternar}>State</Th>
-                <Th campo="upSince" orden={orden} onOrdenar={alternar}>Up Since</Th>
-                <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                <Th campo="synced" orden={orden} onOrdenar={alternar}>Last Synced</Th>
+                <Th field="name" orden={orden} onOrdenar={alternar}>Node Name</Th>
+                <Th field="ip" orden={orden} onOrdenar={alternar}>IP Address</Th>
+                <Th field="url" orden={orden} onOrdenar={alternar}>URL</Th>
+                <Th field="type" orden={orden} onOrdenar={alternar}>Type</Th>
+                <Th field="state" orden={orden} onOrdenar={alternar}>State</Th>
+                <Th field="upSince" orden={orden} onOrdenar={alternar}>Up Since</Th>
+                <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                <Th field="synced" orden={orden} onOrdenar={alternar}>Last Synced</Th>
                 <th className={tbl.celdaAcciones} />
               </>
             }
-            vacia={nodosVisibles.length === 0}
-            vacio="No Node Found"
+            isEmpty={nodosVisibles.length === 0}
+            emptyText="No Node Found"
             columnas={9}
           >
             {nodosVisibles.map((n) => (
@@ -253,7 +253,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                   )}
                 </td>
                 <td className={tbl.celdaAcciones}>
-                  <div className={tbl.acciones}>
+                  <div className={tbl.actions}>
                     {/* What can be done with a node depends on whether this
                         console is talking to the primary or to a secondary
                         (cluster.js:248-264). Editing is the frequent one and goes
@@ -261,11 +261,11 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                     {(esPrimario ? n.state === 'Self' : n.state === 'Self' || n.type === 'Primary') && (
                       <AccionFila
                         icono="editar"
-                        nombre="Edit Node"
+                        name="Edit Node"
                         onClick={() =>
                           setModal({
                             tipo: n.state === 'Self' ? 'editSelf' : 'editPrimary',
-                            nodo: n,
+                            node: n,
                           })
                         }
                       />
@@ -276,14 +276,14 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                         {(cerrar) => (
                           <>
                             {tipoPropio === 'Secondary' && n.state === 'Self' && (
-                              <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'promote', nodo: n }) }}>
+                              <button type="button" onClick={() => { cerrar(); setModal({ tipo: 'promote', node: n }) }}>
                                 Promote To Primary
                               </button>
                             )}
                             {esPrimario && n.type === 'Secondary' && (
                               <>
                                 <Separador />
-                                <button type="button" data-variant="danger" onClick={() => { cerrar(); setModal({ tipo: 'remove', nodo: n }) }}>
+                                <button type="button" data-variant="danger" onClick={() => { cerrar(); setModal({ tipo: 'remove', node: n }) }}>
                                   Remove Node
                                 </button>
                               </>
@@ -296,9 +296,9 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
                 </td>
               </tr>
             ))}
-          </Tabla>
+          </Table>
           <div className={styles.count}>
-            <span>{`Total Nodes: ${nodos.length}`}</span>
+            <span>{`Total Nodes: ${nodes.length}`}</span>
           </div>
         </>
       )}
@@ -306,7 +306,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       <Confirmar
         abierto={modal?.tipo === 'resync'}
         titulo="Resync Cluster"
-        texto={
+        text={
           <>
             The resync Cluster action will initiate a full config transfer from the Primary node.
             You will need to check the logs to confirm if the resync action was successful.
@@ -356,7 +356,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'options' && (
         <OpcionesCluster
           token={token}
-          nodo={nodo}
+          node={node}
           onCerrar={() => setModal(null)}
           onHecho={() => {
             setModal(null)
@@ -372,8 +372,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'editSelf' && (
         <EditarNodoPropio
           token={token}
-          nodo={nodo}
-          objetivo={modal.nodo}
+          node={node}
+          objetivo={modal.node}
           onCerrar={() => setModal(null)}
           onHecho={(s) => {
             recargarCon(s)
@@ -390,8 +390,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'editPrimary' && (
         <EditarNodoPrimario
           token={token}
-          nodo={nodo}
-          objetivo={modal.nodo}
+          node={node}
+          objetivo={modal.node}
           onCerrar={() => setModal(null)}
           onHecho={(s) => {
             recargarCon(s)
@@ -408,8 +408,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'remove' && (
         <QuitarNodo
           token={token}
-          nodo={nodo}
-          objetivo={modal.nodo}
+          node={node}
+          objetivo={modal.node}
           onCerrar={() => setModal(null)}
           onHecho={(s) => {
             recargarCon(s)
@@ -426,8 +426,8 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'promote' && (
         <PromocionarNodo
           token={token}
-          nodo={nodo}
-          objetivo={modal.nodo}
+          node={node}
+          objetivo={modal.node}
           onCerrar={() => setModal(null)}
           onHecho={(s) => {
             recargarCon(s)
@@ -444,7 +444,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'leave' && (
         <DejarCluster
           token={token}
-          nodo={nodo}
+          node={node}
           onCerrar={() => setModal(null)}
           onHecho={(s) => {
             recargarCon(s)
@@ -461,7 +461,7 @@ export function Cluster({ token, cluster, onCluster, onAviso }: Props) {
       {modal?.tipo === 'delete' && (
         <BorrarCluster
           token={token}
-          nodo={nodo}
+          node={node}
           onCerrar={() => setModal(null)}
           onHecho={(s) => {
             recargarCon(s)
@@ -502,7 +502,7 @@ function QuickAdd({
   onAnadir: (ip: string) => void
   label: string
 }) {
-  const [valor, setValor] = useState('')
+  const [value, setValor] = useState('')
   const id = useId()
   return (
     <div className={styles.ctlLine}>
@@ -512,7 +512,7 @@ function QuickAdd({
       <Select
         id={id}
         className={styles.select}
-        value={valor}
+        value={value}
         onChange={(e) => {
           setValor(e.target.value)
           if (e.target.value !== '') onAnadir(e.target.value)
@@ -529,8 +529,8 @@ function QuickAdd({
   )
 }
 
-function anadirIp(lista: string, ip: string): string {
-  return lista.indexOf(ip) < 0 ? `${lista}${ip}\n` : lista
+function anadirIp(list: string, ip: string): string {
+  return list.indexOf(ip) < 0 ? `${list}${ip}\n` : list
 }
 
 /** `showInitializeClusterModal` / `initializeNewCluster` (cluster.js:548-645). */
@@ -543,19 +543,19 @@ function NuevoCluster({
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [ips, setIps] = useState<string[]>([])
   const [yaEsta, setYaEsta] = useState(false)
   const [dominio, setDominio] = useState('')
-  const [lista, setLista] = useState('')
+  const [list, setLista] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let vivo = true
     void getClusterState(token, { includeServerIpAddresses: true }).then((outcome) => {
       if (!vivo) return
-      setCargando(false)
+      setLoading(false)
       if (outcome.kind !== 'ok') {
         setAviso(avisoDeFallo(outcome))
         return
@@ -577,7 +577,7 @@ function NuevoCluster({
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Cluster domain name.' })
       return
     }
-    const limpia = limpiarLista(lista)
+    const limpia = limpiarLista(list)
     if (limpia.length === 0 || limpia === ',') {
       setAviso({
         type: 'warning',
@@ -587,9 +587,9 @@ function NuevoCluster({
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await initCluster(token, dominio, limpia)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -603,17 +603,17 @@ function NuevoCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Initialize New Cluster"
-      tamano="medio"
-      acciones={
+      size="medium"
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || cargando || yaEsta} onClick={() => void inicializar()}>
+          <Button variant="primary" disabled={busy || loading || yaEsta} onClick={() => void inicializar()}>
             Initialize
           </Button>
         </>
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : yaEsta ? null : (
         <>
@@ -650,7 +650,7 @@ function NuevoCluster({
                   className={styles.area}
                   rows={3}
                   spellCheck={false}
-                  value={lista}
+                  value={list}
                   onChange={(e) => setLista(e.target.value)}
                 />
                 <QuickAdd
@@ -716,25 +716,25 @@ function UnirseCluster({
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [ips, setIps] = useState<string[]>([])
   const [yaEsta, setYaEsta] = useState(false)
-  const [lista, setLista] = useState('')
+  const [list, setLista] = useState('')
   const [url, setUrl] = useState('')
   const [ip, setIp] = useState('')
   const [ignorar, setIgnorar] = useState('false')
-  const [usuario, setUsuario] = useState('admin')
+  const [user, setUsuario] = useState('admin')
   const [pass, setPass] = useState('')
   const [totp, setTotp] = useState('')
   const [pideTotp, setPideTotp] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let vivo = true
     void getClusterState(token, { includeServerIpAddresses: true }).then((outcome) => {
       if (!vivo) return
-      setCargando(false)
+      setLoading(false)
       if (outcome.kind !== 'ok') {
         setAviso(avisoDeFallo(outcome))
         return
@@ -752,7 +752,7 @@ function UnirseCluster({
   }, [token])
 
   async function unirse() {
-    const limpia = limpiarLista(lista)
+    const limpia = limpiarLista(list)
     if (limpia.length === 0 || limpia === ',') {
       setAviso({
         type: 'warning',
@@ -765,7 +765,7 @@ function UnirseCluster({
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter the Primary node URL.' })
       return
     }
-    if (usuario === '') {
+    if (user === '') {
       setAviso({
         type: 'warning',
         title: 'Missing!',
@@ -792,17 +792,17 @@ function UnirseCluster({
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await initJoinCluster(token, {
       secondaryNodeIpAddresses: limpia,
       primaryNodeUrl: url,
       primaryNodeIpAddress: ip,
       ignoreCertificateErrors: ignorar,
-      primaryNodeUsername: usuario,
+      primaryNodeUsername: user,
       primaryNodePassword: pass,
       primaryNodeTotp: totp,
     })
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind === 'two-factor-required') {
       setPideTotp(true)
@@ -820,17 +820,17 @@ function UnirseCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Join Cluster"
-      tamano="medio"
-      acciones={
+      size="medium"
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || cargando || yaEsta} onClick={() => void unirse()}>
+          <Button variant="primary" disabled={busy || loading || yaEsta} onClick={() => void unirse()}>
             Join
           </Button>
         </>
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : yaEsta ? null : (
         <>
@@ -853,7 +853,7 @@ function UnirseCluster({
                   className={styles.area}
                   rows={3}
                   spellCheck={false}
-                  value={lista}
+                  value={list}
                   onChange={(e) => setLista(e.target.value)}
                 />
                 <QuickAdd
@@ -926,7 +926,7 @@ function UnirseCluster({
                 id={id}
                 placeholder="username"
                 maxLength={255}
-                value={usuario}
+                value={user}
                 onChange={(e) => setUsuario(e.target.value)}
               />
             )}
@@ -1009,16 +1009,16 @@ locked: it can never be changed.
 */
 function OpcionesCluster({
   token,
-  nodo,
+  node,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   onCerrar: () => void
   onHecho: () => void
 }) {
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [esPrimario, setEsPrimario] = useState(false)
   const [dominio, setDominio] = useState('')
   const [hbRefresh, setHbRefresh] = useState('')
@@ -1026,13 +1026,13 @@ function OpcionesCluster({
   const [cfgRefresh, setCfgRefresh] = useState('')
   const [cfgRetry, setCfgRetry] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let vivo = true
-    void getClusterState(token, { node: nodo }).then((outcome) => {
+    void getClusterState(token, { node: node }).then((outcome) => {
       if (!vivo) return
-      setCargando(false)
+      setLoading(false)
       if (outcome.kind !== 'ok') {
         setAviso(avisoDeFallo(outcome))
         return
@@ -1048,7 +1048,7 @@ function OpcionesCluster({
     return () => {
       vivo = false
     }
-  }, [token, nodo])
+  }, [token, node])
 
   async function guardar() {
     if (hbRefresh === '') {
@@ -1084,7 +1084,7 @@ function OpcionesCluster({
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setClusterOptions(
       token,
       {
@@ -1093,9 +1093,9 @@ function OpcionesCluster({
         configRefreshIntervalSeconds: cfgRefresh,
         configRetryIntervalSeconds: cfgRetry,
       },
-      nodo,
+      node,
     )
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1120,11 +1120,11 @@ function OpcionesCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Cluster Options"
-      tamano="medio"
-      acciones={
+      size="medium"
+      actions={
         <>
           {esPrimario && (
-            <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
+            <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
               Save
             </Button>
           )}
@@ -1132,15 +1132,15 @@ function OpcionesCluster({
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <>
           <MRow label="Cluster Domain" help="The fully qualified domain name of the Cluster.">
             {(id) => <Input id={id} placeholder="domain name" value={dominio} disabled readOnly />}
           </MRow>
-          {intervalos.map(([label, valor, sufijo, set, ayuda]) => (
-            <MRow key={label} label={label} help={ayuda}>
+          {intervalos.map(([label, value, sufijo, set, help]) => (
+            <MRow key={label} label={label} help={help}>
               {(id) => (
                 <div className={styles.ctlLine}>
                   <Input
@@ -1149,7 +1149,7 @@ function OpcionesCluster({
                     placeholder="seconds"
                     style={{ width: 100 }}
                     disabled={!esPrimario}
-                    value={valor}
+                    value={value}
                     onChange={(e) => set(e.target.value)}
                   />
                   <span className={styles.suffix}>{sufijo}</span>
@@ -1166,28 +1166,28 @@ function OpcionesCluster({
 /** `showEditSelfClusterNodeModal` / `updateSelfClusterNode` (cluster.js:274-361). */
 function EditarNodoPropio({
   token,
-  nodo,
+  node,
   objetivo,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   objetivo: ClusterNode
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [ips, setIps] = useState<string[]>([])
-  const [lista, setLista] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
+  const [list, setLista] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let vivo = true
-    void getClusterState(token, { node: nodo, includeServerIpAddresses: true }).then((outcome) => {
+    void getClusterState(token, { node: node, includeServerIpAddresses: true }).then((outcome) => {
       if (!vivo) return
-      setCargando(false)
+      setLoading(false)
       if (outcome.kind !== 'ok') {
         setAviso(avisoDeFallo(outcome))
         return
@@ -1197,18 +1197,18 @@ function EditarNodoPropio({
     return () => {
       vivo = false
     }
-  }, [token, nodo])
+  }, [token, node])
 
   async function guardar() {
-    const limpia = limpiarLista(lista)
+    const limpia = limpiarLista(list)
     if (limpia.length === 0 || limpia === ',') {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a node IP address.' })
       return
     }
 
-    setOcupado(true)
-    const outcome = await updateIpAddress(token, limpia, nodo)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await updateIpAddress(token, limpia, node)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1222,17 +1222,17 @@ function EditarNodoPropio({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Node - ${objetivo.name}`}
-      tamano="medio"
-      acciones={
+      size="medium"
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
             Save
           </Button>
         </>
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      {cargando ? (
+      {loading ? (
         <Loading />
       ) : (
         <MRow
@@ -1247,7 +1247,7 @@ function EditarNodoPropio({
                 className={styles.area}
                 rows={3}
                 spellCheck={false}
-                value={lista}
+                value={list}
                 onChange={(e) => setLista(e.target.value)}
               />
               <QuickAdd ips={ips} label="Quick Add" onAnadir={(ip) => setLista((t) => anadirIp(t, ip))} />
@@ -1263,21 +1263,21 @@ function EditarNodoPropio({
  *  It loads nothing: it comes up with whatever was already in the row. */
 function EditarNodoPrimario({
   token,
-  nodo,
+  node,
   objetivo,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   objetivo: ClusterNode
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [url, setUrl] = useState(objetivo.url)
-  const [lista, setLista] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
+  const [list, setLista] = useState(`${objetivo.ipAddresses.join('\n')}\n`)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function guardar() {
     if (url === '') {
@@ -1286,12 +1286,12 @@ function EditarNodoPrimario({
     }
     // Here the list CAN be left empty: it is optional. Upstream only normalises
     // the degenerate case of a stray comma (cluster.js:400).
-    let limpia = limpiarLista(lista)
+    let limpia = limpiarLista(list)
     if (limpia === ',') limpia = ''
 
-    setOcupado(true)
-    const outcome = await updatePrimaryNode(token, url, limpia, nodo)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await updatePrimaryNode(token, url, limpia, node)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1305,10 +1305,10 @@ function EditarNodoPrimario({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Edit Node - ${objetivo.name}`}
-      tamano="medio"
-      acciones={
+      size="medium"
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
             Save
           </Button>
         </>
@@ -1337,7 +1337,7 @@ function EditarNodoPrimario({
             className={styles.area}
             rows={3}
             spellCheck={false}
-            value={lista}
+            value={list}
             onChange={(e) => setLista(e.target.value)}
           />
         )}
@@ -1350,28 +1350,28 @@ function EditarNodoPrimario({
  *  (cluster.js:434-495). The checkbox changes the ENDPOINT, not a parameter. */
 function QuitarNodo({
   token,
-  nodo,
+  node,
   objetivo,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   objetivo: ClusterNode
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [forzar, setForzar] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function quitar() {
-    setOcupado(true)
+    setBusy(true)
     const id = String(objetivo.id)
     const outcome = forzar
-      ? await deleteSecondaryNode(token, id, nodo)
-      : await removeSecondaryNode(token, id, nodo)
-    setOcupado(false)
+      ? await deleteSecondaryNode(token, id, node)
+      : await removeSecondaryNode(token, id, node)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1385,9 +1385,9 @@ function QuitarNodo({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Remove Node - ${objetivo.name}`}
-      acciones={
+      actions={
         <>
-          <Button variant="danger" disabled={ocupado} onClick={() => void quitar()}>
+          <Button variant="danger" disabled={busy} onClick={() => void quitar()}>
             Remove
           </Button>
         </>
@@ -1421,25 +1421,25 @@ function QuitarNodo({
  *  (cluster.js:497-546). */
 function PromocionarNodo({
   token,
-  nodo,
+  node,
   objetivo,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   objetivo: ClusterNode
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [forzar, setForzar] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function promocionar() {
-    setOcupado(true)
-    const outcome = await promoteToPrimary(token, forzar, nodo)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await promoteToPrimary(token, forzar, node)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1453,9 +1453,9 @@ function PromocionarNodo({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title={`Promote To Primary Node - ${objetivo.name}`}
-      acciones={
+      actions={
         <>
-          <Button variant="danger" disabled={ocupado} onClick={() => void promocionar()}>
+          <Button variant="danger" disabled={busy} onClick={() => void promocionar()}>
             Promote
           </Button>
         </>
@@ -1496,23 +1496,23 @@ function PromocionarNodo({
 /** `showLeaveClusterModal` / `leaveCluster` (cluster.js:918-973). */
 function DejarCluster({
   token,
-  nodo,
+  node,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [forzar, setForzar] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function salir() {
-    setOcupado(true)
-    const outcome = await leaveCluster(token, forzar, nodo)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await leaveCluster(token, forzar, node)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1526,9 +1526,9 @@ function DejarCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Leave Cluster"
-      acciones={
+      actions={
         <>
-          <Button variant="danger" disabled={ocupado} onClick={() => void salir()}>
+          <Button variant="danger" disabled={busy} onClick={() => void salir()}>
             Leave
           </Button>
         </>
@@ -1560,23 +1560,23 @@ function DejarCluster({
 /** `showDeleteClusterModal` / `deleteCluster` (cluster.js:961-1011). */
 function BorrarCluster({
   token,
-  nodo,
+  node,
   onCerrar,
   onHecho,
 }: {
   token: string | null
-  nodo: string
+  node: string
   onCerrar: () => void
   onHecho: (s: ClusterState) => void
 }) {
   const [forzar, setForzar] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   async function borrar() {
-    setOcupado(true)
-    const outcome = await deleteCluster(token, forzar, nodo)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await deleteCluster(token, forzar, node)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -1590,9 +1590,9 @@ function BorrarCluster({
       open
       onOpenChange={(o) => !o && onCerrar()}
       title="Delete Cluster"
-      acciones={
+      actions={
         <>
-          <Button variant="danger" disabled={ocupado} onClick={() => void borrar()}>
+          <Button variant="danger" disabled={busy} onClick={() => void borrar()}>
             Delete
           </Button>
         </>

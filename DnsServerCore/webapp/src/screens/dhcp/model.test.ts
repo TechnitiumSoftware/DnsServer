@@ -15,7 +15,7 @@ function form(parcial: Partial<ScopeForm> = {}): ScopeForm {
   return { ...formularioVacio(), name: 'Default', ...parcial }
 }
 
-function cuerpo(f: ScopeForm): Record<string, string> {
+function body(f: ScopeForm): Record<string, string> {
   const r = construirCuerpo(f)
   if ('error' in r) throw new Error(`esperaba cuerpo y salió ${r.error.title}`)
   return r.body
@@ -120,19 +120,19 @@ describe('formularioDesdeScope', () => {
 
 describe('construirCuerpo — name and rename', () => {
   it('a new scope does NOT send `newName`', () => {
-    const b = cuerpo(form({ oldName: '', name: 'Nuevo' }))
+    const b = body(form({ oldName: '', name: 'Nuevo' }))
     expect(b.name).toBe('Nuevo')
     expect(b).not.toHaveProperty('newName')
   })
 
   it('editing without touching the name does not send `newName` either', () => {
-    const b = cuerpo(form({ oldName: 'Default', name: 'Default' }))
+    const b = body(form({ oldName: 'Default', name: 'Default' }))
     expect(b.name).toBe('Default')
     expect(b).not.toHaveProperty('newName')
   })
 
   it('renaming sends the OLD name in `name` and the new one in `newName`', () => {
-    const b = cuerpo(form({ oldName: 'Default', name: 'Casa' }))
+    const b = body(form({ oldName: 'Default', name: 'Casa' }))
     expect(b.name).toBe('Default')
     expect(b.newName).toBe('Casa')
   })
@@ -140,20 +140,20 @@ describe('construirCuerpo — name and rename', () => {
 
 describe('construirCuerpo — servidores DNS', () => {
   it('with \"Use This DNS Server\" checked `dnsServers` is NOT sent', () => {
-    const b = cuerpo(form({ useThisDnsServer: true, dnsServers: '1.1.1.1' }))
+    const b = body(form({ useThisDnsServer: true, dnsServers: '1.1.1.1' }))
     expect(b.useThisDnsServer).toBe('true')
     expect(b).not.toHaveProperty('dnsServers')
   })
 
   it('unchecked, `dnsServers` travels as a comma-separated list', () => {
-    const b = cuerpo(form({ useThisDnsServer: false, dnsServers: '1.1.1.1\n8.8.8.8' }))
+    const b = body(form({ useThisDnsServer: false, dnsServers: '1.1.1.1\n8.8.8.8' }))
     expect(b.dnsServers).toBe('1.1.1.1,8.8.8.8')
   })
 })
 
 describe('construirCuerpo — the five tables', () => {
   it('it serialises ALL the cells joined by `|`, between rows as well', () => {
-    const b = cuerpo(
+    const b = body(
       form({
         staticRoutes: [
           { destination: '10.0.0.0', subnetMask: '255.0.0.0', router: '192.168.1.1' },
@@ -167,7 +167,7 @@ describe('construirCuerpo — the five tables', () => {
   })
 
   it('an empty table travels as an empty string', () => {
-    const b = cuerpo(form())
+    const b = body(form())
     expect(b.staticRoutes).toBe('')
     expect(b.vendorInfo).toBe('')
     expect(b.genericOptions).toBe('')
@@ -176,12 +176,12 @@ describe('construirCuerpo — the five tables', () => {
   })
 
   it('the vendor identifier CAN be left empty', () => {
-    const b = cuerpo(form({ vendorInfo: [{ identifier: '', information: '06:01' }] }))
+    const b = body(form({ vendorInfo: [{ identifier: '', information: '06:01' }] }))
     expect(b.vendorInfo).toBe('|06:01')
   })
 
   it('the host name and the comments of a reservation are ALSO optional', () => {
-    const b = cuerpo(
+    const b = body(
       form({
         reservedLeases: [
           { hostName: '', hardwareAddress: 'AA-BB', address: '192.168.1.5', comments: '' },
@@ -278,7 +278,7 @@ describe('construirCuerpo — validation alerts, with their literal texts', () =
 
 describe('construirCuerpo — the 36 parameters', () => {
   it('it sends the whole form, with the booleans as strings', () => {
-    const b = cuerpo(
+    const b = body(
       form({
         oldName: 'Default',
         startingAddress: '192.168.1.1',

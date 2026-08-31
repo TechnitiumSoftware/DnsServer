@@ -131,24 +131,24 @@ export async function downloadLogText(
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`
 
-  let texto: string
+  let text: string
   try {
     const res = await fetch(urlApi(`api/logs/download?${query.toString()}`), { headers })
-    texto = await res.text()
+    text = await res.text()
   } catch {
     return null
   }
 
   // logs.js:170 — `if (response.status != null) response = JSON.stringify(...)`.
   try {
-    const parsed: unknown = JSON.parse(texto)
+    const parsed: unknown = JSON.parse(text)
     if (parsed !== null && typeof parsed === 'object' && 'status' in parsed) {
       return JSON.stringify(parsed, null, 2)
     }
   } catch {
     /* It was not JSON: it is the log. */
   }
-  return texto
+  return text
 }
 
 /** The viewer's "Download" button (logs.js:186): the WHOLE file, without

@@ -8,9 +8,9 @@ import {
   type ContextoRegistro,
   type FormularioRegistro,
 } from './registro-form'
-import type { Registro } from '../../api/registros'
+import type { ResourceRecord } from '../../api/registros'
 
-function reg(type: string, rData: Record<string, unknown>, extra: Partial<Registro> = {}): Registro {
+function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
     name: 'www.casa.test',
     type,
@@ -33,7 +33,7 @@ function form(cambios: Partial<FormularioRegistro>): FormularioRegistro {
 
 const ALTA: ContextoRegistro = { zone: 'casa.test', modo: 'add', updateSvcbHints: false }
 
-function cuerpo(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
+function body(f: FormularioRegistro, ctx: ContextoRegistro = ALTA) {
   const r = construirCuerpoRegistro(f, ctx)
   if ('error' in r) throw new Error(`esperaba cuerpo, salió el aviso: ${r.error.text}`)
   return r.body
@@ -70,15 +70,15 @@ describe('add — literal alert texts', () => {
   it('SRV asks for a name with service and protocol before anything else', () => {
     const e = error(form({ type: 'SRV', name: '' }))
     expect(e.text).toBe('Please enter a name that includes service and protocol labels.')
-    expect(e.campo).toBe('name')
+    expect(e.field).toBe('name')
   })
 
   it('the validation order of SRV is priority, weight, port and target', () => {
     const base = { type: 'SRV', name: '_s._tcp' }
-    expect(error(form(base)).campo).toBe('srvPriority')
-    expect(error(form({ ...base, srvPriority: '1' })).campo).toBe('srvWeight')
-    expect(error(form({ ...base, srvPriority: '1', srvWeight: '2' })).campo).toBe('srvPort')
-    expect(error(form({ ...base, srvPriority: '1', srvWeight: '2', srvPort: '443' })).campo).toBe(
+    expect(error(form(base)).field).toBe('srvPriority')
+    expect(error(form({ ...base, srvPriority: '1' })).field).toBe('srvWeight')
+    expect(error(form({ ...base, srvPriority: '1', srvWeight: '2' })).field).toBe('srvPort')
+    expect(error(form({ ...base, srvPriority: '1', srvWeight: '2', srvPort: '443' })).field).toBe(
       'srvTarget',
     )
   })
@@ -98,17 +98,17 @@ describe('add — literal alert texts', () => {
 
 describe('add — values that fall to a default instead of erroring', () => {
   it('MX with no preference sends 1', () => {
-    expect(cuerpo(form({ type: 'MX', name: 'x', mxExchange: 'mail.casa.test' })).preference).toBe('1')
+    expect(body(form({ type: 'MX', name: 'x', mxExchange: 'mail.casa.test' })).preference).toBe('1')
   })
 
   it('CAA with no flags and no tag sends 0 and \"issue\"', () => {
-    const b = cuerpo(form({ type: 'CAA', name: 'x', caaValue: 'letsencrypt.org' }))
+    const b = body(form({ type: 'CAA', name: 'x', caaValue: 'letsencrypt.org' }))
     expect(b.flags).toBe('0')
     expect(b.tag).toBe('issue')
   })
 
   it('RP with both fields empty sends the root', () => {
-    const b = cuerpo(form({ type: 'RP', name: 'x' }))
+    const b = body(form({ type: 'RP', name: 'x' }))
     expect(b.mailbox).toBe('.')
     expect(b.txtDomain).toBe('.')
   })
@@ -116,7 +116,7 @@ describe('add — values that fall to a default instead of erroring', () => {
 
 describe('add — the body', () => {
   it('carries zone, domain, type, ttl, overwrite, comments and expiryTtl', () => {
-    const b = cuerpo(form({ type: 'A', name: 'www', valor: '10.0.0.1', ttl: '600', overwrite: true }))
+    const b = body(form({ type: 'A', name: 'www', value: '10.0.0.1', ttl: '600', overwrite: true }))
     expect(b).toMatchObject({
       zone: 'casa.test',
       domain: 'www.casa.test',
@@ -131,7 +131,7 @@ describe('add — the body', () => {
   })
 
   it('an empty name is the apex', () => {
-    expect(cuerpo(form({ type: 'A', name: '', valor: '10.0.0.1' })).domain).toBe('casa.test')
+    expect(body(form({ type: 'A', name: '', value: '10.0.0.1' })).domain).toBe('casa.test')
   })
 
   it('TLSA with \"Full\" requires a complete PEM — only when adding', () => {
@@ -155,7 +155,7 @@ describe('add — the body', () => {
       certificateAssociationData: 'OLD',
     })
     const ctx: ContextoRegistro = { zone: 'casa.test', modo: 'update', original, updateSvcbHints: false }
-    expect(cuerpo(f, ctx)).toMatchObject({ newTlsaCertificateAssociationData: 'ABCD' })
+    expect(body(f, ctx)).toMatchObject({ newTlsaCertificateAssociationData: 'ABCD' })
   })
 
   it('APP requires name and class when adding', () => {
@@ -166,7 +166,7 @@ describe('add — the body', () => {
 })
 
 describe('edit — sends the old value AND the new one', () => {
-  const ctxDe = (original: Registro): ContextoRegistro => ({
+  const ctxDe = (original: ResourceRecord): ContextoRegistro => ({
     zone: 'casa.test',
     modo: 'update',
     original,
@@ -175,7 +175,7 @@ describe('edit — sends the old value AND the new one', () => {
 
   it('A: old ipAddress and new newIpAddress', () => {
     const original = reg('A', { ipAddress: '10.0.0.1' })
-    const b = cuerpo(form({ type: 'A', name: 'www', valor: '10.0.0.2' }), ctxDe(original))
+    const b = body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxDe(original))
     expect(b).toMatchObject({
       ipAddress: '10.0.0.1',
       newIpAddress: '10.0.0.2',
@@ -187,14 +187,14 @@ describe('edit — sends the old value AND the new one', () => {
 
   it('CNAME and DNAME do NOT send the old one: only the new value', () => {
     const original = reg('CNAME', { cname: 'viejo.casa.test' })
-    const b = cuerpo(form({ type: 'CNAME', name: 'ali', valor: 'nuevo.casa.test' }), ctxDe(original))
+    const b = body(form({ type: 'CNAME', name: 'ali', value: 'nuevo.casa.test' }), ctxDe(original))
     expect(b.cname).toBe('nuevo.casa.test')
     expect(b).not.toHaveProperty('newCname')
   })
 
   it('TXT identifies by the base64 strings, not by the text', () => {
     const original = reg('TXT', { text: 'viejo', characterStringsBase64: ['dmllam8='] })
-    const b = cuerpo(form({ type: 'TXT', name: 'x', txt: 'nuevo' }), ctxDe(original))
+    const b = body(form({ type: 'TXT', name: 'x', txt: 'nuevo' }), ctxDe(original))
     expect(b).toMatchObject({
       characterStringsBase64: 'dmllam8=',
       newText: 'nuevo',
@@ -207,21 +207,21 @@ describe('edit — sends the old value AND the new one', () => {
       order: 1, preference: 2, flags: 'U', services: 'x', regexp: 'y', replacement: '.',
     })
     const f = form({ type: 'NAPTR', name: 'x', naptrOrder: '1', naptrPreference: '2' })
-    expect(cuerpo(f, ctxDe(original)).naptrNewReplacement).toBe('.')
+    expect(body(f, ctxDe(original)).naptrNewReplacement).toBe('.')
     // When adding, it is sent empty.
-    expect(cuerpo(f).naptrReplacement).toBe('')
+    expect(body(f).naptrReplacement).toBe('')
   })
 
   it('the edit resends the state the record had, it does not change it', () => {
     const original = reg('A', { ipAddress: '10.0.0.1' }, { disabled: true })
-    expect(cuerpo(form({ type: 'A', name: 'www', valor: '10.0.0.2' }), ctxDe(original)).disable).toBe(
+    expect(body(form({ type: 'A', name: 'www', value: '10.0.0.2' }), ctxDe(original)).disable).toBe(
       'true',
     )
   })
 
   it('APP when editing does not validate and takes the app and class from the record', () => {
     const original = reg('APP', { appName: 'Split Horizon', classPath: 'X.App', data: 'viejo' })
-    const b = cuerpo(form({ type: 'APP', name: 'x', recordData: 'nuevo' }), ctxDe(original))
+    const b = body(form({ type: 'APP', name: 'x', recordData: 'nuevo' }), ctxDe(original))
     expect(b).toMatchObject({ appName: 'Split Horizon', classPath: 'X.App', recordData: 'nuevo' })
   })
 
@@ -229,10 +229,10 @@ describe('edit — sends the old value AND the new one', () => {
     const original = reg('FWD', {
       protocol: 'Udp', forwarder: '1.1.1.1', priority: 1, dnssecValidation: false, proxyType: 'DefaultProxy',
     })
-    const conProxy = cuerpo(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxDe(original))
+    const conProxy = body(form({ type: 'FWD', name: 'x', forwarder: '8.8.8.8' }), ctxDe(original))
     expect(conProxy).toHaveProperty('proxyType')
 
-    const esteServidor = cuerpo(
+    const esteServidor = body(
       form({ type: 'FWD', name: 'x', forwarder: 'this-server' }),
       ctxDe(original),
     )
@@ -259,7 +259,7 @@ describe('SOA — it is only edited, and validates seven fields in order', () =>
   const ctx: ContextoRegistro = { zone: 'casa.test', modo: 'update', original, updateSvcbHints: false }
 
   it('the order is primary, responsible, serial, refresh, retry, expire and minimum', () => {
-    const campos = [
+    const fields = [
       'soaPrimaryNameServer',
       'soaResponsiblePerson',
       'soaSerial',
@@ -269,10 +269,10 @@ describe('SOA — it is only edited, and validates seven fields in order', () =>
       'soaMinimum',
     ] as const
 
-    const acumulado: Partial<FormularioRegistro> = { type: 'SOA', name: '@' }
-    for (const campo of campos) {
-      expect(error(form(acumulado), ctx).campo).toBe(campo)
-      acumulado[campo] = 'x'
+    const accumulated: Partial<FormularioRegistro> = { type: 'SOA', name: '@' }
+    for (const field of fields) {
+      expect(error(form(accumulated), ctx).field).toBe(field)
+      accumulated[field] = 'x'
     }
   })
 })
@@ -280,18 +280,18 @@ describe('SOA — it is only edited, and validates seven fields in order', () =>
 describe('parameters of an SVCB', () => {
   it('they flatten as key|value', () => {
     const r = serializarSvcParams([
-      { clave: 'alpn', valor: 'h2' },
-      { clave: 'port', valor: '443' },
+      { key: 'alpn', value: 'h2' },
+      { key: 'port', value: '443' },
     ])
-    expect(r).toEqual({ valor: 'alpn|h2|port|443' })
+    expect(r).toEqual({ value: 'alpn|h2|port|443' })
   })
 
   it('an empty list travels as the string \"false\"', () => {
-    expect(serializarSvcParams([])).toEqual({ valor: 'false' })
+    expect(serializarSvcParams([])).toEqual({ value: 'false' })
   })
 
   it('an empty cell is an alert, not a row that gets ignored', () => {
-    const r = serializarSvcParams([{ clave: 'alpn', valor: '' }])
+    const r = serializarSvcParams([{ key: 'alpn', value: '' }])
     expect(r).toEqual({
       error: expect.objectContaining({
         text: 'Please enter a valid value in the text field in focus.',
@@ -300,7 +300,7 @@ describe('parameters of an SVCB', () => {
   })
 
   it('a vertical bar inside a cell too', () => {
-    const r = serializarSvcParams([{ clave: 'alpn', valor: 'h2|h3' }])
+    const r = serializarSvcParams([{ key: 'alpn', value: 'h2|h3' }])
     expect(r).toEqual({
       error: expect.objectContaining({
         text: "Please edit the value in the text field in focus to remove '|' character.",
@@ -323,7 +323,7 @@ describe('filling the form from a record', () => {
     const r = reg('SVCB', { svcPriority: 1, svcTargetName: '', svcParams: { alpn: 'h2' } })
     const f = formularioDesdeRegistro(r, 'casa.test')
     expect(f.svcbTargetName).toBe('.')
-    expect(f.svcbParams).toEqual([{ clave: 'alpn', valor: 'h2' }])
+    expect(f.svcbParams).toEqual([{ key: 'alpn', value: 'h2' }])
   })
 
   it('the glue of an NS is shown one address per line', () => {

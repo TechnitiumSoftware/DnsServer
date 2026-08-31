@@ -30,7 +30,7 @@ the label from the content without spending another rule line.
 It is `flex` because many of them carry an action on the right —"More",
 "Blocking"— and the ones that do not never notice.
 */
-.cabecera {
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -50,8 +50,8 @@ And by descendant, for the screens whose `.ph` COMPOSES this header instead of
 using the component: their `h2` carries no class, so there is nowhere to compose
 onto. The values are the same tokens, which is what stops them drifting apart.
 */
-.cabecera h2,
-.cabecera h3 {
+.header h2,
+.header h3 {
   margin: 0;
   font-size: var(--rotulo-tam);
   font-weight: var(--rotulo-peso);
@@ -60,7 +60,7 @@ onto. The values are the same tokens, which is what stops them drifting apart.
   color: var(--mute);
 }
 
-.cuerpo { padding: var(--s-9); }
+.body { padding: var(--s-9); }
 
 /* A panel with no header needs to recover the air the header used to give it. */
 .sinCabecera { padding-top: var(--s-9); }

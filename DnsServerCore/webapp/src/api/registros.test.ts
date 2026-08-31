@@ -10,7 +10,7 @@ import {
   cuerpoCambioDeEstado,
   dominioCompleto,
   zonaTienePistaSvcbAuto,
-  type Registro,
+  type ResourceRecord,
 } from './registros'
 import * as client from './client'
 
@@ -18,7 +18,7 @@ afterEach(() => vi.restoreAllMocks())
 const env = (r: unknown) => ({ kind: 'ok' as const, data: { status: 'ok', response: r } })
 
 /** A record with the bare minimum, so as not to repeat twelve fields in each case. */
-function reg(type: string, rData: Record<string, unknown>, extra: Partial<Registro> = {}): Registro {
+function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
     name: 'www',
     type,
@@ -82,15 +82,15 @@ describe('identity of a record', () => {
       nameServer: 'ns1.casa.test',
       glue: '10.0.0.1, 10.0.0.2',
     })
-    expect(identidadRegistro(r, { paraBorrado: true })).toEqual({ nameServer: 'ns1.casa.test' })
+    expect(identidadRegistro(r, { forDeletion: true })).toEqual({ nameServer: 'ns1.casa.test' })
   })
 
   it('CNAME, DNAME and APP contribute nothing to the delete (zone.js:6420-6510)', () => {
-    expect(identidadRegistro(reg('CNAME', { cname: 'a.b' }), { paraBorrado: true })).toEqual({})
-    expect(identidadRegistro(reg('DNAME', { dname: 'a.b' }), { paraBorrado: true })).toEqual({})
+    expect(identidadRegistro(reg('CNAME', { cname: 'a.b' }), { forDeletion: true })).toEqual({})
+    expect(identidadRegistro(reg('DNAME', { dname: 'a.b' }), { forDeletion: true })).toEqual({})
     expect(
       identidadRegistro(reg('APP', { appName: 'x', classPath: 'y', data: 'z' }), {
-        paraBorrado: true,
+        forDeletion: true,
       }),
     ).toEqual({})
   })

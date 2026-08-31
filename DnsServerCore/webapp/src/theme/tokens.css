@@ -133,7 +133,7 @@ not one of these tokens.** A loose value is future drift.
   In a table, `height` on a cell is a MINIMUM: a header that genuinely needs two
   lines still grows.
   */
-  --fila-cabecera: 33px;
+  --row-header: 33px;
 
   --rotulo-tam: 10.5px;
   --rotulo-peso: 600;
@@ -178,9 +178,9 @@ not one of these tokens.** A loose value is future drift.
     --hueco-grupo    between things read together: the foot of a table
     --hueco-pegado   between a thing and its label: the count bar and its table
   */
-  --hueco-bloque: var(--s-11);
-  --hueco-grupo: var(--s-8);
-  --hueco-pegado: var(--s-5);
+  --gap-bloque: var(--s-11);
+  --gap-group: var(--s-8);
+  --gap-pegado: var(--s-5);
 
   /* ── Radios ─────────────────────────────────────────────────────────── */
   /*
@@ -253,7 +253,7 @@ not one of these tokens.** A loose value is future drift.
   --ctrl: 18px;          /* side of the checkbox and the radio */
   --ctrl-track-w: 34px;  /* the switch's track */
   --ctrl-track-h: 20px;
-  --campo-alto: 34px;    /* minimum height of field, dropdown and button */
+  --field-height: 34px;    /* minimum height of field, dropdown and button */
 
   /* ── Movimiento ─────────────────────────────────────────────────────── */
   /* A single duration and a single curve. Exponential ease-out: it starts fast

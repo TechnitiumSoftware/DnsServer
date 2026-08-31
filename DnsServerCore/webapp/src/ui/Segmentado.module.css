@@ -17,7 +17,7 @@ appearance, and any change to the pagination took the tabs down with it.
 
 /* Longhands and not the `font:` shorthand: `inherit` is not valid as a component
    of a shorthand, and with it the whole declaration was dropped. */
-.opcion {
+.option {
   font-family: inherit;
   font-size: var(--t-4);
   font-weight: 500;
@@ -31,10 +31,10 @@ appearance, and any change to the pagination took the tabs down with it.
   white-space: nowrap;
 }
 
-.opcion:hover { color: var(--ink); }
+.option:hover { color: var(--ink); }
 
-.opcion[aria-pressed='true'],
-.opcion[aria-selected='true'] {
+.option[aria-pressed='true'],
+.option[aria-selected='true'] {
   background: var(--acc);
   color: var(--on-acc);
   font-weight: 550;

@@ -35,7 +35,7 @@ inside a modal —which has `overflow: auto`— it would be clipped. For the sam
 reason it closes on scroll, which is what the native `select` does.
 */
 
-export interface Opcion {
+export interface Option {
   value: string
   label: string
   disabled?: boolean
@@ -50,19 +50,19 @@ use it, but then the change would stop being design-only: each of those places i
 a list with its own logic —TSIG keys, catalogs, record types, DNSSEC algorithms—
 and rewriting it is an opportunity to break it.
 */
-function opcionesDeHijos(children: ReactNode): Opcion[] {
-  const fuera: Opcion[] = []
+function opcionesDeHijos(children: ReactNode): Option[] {
+  const outside: Option[] = []
   for (const hijo of Children.toArray(children)) {
     if (!isValidElement(hijo) || hijo.type !== 'option') continue
     const p = hijo.props as { value?: string | number; children?: ReactNode; disabled?: boolean }
-    const texto = typeof p.children === 'string' || typeof p.children === 'number' ? String(p.children) : ''
-    fuera.push({
-      value: p.value != null ? String(p.value) : texto,
-      label: texto,
+    const text = typeof p.children === 'string' || typeof p.children === 'number' ? String(p.children) : ''
+    outside.push({
+      value: p.value != null ? String(p.value) : text,
+      label: text,
       disabled: p.disabled,
     })
   }
-  return fuera
+  return outside
 }
 
 export function Select({
@@ -88,21 +88,21 @@ export function Select({
   ref?: Ref<HTMLButtonElement>
   'aria-label'?: string
 }) {
-  const opciones = opcionesDeHijos(children)
+  const options = opcionesDeHijos(children)
   const [abierto, setAbierto] = useState(false)
-  const [activo, setActivo] = useState(0)
-  const [caja, setCaja] = useState<{ left: number; top: number; width: number; arriba: boolean } | null>(null)
+  const [active, setActivo] = useState(0)
+  const [caja, setCaja] = useState<{ left: number; top: number; width: number; up: boolean } | null>(null)
   const disparador = useRef<HTMLButtonElement>(null)
-  const lista = useRef<HTMLDivElement>(null)
-  const teclas = useRef({ texto: '', hasta: 0 })
+  const list = useRef<HTMLDivElement>(null)
+  const teclas = useRef({ text: '', hasta: 0 })
   const idLista = useId()
 
-  const indiceSel = opciones.findIndex((o) => o.value === String(value))
-  const elegida = indiceSel >= 0 ? opciones[indiceSel] : undefined
+  const indiceSel = options.findIndex((o) => o.value === String(value))
+  const elegida = indiceSel >= 0 ? options[indiceSel] : undefined
 
   function abrir() {
     if (disabled) return
-    setActivo(indiceSel >= 0 ? indiceSel : primeraUtil(opciones, 0, 1))
+    setActivo(indiceSel >= 0 ? indiceSel : primeraUtil(options, 0, 1))
     setAbierto(true)
   }
 
@@ -112,7 +112,7 @@ export function Select({
   }
 
   function elegir(i: number) {
-    const o = opciones[i]
+    const o = options[i]
     if (o == null || o.disabled) return
     onChange?.({ target: { value: o.value } })
     cerrar()
@@ -124,24 +124,24 @@ export function Select({
     const r = disparador.current?.getBoundingClientRect()
     if (r == null) return
     const debajo = window.innerHeight - r.bottom
-    const arriba = debajo < Math.min(ALTO_MAX, opciones.length * 30 + 8) && r.top > debajo
-    setCaja({ left: r.left, top: arriba ? r.top : r.bottom, width: r.width, arriba })
-  }, [abierto, opciones.length])
+    const up = debajo < Math.min(ALTO_MAX, options.length * 30 + 8) && r.top > debajo
+    setCaja({ left: r.left, top: up ? r.top : r.bottom, width: r.width, up })
+  }, [abierto, options.length])
 
   useEffect(() => {
     if (!abierto) return
-    const fuera = (e: MouseEvent) => {
+    const outside = (e: MouseEvent) => {
       const t = e.target as Node
-      if (!disparador.current?.contains(t) && !lista.current?.contains(t)) setAbierto(false)
+      if (!disparador.current?.contains(t) && !list.current?.contains(t)) setAbierto(false)
     }
     const alRodar = () => setAbierto(false)
-    document.addEventListener('mousedown', fuera)
+    document.addEventListener('mousedown', outside)
     // `true` so it also hears a container's scroll, not only the page's:
     // inside a modal the thing that scrolls is the modal.
     window.addEventListener('scroll', alRodar, true)
     window.addEventListener('resize', alRodar)
     return () => {
-      document.removeEventListener('mousedown', fuera)
+      document.removeEventListener('mousedown', outside)
       window.removeEventListener('scroll', alRodar, true)
       window.removeEventListener('resize', alRodar)
     }
@@ -150,10 +150,10 @@ export function Select({
   // The selected option is kept in view when moving with the keyboard.
   useEffect(() => {
     if (!abierto) return
-    const marcada = lista.current?.querySelector('[data-activa="true"]')
+    const checked = list.current?.querySelector('[data-activa="true"]')
     // `scrollIntoView` does not exist in jsdom, and nothing breaks without it.
-    marcada?.scrollIntoView?.({ block: 'nearest' })
-  }, [abierto, activo])
+    checked?.scrollIntoView?.({ block: 'nearest' })
+  }, [abierto, active])
 
   function alTeclado(e: React.KeyboardEvent) {
     if (disabled) return
@@ -177,23 +177,23 @@ export function Select({
       case 'Enter':
       case ' ':
         e.preventDefault()
-        elegir(activo)
+        elegir(active)
         return
       case 'ArrowDown':
         e.preventDefault()
-        setActivo((i) => primeraUtil(opciones, i + 1, 1, i))
+        setActivo((i) => primeraUtil(options, i + 1, 1, i))
         return
       case 'ArrowUp':
         e.preventDefault()
-        setActivo((i) => primeraUtil(opciones, i - 1, -1, i))
+        setActivo((i) => primeraUtil(options, i - 1, -1, i))
         return
       case 'Home':
         e.preventDefault()
-        setActivo(primeraUtil(opciones, 0, 1))
+        setActivo(primeraUtil(options, 0, 1))
         return
       case 'End':
         e.preventDefault()
-        setActivo(primeraUtil(opciones, opciones.length - 1, -1))
+        setActivo(primeraUtil(options, options.length - 1, -1))
         return
       default:
         break
@@ -202,10 +202,10 @@ export function Select({
     // Typing jumps to the option starting with what was typed, like the native one.
     if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       const ahora = Date.now()
-      teclas.current.texto = ahora > teclas.current.hasta ? e.key : teclas.current.texto + e.key
+      teclas.current.text = ahora > teclas.current.hasta ? e.key : teclas.current.text + e.key
       teclas.current.hasta = ahora + 600
-      const buscado = teclas.current.texto.toLowerCase()
-      const i = opciones.findIndex((o) => !o.disabled && o.label.toLowerCase().startsWith(buscado))
+      const wanted = teclas.current.text.toLowerCase()
+      const i = options.findIndex((o) => !o.disabled && o.label.toLowerCase().startsWith(wanted))
       if (i >= 0) setActivo(i)
     }
   }
@@ -219,7 +219,7 @@ export function Select({
         role="combobox"
         aria-expanded={abierto}
         aria-controls={abierto ? idLista : undefined}
-        aria-activedescendant={abierto ? `${idLista}-${activo}` : undefined}
+        aria-activedescendant={abierto ? `${idLista}-${active}` : undefined}
         aria-label={ariaLabel}
         disabled={disabled}
         className={[styles.disparador, className].filter(Boolean).join(' ')}
@@ -231,43 +231,43 @@ export function Select({
         it is inside the list. Completely empty, the control reads as a broken box
         rather than as "nothing is selected".
         */}
-        <span className={elegida?.label ? styles.valor : styles.vacio}>
+        <span className={elegida?.label ? styles.value : styles.emptyText}>
           {elegida?.label || placeholder || '—'}
         </span>
-        <Icono nombre="chevronAbajo" tam={14} className={styles.chevron} />
+        <Icono name="chevronAbajo" tam={14} className={styles.chevron} />
       </button>
 
       {abierto && caja && (
         <div
-          ref={lista}
+          ref={list}
           id={idLista}
           role="listbox"
-          className={styles.lista}
+          className={styles.list}
           style={{
             left: caja.left,
             width: caja.width,
             maxHeight: ALTO_MAX,
-            ...(caja.arriba
+            ...(caja.up
               ? { bottom: window.innerHeight - caja.top + 4 }
               : { top: caja.top + 4 }),
           }}
         >
-          {opciones.map((o, i) => (
+          {options.map((o, i) => (
             <div
               key={o.value}
               id={`${idLista}-${i}`}
               role="option"
               aria-selected={o.value === String(value)}
               aria-disabled={o.disabled}
-              data-activa={i === activo}
-              className={styles.opcion}
+              data-active={i === active}
+              className={styles.option}
               onMouseEnter={() => !o.disabled && setActivo(i)}
               onClick={() => elegir(i)}
             >
-              <span className={styles.marca}>
-                {o.value === String(value) && <Icono nombre="check" tam={13} />}
+              <span className={styles.brand}>
+                {o.value === String(value) && <Icono name="check" tam={13} />}
               </span>
-              {o.label === '' ? <span className={styles.vacia}>—</span> : o.label}
+              {o.label === '' ? <span className={styles.isEmpty}>—</span> : o.label}
             </div>
           ))}
         </div>
@@ -277,18 +277,18 @@ export function Select({
 }
 
 /** The next usable index in that direction; if there is none, it stays put. */
-function primeraUtil(opciones: Opcion[], desde: number, paso: number, actual = desde): number {
-  for (let i = desde; i >= 0 && i < opciones.length; i += paso) {
-    if (!opciones[i].disabled) return i
+function primeraUtil(options: Option[], desde: number, step: number, current = desde): number {
+  for (let i = desde; i >= 0 && i < options.length; i += step) {
+    if (!options[i].disabled) return i
   }
-  return actual
+  return current
 }
 
 /** Merges the internal ref with whatever the caller may pass. */
-function fusionar(propia: React.RefObject<HTMLButtonElement | null>, fuera?: Ref<HTMLButtonElement>) {
-  return (nodo: HTMLButtonElement | null) => {
-    propia.current = nodo
-    if (typeof fuera === 'function') fuera(nodo)
-    else if (fuera != null) (fuera as { current: HTMLButtonElement | null }).current = nodo
+function fusionar(own: React.RefObject<HTMLButtonElement | null>, outside?: Ref<HTMLButtonElement>) {
+  return (node: HTMLButtonElement | null) => {
+    own.current = node
+    if (typeof outside === 'function') outside(node)
+    else if (outside != null) (outside as { current: HTMLButtonElement | null }).current = node
   }
 }

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Dashboard, porcentaje } from './Dashboard'
+import { Dashboard, percentage } from './Dashboard'
 import * as api from '../../api/dashboard'
 
 afterEach(() => vi.restoreAllMocks())
 
 const grafica = { labels: ['a', 'b'], datasets: [{ label: 'Total', data: [1, 2] }] }
-const vacia = { labels: ['a'], datasets: [{ label: 'Total', data: [0] }] }
-const datos = {
+const isEmpty = { labels: ['a'], datasets: [{ label: 'Total', data: [0] }] }
+const data = {
   stats: {
     totalQueries: 48312, totalNoError: 41008, totalServerFailure: 36, totalNxDomain: 1204,
     totalRefused: 12, totalAuthoritative: 9517, totalRecursive: 7883, totalCached: 24860,
@@ -23,20 +23,20 @@ const datos = {
   topBlockedDomains: [],
 }
 
-describe('porcentaje', () => {
+describe('percentage', () => {
   // main.js:2652-2676 — `toFixed(2)`, with a dot, no locale and two decimals.
   it('two decimals and a dot, like upstream', () => {
-    expect(porcentaje(41008, 48312)).toBe('84.88%')
-    expect(porcentaje(36, 48312)).toBe('0.07%')
+    expect(percentage(41008, 48312)).toBe('84.88%')
+    expect(percentage(36, 48312)).toBe('0.07%')
   })
   it('with no queries it is a literal \"0%\", not \"0.00%\"', () => {
-    expect(porcentaje(0, 0)).toBe('0%')
+    expect(percentage(0, 0)).toBe('0%')
   })
 })
 
 describe('Dashboard', () => {
   it('it draws the eleven metrics with their literal labels', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     // "Blocked" and "Cache" also come out as server counters, so the search is
     // done inside the metric cards, not across the whole screen.
@@ -57,7 +57,7 @@ describe('Dashboard', () => {
   total has no share of itself.
   */
   it('the total tile carries no percentage, like the clients one', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     const tiles = within(await screen.findByTestId('metricas'))
     expect(tiles.queryByText('100.00%')).not.toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('Dashboard', () => {
   })
 
   it('it draws the six server counters', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     const c = within(await screen.findByTestId('contadores'))
     for (const l of ['Zones','Cache','Allowed','Blocked','Allow List','Block List']) {
@@ -77,7 +77,7 @@ describe('Dashboard', () => {
   })
 
   it('it offers the six ranges with their labels and starts on Last Hour', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     const b = await screen.findByRole('button', { name: 'Last Hour' })
     expect(b).toHaveAttribute('aria-pressed', 'true')
@@ -87,7 +87,7 @@ describe('Dashboard', () => {
   })
 
   it('changing range asks for the data again with that type', async () => {
-    const spy = vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    const spy = vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     await screen.findByText('Total Queries')
     spy.mockClear()
@@ -96,7 +96,7 @@ describe('Dashboard', () => {
   })
 
   it('it draws all FOUR charts, not two', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByLabelText('Queries over time')).toBeInTheDocument()
     expect(screen.getByLabelText('Query Response Types')).toBeInTheDocument()
@@ -106,8 +106,8 @@ describe('Dashboard', () => {
 
   it('a chart with no data says there is none instead of leaving an empty canvas', async () => {
     vi.spyOn(api, 'getDashboardStats').mockResolvedValue({
-      ...datos, mainChartData: vacia, queryResponseChartData: vacia,
-      queryTypeChartData: vacia, protocolTypeChartData: vacia,
+      ...data, mainChartData: isEmpty, queryResponseChartData: isEmpty,
+      queryTypeChartData: isEmpty, protocolTypeChartData: isEmpty,
     } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByText('No queries for this period.')).toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('Dashboard', () => {
   })
 
   it('an empty Top list says so instead of staying blank', async () => {
-    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: datos } as never)
+    vi.spyOn(api, 'getDashboardStats').mockResolvedValue({ kind: 'ok', data: data } as never)
     render(<Dashboard token="t" />)
     expect(await screen.findByText('No data for this period.')).toBeInTheDocument()
   })

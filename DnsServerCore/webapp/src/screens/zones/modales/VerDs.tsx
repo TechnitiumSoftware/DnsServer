@@ -4,7 +4,7 @@ import { Dialog } from '../../../ui/Dialog'
 import { Empty, Loading } from '../../../ui/Empty'
 import { fechaMinuto as fechaCorta } from '../../../lib/fechas'
 import type { Aviso } from '../tipos'
-import { Tabla } from '../../../ui/Table'
+import { Table } from '../../../ui/Table'
 import styles from '../Zones.module.css'
 import { Avisador } from '../../../ui/Avisador'
 
@@ -22,12 +22,12 @@ unreadable.
 
 const CORTE = 64
 
-function Largo({ valor }: { valor: string }) {
+function Long({ value }: { value: string }) {
   const [entero, setEntero] = useState(false)
-  if (valor.length <= CORTE || entero) return <span className={styles.clave}>{valor}</span>
+  if (value.length <= CORTE || entero) return <span className={styles.key}>{value}</span>
   return (
     <>
-      <span className={styles.clave}>{valor.slice(0, CORTE)}… </span>
+      <span className={styles.key}>{value.slice(0, CORTE)}… </span>
       <button type="button" className={styles.verlo} onClick={() => setEntero(true)}>
         show full
       </button>
@@ -50,14 +50,14 @@ export function VerDs({
 }) {
   const [info, setInfo] = useState<InfoDs | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [cargando, setCargando] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!abierto) return
     setAviso(null)
-    setCargando(true)
+    setLoading(true)
     void verDs(token, zone, node).then((r) => {
-      setCargando(false)
+      setLoading(false)
       if (r == null) {
         setAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
         return
@@ -70,7 +70,7 @@ export function VerDs({
     <Dialog
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
-      tamano="ancho"
+      size="wide"
       title={`View DS Info - ${zone === '.' ? '<root>' : zone}`}
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
@@ -97,13 +97,13 @@ export function VerDs({
         </li>
       </ul>
 
-      {cargando ? (
+      {loading ? (
         <Loading>Loading DS records…</Loading>
       ) : (info?.dsRecords ?? []).length === 0 ? (
         <Empty titulo="No DS records">This zone has no published keys yet.</Empty>
       ) : (
         (info?.dsRecords ?? []).map((ds) => (
-          <div key={ds.keyTag} className={styles.grupo}>
+          <div key={ds.keyTag} className={styles.group}>
             <dl className={styles.kv}>
               <dt>Key Tag</dt>
               <dd>{ds.keyTag}</dd>
@@ -119,12 +119,12 @@ export function VerDs({
               </dd>
               <dt>Public Key</dt>
               <dd>
-                <Largo valor={ds.publicKey} />
+                <Long value={ds.publicKey} />
               </dd>
             </dl>
 
-            <Tabla
-              cabecera={
+            <Table
+              header={
                 <>
                   <th style={{ width: 140 }}>Digest Type</th>
                   <th>Digest</th>
@@ -137,11 +137,11 @@ export function VerDs({
                     {d.digestType} ({d.digestTypeNumber})
                   </td>
                   <td>
-                    <Largo valor={d.digest} />
+                    <Long value={d.digest} />
                   </td>
                 </tr>
               ))}
-            </Tabla>
+            </Table>
           </div>
         ))
       )}

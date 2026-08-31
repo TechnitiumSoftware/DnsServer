@@ -70,7 +70,7 @@ confirmations are the browser's `confirm()`.
 .compacto { width: min(440px, calc(100vw - 32px)); }
 .formulario { width: min(560px, calc(100vw - 32px)); }
 .medio { width: min(720px, calc(100vw - 32px)); }
-.ancho { width: min(880px, calc(100vw - 32px)); }
+.width { width: min(880px, calc(100vw - 32px)); }
 .head {
   flex: none;
   display: flex; align-items: center; justify-content: space-between;
@@ -90,9 +90,9 @@ confirmations are the browser's `confirm()`.
      to the `gap`, and without the subtraction the alert sat 36 px from the form
      inside a dialog and 24 on a page. Same mechanism as in
      `SectionHeader.module.css`. */
-  --hueco: var(--s-8);
+  --gap: var(--s-8);
   padding: var(--s-3) var(--s-10) var(--s-9);
-  display: flex; flex-direction: column; gap: var(--hueco);
+  display: flex; flex-direction: column; gap: var(--gap);
   overflow-y: auto; min-height: 0;
 }
 

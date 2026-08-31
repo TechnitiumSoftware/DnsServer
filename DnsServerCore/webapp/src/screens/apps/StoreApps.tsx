@@ -36,7 +36,7 @@ export function StoreApps({
 }) {
   const [storeApps, setStoreApps] = useState<StoreApp[] | null>(null)
   const [alert, setAlert] = useState<AlertState | null>(null)
-  const [ocupado, setOcupado] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
   const [porDesinstalar, setPorDesinstalar] = useState<StoreApp | null>(null)
 
   const cargar = useCallback(async () => {
@@ -56,10 +56,10 @@ export function StoreApps({
     void cargar()
   }, [open, cargar])
 
-  async function tras(app: StoreApp, ok: AlertState, llamada: Promise<{ kind: string; message?: string }>) {
-    setOcupado(app.name)
-    const outcome = await llamada
-    setOcupado(null)
+  async function tras(app: StoreApp, ok: AlertState, call: Promise<{ kind: string; message?: string }>) {
+    setBusy(app.name)
+    const outcome = await call
+    setBusy(null)
 
     if (outcome.kind !== 'ok') {
       setAlert(error(outcome))
@@ -117,7 +117,7 @@ export function StoreApps({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      tamano="medio"
+      size="medium"
       title="DNS App Store"
     >
       <Avisador aviso={alert} onCerrar={() => setAlert(null)} />
@@ -125,7 +125,7 @@ export function StoreApps({
       <Confirmar
         abierto={porDesinstalar !== null}
         titulo="Uninstall App"
-        texto={`Are you sure you want to uninstall the DNS application '${porDesinstalar?.name ?? ''}'?`}
+        text={`Are you sure you want to uninstall the DNS application '${porDesinstalar?.name ?? ''}'?`}
         etiqueta="Uninstall"
         onCerrar={() => setPorDesinstalar(null)}
         onConfirmar={() => porDesinstalar && desinstalar(porDesinstalar)}
@@ -168,21 +168,21 @@ export function StoreApps({
                     {!app.installed && (
                       <Button
                         variant="primary"
-                        disabled={ocupado === app.name}
+                        disabled={busy === app.name}
                         onClick={() => void instalar(app)}
                       >
                         Install
                       </Button>
                     )}
                     {hayUpdate && (
-                      <Button disabled={ocupado === app.name} onClick={() => void actualizar(app)}>
+                      <Button disabled={busy === app.name} onClick={() => void actualizar(app)}>
                         Update
                       </Button>
                     )}
                     {app.installed && (
                       <Button
                         variant="danger"
-                        disabled={ocupado === app.name}
+                        disabled={busy === app.name}
                         onClick={() => setPorDesinstalar(app)}
                       >
                         Uninstall

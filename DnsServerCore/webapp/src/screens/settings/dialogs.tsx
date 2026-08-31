@@ -15,11 +15,11 @@ screens use. It is re-exported under the name it is asked for by here.
 export { Confirmar } from '../../ui/Confirmar'
 
 function ListaElementos({
-  seleccion,
+  selection,
   onChange,
   prefijo,
 }: {
-  seleccion: Record<string, boolean>
+  selection: Record<string, boolean>
   onChange: (s: Record<string, boolean>) => void
   prefijo: string
 }) {
@@ -29,8 +29,8 @@ function ListaElementos({
         <Check
           key={`${prefijo}-${e.key}`}
           label={e.label}
-          checked={seleccion[e.key] === true}
-          onChange={(v) => onChange({ ...seleccion, [e.key]: v })}
+          checked={selection[e.key] === true}
+          onChange={(v) => onChange({ ...selection, [e.key]: v })}
         />
       ))}
     </div>
@@ -40,20 +40,20 @@ function ListaElementos({
 export interface DialogoProps {
   open: boolean
   onOpenChange: (o: boolean) => void
-  seleccion: Record<string, boolean>
-  onSeleccion: (s: Record<string, boolean>) => void
+  selection: Record<string, boolean>
+  onSelection: (s: Record<string, boolean>) => void
   aviso: { title: string; text: string } | null
-  ocupado?: boolean
+  busy?: boolean
 }
 
 /** Modal «Backup Settings» (index.html:6283-6380). */
 export function BackupDialog({
   open,
   onOpenChange,
-  seleccion,
-  onSeleccion,
+  selection,
+  onSelection,
   aviso,
-  ocupado,
+  busy,
   onBackup,
 }: DialogoProps & { onBackup: () => void }) {
   return (
@@ -61,9 +61,9 @@ export function BackupDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Backup Settings"
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={onBackup}>
+          <Button variant="primary" disabled={busy} onClick={onBackup}>
             Backup
           </Button>
         </>
@@ -75,7 +75,7 @@ export function BackupDialog({
         </Alert>
       )}
       <p>The backup process will create a zip file for the items selected below:</p>
-      <ListaElementos seleccion={seleccion} onChange={onSeleccion} prefijo="backup" />
+      <ListaElementos selection={selection} onChange={onSelection} prefijo="backup" />
       <div className={styles.notas}>
         <Alert type="info" title="Note!">
           The Web Service or Optional Protocols TLS certificate (.pfx or .p12) files will be
@@ -94,10 +94,10 @@ export function BackupDialog({
 export function RestoreDialog({
   open,
   onOpenChange,
-  seleccion,
-  onSeleccion,
+  selection,
+  onSelection,
   aviso,
-  ocupado,
+  busy,
   onRestore,
 }: DialogoProps & { onRestore: (fichero: File | null, borrar: boolean) => void }) {
   const [fichero, setFichero] = useState<File | null>(null)
@@ -108,9 +108,9 @@ export function RestoreDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Restore Settings"
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => onRestore(fichero, borrar)}>
+          <Button variant="primary" disabled={busy} onClick={() => onRestore(fichero, borrar)}>
             Restore
           </Button>
         </>
@@ -127,7 +127,7 @@ export function RestoreDialog({
         )}
       </Field>
       <p>The restore process will restore all the selected items from the backup zip file:</p>
-      <ListaElementos seleccion={seleccion} onChange={onSeleccion} prefijo="restore" />
+      <ListaElementos selection={selection} onChange={onSelection} prefijo="restore" />
       <p>Restore options:</p>
       <Check
         label="Delete Existing Files For Selected Items"

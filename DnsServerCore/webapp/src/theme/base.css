@@ -124,7 +124,7 @@ other one. If `ui/Field`'s box is touched, this one has to be touched too.
 */
 select,
 input[type='file'] {
-  min-height: var(--campo-alto);
+  min-height: var(--field-height);
   font-size: var(--t-4);
   padding: var(--s-5) var(--s-7);
   border: 1px solid var(--line);

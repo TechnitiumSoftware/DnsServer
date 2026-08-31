@@ -83,22 +83,22 @@ describe('api/logs — download for the viewer', () => {
     const fetchSpy = vi.fn().mockResolvedValue({ text: () => Promise.resolve('[2026] ok\n') })
     vi.stubGlobal('fetch', fetchSpy)
 
-    const texto = await downloadLogText('tok', '2026-08-26')
+    const text = await downloadLogText('tok', '2026-08-26')
 
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toBe('/api/logs/download?fileName=2026-08-26&limit=2&node=')
     expect(init.headers).toEqual({ Authorization: 'Bearer tok' })
-    expect(texto).toBe('[2026] ok\n')
+    expect(text).toBe('[2026] ok\n')
   })
 
   it('if the server answers a JSON error it returns it FORMATTED, to draw in the viewer', async () => {
-    const cuerpo = JSON.stringify({ status: 'error', errorMessage: "Could not find file 'x'." })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ text: () => Promise.resolve(cuerpo) }))
+    const body = JSON.stringify({ status: 'error', errorMessage: "Could not find file 'x'." })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ text: () => Promise.resolve(body) }))
 
-    const texto = await downloadLogText('tok', 'nope')
+    const text = await downloadLogText('tok', 'nope')
 
-    expect(texto).toBe(JSON.stringify(JSON.parse(cuerpo), null, 2))
-    expect(texto).toContain('"status": "error"')
+    expect(text).toBe(JSON.stringify(JSON.parse(body), null, 2))
+    expect(text).toContain('"status": "error"')
   })
 
   it('returns null if the request does not even go out', async () => {
@@ -139,12 +139,12 @@ describe('api/logs — query and export', () => {
 
     await exportLogsCsv('tok', { ...FILTROS, qname: 'casa.test' })
 
-    const [, ruta, params, opciones] = spy.mock.calls[0]
-    expect(ruta).toBe('logs/export')
+    const [, route, params, options] = spy.mock.calls[0]
+    expect(route).toBe('logs/export')
     expect(params).not.toHaveProperty('pageNumber')
     expect(params).not.toHaveProperty('entriesPerPage')
     expect(params).not.toHaveProperty('descendingOrder')
     expect(params).toMatchObject({ name: 'Query Logs (Sqlite)', qname: 'casa.test', node: '' })
-    expect(opciones).toBeUndefined()
+    expect(options).toBeUndefined()
   })
 })

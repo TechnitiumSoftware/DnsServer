@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Registro, ZonaDeRegistros } from '../../api/registros'
+import type { ResourceRecord, ZonaDeRegistros } from '../../api/registros'
 import { Confirmar } from '../../ui/Confirmar'
 import { ListaZonas } from './ListaZonas'
 import { RegistrosZona } from './RegistrosZona'
@@ -14,7 +14,7 @@ import { OpcionesZona } from './modales/OpcionesZona'
 import { PermisosZona } from './modales/PermisosZona'
 import { PropiedadesDnssec } from './modales/PropiedadesDnssec'
 import { VerDs } from './modales/VerDs'
-import type { Aviso, Confirmacion } from './tipos'
+import type { Aviso, Confirmation } from './tipos'
 import { Avisador } from '../../ui/Avisador'
 
 /*
@@ -63,7 +63,7 @@ export function Zones({
 }: ZonesProps) {
   const [abierta, setAbierta] = useState<string | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [modal, setModal] = useState<ModalId | null>(null)
 
   /** The zone the open modal acts on; it may not be the one on screen. */
@@ -72,8 +72,8 @@ export function Zones({
 
   const [modoRegistro, setModoRegistro] = useState<'add' | 'update'>('add')
   const [zonaDeRegistros, setZonaDeRegistros] = useState<ZonaDeRegistros | null>(null)
-  const [registros, setRegistros] = useState<Registro[]>([])
-  const [registroOriginal, setRegistroOriginal] = useState<Registro | null>(null)
+  const [records, setRegistros] = useState<ResourceRecord[]>([])
+  const [registroOriginal, setRegistroOriginal] = useState<ResourceRecord | null>(null)
 
   /*
   The expiry TTL left over in the record modal. Upstream reads it from that
@@ -113,7 +113,7 @@ export function Zones({
           canModify={canModify}
           canDelete={canDelete}
           onAviso={setAviso}
-          onConfirmar={setConfirmacion}
+          onConfirmar={setConfirmation}
           onAnadir={() => abrirModal('add', '')}
           onAbrir={(z) => {
             setAviso(null)
@@ -138,19 +138,19 @@ export function Zones({
             releerLista()
           }}
           onAviso={setAviso}
-          onConfirmar={setConfirmacion}
-          onAnadirRegistro={(zona, regs) => {
+          onConfirmar={setConfirmation}
+          onAnadirRegistro={(zone, regs) => {
             setModoRegistro('add')
-            setZonaDeRegistros(zona)
+            setZonaDeRegistros(zone)
             setRegistros(regs)
             setRegistroOriginal(null)
             abrirModal('record', abierta)
           }}
-          onEditarRegistro={(zona, registro, regs) => {
+          onEditarRegistro={(zone, record, regs) => {
             setModoRegistro('update')
-            setZonaDeRegistros(zona)
+            setZonaDeRegistros(zone)
             setRegistros(regs)
-            setRegistroOriginal(registro)
+            setRegistroOriginal(record)
             abrirModal('record', abierta)
           }}
           onImportar={(z) => abrirModal('import', z)}
@@ -168,13 +168,13 @@ export function Zones({
       )}
 
       <Confirmar
-        abierto={confirmacion !== null}
-        titulo={confirmacion?.titulo ?? ''}
-        texto={confirmacion?.texto}
-        etiqueta={confirmacion?.etiqueta ?? ''}
-        variante={confirmacion?.peligro ? 'danger' : 'primary'}
-        onCerrar={() => setConfirmacion(null)}
-        onConfirmar={() => confirmacion?.accion()}
+        abierto={confirmation !== null}
+        titulo={confirmation?.titulo ?? ''}
+        text={confirmation?.text}
+        etiqueta={confirmation?.etiqueta ?? ''}
+        variante={confirmation?.peligro ? 'danger' : 'primary'}
+        onCerrar={() => setConfirmation(null)}
+        onConfirmar={() => confirmation?.action()}
       />
 
       <AnadirZona
@@ -184,7 +184,7 @@ export function Zones({
         useSoaSerialDateScheme={useSoaSerialDateScheme}
         dnssecValidation={dnssecValidation}
         onCerrar={() => setModal(null)}
-        onCreada={(domain, a) => {
+        onCreated={(domain, a) => {
           // Upstream opens the newly created zone, it does not go back to the list.
           setAbierta(domain === '' ? '.' : domain)
           setAviso(a)
@@ -270,7 +270,7 @@ export function Zones({
         token={token}
         node={node}
         onCerrar={() => setModal(null)}
-        onConfirmar={setConfirmacion}
+        onConfirmar={setConfirmation}
         onCambio={releerZona}
       />
 
@@ -278,8 +278,8 @@ export function Zones({
         abierto={modal === 'record'}
         modo={modoRegistro}
         zone={zonaModal}
-        zona={zonaDeRegistros}
-        registros={registros}
+        zoneInfo={zonaDeRegistros}
+        records={records}
         original={registroOriginal}
         token={token}
         node={node}

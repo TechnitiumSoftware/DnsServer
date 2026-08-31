@@ -10,7 +10,7 @@ list is four entries. It splits into `.fila` and `.compacta`, which is naming th
 difference instead of leaving it hidden in two paddings.
 */
 
-.fila {
+.row {
   display: flex;
   align-items: center;
   gap: var(--s-5);
@@ -28,10 +28,10 @@ difference instead of leaving it hidden in two paddings.
 
 /* The tree: same row, less air, because there are many and they nest. */
 .compacta {
-  composes: fila;
+  composes: row;
   gap: var(--s-4);
   padding: var(--s-3) var(--s-4);
 }
 
-.fila:hover { background: var(--hover-fuerte); color: var(--ink); }
-.fila[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 550; }
+.row:hover { background: var(--hover-fuerte); color: var(--ink); }
+.row[aria-current='true'] { background: var(--pan2); color: var(--acc); font-weight: 550; }

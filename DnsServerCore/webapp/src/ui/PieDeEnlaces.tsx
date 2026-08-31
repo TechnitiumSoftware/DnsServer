@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { CREDITO_TEMA, PIE } from '../app/pie'
+import { CREDITO_TEMA, FOOTER } from '../app/pie'
 import styles from './PieDeEnlaces.module.css'
 
 /**
@@ -8,19 +8,19 @@ import styles from './PieDeEnlaces.module.css'
  */
 export function PieDeEnlaces({ className }: { className?: string }) {
   return (
-    <div className={[styles.pie, className].filter(Boolean).join(' ')}>
-      {PIE.map((e, i) => (
+    <div className={[styles.footer, className].filter(Boolean).join(' ')}>
+      {FOOTER.map((e, i) => (
         <Fragment key={e.href}>
           {i > 0 && <span className={styles.sep}> | </span>}
-          <a href={e.href} aria-label={e.nombre} target="_blank" rel="noreferrer">
-            {e.texto}
+          <a href={e.href} aria-label={e.name} target="_blank" rel="noreferrer">
+            {e.text}
           </a>
         </Fragment>
       ))}
       <div className={styles.credito}>
         Theme by{' '}
-        <a href={CREDITO_TEMA.href} aria-label={CREDITO_TEMA.nombre} target="_blank" rel="noreferrer">
-          {CREDITO_TEMA.texto}
+        <a href={CREDITO_TEMA.href} aria-label={CREDITO_TEMA.name} target="_blank" rel="noreferrer">
+          {CREDITO_TEMA.text}
         </a>
       </div>
     </div>

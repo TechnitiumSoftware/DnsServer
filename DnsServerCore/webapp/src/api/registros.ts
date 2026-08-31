@@ -31,7 +31,7 @@ Four things that come as a surprise and belong to upstream:
      the whole record is resent with `disable=true`.
 */
 
-export interface Registro {
+export interface ResourceRecord {
   name: string
   type: string
   ttl: number
@@ -63,7 +63,7 @@ export interface ZonaDeRegistros {
 
 export interface RegistrosDeZona {
   zone: ZonaDeRegistros
-  records: Registro[]
+  records: ResourceRecord[]
 }
 
 /**
@@ -87,10 +87,10 @@ export async function getRecords(
 }
 
 export interface RespuestaAlta {
-  response: { addedRecord: Registro; zone: ZonaDeRegistros }
+  response: { addedRecord: ResourceRecord; zone: ZonaDeRegistros }
 }
 export interface RespuestaEdicion {
-  response: { updatedRecord: Registro; zone: ZonaDeRegistros }
+  response: { updatedRecord: ResourceRecord; zone: ZonaDeRegistros }
 }
 
 export function addRecord(
@@ -140,9 +140,9 @@ const s = (v: unknown): string => (v == null ? '' : String(v))
  */
 export function aplanarSvcParams(params: unknown): string {
   const obj = (params ?? {}) as Record<string, unknown>
-  const partes: string[] = []
-  for (const [k, v] of Object.entries(obj)) partes.push(k, s(v))
-  return partes.length === 0 ? 'false' : partes.join('|')
+  const parts: string[] = []
+  for (const [k, v] of Object.entries(obj)) parts.push(k, s(v))
+  return parts.length === 0 ? 'false' : parts.join('|')
 }
 
 /** `data-record-glue`: the addresses joined by ", " (zone.js:3700-3712). */
@@ -152,8 +152,8 @@ export function aplanarGlue(glue: string[] | undefined): string {
 
 /** `data-record-character-strings-base64`: unidas por coma (zone.js:3797-3803). */
 export function aplanarCharacterStrings(r: Record<string, unknown>): string {
-  const lista = (r.characterStringsBase64 ?? []) as string[]
-  return lista.join(',')
+  const list = (r.characterStringsBase64 ?? []) as string[]
+  return list.join(',')
 }
 
 /**
@@ -166,27 +166,27 @@ export function aplanarCharacterStrings(r: Record<string, unknown>): string {
  * nothing.
  */
 export function identidadRegistro(
-  registro: Registro,
-  opciones: { paraBorrado?: boolean; updateSvcbHints?: boolean } = {},
+  record: ResourceRecord,
+  options: { forDeletion?: boolean; updateSvcbHints?: boolean } = {},
 ): Record<string, string> {
-  const d = registro.rData
-  const borrado = opciones.paraBorrado === true
+  const d = record.rData
+  const deletion = options.forDeletion === true
   const out: Record<string, string> = {}
 
-  switch (registro.type) {
+  switch (record.type) {
     case 'A':
     case 'AAAA':
       out.ipAddress = s(d.ipAddress)
-      out.updateSvcbHints = String(opciones.updateSvcbHints ?? false)
+      out.updateSvcbHints = String(options.updateSvcbHints ?? false)
       break
 
     case 'NS':
       out.nameServer = s(d.nameServer)
-      if (!borrado) out.glue = aplanarGlue(registro.glueRecords)
+      if (!deletion) out.glue = aplanarGlue(record.glueRecords)
       break
 
     case 'CNAME':
-      if (!borrado) out.cname = s(d.cname)
+      if (!deletion) out.cname = s(d.cname)
       break
 
     case 'PTR':
@@ -224,7 +224,7 @@ export function identidadRegistro(
       break
 
     case 'DNAME':
-      if (!borrado) out.dname = s(d.dname)
+      if (!deletion) out.dname = s(d.dname)
       break
 
     case 'DS':
@@ -253,7 +253,7 @@ export function identidadRegistro(
       // An empty target is sent as the root, same as in the row (zone.js:4071).
       out.svcTargetName = s(d.svcTargetName) === '' ? '.' : s(d.svcTargetName)
       out.svcParams = aplanarSvcParams(d.svcParams)
-      if (!borrado) {
+      if (!deletion) {
         out.autoIpv4Hint = String(d.autoIpv4Hint === true)
         out.autoIpv6Hint = String(d.autoIpv6Hint === true)
       }
@@ -278,7 +278,7 @@ export function identidadRegistro(
     case 'FWD':
       out.protocol = s(d.protocol)
       out.forwarder = s(d.forwarder)
-      if (!borrado) {
+      if (!deletion) {
         out.forwarderPriority = s(d.priority)
         out.dnssecValidation = String(d.dnssecValidation === true)
         out.proxyType = s(d.proxyType)
@@ -292,7 +292,7 @@ export function identidadRegistro(
       break
 
     case 'APP':
-      if (!borrado) {
+      if (!deletion) {
         out.appName = s(d.appName)
         out.classPath = s(d.classPath)
         out.recordData = s(d.data)
@@ -315,13 +315,13 @@ export function identidadRegistro(
  * zone unloaded upstream would rather ask for the update.
  */
 export function zonaTienePistaSvcbAuto(
-  registros: Registro[] | null,
+  records: ResourceRecord[] | null,
   ipv4: boolean,
   ipv6: boolean,
 ): boolean {
-  if (registros == null) return true
+  if (records == null) return true
 
-  for (const r of registros) {
+  for (const r of records) {
     if (r.type !== 'SVCB' && r.type !== 'HTTPS') continue
     const d = r.rData
     if ((d.autoIpv4Hint === true && ipv4) || (d.autoIpv6Hint === true && ipv6)) return true
@@ -345,12 +345,12 @@ export function dominioCompleto(zone: string, subDominio: string): string {
  * The body of a `records/delete`: the identity plus zone, domain and type.
  * An empty name is the root (zone.js:6410-6411).
  */
-export function cuerpoBorrado(zone: string, registro: Registro): Record<string, string> {
+export function cuerpoBorrado(zone: string, record: ResourceRecord): Record<string, string> {
   return {
     zone,
-    domain: registro.name === '' ? '.' : registro.name,
-    type: registro.type,
-    ...identidadRegistro(registro, { paraBorrado: true }),
+    domain: record.name === '' ? '.' : record.name,
+    type: record.type,
+    ...identidadRegistro(record, { forDeletion: true }),
   }
 }
 
@@ -361,19 +361,19 @@ export function cuerpoBorrado(zone: string, registro: Registro): Record<string, 
  */
 export function cuerpoCambioDeEstado(
   zone: string,
-  registro: Registro,
+  record: ResourceRecord,
   deshabilitar: boolean,
   updateSvcbHints: boolean,
 ): Record<string, string> {
-  const domain = registro.name === '' ? '.' : registro.name
+  const domain = record.name === '' ? '.' : record.name
   return {
     zone,
     domain,
-    type: registro.type,
-    ttl: String(registro.ttl),
+    type: record.type,
+    ttl: String(record.ttl),
     disable: String(deshabilitar),
-    comments: registro.comments ?? '',
-    expiryTtl: String(registro.expiryTtl),
-    ...identidadRegistro(registro, { updateSvcbHints }),
+    comments: record.comments ?? '',
+    expiryTtl: String(record.expiryTtl),
+    ...identidadRegistro(record, { updateSvcbHints }),
   }
 }

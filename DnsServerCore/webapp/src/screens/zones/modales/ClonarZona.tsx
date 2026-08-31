@@ -26,26 +26,26 @@ export function ClonarZona({
 }) {
   const [nueva, setNueva] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
-  const campo = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const field = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!abierto) return
     setNueva('')
     setAviso(null)
-    campo.current?.focus()
+    field.current?.focus()
   }, [abierto])
 
   async function clonar() {
     if (nueva === '') {
       setAviso({ type: 'warning', title: 'Missing!', text: 'Please enter a domain name for the new zone.' })
-      campo.current?.focus()
+      field.current?.focus()
       return
     }
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await cloneZone(token, nueva, zone, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -62,23 +62,23 @@ export function ClonarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Clone Zone - ${zone === '.' ? '<root>' : zone}`}
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void clonar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void clonar()}>
             Clone Zone
           </Button>
         </>
       }
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
-      <div className={styles.campos}>
+      <div className={styles.fields}>
         {/* The source is read-only: upstream keeps it in a hidden input. */}
         <LabeledInput label="Source Zone" mono readOnly value={zone} />
         <LabeledInput
           label="New Zone"
           placeholder="example.com"
           mono
-          ref={campo}
+          ref={field}
           value={nueva}
           onChange={(e) => setNueva(e.target.value)}
         />

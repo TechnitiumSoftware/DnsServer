@@ -18,15 +18,15 @@ not observed live.
 
 const ok = (data: unknown) => ({ kind: 'ok' as const, data })
 
-function servidor(estado: ClusterState = CLUSTER_SIN_INICIAR) {
+function servidor(state: ClusterState = CLUSTER_SIN_INICIAR) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'admin/cluster/state') {
       return ok({
-        response: { ...estado, serverIpAddresses: ['10.0.0.1', '10.0.0.10'] },
+        response: { ...state, serverIpAddresses: ['10.0.0.1', '10.0.0.10'] },
         server: 'x',
       })
     }
-    return ok({ response: estado, server: 'x' })
+    return ok({ response: state, server: 'x' })
   })
 }
 
@@ -71,13 +71,13 @@ describe('Cluster — inicializar uno nuevo', () => {
 
   it('it requires the domain first and then some IP', async () => {
     const { user, spy } = await abrir()
-    const boton = screen.getByRole('button', { name: 'Initialize' })
+    const button = screen.getByRole('button', { name: 'Initialize' })
 
-    await user.click(boton)
+    await user.click(button)
     expect(screen.getByText('Please enter the Cluster domain name.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Cluster Domain'), 'micluster.test')
-    await user.click(boton)
+    await user.click(button)
     expect(screen.getByText('Please enter a Primary node IP address.')).toBeInTheDocument()
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/init')).toBeUndefined()
   })
@@ -139,22 +139,22 @@ describe('Cluster — unirse a uno existente', () => {
 
   it('the validation order is IP, URL, user and password', async () => {
     const { user, spy } = await abrir()
-    const boton = screen.getByRole('button', { name: 'Join' })
+    const button = screen.getByRole('button', { name: 'Join' })
 
-    await user.click(boton)
+    await user.click(button)
     expect(screen.getByText('Please select a Secondary node IP address.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Secondary Node IP Addresses'), '10.0.0.3\n')
-    await user.click(boton)
+    await user.click(button)
     expect(screen.getByText('Please enter the Primary node URL.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Primary Node URL'), 'https://ns1.test')
     await user.clear(screen.getByLabelText('Primary Node Username'))
-    await user.click(boton)
+    await user.click(button)
     expect(screen.getByText('Please enter the Primary node admin username.')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Primary Node Username'), 'admin')
-    await user.click(boton)
+    await user.click(button)
     expect(screen.getByText('Please enter the Primary node admin password.')).toBeInTheDocument()
     expect(spy.mock.calls.find((c) => c[0] === 'admin/cluster/initJoin')).toBeUndefined()
   })
@@ -476,13 +476,13 @@ describe('Cluster — the node table', () => {
     render(<Cluster {...props} />)
     await screen.findByText('Total Nodes: 2')
 
-    const filas = screen.getAllByRole('row')
+    const rows = screen.getAllByRole('row')
     // The row of the node itself (the secondary) is the last one.
-    const propia = filas[filas.length - 1]
-    expect(propia).toHaveTextContent('Self')
+    const own = rows[rows.length - 1]
+    expect(own).toHaveTextContent('Self')
     // Without "Last Seen" (it is the node itself) but WITH "Last Synced", which
     // only exists for a secondary looking at itself.
-    expect(within(propia).getAllByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)).toHaveLength(2)
+    expect(within(own).getAllByText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)).toHaveLength(2)
   })
 
   it('an unknown type or state comes out as \"Unknown\" instead of blank', async () => {

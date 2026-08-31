@@ -10,7 +10,7 @@ import {
   listarNodo,
   vaciarCache,
   vaciarLista,
-  type Lista,
+  type List,
   type ListaDominios,
   type NodoLista,
 } from '../../api/zonelists'
@@ -20,8 +20,8 @@ import { Dialog } from '../../ui/Dialog'
 import { Field, Input, LabeledTextarea } from '../../ui/Field'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
-import { Arbol } from './Arbol'
-import { Registros } from './Registros'
+import { Tree } from './Arbol'
+import { ResourceRecords } from './Registros'
 import styles from './Listas.module.css'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
@@ -44,14 +44,14 @@ Blocked on the node having records (lines 319-327). It is replicated as it is.
 */
 
 
-interface Confirmacion {
+interface Confirmation {
   titulo: string
-  texto: string
+  text: string
   etiqueta: string
-  accion: () => Promise<void>
+  action: () => Promise<void>
 }
 
-const TITULO: Record<Lista, string> = { cache: 'Cache', allowed: 'Allowed', blocked: 'Blocked' }
+const TITULO: Record<List, string> = { cache: 'Cache', allowed: 'Allowed', blocked: 'Blocked' }
 
 /*
 `importAllowedZones` / `importBlockedZones` (other-zones.js:589-661). The
@@ -59,24 +59,24 @@ empty-list alert goes INSIDE the modal, not on the page: upstream passes
 `showAlert` the modal's own `divImportAllowedZonesAlert`.
 */
 function Importar({
-  lista,
+  list,
   abierto,
   token,
   onCerrar,
   onHecho,
 }: {
-  lista: ListaDominios
+  list: ListaDominios
   abierto: boolean
   token: string | null
   onCerrar: () => void
   onHecho: (a: Aviso) => void
 }) {
-  const [texto, setTexto] = useState('')
+  const [text, setTexto] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
   const area = useRef<HTMLTextAreaElement>(null)
 
-  const esAllowed = lista === 'allowed'
+  const esAllowed = list === 'allowed'
   const titulo = esAllowed ? 'Import Allowed Zones' : 'Import Blocked Zones'
   const etiqueta = esAllowed ? 'Allowed Zones' : 'Blocked Zones'
   const intro = esAllowed
@@ -93,9 +93,9 @@ function Importar({
   }, [abierto])
 
   async function importar() {
-    const zonas = limpiarLista(texto)
+    const zones = limpiarLista(text)
 
-    if (zonas.length === 0 || zonas === ',') {
+    if (zones.length === 0 || zones === ',') {
       setAviso({
         type: 'warning',
         title: 'Missing!',
@@ -107,9 +107,9 @@ function Importar({
       return
     }
 
-    setOcupado(true)
-    const outcome = await importarDominios(lista, token, zonas)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await importarDominios(list, token, zones)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -131,9 +131,9 @@ function Importar({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={titulo}
-      acciones={
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void importar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void importar()}>
             Import
           </Button>
         </>
@@ -147,28 +147,28 @@ function Importar({
         mono
         className={styles.area}
         spellCheck={false}
-        value={texto}
+        value={text}
         onChange={(e) => setTexto(e.target.value)}
       />
     </Dialog>
   )
 }
 
-export function Listas({ lista, token }: { lista: Lista; token: string | null }) {
-  const [nodo, setNodo] = useState<NodoLista | null>(null)
-  const [campo, setCampo] = useState('')
+export function Lists({ list, token }: { list: List; token: string | null }) {
+  const [node, setNodo] = useState<NodoLista | null>(null)
+  const [field, setCampo] = useState('')
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [confirmacion, setConfirmacion] = useState<Confirmacion | null>(null)
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [importAbierto, setImportAbierto] = useState(false)
-  const [ocupado, setOcupado] = useState(false)
-  const entrada = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const entry = useRef<HTMLInputElement>(null)
 
-  const esCache = lista === 'cache'
-  const listaDominios = lista as ListaDominios
+  const esCache = list === 'cache'
+  const listaDominios = list as ListaDominios
 
   const cargar = useCallback(
-    async (domain: string, arriba?: boolean) => {
-      const outcome = await listarNodo(lista, token, domain, arriba ? 'up' : undefined)
+    async (domain: string, up?: boolean) => {
+      const outcome = await listarNodo(list, token, domain, up ? 'up' : undefined)
       if (outcome.kind === 'ok') {
         setNodo(outcome.data)
         return
@@ -177,7 +177,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
       // server's errorMessage; the same here.
       setAviso(avisoDeFallo(outcome))
     },
-    [lista, token],
+    [list, token],
   )
 
   useEffect(() => {
@@ -190,9 +190,9 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
     exito: Aviso,
     despues: () => Promise<void>,
   ) {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await fn()
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -202,26 +202,26 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
     setAviso(exito)
   }
 
-  const domain = nodo?.domain ?? ''
-  const tituloNodo = domain === '' ? '<ROOT>' : (nodo?.domainIdn ?? domain)
-  const zones = nodo?.zones ?? []
-  const records = nodo?.records ?? []
+  const domain = node?.domain ?? ''
+  const tituloNodo = domain === '' ? '<ROOT>' : (node?.domainIdn ?? domain)
+  const zones = node?.zones ?? []
+  const records = node?.records ?? []
 
   // Cache: Delete hangs off the NODE. Allowed/Blocked: off there being records.
   const puedeBorrar = esCache ? domain !== '' : records.length > 0
 
-  function navegar(d: string, arriba?: boolean) {
-    void cargar(d, arriba)
+  function navegar(d: string, up?: boolean) {
+    void cargar(d, up)
   }
 
   // ---- acciones de Cache -------------------------------------------------
 
   function pedirFlushCache() {
-    setConfirmacion({
+    setConfirmation({
       titulo: 'Flush Cache',
-      texto: 'Are you sure to flush the DNS Server cache?',
+      text: 'Are you sure to flush the DNS Server cache?',
       etiqueta: 'Flush Cache',
-      accion: () =>
+      action: () =>
         mutar(
           () => vaciarCache(token),
           {
@@ -236,11 +236,11 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
   }
 
   function pedirBorrarNodoCache() {
-    setConfirmacion({
+    setConfirmation({
       titulo: 'Delete Cached Zone',
-      texto: `Are you sure you want to delete the cached zone '${tituloNodo}' and all its records?`,
+      text: `Are you sure you want to delete the cached zone '${tituloNodo}' and all its records?`,
       etiqueta: 'Delete',
-      accion: () =>
+      action: () =>
         mutar(
           () => borrarNodoCache(token, tituloNodo),
           {
@@ -256,7 +256,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
   // ---- acciones de Allowed y Blocked -------------------------------------
 
   async function anadir() {
-    const dominio = campo
+    const dominio = field
 
     // The alert goes BEFORE any call, and leaves the focus in the field:
     // other-zones.js:171-176 y 348-353.
@@ -269,7 +269,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
             ? 'Please enter a domain name to allow.'
             : 'Please enter a domain name to block.',
       })
-      entrada.current?.focus()
+      entry.current?.focus()
       return
     }
 
@@ -295,13 +295,13 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
 
   function pedirBorrarDominio() {
     const esAllowed = listaDominios === 'allowed'
-    setConfirmacion({
+    setConfirmation({
       titulo: esAllowed ? 'Delete Allowed Zone' : 'Delete Blocked Zone',
-      texto: esAllowed
+      text: esAllowed
         ? `Are you sure you want to delete the allowed zone '${tituloNodo}'?`
         : `Are you sure you want to delete the blocked zone '${tituloNodo}'?`,
       etiqueta: 'Delete',
-      accion: () =>
+      action: () =>
         mutar(
           () => borrarDominio(listaDominios, token, tituloNodo),
           esAllowed
@@ -322,13 +322,13 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
 
   function pedirFlushLista() {
     const esAllowed = listaDominios === 'allowed'
-    setConfirmacion({
+    setConfirmation({
       titulo: esAllowed ? 'Flush Allowed Zone' : 'Flush Blocked Zone',
-      texto: esAllowed
+      text: esAllowed
         ? 'Are you sure you want to flush the entire Allowed zone?'
         : 'Are you sure you want to flush the entire Blocked zone?',
       etiqueta: 'Flush',
-      accion: () =>
+      action: () =>
         mutar(
           () => vaciarLista(listaDominios, token),
           esAllowed
@@ -340,9 +340,9 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
   }
 
   async function exportar() {
-    setOcupado(true)
+    setBusy(true)
     const r = await exportarDominios(listaDominios, token)
-    setOcupado(false)
+    setBusy(false)
     if (!r.ok) return
     setAviso({
       type: 'success',
@@ -357,23 +357,23 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
   return (
     <>
       <SectionHeader
-        titulo={TITULO[lista]}
-        acciones={<>{esCache ? (
-            <Button variant="danger" disabled={ocupado} onClick={pedirFlushCache}>
+        titulo={TITULO[list]}
+        actions={<>{esCache ? (
+            <Button variant="danger" disabled={busy} onClick={pedirFlushCache}>
               Flush Cache
             </Button>
           ) : (
             <>
-              <Button variant="primary" disabled={ocupado} onClick={() => void anadir()}>
+              <Button variant="primary" disabled={busy} onClick={() => void anadir()}>
                 {listaDominios === 'allowed' ? 'Allow' : 'Block'}
               </Button>
-              <Button disabled={ocupado} onClick={() => setImportAbierto(true)}>
+              <Button disabled={busy} onClick={() => setImportAbierto(true)}>
                 Import
               </Button>
-              <Button disabled={ocupado} onClick={() => void exportar()}>
+              <Button disabled={busy} onClick={() => void exportar()}>
                 Export
               </Button>
-              <Button variant="danger" disabled={ocupado} onClick={pedirFlushLista}>
+              <Button variant="danger" disabled={busy} onClick={pedirFlushLista}>
                 Flush
               </Button>
             </>
@@ -395,13 +395,13 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
                 {(id) => (
                   <Input
                     id={id}
-                    ref={entrada}
+                    ref={entry}
                     mono
                     placeholder="example.com"
-                    value={campo}
+                    value={field}
                     onChange={(e) => setCampo(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') navegar(campo)
+                      if (e.key === 'Enter') navegar(field)
                     }}
                   />
                 )}
@@ -410,7 +410,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
                   screens (Cache, Allowed and Blocked), and it also says better
                   what it does —it takes you to that point of the tree, it sends
                   nothing. */}
-              <Button variant="primary" onClick={() => navegar(campo)}>
+              <Button variant="primary" onClick={() => navegar(field)}>
                 Browse
               </Button>
             </div>
@@ -420,9 +420,9 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
           <div className={styles.count}>
             <span>{zones.length === 1 ? '1 zone' : `${zones.length} zones`}</span>
           </div>
-          <Arbol
+          <Tree
             domain={domain}
-            domainIdn={nodo?.domainIdn}
+            domainIdn={node?.domainIdn}
             zones={zones}
             onNavegar={navegar}
           />
@@ -440,7 +440,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
               {puedeBorrar && (
                 <Button
                   size="sm"
-                  disabled={ocupado}
+                  disabled={busy}
                   onClick={esCache ? pedirBorrarNodoCache : pedirBorrarDominio}
                 >
                   Delete
@@ -450,7 +450,7 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
           </div>
 
           {records.length > 0 ? (
-            <Registros records={records} conDnssec={esCache} nodo={domain} />
+            <ResourceRecords records={records} conDnssec={esCache} node={domain} />
           ) : (
             <Empty titulo="No records at this node">
               {zones.length > 0
@@ -462,17 +462,17 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
       </div>
 
       <Confirmar
-        abierto={confirmacion !== null}
-        titulo={confirmacion?.titulo ?? ''}
-        texto={confirmacion?.texto}
-        etiqueta={confirmacion?.etiqueta ?? ''}
-        onCerrar={() => setConfirmacion(null)}
-        onConfirmar={() => confirmacion?.accion()}
+        abierto={confirmation !== null}
+        titulo={confirmation?.titulo ?? ''}
+        text={confirmation?.text}
+        etiqueta={confirmation?.etiqueta ?? ''}
+        onCerrar={() => setConfirmation(null)}
+        onConfirmar={() => confirmation?.action()}
       />
 
       {!esCache && (
         <Importar
-          lista={listaDominios}
+          list={listaDominios}
           abierto={importAbierto}
           token={token}
           onCerrar={() => setImportAbierto(false)}
@@ -484,13 +484,13 @@ export function Listas({ lista, token }: { lista: Lista; token: string | null })
 }
 
 export function Cache({ token }: { token: string | null }) {
-  return <Listas lista="cache" token={token} />
+  return <Lists list="cache" token={token} />
 }
 
 export function Allowed({ token }: { token: string | null }) {
-  return <Listas lista="allowed" token={token} />
+  return <Lists list="allowed" token={token} />
 }
 
 export function Blocked({ token }: { token: string | null }) {
-  return <Listas lista="blocked" token={token} />
+  return <Lists list="blocked" token={token} />
 }

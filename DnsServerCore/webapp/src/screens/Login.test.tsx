@@ -15,7 +15,7 @@ function llamadaLogin(spy: { mock: { calls: unknown[][] } }) {
 beforeEach(() => vi.restoreAllMocks())
 afterEach(() => vi.restoreAllMocks())
 
-const sesion = {
+const session = {
   kind: 'ok' as const,
   data: { status: 'ok', token: 't', displayName: 'Administrator', username: 'admin', totpEnabled: false },
 }
@@ -34,14 +34,14 @@ describe('Login', () => {
   */
   it('it shows the upstream footer, which appears on its login too', async () => {
     render(<Login onSuccess={() => {}} />)
-    for (const [nombre, destino] of [
+    for (const [name, destino] of [
       ['Technitium', 'https://technitium.com/'],
       ['Blog', 'https://blog.technitium.com/'],
       ['Donate', 'https://go.technitium.com/?id=35'],
       ['DNS Client at dnsclient.net', 'https://dnsclient.net/'],
       ['GitHub', 'https://github.com/TechnitiumSoftware/DnsServer'],
     ]) {
-      expect(screen.getByRole('link', { name: nombre })).toHaveAttribute('href', destino)
+      expect(screen.getByRole('link', { name: name })).toHaveAttribute('href', destino)
     }
   })
 
@@ -53,7 +53,7 @@ describe('Login', () => {
   })
 
   it('it sends the user lowercased', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion)
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(session)
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'ADMIN')
     await userEvent.type(screen.getByLabelText('Password'), 'secreto')
@@ -62,15 +62,15 @@ describe('Login', () => {
   })
 
   it('it sends includeInfo=true and by POST', async () => {
-    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion)
+    const spy = vi.spyOn(client, 'apiRequest').mockResolvedValue(session)
     render(<Login onSuccess={() => {}} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
     await userEvent.type(screen.getByLabelText('Password'), 'secreto')
     await userEvent.click(screen.getByRole('button', { name: 'Login' }))
-    const llamada = llamadaLogin(spy)
-    expect(llamada).toBeDefined()
-    expect(llamada?.[1]?.method).toBe('POST')
-    expect(llamada?.[1]?.body?.includeInfo).toBe('true')
+    const call = llamadaLogin(spy)
+    expect(call).toBeDefined()
+    expect(call?.[1]?.method).toBe('POST')
+    expect(call?.[1]?.body?.includeInfo).toBe('true')
   })
 
   it('it alerts with the server message when the credentials fail', async () => {
@@ -114,7 +114,7 @@ describe('Login', () => {
   })
 
   it('it hands over the session on finishing', async () => {
-    vi.spyOn(client, 'apiRequest').mockResolvedValue(sesion)
+    vi.spyOn(client, 'apiRequest').mockResolvedValue(session)
     const onSuccess = vi.fn()
     render(<Login onSuccess={onSuccess} />)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
@@ -147,11 +147,11 @@ describe('Forgot Password?', () => {
   it('the link opens the modal, which explains the only procedure there is', async () => {
     // It was missing entirely until the phase 10 inventory sweep: it was the only
     // one of upstream's 40 modals with no counterpart.
-    const usuario = userEvent.setup()
+    const user = userEvent.setup()
     vi.spyOn(status, 'getStatus').mockResolvedValue(null as never)
     render(<Login onSuccess={() => {}} />)
 
-    await usuario.click(screen.getByRole('button', { name: 'Forgot Password?' }))
+    await user.click(screen.getByRole('button', { name: 'Forgot Password?' }))
 
     const dialogo = await screen.findByRole('dialog')
     expect(
@@ -161,12 +161,12 @@ describe('Forgot Password?', () => {
   })
 
   it('it calls no endpoint: it is only text', async () => {
-    const usuario = userEvent.setup()
+    const user = userEvent.setup()
     vi.spyOn(status, 'getStatus').mockResolvedValue(null as never)
     const spy = vi.spyOn(client, 'apiRequest')
     render(<Login onSuccess={() => {}} />)
 
-    await usuario.click(screen.getByRole('button', { name: 'Forgot Password?' }))
+    await user.click(screen.getByRole('button', { name: 'Forgot Password?' }))
     await screen.findByRole('dialog')
     expect(spy).not.toHaveBeenCalled()
   })

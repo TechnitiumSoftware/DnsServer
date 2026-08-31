@@ -142,14 +142,14 @@ export function formularioNuevo(): ScopeForm {
 
 /** An array of strings into a textarea, with a newline between items
  *  (`.join("\n")`, dhcp.js:399 and following). */
-export function listaATexto(lista: string[] | undefined): string {
-  return lista == null ? '' : lista.join('\n')
+export function listaATexto(list: string[] | undefined): string {
+  return list == null ? '' : list.join('\n')
 }
 
 /** `cleanTextList` (common.js:326): newlines to commas, repeated commas
  *  collapsed and no commas at the ends. */
-export function limpiarLista(texto: string): string {
-  let t = texto.replace(/\n/g, ',')
+export function limpiarLista(text: string): string {
+  let t = text.replace(/\n/g, ',')
   while (t.includes(',,')) t = t.replace(/,,/g, ',')
   if (t.startsWith(',')) t = t.substring(1)
   if (t.endsWith(',')) t = t.substring(0, t.length - 1)
@@ -228,8 +228,8 @@ export interface ErrorScope {
 }
 
 /** The `id` of a table cell. Deterministic so it can be focused. */
-export function idCelda(tabla: string, fila: number, columna: string): string {
-  return `dhcp-${tabla}-${fila}-${columna}`
+export function idCelda(table: string, row: number, columna: string): string {
+  return `dhcp-${table}-${row}-${columna}`
 }
 
 /*
@@ -237,10 +237,10 @@ export function idCelda(tabla: string, fila: number, columna: string): string {
 `|`, or the alert of the first cell that is not valid.
 */
 function serializar(
-  tabla: string,
-  filas: Record<string, string>[],
+  table: string,
+  rows: Record<string, string>[],
   columnas: { key: string; optional?: boolean }[],
-): { valor: string } | { error: ErrorScope } {
+): { value: string } | { error: ErrorScope } {
   /*
   The algorithm is upstream's `serializeTableData` and it lives in
   `lib/tabla-serie`, shared by the five screens with an editable table. All that
@@ -249,20 +249,20 @@ function serializar(
   and without being able to focus it there is no resolving it.
   */
   const r = serializarTabla(
-    filas.map((fila) =>
+    rows.map((row) =>
       columnas.map((col) => ({
-        tipo: 'texto' as const,
-        valor: fila[col.key] ?? '',
+        tipo: 'text' as const,
+        value: row[col.key] ?? '',
         opcional: col.optional,
       })),
     ),
   )
-  if (r.ok) return { valor: r.valor }
+  if (r.ok) return { value: r.value }
   return {
     error: {
       title: r.fallo.title,
       text: r.fallo.text,
-      focus: idCelda(tabla, r.fallo.fila, columnas[r.fallo.columna].key),
+      focus: idCelda(table, r.fallo.row, columnas[r.fallo.columna].key),
     },
   }
 }
@@ -353,13 +353,13 @@ export function construirCuerpo(
   body.winsServers = limpiarLista(f.winsServers)
   body.ntpServers = limpiarLista(f.ntpServers)
   body.ntpServerDomainNames = limpiarLista(f.ntpServerDomainNames)
-  body.staticRoutes = staticRoutes.valor
-  body.vendorInfo = vendorInfo.valor
+  body.staticRoutes = staticRoutes.value
+  body.vendorInfo = vendorInfo.value
   body.capwapAcIpAddresses = limpiarLista(f.capwapAcIpAddresses)
   body.tftpServerAddresses = limpiarLista(f.tftpServerAddresses)
-  body.genericOptions = genericOptions.valor
-  body.exclusions = exclusions.valor
-  body.reservedLeases = reservedLeases.valor
+  body.genericOptions = genericOptions.value
+  body.exclusions = exclusions.value
+  body.reservedLeases = reservedLeases.value
   body.allowOnlyReservedLeases = String(f.allowOnlyReservedLeases)
   body.blockLocallyAdministeredMacAddresses = String(f.blockLocallyAdministeredMacAddresses)
   body.ignoreClientIdentifierOption = String(f.ignoreClientIdentifierOption)

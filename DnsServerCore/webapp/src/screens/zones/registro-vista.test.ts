@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Registro } from '../../api/registros'
+import type { ResourceRecord } from '../../api/registros'
 import {
   accionesDeFila,
   celdasDeRegistro,
@@ -10,7 +10,7 @@ import {
 } from './registro-vista'
 import { cabeceraDeZona, tiposOcultosAlAnadir } from './vista-zona'
 
-function reg(type: string, rData: Record<string, unknown>, extra: Partial<Registro> = {}): Registro {
+function reg(type: string, rData: Record<string, unknown>, extra: Partial<ResourceRecord> = {}): ResourceRecord {
   return {
     name: 'www.casa.test',
     type,
@@ -28,10 +28,10 @@ function reg(type: string, rData: Record<string, unknown>, extra: Partial<Regist
 }
 
 /** Flattens the cells into pairs so they can be asserted on without mounting. */
-function pares(r: Registro): Record<string, string> {
+function pares(r: ResourceRecord): Record<string, string> {
   const out: Record<string, string> = {}
   for (const c of celdasDeRegistro(r)) {
-    if (c.clase === 'pares') for (const p of c.pares) out[p.etiqueta] = p.valor
+    if (c.clase === 'pairs') for (const p of c.pares) out[p.etiqueta] = p.value
   }
   return out
 }
@@ -39,7 +39,7 @@ function pares(r: Registro): Record<string, string> {
 describe('the Data cell by type', () => {
   it('A and AAAA are just the address', () => {
     expect(celdasDeRegistro(reg('A', { ipAddress: '10.0.0.1' }))).toEqual([
-      { clase: 'valor', texto: '10.0.0.1' },
+      { clase: 'value', text: '10.0.0.1' },
     ])
   })
 
@@ -74,10 +74,10 @@ describe('the Data cell by type', () => {
   })
 
   it('a split TXT shows each string in quotes and on its own line', () => {
-    const celdas = celdasDeRegistro(
+    const cells = celdasDeRegistro(
       reg('TXT', { splitText: true, characterStrings: ['uno', 'dos'], text: 'uno dos' }),
     )
-    expect(celdas[0]).toEqual({ clase: 'lineas', lineas: ['"uno"', '"dos"'] })
+    expect(cells[0]).toEqual({ clase: 'lines', lines: ['"uno"', '"dos"'] })
   })
 
   it('escapes backslashes, carriage returns, newlines and quotes of a TXT', () => {
@@ -94,7 +94,7 @@ describe('the Data cell by type', () => {
   })
 
   it('SVCB hides the hints whose value the server sets', () => {
-    const celdas = celdasDeRegistro(
+    const cells = celdasDeRegistro(
       reg('SVCB', {
         svcPriority: 1,
         svcTargetName: 'x',
@@ -103,10 +103,10 @@ describe('the Data cell by type', () => {
         autoIpv6Hint: false,
       }),
     )
-    const tabla = celdas.find((c) => c.clase === 'tabla')
-    expect(tabla).toBeDefined()
-    const claves = tabla!.clase === 'tabla' ? tabla!.filas.map((f) => f[0]) : []
-    expect(claves).toEqual(['alpn', 'ipv6hint'])
+    const table = cells.find((c) => c.clase === 'table')
+    expect(table).toBeDefined()
+    const keys = table!.clase === 'table' ? table!.rows.map((f) => f[0]) : []
+    expect(keys).toEqual(['alpn', 'ipv6hint'])
   })
 
   it('a DNSKEY with no state does not show the \"Key State\" row', () => {
@@ -132,12 +132,12 @@ describe('the footer of the cell', () => {
 
   it('\"never\" carries no age after it', () => {
     const p = pieDeRegistro(reg('A', {}), AHORA)
-    expect(p.find((x) => x.etiqueta === 'Last Used:')?.valor).toContain('(never)')
+    expect(p.find((x) => x.etiqueta === 'Last Used:')?.value).toContain('(never)')
   })
 
   it('the last modification does carry it', () => {
     const p = pieDeRegistro(reg('A', {}), AHORA)
-    expect(p.find((x) => x.etiqueta === 'Last Modified:')?.valor).toContain('4 minutes ago')
+    expect(p.find((x) => x.etiqueta === 'Last Modified:')?.value).toContain('4 minutes ago')
   })
 
   it('a minimum modification date is NOT shown', () => {
@@ -148,7 +148,7 @@ describe('the footer of the cell', () => {
   it('the expiry only appears with expiryTtl > 0', () => {
     expect(pieDeRegistro(reg('A', {}), AHORA).find((x) => x.etiqueta === 'Expiry TTL:')).toBeUndefined()
     const con = pieDeRegistro(reg('A', {}, { expiryTtl: 3600, expiryTtlString: '1h' }), AHORA)
-    expect(con.find((x) => x.etiqueta === 'Expiry TTL:')?.valor).toBe('3600 (1h)')
+    expect(con.find((x) => x.etiqueta === 'Expiry TTL:')?.value).toBe('3600 (1h)')
   })
 })
 
@@ -173,12 +173,12 @@ describe('which buttons a row offers', () => {
   })
 
   it('on a Catalog only the SOA can be edited; the rest offer nothing', () => {
-    expect(accionesDeFila('Catalog', 'SOA')).toEqual({ ocultas: false, soloEdicion: true })
+    expect(accionesDeFila('Catalog', 'SOA')).toEqual({ ocultas: false, editingOnly: true })
     expect(accionesDeFila('Catalog', 'A').ocultas).toBe(true)
   })
 
   it('on a Primary the SOA is edited but neither deleted nor disabled', () => {
-    expect(accionesDeFila('Primary', 'SOA')).toEqual({ ocultas: false, soloEdicion: true })
+    expect(accionesDeFila('Primary', 'SOA')).toEqual({ ocultas: false, editingOnly: true })
   })
 
   it('the six records DNSSEC generates offer no buttons', () => {
@@ -188,18 +188,18 @@ describe('which buttons a row offers', () => {
   })
 
   it('an ordinary record offers them all', () => {
-    expect(accionesDeFila('Primary', 'A')).toEqual({ ocultas: false, soloEdicion: false })
+    expect(accionesDeFila('Primary', 'A')).toEqual({ ocultas: false, editingOnly: false })
   })
 })
 
 describe('hiding the DNSSEC records', () => {
   it('removes the five types, not six', () => {
-    const lista = ['A', 'RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].map((t) =>
+    const list = ['A', 'RRSIG', 'NSEC', 'DNSKEY', 'NSEC3', 'NSEC3PARAM', 'ZONEMD'].map((t) =>
       reg(t, {}),
     )
     // ZONEMD is not in the `zoneHideDnssecRecords` list although it is in the
     // no-actions records one. They are two different lists in upstream.
-    expect(ocultarDnssec(lista).map((r) => r.type)).toEqual(['A', 'ZONEMD'])
+    expect(ocultarDnssec(list).map((r) => r.type)).toEqual(['A', 'ZONEMD'])
   })
 })
 

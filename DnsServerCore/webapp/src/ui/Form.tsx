@@ -35,7 +35,7 @@ export function Row({
       </label>
       <div className={modal ? frm.mrowCtl : frm.rowCtl}>
         {children(id)}
-        {help != null && <div className={frm.ayuda}>{help}</div>}
+        {help != null && <div className={frm.help}>{help}</div>}
       </div>
     </div>
   )
@@ -61,14 +61,14 @@ export function GroupRow({
     <div className={modal ? frm.mrow : frm.row}>
       <div className={modal ? frm.mrowLabel : frm.rowLabel}>{label}</div>
       <div className={modal ? frm.mrowCtl : frm.rowCtl}>
-        <div className={frm.grupo}>{children}</div>
-        {help != null && <div className={frm.ayuda}>{help}</div>}
+        <div className={frm.group}>{children}</div>
+        {help != null && <div className={frm.help}>{help}</div>}
       </div>
     </div>
   )
 }
 
 /** The standalone help, for when it does not hang off a row. */
-export function Ayuda({ children }: { children: ReactNode }) {
-  return <div className={frm.ayuda}>{children}</div>
+export function HelpText({ children }: { children: ReactNode }) {
+  return <div className={frm.help}>{children}</div>
 }

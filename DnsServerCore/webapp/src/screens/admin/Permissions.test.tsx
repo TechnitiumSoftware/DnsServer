@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Permissions } from './Permissions'
 import * as client from '../../api/client'
-import { CLUSTER_PRIMARIO, PERMISOS } from './admin.fixture'
+import { CLUSTER_PRIMARIO, PERMISSIONS } from './admin.fixture'
 import { elegir } from '../../test/desplegable'
 
 afterEach(() => vi.restoreAllMocks())
@@ -23,7 +23,7 @@ const DETALLE = {
   groups: ['Administrators', 'DHCP Administrators', 'Everyone'],
 }
 
-function servidor(secciones = PERMISOS, detalle: Record<string, unknown> = DETALLE) {
+function servidor(secciones = PERMISSIONS, detalle: Record<string, unknown> = DETALLE) {
   return vi.spyOn(client, 'apiRequest').mockImplementation(async (path: string) => {
     if (path === 'admin/permissions/list') {
       return ok({ response: { permissions: secciones }, server: 'x' })

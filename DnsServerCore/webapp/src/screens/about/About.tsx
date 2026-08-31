@@ -6,7 +6,7 @@ import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty } from '../../ui/Empty'
 import { desdeAhora, fechaHora } from '../../lib/fechas'
 import styles from './About.module.css'
-import { Cuerpo, Panel } from '../../ui/Panel'
+import { Body, Panel } from '../../ui/Panel'
 import { urlPublica } from '../../app/base'
 
 interface Info { version: string; uptimestamp: string; dnsServerDomain: string }
@@ -71,7 +71,7 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
       <SectionHeader titulo="About" />
     <div className={styles.grid}>
       <Panel className={styles.panel}>
-        <Cuerpo>
+        <Body>
           <div className={styles.head}>
             {/* Technitium's logo, not an initial of ours. Upstream puts it right
                 here (`index.html:3483`) and the file travels in `public/img/`
@@ -155,22 +155,22 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
               <Enlace href={DONAR} clase={styles.destino}>Donate Now!</Enlace>
             </p>
           </div>
-        </Cuerpo>
+        </Body>
       </Panel>
 
       <div className={styles.col}>
         <Panel titulo="Server" className={styles.panel}>
-          <Cuerpo>
+          <Body>
             <dl className={styles.kv}>
               <dt>Version</dt><dd>{info?.version ?? '—'}</dd>
               <dt>Domain</dt><dd>{info?.dnsServerDomain ?? '—'}</dd>
               <dt>Up since</dt><dd>{info ? fechaHora(info.uptimestamp) : '—'}</dd>
               <dt>Uptime</dt><dd>{info ? desdeAhora(info.uptimestamp) : '—'}</dd>
             </dl>
-          </Cuerpo>
+          </Body>
         </Panel>
         <Panel titulo="Update" className={styles.panel}>
-          <Cuerpo>
+          <Body>
             {update === 'al-dia' && <Alert type="info" title="Note:">No update available. You are running the latest version.</Alert>}
             {/*
             main.js:751-767 — the default title is "New Update Available!" and
@@ -182,10 +182,10 @@ export function About({ token, info }: { token: string | null; info?: Info }) {
             {update === 'fallo' && (
               <Alert type="danger" title="Error!">Unable to check for updates.</Alert>
             )}
-            <div className={styles.accion}>
+            <div className={styles.action}>
               <Button disabled={update === 'mirando'} onClick={() => void mirar()}>Check for Update</Button>
             </div>
-          </Cuerpo>
+          </Body>
         </Panel>
       </div>
     </div>

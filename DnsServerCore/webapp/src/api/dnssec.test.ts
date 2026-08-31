@@ -162,12 +162,12 @@ describe('planNxProof — the decision table of changeDnssecNxProof', () => {
   const ceros = { iterations: '0', saltLength: '0' }
 
   it('NSEC → NSEC no llama a nadie', () => {
-    expect(planNxProof('NSEC', 'NSEC', ceros, ceros)).toEqual({ accion: 'ninguna' })
+    expect(planNxProof('NSEC', 'NSEC', ceros, ceros)).toEqual({ action: 'ninguna' })
   })
 
   it('NSEC → NSEC3 converts, with the new values', () => {
     expect(planNxProof('NSEC', 'NSEC3', ceros, { iterations: '5', saltLength: '8' })).toEqual({
-      accion: 'convertToNSEC3',
+      action: 'convertToNSEC3',
       iterations: '5',
       saltLength: '8',
     })
@@ -175,18 +175,18 @@ describe('planNxProof — the decision table of changeDnssecNxProof', () => {
 
   it('NSEC3 → NSEC3 with no changes calls nobody', () => {
     const v = { iterations: '5', saltLength: '8' }
-    expect(planNxProof('NSEC3', 'NSEC3', v, v)).toEqual({ accion: 'ninguna' })
+    expect(planNxProof('NSEC3', 'NSEC3', v, v)).toEqual({ action: 'ninguna' })
   })
 
   it('NSEC3 → NSEC3 with changes updates the parameters', () => {
     expect(
       planNxProof('NSEC3', 'NSEC3', { iterations: '5', saltLength: '8' }, { iterations: '6', saltLength: '8' }),
-    ).toEqual({ accion: 'updateNSEC3Params', iterations: '6', saltLength: '8' })
+    ).toEqual({ action: 'updateNSEC3Params', iterations: '6', saltLength: '8' })
   })
 
   it('NSEC3 → NSEC converts back', () => {
     expect(planNxProof('NSEC3', 'NSEC', { iterations: '5', saltLength: '8' }, ceros)).toEqual({
-      accion: 'convertToNSEC',
+      action: 'convertToNSEC',
     })
   })
 })

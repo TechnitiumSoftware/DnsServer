@@ -3,12 +3,12 @@ import { SECTIONS } from './sections'
 import { aCamino, aSlug, escribirRuta, leerRuta, olvidarRaiz, raizDeLaApp } from './ruta'
 
 /** Serves the document as the server would: in its folder and with its meta. */
-function servidoEn(camino: string, ruta: string | null = null) {
+function servidoEn(camino: string, route: string | null = null) {
   document.head.querySelector('meta[name="ruta"]')?.remove()
-  if (ruta != null) {
+  if (route != null) {
     const m = document.createElement('meta')
     m.setAttribute('name', 'ruta')
-    m.setAttribute('content', ruta)
+    m.setAttribute('content', route)
     document.head.appendChild(m)
   }
   window.history.replaceState(null, '', camino)
@@ -78,17 +78,17 @@ describe('leerRuta', () => {
 
   it('it reads section and sub-section', () => {
     servidoEn('/admin/cluster/', 'admin/cluster')
-    expect(leerRuta(SECTIONS)).toEqual({ seccion: 'admin', sub: 'Cluster' })
+    expect(leerRuta(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
   })
 
   it('it returns the original label, not the slug', () => {
     servidoEn('/settings/proxy-forwarders/', 'settings/proxy-forwarders')
-    expect(leerRuta(SECTIONS)).toEqual({ seccion: 'settings', sub: 'Proxy & Forwarders' })
+    expect(leerRuta(SECTIONS)).toEqual({ section: 'settings', sub: 'Proxy & Forwarders' })
   })
 
   it('it reads it the same behind a prefix', () => {
     servidoEn('/dns/admin/cluster/', 'admin/cluster')
-    expect(leerRuta(SECTIONS)).toEqual({ seccion: 'admin', sub: 'Cluster' })
+    expect(leerRuta(SECTIONS)).toEqual({ section: 'admin', sub: 'Cluster' })
   })
 
   it('an unknown section does not resolve', () => {
@@ -98,7 +98,7 @@ describe('leerRuta', () => {
 
   it('an unknown sub does NOT bring the section down: it falls to the first', () => {
     servidoEn('/settings/tampoco-existe/', 'settings/tampoco-existe')
-    expect(leerRuta(SECTIONS)).toEqual({ seccion: 'settings', sub: null })
+    expect(leerRuta(SECTIONS)).toEqual({ section: 'settings', sub: null })
   })
 
   it('a section hidden by permissions does not resolve, even though it exists', () => {
@@ -110,31 +110,31 @@ describe('leerRuta', () => {
 describe('aCamino', () => {
   it('it omits the sub when there is none, and always ends in a slash', () => {
     servidoEn('/')
-    expect(aCamino({ seccion: 'zones', sub: null })).toBe('/zones/')
+    expect(aCamino({ section: 'zones', sub: null })).toBe('/zones/')
   })
 
   it('and it slugs it when there is one', () => {
     servidoEn('/')
-    expect(aCamino({ seccion: 'logs', sub: 'Query Logs' })).toBe('/logs/query-logs/')
+    expect(aCamino({ section: 'logs', sub: 'Query Logs' })).toBe('/logs/query-logs/')
   })
 
   it('it honours the proxy prefix', () => {
     servidoEn('/dns/zones/', 'zones')
-    expect(aCamino({ seccion: 'settings', sub: 'TSIG' })).toBe('/dns/settings/tsig/')
+    expect(aCamino({ section: 'settings', sub: 'TSIG' })).toBe('/dns/settings/tsig/')
   })
 })
 
 describe('escribirRuta', () => {
   it('it leaves the address bar on the requested path', () => {
     servidoEn('/')
-    escribirRuta({ seccion: 'dhcp', sub: 'Leases' }, true)
+    escribirRuta({ section: 'dhcp', sub: 'Leases' }, true)
     expect(window.location.pathname).toBe('/dhcp/leases/')
   })
 
   it('it does not touch the history if the path is already the current one', () => {
     servidoEn('/zones/', 'zones')
     const antes = window.history.length
-    escribirRuta({ seccion: 'zones', sub: null })
+    escribirRuta({ section: 'zones', sub: null })
     expect(window.location.pathname).toBe('/zones/')
     expect(window.history.length).toBe(antes)
   })
@@ -143,8 +143,8 @@ describe('escribirRuta', () => {
     servidoEn('/')
     for (const s of SECTIONS) {
       for (const sub of s.subs ?? [null]) {
-        escribirRuta({ seccion: s.id, sub }, true)
-        expect(leerRuta(SECTIONS)).toEqual({ seccion: s.id, sub })
+        escribirRuta({ section: s.id, sub }, true)
+        expect(leerRuta(SECTIONS)).toEqual({ section: s.id, sub })
       }
     }
   })

@@ -68,7 +68,7 @@ export function InstallApp({
       open={open}
       onOpenChange={onOpenChange}
       title="Install App"
-      acciones={
+      actions={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void instalar()}>
             Install

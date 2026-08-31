@@ -3,7 +3,7 @@ The panel is drawn by `ui/Panel`. What is left here is only this screen's own
 adjustments, if any: replicating its markup with `composes:` was what there was,
 and that is how a header ended up 21 px shorter than its card.
 */
-.tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--hueco-bloque); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap: var(--s-7); margin-bottom: var(--gap-bloque); }
 /*
 The metric's colour is that of ITS SERIES in the chart below: that relationship
 is what makes the tile useful. It used to be said with a 3 px edge on the left,
@@ -46,7 +46,7 @@ It used to be a table apart —header at `--t-2` and over `--pan` instead of
 `--pan2`— and that is why the same datum looked different in the Dashboard's
 panel and in the dialog that expands it.
 */
-.topTabla { composes: tabla from '../../ui/Table.module.css'; }
+.topTabla { composes: table from '../../ui/Table.module.css'; }
 .topTabla thead th { position: sticky; top: 0; }
 .topTabla td { vertical-align: top; }
 /*
@@ -66,7 +66,7 @@ screens it is at 12.5 and normal weight.
   background: transparent;
 }
 /* Upstream draws the whole row in orange when the client is rate limited. */
-.limitada td { color: var(--warn); }
+.limited td { color: var(--warn); }
 .topNombre { display: block; font-family: var(--font-mono); word-break: break-all; }
 .topDominio { display: block; margin-top: var(--s-1); font: var(--t-2) var(--font-mono); color: var(--faint); word-break: break-all; }
 .topConteo { composes: mono from '../../ui/texto.module.css'; }

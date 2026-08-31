@@ -50,23 +50,23 @@ thing that really changes: which columns there are and what goes in each row.
 list hands back an empty array, not zero children, and a detection that is right
 by accident is worse than a parameter.
 */
-export function Tabla({
-  cabecera,
+export function Table({
+  header,
   children,
-  vacia = false,
-  vacio,
+  isEmpty = false,
+  emptyText,
   columnas,
   className,
   claseTabla,
-  pie,
+  footer,
 }: {
   /** The `thead` cells; normally `Th` from this same module. */
-  cabecera: ReactNode
+  header: ReactNode
   children: ReactNode
   /** Whether there are no rows to draw. */
-  vacia?: boolean
+  isEmpty?: boolean
   /** What to say then. Without this, an empty table shows a blank body. */
-  vacio?: ReactNode
+  emptyText?: ReactNode
   /** How many columns that row spans. */
   columnas?: number
   /** For the wrapper: the max width of a narrow table, for example. */
@@ -74,28 +74,28 @@ export function Tabla({
   /** For the table: the sticky header of the "More" dialog, for example. */
   claseTabla?: string
   /** The footer row, when the table carries its count inside. */
-  pie?: ReactNode
+  footer?: ReactNode
 }) {
   return (
     <div className={[styles.wrap, className].filter(Boolean).join(' ')}>
-      <table className={[styles.tabla, claseTabla].filter(Boolean).join(' ')}>
+      <table className={[styles.table, claseTabla].filter(Boolean).join(' ')}>
         <thead>
-          <tr>{cabecera}</tr>
+          <tr>{header}</tr>
         </thead>
         <tbody>
-          {vacia && vacio != null ? (
+          {isEmpty && emptyText != null ? (
             <tr>
               <td colSpan={columnas} className={styles.sinFilas}>
-                {vacio}
+                {emptyText}
               </td>
             </tr>
           ) : (
             children
           )}
         </tbody>
-        {pie != null && (
+        {footer != null && (
           <tfoot>
-            <tr>{pie}</tr>
+            <tr>{footer}</tr>
           </tfoot>
         )}
       </table>
@@ -104,73 +104,73 @@ export function Tabla({
 }
 
 export interface Orden {
-  campo: string
+  field: string
   desc: boolean
 }
 
 /** How each sortable column is read: the text the user sees in the cell. */
-export type Claves<T> = Record<string, (fila: T) => string | number | null | undefined>
+export type Keys<T> = Record<string, (row: T) => string | number | null | undefined>
 
-function texto(v: string | number | null | undefined): string {
+function text(v: string | number | null | undefined): string {
   return String(v ?? '').toLowerCase()
 }
 
-export function useOrden<T>(claves: Claves<T>, filas: T[]) {
+export function useOrden<T>(keys: Keys<T>, rows: T[]) {
   const [orden, setOrden] = useState<Orden | null>(null)
 
   const ordenadas = (() => {
-    if (orden == null || claves[orden.campo] == null) return filas
-    const leer = claves[orden.campo]
+    if (orden == null || keys[orden.field] == null) return rows
+    const leer = keys[orden.field]
     const signo = orden.desc ? -1 : 1
-    return [...filas].sort((a, b) => {
-      const x = texto(leer(a))
-      const y = texto(leer(b))
+    return [...rows].sort((a, b) => {
+      const x = text(leer(a))
+      const y = text(leer(b))
       return x === y ? 0 : (x > y ? 1 : -1) * signo
     })
   })()
 
-  function alternar(campo: string) {
-    const leer = claves[campo]
+  function alternar(field: string) {
+    const leer = keys[field]
     if (leer == null) return
     // The list is looked at AS IT IS DRAWN, which is what upstream looks at.
-    const yaAsc = ordenadas.every((f, i) => i === 0 || texto(leer(ordenadas[i - 1])) <= texto(leer(f)))
-    setOrden({ campo, desc: yaAsc })
+    const yaAsc = ordenadas.every((f, i) => i === 0 || text(leer(ordenadas[i - 1])) <= text(leer(f)))
+    setOrden({ field, desc: yaAsc })
   }
 
-  return { filas: ordenadas, orden, alternar }
+  return { rows: ordenadas, orden, alternar }
 }
 
 /** A sortable column header. Without `campo` it is an ordinary header. */
 export function Th({
-  campo,
+  field,
   orden,
   onOrdenar,
   children,
-  nombre,
+  name,
   ...rest
 }: {
-  campo?: string
+  field?: string
   orden?: Orden | null
-  onOrdenar?: (campo: string) => void
+  onOrdenar?: (field: string) => void
   children?: ReactNode
   /** For a header upstream leaves BLANK and which is still sortable: the button
    *  needs a name even though the cell shows no label. */
-  nombre?: string
+  name?: string
 } & React.ThHTMLAttributes<HTMLTableCellElement>) {
-  if (campo == null || onOrdenar == null) return <th {...rest}>{children}</th>
+  if (field == null || onOrdenar == null) return <th {...rest}>{children}</th>
 
-  const activa = orden?.campo === campo
+  const active = orden?.field === field
   return (
-    <th aria-sort={activa ? (orden!.desc ? 'descending' : 'ascending') : 'none'} {...rest}>
+    <th aria-sort={active ? (orden!.desc ? 'descending' : 'ascending') : 'none'} {...rest}>
       <button
         type="button"
         className={styles.orden}
-        aria-label={children == null ? nombre : undefined}
-        onClick={() => onOrdenar(campo)}
+        aria-label={children == null ? name : undefined}
+        onClick={() => onOrdenar(field)}
       >
         {children}
         <span className={styles.flecha}>
-          <Icono nombre={activa ? 'chevronAbajo' : 'orden'} tam={12} data-desc={activa && !orden!.desc} />
+          <Icono name={active ? 'chevronAbajo' : 'orden'} tam={12} data-desc={active && !orden!.desc} />
         </span>
       </button>
     </th>
@@ -185,16 +185,16 @@ the text that used to fill the column said.
 */
 export function AccionFila({
   icono,
-  nombre,
+  name,
   ...rest
 }: {
   icono: NombreIcono
   /** What it does, in upstream's wording: "Options", "Disable", "Edit". */
-  nombre: string
+  name: string
 } & Omit<React.ComponentProps<typeof Button>, 'children' | 'size' | 'icono'>) {
   return (
-    <Button size="sm" icono aria-label={nombre} title={nombre} {...rest}>
-      <Icono nombre={icono} tam={15} />
+    <Button size="sm" icono aria-label={name} title={name} {...rest}>
+      <Icono name={icono} tam={15} />
     </Button>
   )
 }

@@ -61,9 +61,9 @@ describe('Settings — carga', () => {
       ['Proxy & Forwarders', 'Forwarder Retries'],
       ['Logging', 'Max Stat File Days'],
     ] as const
-    for (const [sub, marca] of subs) {
+    for (const [sub, brand] of subs) {
       const { unmount } = render(<Settings token="tok" sub={sub} />)
-      expect(await screen.findByText(marca)).toBeInTheDocument()
+      expect(await screen.findByText(brand)).toBeInTheDocument()
       unmount()
     }
   })
@@ -75,13 +75,13 @@ describe('Settings — guardar', () => {
     await montar({ sub: 'Logging' })
     await userEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
 
-    const llamada = await waitFor(() => {
+    const call = await waitFor(() => {
       const c = spy.mock.calls.find((c) => c[0] === 'settings/set')
       expect(c).toBeDefined()
       return c!
     })
-    expect(llamada[1]?.method).toBe('POST')
-    const body = llamada[1]!.body as Record<string, string>
+    expect(call[1]?.method).toBe('POST')
+    const body = call[1]!.body as Record<string, string>
     expect(body.dnsServerDomain).toBe('ref.technitium-ui.test')
     expect(body.loggingType).toBe('File')
     expect(body.recursion).toBe('AllowOnlyForPrivateNetworks')
@@ -192,12 +192,12 @@ describe('Settings — Blocking', () => {
     ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Disable' }))
 
-    const llamada = await waitFor(() => {
+    const call = await waitFor(() => {
       const c = spy.mock.calls.find((c) => c[0] === 'settings/temporaryDisableBlocking')
       expect(c).toBeDefined()
       return c!
     })
-    expect(llamada[1]?.body).toEqual({ minutes: '15' })
+    expect(call[1]?.body).toEqual({ minutes: '15' })
     expect(await screen.findByText('Blocking Disabled!')).toBeInTheDocument()
     expect(
       screen.getByText('Blocking was successfully disabled temporarily for 15 minute(s).'),

@@ -64,7 +64,7 @@ export function UpdateApp({
       open={open}
       onOpenChange={onOpenChange}
       title="Update App"
-      acciones={
+      actions={
         <>
           <Button variant="primary" disabled={busy} onClick={() => void actualizar()}>
             Update

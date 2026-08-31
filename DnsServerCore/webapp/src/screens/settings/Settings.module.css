@@ -7,11 +7,11 @@
    what belongs to Settings and to nobody else. */
 
 .wrap { composes: pantalla from '../../ui/SectionHeader.module.css'; }
-.group { composes: grupo from '../../ui/Form.module.css'; }
+.group { composes: group from '../../ui/Form.module.css'; }
 
 /* The block-lists summary: "N allowed, M blocked", with the figures in monospace
    so they do not dance about on reload. */
-.stack { composes: grupo from '../../ui/Form.module.css'; }
+.stack { composes: group from '../../ui/Form.module.css'; }
 .inline { display: flex; align-items: center; gap: var(--s-7); flex-wrap: wrap; }
 .val { composes: mono from '../../ui/texto.module.css'; font-size: var(--t-4); color: var(--ink); }
 

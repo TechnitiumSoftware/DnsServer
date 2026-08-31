@@ -18,7 +18,7 @@ import { Loading } from '../../ui/Empty'
 import { Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
 import styles from './Dhcp.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Menu } from '../../ui/Menu'
 import { avisoDeFallo } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
@@ -49,11 +49,11 @@ export interface ScopesProps {
   canDelete?: boolean
 }
 
-type Edicion = { titulo: 'Add Scope' | 'Edit Scope'; form: Form }
+type Editing = { titulo: 'Add Scope' | 'Edit Scope'; form: Form }
 
 /* `sortTable('tableDhcpScopesBody', 0..3)`. It sorts by the cell's text, which
    in the two composite columns is their two label/value pairs. */
-const CLAVES: Claves<DhcpScopeRow> = {
+const KEYS: Keys<DhcpScopeRow> = {
   name: (s) => s.name,
   range: (s) => `Range ${s.startingAddress} - ${s.endingAddress} Mask ${s.subnetMask}`,
   network: (s) => `Network ${s.networkAddress} Broadcast ${s.broadcastAddress}`,
@@ -63,9 +63,9 @@ const CLAVES: Claves<DhcpScopeRow> = {
 export function Scopes({ token, node = '', canModify = true, canDelete = true }: ScopesProps) {
   const [scopes, setScopes] = useState<DhcpScopeRow[] | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
-  const [edicion, setEdicion] = useState<Edicion | null>(null)
-  const [confirmar, setConfirmar] = useState<{ accion: 'disable' | 'delete'; nombre: string } | null>(
+  const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState<Editing | null>(null)
+  const [confirmar, setConfirmar] = useState<{ action: 'disable' | 'delete'; name: string } | null>(
     null,
   )
 
@@ -87,27 +87,27 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
 
   // The hook goes BEFORE any return: otherwise it would stop being called as soon
   // as the table is loading.
-  const { filas: scopesVisibles, orden, alternar } = useOrden(CLAVES, scopes ?? [])
+  const { rows: scopesVisibles, orden, alternar } = useOrden(KEYS, scopes ?? [])
 
-  async function editar(nombre: string) {
-    setOcupado(true)
-    const s = await getScope(token, nombre, node)
-    setOcupado(false)
+  async function editar(name: string) {
+    setBusy(true)
+    const s = await getScope(token, name, node)
+    setBusy(false)
     if (s == null) return
-    setEdicion({ titulo: 'Edit Scope', form: formularioDesdeScope(s) })
+    setEditing({ titulo: 'Edit Scope', form: formularioDesdeScope(s) })
   }
 
   async function guardar(body: Record<string, string>) {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setScope(token, body, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(errorAviso(outcome))
       return
     }
 
-    setEdicion(null)
+    setEditing(null)
     await cargar()
     setAviso({
       type: 'success',
@@ -116,10 +116,10 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     })
   }
 
-  async function habilitar(nombre: string) {
-    setOcupado(true)
-    const outcome = await enableScope(token, nombre, node)
-    setOcupado(false)
+  async function habilitar(name: string) {
+    setBusy(true)
+    const outcome = await enableScope(token, name, node)
+    setBusy(false)
     if (outcome.kind !== 'ok') return
     await cargar()
     setAviso({
@@ -129,11 +129,11 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     })
   }
 
-  async function deshabilitar(nombre: string) {
+  async function deshabilitar(name: string) {
     setConfirmar(null)
-    setOcupado(true)
-    const outcome = await disableScope(token, nombre, node)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await disableScope(token, name, node)
+    setBusy(false)
     if (outcome.kind !== 'ok') return
     await cargar()
     setAviso({
@@ -143,14 +143,14 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     })
   }
 
-  async function borrar(nombre: string) {
+  async function borrar(name: string) {
     setConfirmar(null)
-    setOcupado(true)
-    const outcome = await deleteScope(token, nombre, node)
-    setOcupado(false)
+    setBusy(true)
+    const outcome = await deleteScope(token, name, node)
+    setBusy(false)
     if (outcome.kind !== 'ok') return
     // dhcp.js:662 — it removes the row; it does not ask for the list again.
-    setScopes((prev) => prev?.filter((s) => s.name !== nombre) ?? prev)
+    setScopes((prev) => prev?.filter((s) => s.name !== name) ?? prev)
     setAviso({
       type: 'success',
       title: 'Scope Deleted!',
@@ -158,18 +158,18 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
     })
   }
 
-  if (edicion != null) {
+  if (editing != null) {
     return (
       <div className={styles.wrap}>
         <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
         <ScopeForm
-          key={edicion.titulo + edicion.form.oldName}
-          titulo={edicion.titulo}
-          inicial={edicion.form}
-          ocupado={ocupado}
+          key={editing.titulo + editing.form.oldName}
+          titulo={editing.titulo}
+          inicial={editing.form}
+          busy={busy}
           onGuardar={(body) => void guardar(body)}
           onCancelar={() => {
-            setEdicion(null)
+            setEditing(null)
             void cargar()
           }}
           onAviso={(e) => setAviso({ type: 'warning', title: e.title, text: e.text })}
@@ -183,14 +183,14 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
   return (
     <div className={styles.wrap}>
       <SectionHeader
-        seccion="DHCP"
+        section="DHCP"
         titulo="Scopes"
-        acciones={<>{canModify && (
+        actions={<>{canModify && (
             <Button
               variant="primary"
               onClick={() => {
                 setAviso(null)
-                setEdicion({ titulo: 'Add Scope', form: formularioNuevo() })
+                setEditing({ titulo: 'Add Scope', form: formularioNuevo() })
               }}
             >
               Add Scope
@@ -200,24 +200,24 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
 
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      <Tabla
-        cabecera={
+      <Table
+        header={
           <>
-            <Th campo="name" orden={orden} onOrdenar={alternar}>Name</Th>
-            <Th campo="range" orden={orden} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
-            <Th campo="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
-            <Th campo="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
+            <Th field="name" orden={orden} onOrdenar={alternar}>Name</Th>
+            <Th field="range" orden={orden} onOrdenar={alternar}>Scope Range/Subnet Mask</Th>
+            <Th field="network" orden={orden} onOrdenar={alternar}>Network/Broadcast</Th>
+            <Th field="interfaz" orden={orden} onOrdenar={alternar}>Interface</Th>
             <th>Status</th>
             <th className={tbl.celdaAcciones} />
           </>
         }
-        vacia={scopesVisibles.length === 0}
-        vacio="No Scope Found"
+        isEmpty={scopesVisibles.length === 0}
+        emptyText="No Scope Found"
         columnas={6}
       >
         {scopesVisibles.map((s) => (
           <tr key={s.name}>
-            <td className={styles.nombre}>{s.name}</td>
+            <td className={styles.name}>{s.name}</td>
             <td>
               <dl className={styles.kv}>
                 <dt>Range</dt>
@@ -245,22 +245,22 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
               </Tag>
             </td>
             <td className={tbl.celdaAcciones}>
-              <div className={tbl.acciones}>
+              <div className={tbl.actions}>
                 <AccionFila
                   icono="editar"
-                  nombre="Edit Scope"
-                  disabled={ocupado}
+                  name="Edit Scope"
+                  disabled={busy}
                   onClick={() => void editar(s.name)}
                 />
                 {canModify && (
                   /* dhcp.js:615 — enabling asks nothing; disabling does. */
                   <AccionFila
                     icono="energia"
-                    nombre={s.enabled ? 'Disable Scope' : 'Enable Scope'}
-                    disabled={ocupado}
+                    name={s.enabled ? 'Disable Scope' : 'Enable Scope'}
+                    disabled={busy}
                     onClick={() =>
                       s.enabled
-                        ? setConfirmar({ accion: 'disable', nombre: s.name })
+                        ? setConfirmar({ action: 'disable', name: s.name })
                         : void habilitar(s.name)
                     }
                   />
@@ -271,8 +271,8 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
                       <button
                         type="button"
                         data-variant="danger"
-                        disabled={ocupado}
-                        onClick={() => { cerrar(); setConfirmar({ accion: 'delete', nombre: s.name }) }}
+                        disabled={busy}
+                        onClick={() => { cerrar(); setConfirmar({ action: 'delete', name: s.name }) }}
                       >
                         Delete Scope
                       </button>
@@ -283,7 +283,7 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
             </td>
           </tr>
         ))}
-      </Tabla>
+      </Table>
 
       <div className={styles.total}>
         {/* The footer is the count and nothing else. When there are no rows,
@@ -295,19 +295,19 @@ export function Scopes({ token, node = '', canModify = true, canDelete = true }:
 
       <Confirmar
         abierto={confirmar !== null}
-        titulo={confirmar?.accion === 'delete' ? 'Delete Scope' : 'Disable Scope'}
-        texto={
-          confirmar?.accion === 'delete'
-            ? `Are you sure you want to delete the DHCP scope '${confirmar.nombre}'?`
-            : `Are you sure you want to disable the DHCP scope '${confirmar?.nombre ?? ''}'?`
+        titulo={confirmar?.action === 'delete' ? 'Delete Scope' : 'Disable Scope'}
+        text={
+          confirmar?.action === 'delete'
+            ? `Are you sure you want to delete the DHCP scope '${confirmar.name}'?`
+            : `Are you sure you want to disable the DHCP scope '${confirmar?.name ?? ''}'?`
         }
-        etiqueta={confirmar?.accion === 'delete' ? 'Delete' : 'Disable'}
-        ocupado={ocupado}
+        etiqueta={confirmar?.action === 'delete' ? 'Delete' : 'Disable'}
+        busy={busy}
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => {
           if (!confirmar) return
-          if (confirmar.accion === 'delete') void borrar(confirmar.nombre)
-          else void deshabilitar(confirmar.nombre)
+          if (confirmar.action === 'delete') void borrar(confirmar.name)
+          else void deshabilitar(confirmar.name)
         }}
       />
     </div>

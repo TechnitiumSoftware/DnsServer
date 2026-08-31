@@ -16,18 +16,18 @@ copied by hand, and that is where one ended up with 0.07em of letter-spacing and
 the rest with 0.05.
 */
 export function TablaEditable({
-  cabecera,
+  header,
   children,
   className,
 }: {
-  cabecera: ReactNode
+  header: ReactNode
   children: ReactNode
   className?: string
 }) {
   return (
-    <table className={[styles.tabla, className].filter(Boolean).join(' ')}>
+    <table className={[styles.table, className].filter(Boolean).join(' ')}>
       <thead>
-        <tr>{cabecera}</tr>
+        <tr>{header}</tr>
       </thead>
       <tbody>{children}</tbody>
     </table>

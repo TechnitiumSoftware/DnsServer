@@ -13,13 +13,13 @@ comes from subtracting those segments from the `pathname`.
 */
 
 function calcular(): string {
-  const ruta = document.querySelector('meta[name="ruta"]')?.getAttribute('content')
+  const route = document.querySelector('meta[name="ruta"]')?.getAttribute('content')
   const camino = window.location.pathname
-  if (ruta == null || ruta === '') return camino.endsWith('/') ? camino : camino + '/'
+  if (route == null || route === '') return camino.endsWith('/') ? camino : camino + '/'
 
-  const sobra = ruta.split('/').length
-  const partes = camino.split('/').filter(Boolean)
-  const prefijo = partes.slice(0, Math.max(0, partes.length - sobra))
+  const sobra = route.split('/').length
+  const parts = camino.split('/').filter(Boolean)
+  const prefijo = parts.slice(0, Math.max(0, parts.length - sobra))
   return prefijo.length === 0 ? '/' : `/${prefijo.join('/')}/`
 }
 

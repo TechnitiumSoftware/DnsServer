@@ -27,7 +27,7 @@ import {
 } from './partes'
 import tbl from '../../ui/Table.module.css'
 import frm from '../../ui/Form.module.css'
-import { Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { Th, useOrden, type Keys, Table } from '../../ui/Table'
 import { Avisador } from '../../ui/Avisador'
 import { Menu } from '../../ui/Menu'
 
@@ -63,7 +63,7 @@ interface Props {
 
 
 /* `sortTable('tbodyUserDetailsActiveSessions', 0..3)`. */
-const CLAVES: Claves<AdminSession> = {
+const KEYS: Keys<AdminSession> = {
   session: (s) =>
     [s.tokenName ?? '', `[${s.partialToken}]`, s.isCurrentSession ? '(current)' : '', s.type]
       .filter(Boolean)
@@ -75,26 +75,26 @@ const CLAVES: Claves<AdminSession> = {
 
 export function UserDetails({ abierto, username, token, cluster, onCerrar, alGuardar, onAviso }: Props) {
   const [detalle, setDetalle] = useState<AdminUserDetails | null>(null)
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   const [displayName, setDisplayName] = useState('')
   const [nuevoUsuario, setNuevoUsuario] = useState('')
-  const [deshabilitado, setDeshabilitado] = useState(false)
+  const [disabled, setDisabled] = useState(false)
   const [timeout, setTimeoutSeconds] = useState('')
   const [memberOf, setMemberOf] = useState('')
-  const [sesiones, setSesiones] = useState<AdminSession[]>([])
-  const { filas: sesionesVisibles, orden, alternar } = useOrden(CLAVES, sesiones)
+  const [sessions, setSesiones] = useState<AdminSession[]>([])
+  const { rows: sesionesVisibles, orden, alternar } = useOrden(KEYS, sessions)
   const [porBorrar, setPorBorrar] = useState<AdminSession | null>(null)
   const [addGroup, setAddGroup] = useState(OPCION_BLANK)
 
   const cargar = useCallback(async () => {
     if (username == null) return
-    setCargando(true)
+    setLoading(true)
     setAviso(null)
     const outcome = await getUser(token, username)
-    setCargando(false)
+    setLoading(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -105,7 +105,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     setDetalle(d)
     setDisplayName(d.displayName)
     setNuevoUsuario(d.username)
-    setDeshabilitado(d.disabled)
+    setDisabled(d.disabled)
     setTimeoutSeconds(String(d.sessionTimeoutSeconds))
     setMemberOf(d.memberOfGroups.map((g) => `${g}\n`).join(''))
     setSesiones(d.sessions)
@@ -128,7 +128,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
 
     const body: Record<string, string> = {
       user: username,
-      disabled: String(deshabilitado),
+      disabled: String(disabled),
       sessionTimeoutSeconds: segundos,
     }
     if (!perfilBloqueado) {
@@ -137,9 +137,9 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
     }
     if (!gruposBloqueados) body.memberOfGroups = limpiarLista(memberOf)
 
-    setOcupado(true)
+    setBusy(true)
     const outcome = await setUser(token, body)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -163,7 +163,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
       return
     }
 
-    setSesiones((lista) => lista.filter((x) => x.partialToken !== s.partialToken))
+    setSesiones((list) => list.filter((x) => x.partialToken !== s.partialToken))
     setAviso({
       type: 'success',
       title: 'Session Deleted!',
@@ -176,11 +176,11 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
       <Dialog
         open={abierto}
         onOpenChange={(o) => !o && onCerrar()}
-        tamano="ancho"
+        size="wide"
         title="User Details"
-        acciones={
+        actions={
           <>
-            <Button variant="primary" disabled={ocupado || cargando} onClick={() => void guardar()}>
+            <Button variant="primary" disabled={busy || loading} onClick={() => void guardar()}>
               Save
             </Button>
           </>
@@ -188,7 +188,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
       >
         <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-        {cargando || detalle == null ? (
+        {loading || detalle == null ? (
           <Loading />
         ) : (
           <>
@@ -229,8 +229,8 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
               <Check
                 conmutador
                 label="Disable User Account"
-                checked={deshabilitado}
-                onChange={setDeshabilitado}
+                checked={disabled}
+                onChange={setDisabled}
               />
             </div>
 
@@ -290,13 +290,13 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
             </MRow>
 
             <p className={styles.sub}>Active Sessions</p>
-            <Tabla
-              cabecera={
+            <Table
+              header={
                 <>
-                  <Th campo="session" orden={orden} onOrdenar={alternar}>Session</Th>
-                  <Th campo="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
-                  <Th campo="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
-                  <Th campo="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
+                  <Th field="session" orden={orden} onOrdenar={alternar}>Session</Th>
+                  <Th field="lastSeen" orden={orden} onOrdenar={alternar}>Last Seen</Th>
+                  <Th field="address" orden={orden} onOrdenar={alternar}>Remote Address</Th>
+                  <Th field="agent" orden={orden} onOrdenar={alternar}>User Agent</Th>
                   <th className={tbl.celdaAcciones} />
                 </>
               }
@@ -304,17 +304,17 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
               {sesionesVisibles.map((s) => (
                 <tr key={s.partialToken}>
                   <td>
-                    <CeldaSesion sesion={s} />
+                    <CeldaSesion session={s} />
                   </td>
                   <td className={styles.nowrap}>
-                    <CeldaUltimaVez fecha={fechaHora(s.lastSeen)} hace={desdeAhora(s.lastSeen)} />
+                    <CeldaUltimaVez date={fechaHora(s.lastSeen)} hace={desdeAhora(s.lastSeen)} />
                   </td>
                   <td className={styles.mono}>{s.lastSeenRemoteAddress}</td>
                   <td>
                     <CeldaAgente>{s.lastSeenUserAgent}</CeldaAgente>
                   </td>
                   <td className={tbl.celdaAcciones}>
-                    <div className={tbl.acciones}>
+                    <div className={tbl.actions}>
                       {/* Inside the menu, as in "Administration > Sessions" and as
                           in upstream, which also puts it in a dropdown
                           (`auth.js`, `deleteUserSession`). Loose it was the only
@@ -335,9 +335,9 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
                   </td>
                 </tr>
               ))}
-            </Tabla>
+            </Table>
             <div className={styles.count}>
-              <span>{`Total Sessions: ${sesiones.length}`}</span>
+              <span>{`Total Sessions: ${sessions.length}`}</span>
             </div>
           </>
         )}
@@ -346,7 +346,7 @@ export function UserDetails({ abierto, username, token, cluster, onCerrar, alGua
       <Confirmar
         abierto={porBorrar !== null}
         titulo="Delete Session"
-        texto={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
+        text={`Are you sure you want to delete the session [${porBorrar?.partialToken ?? ''}] ?`}
         etiqueta="Delete"
         onCerrar={() => setPorBorrar(null)}
         onConfirmar={() => porBorrar && void borrarSesion(porBorrar)}

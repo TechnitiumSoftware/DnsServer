@@ -56,7 +56,7 @@ export function Apps({ token }: { token: string | null }) {
   const [apps, setApps] = useState<InstalledApp[] | null>(null)
   const [alert, setAlert] = useState<AlertState | null>(null)
   const [modal, setModal] = useState<Modal | null>(null)
-  const [ocupado, setOcupado] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
   const [porDesinstalar, setPorDesinstalar] = useState<string | null>(null)
 
   const recargar = useCallback(async () => {
@@ -82,9 +82,9 @@ export function Apps({ token }: { token: string | null }) {
   an action that uninstalls an application from the server.
   */
   async function desinstalar(name: string) {
-    setOcupado(name)
+    setBusy(name)
     const outcome = await uninstallApp(token, name)
-    setOcupado(null)
+    setBusy(null)
 
     if (outcome.kind !== 'ok') {
       setAlert(error(outcome))
@@ -102,9 +102,9 @@ export function Apps({ token }: { token: string | null }) {
   async function actualizarDesdeTienda(app: InstalledApp) {
     if (!app.updateUrl) return
 
-    setOcupado(app.name)
+    setBusy(app.name)
     const outcome = await downloadAndUpdate(token, app.name, app.updateUrl)
-    setOcupado(null)
+    setBusy(null)
 
     if (outcome.kind !== 'ok') {
       setAlert(error(outcome))
@@ -121,9 +121,9 @@ export function Apps({ token }: { token: string | null }) {
   // apps.js:459-491 — the config is read BEFORE opening the modal, and from the
   // cluster's primary node. `config` can come null; the editor is left empty.
   async function abrirConfig(name: string) {
-    setOcupado(name)
+    setBusy(name)
     const outcome = await getAppConfig(token, name)
-    setOcupado(null)
+    setBusy(null)
 
     if (outcome.kind !== 'ok') {
       setAlert(error(outcome))
@@ -150,7 +150,7 @@ export function Apps({ token }: { token: string | null }) {
             </Tag>
           ) : undefined
         }
-        acciones={
+        actions={
           <>
             <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
               App Store
@@ -165,7 +165,7 @@ export function Apps({ token }: { token: string | null }) {
       ) : apps.length === 0 ? (
         <Empty
           titulo="No apps installed"
-          acciones={
+          actions={
             <Button variant="primary" onClick={() => setModal({ kind: 'store' })}>
               Open App Store
             </Button>
@@ -180,7 +180,7 @@ export function Apps({ token }: { token: string | null }) {
             <AppCard
               key={app.name}
               app={app}
-              ocupado={ocupado === app.name}
+              busy={busy === app.name}
               onConfig={() => void abrirConfig(app.name)}
               onUpdate={() => setModal({ kind: 'update', name: app.name })}
               onStoreUpdate={() => void actualizarDesdeTienda(app)}
@@ -193,7 +193,7 @@ export function Apps({ token }: { token: string | null }) {
       <Confirmar
         abierto={porDesinstalar !== null}
         titulo="Uninstall App"
-        texto={`Are you sure you want to uninstall the DNS application '${porDesinstalar ?? ''}'?`}
+        text={`Are you sure you want to uninstall the DNS application '${porDesinstalar ?? ''}'?`}
         etiqueta="Uninstall"
         onCerrar={() => setPorDesinstalar(null)}
         onConfirmar={() => porDesinstalar && desinstalar(porDesinstalar)}

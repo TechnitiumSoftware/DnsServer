@@ -4,7 +4,7 @@ import {
   addRecord,
   updateRecord,
   zonaTienePistaSvcbAuto,
-  type Registro,
+  type ResourceRecord,
   type ZonaDeRegistros,
 } from '../../../api/registros'
 import { Button } from '../../../ui/Button'
@@ -58,11 +58,11 @@ export interface AnadirEditarRegistroProps {
   abierto: boolean
   modo: ModoRegistro
   zone: string
-  zona: ZonaDeRegistros | null
+  zoneInfo: ZonaDeRegistros | null
   /** Every record in the zone: they are needed for the SVCB hints. */
-  registros: Registro[]
+  records: ResourceRecord[]
   /** Sólo en edición. */
-  original?: Registro | null
+  original?: ResourceRecord | null
   token: string | null
   node?: string
   onCerrar: () => void
@@ -74,25 +74,25 @@ export interface AnadirEditarRegistroProps {
 export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
   const [f, setF] = useState<FormularioRegistro>(formularioVacio)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [apps, setApps] = useState<string[]>([])
   const [clases, setClases] = useState<string[]>([])
   const nombreRef = useRef<HTMLInputElement>(null)
 
-  const edicion = p.modo === 'update'
-  const ocultos = p.zona ? tiposOcultosAlAnadir(p.zona.type, p.zona.dnssecStatus) : []
+  const editing = p.modo === 'update'
+  const ocultos = p.zoneInfo ? tiposOcultosAlAnadir(p.zoneInfo.type, p.zoneInfo.dnssecStatus) : []
 
   useEffect(() => {
     if (!p.abierto) return
 
-    if (edicion && p.original) {
+    if (editing && p.original) {
       setF(formularioDesdeRegistro(p.original, p.zone))
     } else {
       const inicial = formularioVacio()
       // The first visible type, not a blind "A": on a signed Primary the
       // dropdown starts the same, but on a Forwarder the hidden ones change.
-      const primero = TIPOS_REGISTRO.find((t) => t !== 'SOA' && !ocultos.includes(t))
-      inicial.type = primero ?? 'A'
+      const first = TIPOS_REGISTRO.find((t) => t !== 'SOA' && !ocultos.includes(t))
+      inicial.type = first ?? 'A'
       setF(inicial)
     }
     setAviso(null)
@@ -120,11 +120,11 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     })
   }, [p.abierto, f.type, f.appName, p.token, p.node])
 
-  const set = <K extends keyof FormularioRegistro>(k: K, valor: FormularioRegistro[K]) =>
-    setF((prev) => ({ ...prev, [k]: valor }))
+  const set = <K extends keyof FormularioRegistro>(k: K, value: FormularioRegistro[K]) =>
+    setF((prev) => ({ ...prev, [k]: value }))
 
   async function guardar() {
-    const pistas = zonaTienePistaSvcbAuto(p.registros, f.type === 'A', f.type === 'AAAA')
+    const pistas = zonaTienePistaSvcbAuto(p.records, f.type === 'A', f.type === 'AAAA')
     const r = construirCuerpoRegistro(f, {
       zone: p.zone,
       modo: p.modo,
@@ -134,15 +134,15 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
 
     if ('error' in r) {
       setAviso({ type: 'warning', title: r.error.title, text: r.error.text })
-      if (r.error.campo === 'name') nombreRef.current?.focus()
+      if (r.error.field === 'name') nombreRef.current?.focus()
       return
     }
 
-    setOcupado(true)
-    const outcome = edicion
+    setBusy(true)
+    const outcome = editing
       ? await updateRecord(p.token, r.body, p.node ?? '')
       : await addRecord(p.token, r.body, p.node ?? '')
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -152,7 +152,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     p.onExpiryTtl(f.expiryTtl)
     p.onCerrar()
     p.onHecho(
-      edicion
+      editing
         ? { type: 'success', title: 'Record Updated!', text: 'Resource record was updated successfully.' }
         : { type: 'success', title: 'Record Added!', text: 'Resource record was added successfully.' },
     )
@@ -162,11 +162,11 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     <Dialog
       open={p.abierto}
       onOpenChange={(o) => !o && p.onCerrar()}
-      tamano="medio"
-      title={edicion ? 'Edit Record' : 'Add Record'}
-      acciones={
+      size="medium"
+      title={editing ? 'Edit Record' : 'Add Record'}
+      actions={
         <>
-          <Button variant="primary" disabled={ocupado} onClick={() => void guardar()}>
+          <Button variant="primary" disabled={busy} onClick={() => void guardar()}>
             Save
           </Button>
         </>
@@ -174,7 +174,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
     >
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      <div className={styles.campos}>
+      <div className={styles.fields}>
         <Field label="Name">
           {(id) => (
             <div className={styles.enLinea}>
@@ -196,13 +196,13 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
             <Select
               id={id}
               className={styles.medio}
-              disabled={edicion}
+              disabled={editing}
               value={f.type}
               onChange={(e) => set('type', e.target.value)}
             >
               {TIPOS_REGISTRO.filter(
                 // SOA only appears on edit; the rest according to the zone type.
-                (t) => (t === 'SOA' ? edicion : !ocultos.includes(t)),
+                (t) => (t === 'SOA' ? editing : !ocultos.includes(t)),
               ).map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -218,7 +218,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
               <Input
                 id={id}
                 mono
-                className={styles.corto}
+                className={styles.short}
                 placeholder="3600"
                 value={f.ttl}
                 onChange={(e) => set('ttl', e.target.value)}
@@ -228,10 +228,10 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
           )}
         </Field>
 
-        <CamposDelTipo f={f} set={set} apps={apps} clases={clases} edicion={edicion} />
+        <CamposDelTipo f={f} set={set} apps={apps} clases={clases} editing={editing} />
 
         {/* "Overwrite" only exists when adding. */}
-        {!edicion && (
+        {!editing && (
           <label className={styles.chk}>
             <input type="checkbox" checked={f.overwrite} onChange={(e) => set('overwrite', e.target.checked)} />
             Overwrite existing records
@@ -255,7 +255,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
               <Input
                 id={id}
                 mono
-                className={styles.corto}
+                className={styles.short}
                 placeholder="0"
                 value={f.expiryTtl}
                 onChange={(e) => set('expiryTtl', e.target.value)}
@@ -264,7 +264,7 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
             </div>
           )}
         </Field>
-        <div className={styles.ayuda}>
+        <div className={styles.help}>
           Set to automatically delete the record when the value in seconds elapses since the record’s last
           modified time.
         </div>
@@ -275,36 +275,36 @@ export function AnadirEditarRegistro(p: AnadirEditarRegistroProps) {
 
 interface CamposProps {
   f: FormularioRegistro
-  set: <K extends keyof FormularioRegistro>(k: K, valor: FormularioRegistro[K]) => void
+  set: <K extends keyof FormularioRegistro>(k: K, value: FormularioRegistro[K]) => void
   apps: string[]
   clases: string[]
-  edicion: boolean
+  editing: boolean
 }
 
-function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
-  const texto = (
+function CamposDelTipo({ f, set, apps, clases, editing }: CamposProps) {
+  const text = (
     etiqueta: string,
-    clave: keyof FormularioRegistro,
-    opciones: { mono?: boolean; corto?: boolean; placeholder?: string } = {},
+    key: keyof FormularioRegistro,
+    options: { mono?: boolean; short?: boolean; placeholder?: string } = {},
   ) => (
     <Field label={etiqueta}>
       {(id) => (
         <Input
           id={id}
-          mono={opciones.mono}
-          className={opciones.corto ? styles.corto : undefined}
-          placeholder={opciones.placeholder}
-          value={String(f[clave] ?? '')}
-          onChange={(e) => set(clave, e.target.value as never)}
+          mono={options.mono}
+          className={options.short ? styles.short : undefined}
+          placeholder={options.placeholder}
+          value={String(f[key] ?? '')}
+          onChange={(e) => set(key, e.target.value as never)}
         />
       )}
     </Field>
   )
 
-  const desplegable = (etiqueta: string, clave: keyof FormularioRegistro, valores: string[]) => (
+  const desplegable = (etiqueta: string, key: keyof FormularioRegistro, valores: string[]) => (
     <Field label={etiqueta}>
       {(id) => (
-        <Select id={id} value={String(f[clave] ?? '')} onChange={(e) => set(clave, e.target.value as never)}>
+        <Select id={id} value={String(f[key] ?? '')} onChange={(e) => set(key, e.target.value as never)}>
           <option value="" />
           {valores.map((v) => (
             <option key={v} value={v}>
@@ -321,7 +321,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'AAAA':
       return (
         <>
-          {texto(f.type === 'A' ? 'IPv4 Address' : 'IPv6 Address', 'valor', { mono: true })}
+          {text(f.type === 'A' ? 'IPv4 Address' : 'IPv6 Address', 'value', { mono: true })}
           <label className={styles.chk}>
             <input type="checkbox" checked={f.ptr} onChange={(e) => set('ptr', e.target.checked)} />
             Add reverse (PTR) record
@@ -340,7 +340,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'NS':
       return (
         <>
-          {texto('Name Server', 'nsNameServer', { mono: true })}
+          {text('Name Server', 'nsNameServer', { mono: true })}
           <Field label="Glue Addresses">
             {(id) => (
               <Textarea
@@ -360,13 +360,13 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'SOA':
       return (
         <>
-          {texto('Primary Name Server', 'soaPrimaryNameServer', { mono: true })}
-          {texto('Responsible Person', 'soaResponsiblePerson', { mono: true, placeholder: 'email address' })}
-          {texto('Serial', 'soaSerial', { mono: true, corto: true })}
-          {texto('Refresh', 'soaRefresh', { mono: true, corto: true })}
-          {texto('Retry', 'soaRetry', { mono: true, corto: true })}
-          {texto('Expire', 'soaExpire', { mono: true, corto: true })}
-          {texto('Minimum', 'soaMinimum', { mono: true, corto: true })}
+          {text('Primary Name Server', 'soaPrimaryNameServer', { mono: true })}
+          {text('Responsible Person', 'soaResponsiblePerson', { mono: true, placeholder: 'email address' })}
+          {text('Serial', 'soaSerial', { mono: true, short: true })}
+          {text('Refresh', 'soaRefresh', { mono: true, short: true })}
+          {text('Retry', 'soaRetry', { mono: true, short: true })}
+          {text('Expire', 'soaExpire', { mono: true, short: true })}
+          {text('Minimum', 'soaMinimum', { mono: true, short: true })}
           <label className={styles.chk}>
             <input
               type="checkbox"
@@ -379,22 +379,22 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
       )
 
     case 'CNAME':
-      return texto('Canonical Name', 'valor', { mono: true })
+      return text('Canonical Name', 'value', { mono: true })
 
     case 'PTR':
-      return texto('Domain Name', 'valor', { mono: true })
+      return text('Domain Name', 'value', { mono: true })
 
     case 'DNAME':
-      return texto('Delegation Name', 'valor', { mono: true })
+      return text('Delegation Name', 'value', { mono: true })
 
     case 'ANAME':
-      return texto('ANAME', 'valor', { mono: true })
+      return text('ANAME', 'value', { mono: true })
 
     case 'MX':
       return (
         <>
-          {texto('Preference', 'mxPreference', { mono: true, corto: true, placeholder: '1' })}
-          {texto('Exchange', 'mxExchange', { mono: true })}
+          {text('Preference', 'mxPreference', { mono: true, short: true, placeholder: '1' })}
+          {text('Exchange', 'mxExchange', { mono: true })}
         </>
       )
 
@@ -426,40 +426,40 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
     case 'RP':
       return (
         <>
-          {texto('Mailbox', 'rpMailbox', { mono: true, placeholder: 'email address' })}
-          {texto('TXT Domain', 'rpTxtDomain', { mono: true, placeholder: '.' })}
+          {text('Mailbox', 'rpMailbox', { mono: true, placeholder: 'email address' })}
+          {text('TXT Domain', 'rpTxtDomain', { mono: true, placeholder: '.' })}
         </>
       )
 
     case 'SRV':
       return (
         <>
-          {texto('Priority', 'srvPriority', { mono: true, corto: true })}
-          {texto('Weight', 'srvWeight', { mono: true, corto: true })}
-          {texto('Port', 'srvPort', { mono: true, corto: true })}
-          {texto('Target', 'srvTarget', { mono: true })}
+          {text('Priority', 'srvPriority', { mono: true, short: true })}
+          {text('Weight', 'srvWeight', { mono: true, short: true })}
+          {text('Port', 'srvPort', { mono: true, short: true })}
+          {text('Target', 'srvTarget', { mono: true })}
         </>
       )
 
     case 'NAPTR':
       return (
         <>
-          {texto('Order', 'naptrOrder', { mono: true, corto: true })}
-          {texto('Preference', 'naptrPreference', { mono: true, corto: true })}
-          {texto('Flags', 'naptrFlags', { mono: true, corto: true })}
-          {texto('Services', 'naptrServices', { mono: true })}
-          {texto('Regular Expression', 'naptrRegexp', { mono: true })}
-          {texto('Replacement', 'naptrReplacement', { mono: true })}
+          {text('Order', 'naptrOrder', { mono: true, short: true })}
+          {text('Preference', 'naptrPreference', { mono: true, short: true })}
+          {text('Flags', 'naptrFlags', { mono: true, short: true })}
+          {text('Services', 'naptrServices', { mono: true })}
+          {text('Regular Expression', 'naptrRegexp', { mono: true })}
+          {text('Replacement', 'naptrReplacement', { mono: true })}
         </>
       )
 
     case 'DS':
       return (
         <>
-          {texto('Key Tag', 'dsKeyTag', { mono: true, corto: true, placeholder: 'key tag' })}
+          {text('Key Tag', 'dsKeyTag', { mono: true, short: true, placeholder: 'key tag' })}
           {desplegable('DNSSEC Algorithm', 'dsAlgorithm', ALGORITMOS_DS)}
           {desplegable('Digest Type', 'dsDigestType', DIGESTS_DS)}
-          {texto('Digest', 'dsDigest', { mono: true, placeholder: 'hash string' })}
+          {text('Digest', 'dsDigest', { mono: true, placeholder: 'hash string' })}
         </>
       )
 
@@ -468,7 +468,7 @@ function CamposDelTipo({ f, set, apps, clases, edicion }: CamposProps) {
         <>
           {desplegable('Algorithm', 'sshfpAlgorithm', ALGORITMOS_SSHFP)}
           {desplegable('Fingerprint Type', 'sshfpFingerprintType', HUELLAS_SSHFP)}
-          {texto('Fingerprint', 'sshfpFingerprint', { mono: true, placeholder: 'hash string' })}
+          {text('Fingerprint', 'sshfpFingerprint', { mono: true, placeholder: 'hash string' })}
         </>
       )
 
@@ -502,31 +502,31 @@ MII...
     case 'HTTPS':
       return (
         <>
-          {texto('Priority', 'svcbPriority', { mono: true, corto: true })}
-          {texto('Target Name', 'svcbTargetName', { mono: true })}
-          <div className={styles.grupo}>
+          {text('Priority', 'svcbPriority', { mono: true, short: true })}
+          {text('Target Name', 'svcbTargetName', { mono: true })}
+          <div className={styles.group}>
             <div className={styles.grupoTit}>Params</div>
             {f.svcbParams.map((par, i) => (
               <div key={i} className={styles.enLinea}>
                 <Input
                   mono
                   aria-label={`Param key ${i + 1}`}
-                  value={par.clave}
+                  value={par.key}
                   onChange={(e) =>
                     set(
                       'svcbParams',
-                      f.svcbParams.map((x, j) => (j === i ? { ...x, clave: e.target.value } : x)),
+                      f.svcbParams.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)),
                     )
                   }
                 />
                 <Input
                   mono
                   aria-label={`Param value ${i + 1}`}
-                  value={par.valor}
+                  value={par.value}
                   onChange={(e) =>
                     set(
                       'svcbParams',
-                      f.svcbParams.map((x, j) => (j === i ? { ...x, valor: e.target.value } : x)),
+                      f.svcbParams.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)),
                     )
                   }
                 />
@@ -539,7 +539,7 @@ MII...
               </div>
             ))}
             <div>
-              <Button onClick={() => set('svcbParams', [...f.svcbParams, { clave: '', valor: '' }])}>
+              <Button onClick={() => set('svcbParams', [...f.svcbParams, { key: '', value: '' }])}>
                 Add Param
               </Button>
             </div>
@@ -566,18 +566,18 @@ MII...
     case 'URI':
       return (
         <>
-          {texto('Priority', 'uriPriority', { mono: true, corto: true })}
-          {texto('Weight', 'uriWeight', { mono: true, corto: true })}
-          {texto('URI', 'uri', { mono: true })}
+          {text('Priority', 'uriPriority', { mono: true, short: true })}
+          {text('Weight', 'uriWeight', { mono: true, short: true })}
+          {text('URI', 'uri', { mono: true })}
         </>
       )
 
     case 'CAA':
       return (
         <>
-          {texto('Flags', 'caaFlags', { mono: true, corto: true, placeholder: '0' })}
-          {texto('Tag', 'caaTag', { mono: true, corto: true, placeholder: 'issue' })}
-          {texto('Authority', 'caaValue', { mono: true })}
+          {text('Flags', 'caaFlags', { mono: true, short: true, placeholder: '0' })}
+          {text('Tag', 'caaTag', { mono: true, short: true, placeholder: 'issue' })}
+          {text('Authority', 'caaValue', { mono: true })}
         </>
       )
 
@@ -586,23 +586,23 @@ MII...
         <>
           <GroupRow modal label="Protocol">
             {PROTOCOLOS_FORWARDER.map((x) => (
-              <label key={x.valor} className={styles.chk}>
+              <label key={x.value} className={styles.chk}>
                 <input
                   type="radio"
                   name="recordForwarderProtocol"
-                  checked={f.forwarderProtocol === x.valor}
-                  onChange={() => set('forwarderProtocol', x.valor)}
+                  checked={f.forwarderProtocol === x.value}
+                  onChange={() => set('forwarderProtocol', x.value)}
                 />
                 {x.etiqueta}
               </label>
             ))}
           </GroupRow>
-          {texto('Forwarder', 'forwarder', {
+          {text('Forwarder', 'forwarder', {
             mono: true,
             placeholder: ejemploDeForwarder(f.forwarderProtocol),
           })}
-          {texto('Forwarder Priority', 'forwarderPriority', { mono: true, corto: true, placeholder: '0' })}
-          <div className={styles.ayuda}>
+          {text('Forwarder Priority', 'forwarderPriority', { mono: true, short: true, placeholder: '0' })}
+          <div className={styles.help}>
             Forwarders are sorted by priority value i.e. forwarder with low priority value will be
             queried before trying for forwarder with high priority value. Forwarders with the same
             priority value will be queried concurrently.
@@ -617,12 +617,12 @@ MII...
           </label>
           <GroupRow modal label="Network Proxy">
             {TIPOS_PROXY.map((x) => (
-              <label key={x.valor} className={styles.chk}>
+              <label key={x.value} className={styles.chk}>
                 <input
                   type="radio"
                   name="recordProxyType"
-                  checked={f.proxyType === x.valor}
-                  onChange={() => set('proxyType', x.valor)}
+                  checked={f.proxyType === x.value}
+                  onChange={() => set('proxyType', x.value)}
                 />
                 {x.etiqueta}
               </label>
@@ -645,7 +645,7 @@ MII...
                   placeholder="port"
                   id={id}
                   mono
-                  className={styles.corto}
+                  className={styles.short}
                   disabled={!proxyEditable(f.proxyType)}
                   value={f.proxyPort}
                   onChange={(e) => set('proxyPort', e.target.value)}
@@ -687,7 +687,7 @@ MII...
             {(id) => (
               <Select
                 id={id}
-                disabled={edicion}
+                disabled={editing}
                 value={f.appName}
                 onChange={(e) => set('appName', e.target.value)}
               >
@@ -704,7 +704,7 @@ MII...
             {(id) => (
               <Select
                 id={id}
-                disabled={edicion}
+                disabled={editing}
                 value={f.classPath}
                 onChange={(e) => set('classPath', e.target.value)}
               >
@@ -734,8 +734,8 @@ MII...
     default:
       return (
         <>
-          {texto('RR Type', 'unknownType', { mono: true, corto: true, placeholder: 'type' })}
-          {texto('Value', 'valor', { mono: true })}
+          {text('RR Type', 'unknownType', { mono: true, short: true, placeholder: 'type' })}
+          {text('Value', 'value', { mono: true })}
         </>
       )
   }

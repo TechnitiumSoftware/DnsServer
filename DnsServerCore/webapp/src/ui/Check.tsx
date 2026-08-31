@@ -41,9 +41,9 @@ export function Check({
           disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <span className={styles.texto}>{label}</span>
+        <span className={styles.text}>{label}</span>
       </label>
-      {help && <div className={styles.ayuda}>{help}</div>}
+      {help && <div className={styles.help}>{help}</div>}
     </div>
   )
 }

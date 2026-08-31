@@ -91,7 +91,7 @@ Both were defined three times —in Settings, in DHCP and in Administration— w
 the same values copied by hand. It is the same story as the table and the panel:
 what gets repeated ends up drifting apart.
 */
-.ayuda {
+.help {
   composes: conCodigo from './texto.module.css';
   font-size: var(--t-3);
   color: var(--mute);
@@ -99,11 +99,11 @@ what gets repeated ends up drifting apart.
   max-width: 720px;
 }
 
-.ayuda a { color: var(--acc); }
+.help a { color: var(--acc); }
 
 
 /* Several checkboxes or radios inside a single row. */
-.grupo {
+.group {
   display: flex;
   flex-direction: column;
   gap: var(--s-6);

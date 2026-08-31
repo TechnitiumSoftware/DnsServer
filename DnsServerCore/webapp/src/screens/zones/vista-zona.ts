@@ -15,8 +15,8 @@ export interface CabeceraDeZona {
   exportar: boolean
   convertir: boolean
   clonar: boolean
-  opciones: boolean
-  permisos: boolean
+  options: boolean
+  permissions: boolean
   /** The whole DNSSEC menu. */
   dnssec: boolean
   firmar: boolean
@@ -31,12 +31,12 @@ const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
 const CONOCIDOS = [...SECUNDARIAS, 'Primary', 'Stub', 'Forwarder', 'Catalog']
 
 /** A Catalog or a Forwarder does not bring the field: they cannot be signed. */
-export function estaFirmada(dnssecStatus: string | undefined): boolean {
+export function isSigned(dnssecStatus: string | undefined): boolean {
   return dnssecStatus === 'SignedWithNSEC' || dnssecStatus === 'SignedWithNSEC3'
 }
 
 export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): CabeceraDeZona {
-  const firmada = estaFirmada(dnssecStatus)
+  const signed = isSigned(dnssecStatus)
 
   const base: CabeceraDeZona = {
     // Only Primary and Forwarder allow adding records by hand.
@@ -46,8 +46,8 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
     exportar: ['Primary', 'Forwarder', ...SECUNDARIAS, 'Catalog'].includes(type),
     convertir: ['Primary', 'Secondary', 'SecondaryForwarder', 'Forwarder', 'SecondaryCatalog'].includes(type),
     clonar: type === 'Primary' || type === 'Forwarder',
-    opciones: CONOCIDOS.includes(type),
-    permisos: CONOCIDOS.includes(type),
+    options: CONOCIDOS.includes(type),
+    permissions: CONOCIDOS.includes(type),
     dnssec: false,
     firmar: false,
     desfirmar: false,
@@ -61,18 +61,18 @@ export function cabeceraDeZona(type: string, dnssecStatus: string | undefined): 
       ...base,
       dnssec: true,
       // Sign only if it is NOT; the rest, only if it is.
-      firmar: !firmada,
-      desfirmar: firmada,
-      verDs: firmada,
-      propiedades: firmada,
-      alternarRegistrosDnssec: firmada,
+      firmar: !signed,
+      desfirmar: signed,
+      verDs: signed,
+      propiedades: signed,
+      alternarRegistrosDnssec: signed,
     }
   }
 
   // A signed secondary shows the menu, but INSIDE it can only hide the DNSSEC
   // records: it does not sign, does not unsign and does not see the DS, because
   // the zone is not its own. Unsigned, the menu does not appear at all.
-  if (type === 'Secondary' && firmada) {
+  if (type === 'Secondary' && signed) {
     return { ...base, dnssec: true, alternarRegistrosDnssec: true }
   }
 
@@ -91,7 +91,7 @@ export function tiposOcultosAlAnadir(tipoZona: string, dnssecStatus: string | un
   if (tipoZona === 'Forwarder') return ['DS', 'SSHFP', 'TLSA']
 
   if (tipoZona === 'Primary') {
-    return estaFirmada(dnssecStatus) ? ['FWD', 'ANAME', 'APP'] : ['FWD', 'DS', 'SSHFP', 'TLSA']
+    return isSigned(dnssecStatus) ? ['FWD', 'ANAME', 'APP'] : ['FWD', 'DS', 'SSHFP', 'TLSA']
   }
 
   return []
@@ -108,9 +108,9 @@ export function leerOcultarDnssec(): boolean {
   }
 }
 
-export function guardarOcultarDnssec(valor: boolean): void {
+export function guardarOcultarDnssec(value: boolean): void {
   try {
-    localStorage.setItem(CLAVE_OCULTAR_DNSSEC, String(valor))
+    localStorage.setItem(CLAVE_OCULTAR_DNSSEC, String(value))
   } catch {
     /* Without localStorage the preference does not persist; the screen lives on. */
   }

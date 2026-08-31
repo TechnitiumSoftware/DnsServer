@@ -25,20 +25,20 @@ describe('anadirALaLista — the "Add User" / "Add Group" dropdowns', () => {
 })
 
 describe('anadirALaTabla — the dropdowns of the permissions modal', () => {
-  const nueva = (nombre: string) => ({ nombre, canView: false })
+  const nueva = (name: string) => ({ name, canView: false })
 
   it('"blank" touches nothing and "none" empties the table', () => {
-    const filas = [{ nombre: 'ana', canView: true }]
-    expect(anadirALaTabla(filas, 'blank', nueva)).toBe(filas)
-    expect(anadirALaTabla(filas, 'none', nueva)).toEqual([])
+    const rows = [{ name: 'ana', canView: true }]
+    expect(anadirALaTabla(rows, 'blank', nueva)).toBe(rows)
+    expect(anadirALaTabla(rows, 'none', nueva)).toEqual([])
   })
 
   it('it adds the row with the permissions false', () => {
-    expect(anadirALaTabla([], 'ana', nueva)).toEqual([{ nombre: 'ana', canView: false }])
+    expect(anadirALaTabla([], 'ana', nueva)).toEqual([{ name: 'ana', canView: false }])
   })
 
   it('it does not add a row that already exists', () => {
-    const filas = [{ nombre: 'ana', canView: true }]
-    expect(anadirALaTabla(filas, 'ana', nueva)).toBe(filas)
+    const rows = [{ name: 'ana', canView: true }]
+    expect(anadirALaTabla(rows, 'ana', nueva)).toBe(rows)
   })
 })

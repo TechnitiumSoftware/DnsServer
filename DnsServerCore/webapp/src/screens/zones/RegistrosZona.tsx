@@ -6,7 +6,7 @@ import {
   getRecords,
   updateRecord,
   zonaTienePistaSvcbAuto,
-  type Registro,
+  type ResourceRecord,
   type ZonaDeRegistros,
 } from '../../api/registros'
 import {
@@ -22,20 +22,20 @@ import {
 import { Button } from '../../ui/Button'
 import { Field, Input, Select } from '../../ui/Field'
 import { CeldaDatos } from './CeldaDatos'
-import { fechaMinuto as fecha } from '../../lib/fechas'
+import { fechaMinuto as date } from '../../lib/fechas'
 import { Menu, Separador } from '../../ui/Menu'
 import { filtrar } from './filtro'
 import { textoDeEstado, ventanaDePaginas } from '../../lib/paginacion'
-import { accionesDeFila, celdasDeRegistro, nombreRelativo, ocultarDnssec, type Celda } from './registro-vista'
-import { cabeceraDeZona, estaFirmada, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
+import { accionesDeFila, celdasDeRegistro, nombreRelativo, ocultarDnssec, type Cell } from './registro-vista'
+import { cabeceraDeZona, isSigned, guardarOcultarDnssec, leerOcultarDnssec } from './vista-zona'
 import { SectionHeader } from '../../ui/SectionHeader'
 import { Empty, Loading } from '../../ui/Empty'
 import { Chip, Tag } from '../../ui/Tag'
 import tbl from '../../ui/Table.module.css'
-import { AccionFila, Th, useOrden, type Claves, Tabla } from '../../ui/Table'
+import { AccionFila, Th, useOrden, type Keys, Table } from '../../ui/Table'
 import styles from './Zones.module.css'
-import type { Aviso, Confirmacion } from './tipos'
-import { Paginacion } from '../../ui/Paginacion'
+import type { Aviso, Confirmation } from './tipos'
+import { Pagination } from '../../ui/Paginacion'
 import { avisoDeFallo } from '../../lib/aviso'
 
 /*
@@ -59,9 +59,9 @@ export interface RegistrosZonaProps {
   canDelete: boolean
   onVolver: () => void
   onAviso: (a: Aviso) => void
-  onConfirmar: (c: Confirmacion) => void
-  onAnadirRegistro: (zona: ZonaDeRegistros, registros: Registro[]) => void
-  onEditarRegistro: (zona: ZonaDeRegistros, registro: Registro, registros: Registro[]) => void
+  onConfirmar: (c: Confirmation) => void
+  onAnadirRegistro: (zoneInfo: ZonaDeRegistros, records: ResourceRecord[]) => void
+  onEditarRegistro: (zoneInfo: ZonaDeRegistros, record: ResourceRecord, records: ResourceRecord[]) => void
   onImportar: (zone: string) => void
   onConvertir: (zone: string, type: string) => void
   onClonar: (zone: string) => void
@@ -90,20 +90,20 @@ text. "Data" is read through its already-formatted cells, which is what you see.
 Upstream's `#` column is sortable too and here it is not: sorting by the row
 number the sort itself has just handed out leads nowhere.
 */
-function textoDeCelda(c: Celda): string {
+function textoDeCelda(c: Cell): string {
   switch (c.clase) {
-    case 'valor':
-      return c.texto
-    case 'pares':
-      return c.pares.map((p) => `${p.etiqueta} ${p.valor}`).join(' ')
-    case 'lineas':
-      return c.lineas.join(' ')
-    case 'tabla':
-      return [c.cabeceras, ...c.filas].map((f) => f.join(' ')).join(' ')
+    case 'value':
+      return c.text
+    case 'pairs':
+      return c.pares.map((p) => `${p.etiqueta} ${p.value}`).join(' ')
+    case 'lines':
+      return c.lines.join(' ')
+    case 'table':
+      return [c.cabeceras, ...c.rows].map((f) => f.join(' ')).join(' ')
   }
 }
 
-const CLAVES: Claves<Registro> = {
+const KEYS: Keys<ResourceRecord> = {
   name: (r) => r.name,
   type: (r) => r.type,
   ttl: (r) => r.ttl,
@@ -113,27 +113,27 @@ const CLAVES: Claves<Registro> = {
 export function RegistrosZona(p: RegistrosZonaProps) {
   const { zone, token, node = '', onAviso } = p
 
-  const [zona, setZona] = useState<ZonaDeRegistros | null>(null)
-  const [registros, setRegistros] = useState<Registro[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [ocupado, setOcupado] = useState(false)
+  const [zoneInfo, setZoneInfo] = useState<ZonaDeRegistros | null>(null)
+  const [records, setRegistros] = useState<ResourceRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
   const [ocultarDnssecRegs, setOcultarDnssecRegs] = useState(leerOcultarDnssec)
 
   const [filtroNombre, setFiltroNombre] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
   const [porPagina, setPorPagina] = useState(10)
-  const [pagina, setPagina] = useState(1)
+  const [page, setPagina] = useState(1)
 
   const cargar = useCallback(async () => {
-    setCargando(true)
+    setLoading(true)
     const r = await getRecords(token, zone, node)
-    setCargando(false)
+    setLoading(false)
 
     if (r == null) {
       onAviso({ type: 'danger', title: 'Error!', text: 'Unable to reach the DNS server.' })
       return
     }
-    setZona(r.zone)
+    setZoneInfo(r.zone)
     setRegistros(r.records)
   }, [token, zone, node, onAviso])
 
@@ -144,25 +144,25 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   // The DNSSEC filtering comes before the name/type filter, just as in
   // upstream: `editZoneRecords` ya llega recortado a `showEditZonePage`.
   const visibles = useMemo(() => {
-    const firmada = estaFirmada(zona?.dnssecStatus)
-    const base = ocultarDnssecRegs && firmada ? ocultarDnssec(registros) : registros
-    return filtrar(base, { nombre: filtroNombre, tipo: filtroTipo }, zone)
-  }, [registros, ocultarDnssecRegs, zona, filtroNombre, filtroTipo, zone])
+    const signed = isSigned(zoneInfo?.dnssecStatus)
+    const base = ocultarDnssecRegs && signed ? ocultarDnssec(records) : records
+    return filtrar(base, { name: filtroNombre, tipo: filtroTipo }, zone)
+  }, [records, ocultarDnssecRegs, zoneInfo, filtroNombre, filtroTipo, zoneInfo])
 
-  const { filas: ordenadas, orden, alternar } = useOrden(CLAVES, visibles)
+  const { rows: ordenadas, orden, alternar } = useOrden(KEYS, visibles)
 
   const totalPages = Math.max(1, Math.ceil(visibles.length / porPagina))
-  const paginaActual = Math.min(Math.max(pagina, 1), totalPages)
+  const paginaActual = Math.min(Math.max(page, 1), totalPages)
   const inicio = (paginaActual - 1) * porPagina
   const enPagina = ordenadas.slice(inicio, inicio + porPagina)
 
-  const cab = zona ? cabeceraDeZona(zona.type, zona.dnssecStatus) : null
+  const cab = zoneInfo ? cabeceraDeZona(zoneInfo.type, zoneInfo.dnssecStatus) : null
 
   /** Runs a mutation on a record and reloads the whole zone. */
   async function mutarRegistro(fn: () => Promise<{ kind: string; message?: string }>, exito: Aviso) {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await fn()
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
@@ -172,17 +172,17 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     onAviso(exito)
   }
 
-  function cambiarEstado(r: Registro, deshabilitar: boolean) {
-    const nombre = r.name === '' ? '.' : r.name
-    const pistas = zonaTienePistaSvcbAuto(registros, r.type === 'A', r.type === 'AAAA')
-    const cuerpo = {
+  function cambiarEstado(r: ResourceRecord, deshabilitar: boolean) {
+    const name = r.name === '' ? '.' : r.name
+    const pistas = zonaTienePistaSvcbAuto(records, r.type === 'A', r.type === 'AAAA')
+    const body = {
       ...cuerpoCambioDeEstado(zone, r, deshabilitar, pistas),
       expiryTtl: p.expiryTtlDelModal,
     }
 
     const ejecutar = () =>
       mutarRegistro(
-        () => updateRecord(token, cuerpo, node),
+        () => updateRecord(token, body, node),
         deshabilitar
           ? { type: 'success', title: 'Record Disabled!', text: 'Resource record was disabled successfully.' }
           : { type: 'success', title: 'Record Enabled!', text: 'Resource record was enabled successfully.' },
@@ -196,25 +196,25 @@ export function RegistrosZona(p: RegistrosZonaProps) {
 
     p.onConfirmar({
       titulo: 'Disable Record',
-      texto: `Are you sure to disable the ${r.type} record '${nombre}'?`,
+      text: `Are you sure to disable the ${r.type} record '${name}'?`,
       etiqueta: 'Disable',
-      accion: ejecutar,
+      action: ejecutar,
     })
   }
 
-  function borrarRegistro(r: Registro) {
-    const nombre = r.name === '' ? '.' : r.name
-    const pistas = zonaTienePistaSvcbAuto(registros, r.type === 'A', r.type === 'AAAA')
-    const cuerpo = cuerpoBorrado(zone, r)
-    if (r.type === 'A' || r.type === 'AAAA') cuerpo.updateSvcbHints = String(pistas)
+  function borrarRegistro(r: ResourceRecord) {
+    const name = r.name === '' ? '.' : r.name
+    const pistas = zonaTienePistaSvcbAuto(records, r.type === 'A', r.type === 'AAAA')
+    const body = cuerpoBorrado(zone, r)
+    if (r.type === 'A' || r.type === 'AAAA') body.updateSvcbHints = String(pistas)
 
     p.onConfirmar({
       titulo: 'Delete Record',
-      texto: `Are you sure to permanently delete the ${r.type} record '${nombre}'?`,
+      text: `Are you sure to permanently delete the ${r.type} record '${name}'?`,
       etiqueta: 'Delete',
       peligro: true,
-      accion: () =>
-        mutarRegistro(() => deleteRecord(token, cuerpo, node), {
+      action: () =>
+        mutarRegistro(() => deleteRecord(token, body, node), {
           type: 'success',
           title: 'Record Deleted!',
           text: 'Resource record was deleted successfully.',
@@ -225,9 +225,9 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   /* ── Actions on the whole zone ─────────────────────────────────────── */
 
   async function mutarZona(fn: () => Promise<{ kind: string; message?: string }>, exito: Aviso, volver = false) {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await fn()
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       onAviso(avisoDeFallo(outcome))
@@ -249,9 +249,9 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   function deshabilitarZona() {
     p.onConfirmar({
       titulo: 'Disable Zone',
-      texto: `Are you sure you want to disable the zone '${zone}'?`,
+      text: `Are you sure you want to disable the zone '${zone}'?`,
       etiqueta: 'Disable',
-      accion: () =>
+      action: () =>
         mutarZona(() => disableZone(token, zone, node), {
           type: 'success',
           title: 'Zone Disabled!',
@@ -263,10 +263,10 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   function borrarZona() {
     p.onConfirmar({
       titulo: 'Delete Zone',
-      texto: `Are you sure you want to permanently delete the zone '${zone}' and all its records?`,
+      text: `Are you sure you want to permanently delete the zone '${zone}' and all its records?`,
       etiqueta: 'Delete',
       peligro: true,
-      accion: () =>
+      action: () =>
         mutarZona(
           () => deleteZone(token, zone, node),
           { type: 'success', title: 'Zone Deleted!', text: `Zone '${zone}' was deleted successfully.` },
@@ -276,17 +276,17 @@ export function RegistrosZona(p: RegistrosZonaProps) {
   }
 
   function resincronizar() {
-    if (zona == null) return
-    const texto =
-      zona.type === 'Secondary'
+    if (zoneInfo == null) return
+    const text =
+      zoneInfo.type === 'Secondary'
         ? `The resync action will perform a full zone transfer (AXFR). You will need to check the logs to confirm if the resync action was successful.\n\nAre you sure you want to resync the '${zone}' zone?`
         : `The resync action will perform a full zone refresh. You will need to check the logs to confirm if the resync action was successful.\n\nAre you sure you want to resync the '${zone}' zone?`
 
     p.onConfirmar({
       titulo: 'Resync Zone',
-      texto,
+      text,
       etiqueta: 'Resync',
-      accion: () =>
+      action: () =>
         mutarZona(() => resyncZone(token, zone, node), {
           type: 'success',
           title: 'Resync Triggered!',
@@ -307,64 +307,64 @@ export function RegistrosZona(p: RegistrosZonaProps) {
     guardarOcultarDnssec(nuevo)
   }
 
-  if (cargando && zona == null) {
+  if (loading && zoneInfo == null) {
     return <Loading>Loading zone…</Loading>
   }
 
-  if (zona == null) {
+  if (zoneInfo == null) {
     return (
       <Empty titulo="Unable to open the zone">Go back to the list and try again.</Empty>
     )
   }
 
-  const estado = estadoDeZona(zona as unknown as Zone)
-  const firmada = estaFirmada(zona.dnssecStatus)
-  const texto = textoDeEstado(inicio + 1, enPagina.length, visibles.length, paginaActual, totalPages, 'records')
+  const state = estadoDeZona(zoneInfo as unknown as Zone)
+  const signed = isSigned(zoneInfo.dnssecStatus)
+  const text = textoDeEstado(inicio + 1, enPagina.length, visibles.length, paginaActual, totalPages, 'records')
   const pg = ventanaDePaginas(paginaActual, totalPages)
 
   /* Here the last page is calculated on the client: the records are all
      loaded, there is no need to ask the server. */
-  const paginacion = (
-    <Paginacion ventana={pg} actual={paginaActual} ultima={totalPages} onIr={setPagina} />
+  const pagination = (
+    <Pagination ventana={pg} current={paginaActual} last={totalPages} onIr={setPagina} />
   )
 
   return (
     <>
       <SectionHeader
-        seccion="Zones"
+        section="Zones"
         onVolver={p.onVolver}
         titulo={zone === '.' ? '<root>' : zone}
         etiquetas={
           <>
-            <Tag>{etiquetaTipo(zona.type)}</Tag>
-            <Tag tone={estado === 'Enabled' ? 'ok' : 'neutral'}>{estado}</Tag>
-            {firmada && (
+            <Tag>{etiquetaTipo(zoneInfo.type)}</Tag>
+            <Tag tone={state === 'Enabled' ? 'ok' : 'neutral'}>{state}</Tag>
+            {signed && (
               <Tag tone="info">DNSSEC</Tag>
             )}
-            {zona.catalog != null && <Tag>{zona.catalog}</Tag>}
+            {zoneInfo.catalog != null && <Tag>{zoneInfo.catalog}</Tag>}
           </>
         }
-        acciones={
+        actions={
           <>
             {cab?.anadirRegistro && (
               <Button
                 variant="primary"
-                disabled={!p.canModify || ocupado}
-                onClick={() => p.onAnadirRegistro(zona, registros)}
+                disabled={!p.canModify || busy}
+                onClick={() => p.onAnadirRegistro(zoneInfo, records)}
               >
                 Add Record
               </Button>
             )}
-            {zona.disabled ? (
-              <Button disabled={!p.canModify || ocupado} onClick={habilitarZona}>
+            {zoneInfo.disabled ? (
+              <Button disabled={!p.canModify || busy} onClick={habilitarZona}>
                 Enable Zone
               </Button>
             ) : (
-              <Button disabled={!p.canModify || ocupado} onClick={deshabilitarZona}>
+              <Button disabled={!p.canModify || busy} onClick={deshabilitarZona}>
                 Disable Zone
               </Button>
             )}
-            <Button variant="danger" disabled={!p.canDelete || ocupado} onClick={borrarZona}>
+            <Button variant="danger" disabled={!p.canDelete || busy} onClick={borrarZona}>
               Delete Zone
             </Button>
 
@@ -387,7 +387,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                     </button>
                   )}
                   {cab?.convertir && (
-                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(zone, zona.type) }}>
+                    <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onConvertir(zone, zoneInfo.type) }}>
                       Convert Zone
                     </button>
                   )}
@@ -396,12 +396,12 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                       Clone Zone
                     </button>
                   )}
-                  {cab?.opciones && (
+                  {cab?.options && (
                     <button type="button" disabled={!p.canModify} onClick={() => { cerrar(); p.onOpciones(zone) }}>
                       Zone Options
                     </button>
                   )}
-                  {cab?.permisos && (
+                  {cab?.permissions && (
                     <button type="button" onClick={() => { cerrar(); p.onPermisos(zone) }}>
                       Permissions
                     </button>
@@ -494,18 +494,18 @@ export function RegistrosZona(p: RegistrosZonaProps) {
       </div>
 
       <div className={styles.count}>
-        <span>{texto}</span>
-        {paginacion}
+        <span>{text}</span>
+        {pagination}
       </div>
 
-      <Tabla
-        cabecera={
+      <Table
+        header={
           <>
             <th style={{ width: 34 }}>#</th>
-            <Th campo="name" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
-            <Th campo="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
-            <Th campo="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
-            <Th campo="data" orden={orden} onOrdenar={alternar}>Data</Th>
+            <Th field="name" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>Name</Th>
+            <Th field="type" orden={orden} onOrdenar={alternar} style={{ width: 80 }}>Type</Th>
+            <Th field="ttl" orden={orden} onOrdenar={alternar} style={{ width: 110 }}>TTL</Th>
+            <Th field="data" orden={orden} onOrdenar={alternar}>Data</Th>
             {/* The actions column reserved 230 px with three labels inside;
                 with icons 120 is enough and the 110 left over go to the data,
                 which is what the table is about. */}
@@ -521,7 +521,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
           </tr>
         ) : (
           enPagina.map((r, i) => {
-            const acciones = accionesDeFila(zona.type, r.type)
+            const actions = accionesDeFila(zoneInfo.type, r.type)
             return (
               <tr key={`${r.name}|${r.type}|${inicio + i}`}>
                 <td className={styles.num}>{inicio + i + 1}</td>
@@ -538,21 +538,21 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                   {r.ttl} <small>({r.ttlString})</small>
                 </td>
                 <td>
-                  <CeldaDatos registro={r} notifyFailedFor={zona.notifyFailedFor} />
+                  <CeldaDatos record={r} notifyFailedFor={zoneInfo.notifyFailedFor} />
                 </td>
                 <td className={tbl.celdaAcciones}>
-                  {!acciones.ocultas && (
-                    <div className={tbl.acciones}>
+                  {!actions.ocultas && (
+                    <div className={tbl.actions}>
                       <AccionFila
                         icono="editar"
-                        nombre="Edit Record"
-                        disabled={!p.canModify || ocupado}
-                        onClick={() => p.onEditarRegistro(zona, r, registros)}
+                        name="Edit Record"
+                        disabled={!p.canModify || busy}
+                        onClick={() => p.onEditarRegistro(zoneInfo, r, records)}
                       />
                       <AccionFila
                         icono="energia"
-                        nombre={r.disabled ? 'Enable Record' : 'Disable Record'}
-                        disabled={acciones.soloEdicion || !p.canModify || ocupado}
+                        name={r.disabled ? 'Enable Record' : 'Disable Record'}
+                        disabled={actions.editingOnly || !p.canModify || busy}
                         onClick={() => cambiarEstado(r, !r.disabled)}
                       />
                       {/* Delete, inside the menu: the same rule as in the zone
@@ -561,7 +561,7 @@ export function RegistrosZona(p: RegistrosZonaProps) {
                         {(cerrar) => (
                           <button
                             type="button"
-                            disabled={acciones.soloEdicion || !p.canDelete || ocupado}
+                            disabled={actions.editingOnly || !p.canDelete || busy}
                             onClick={() => { cerrar(); borrarRegistro(r) }}
                           >
                             Delete Record
@@ -575,16 +575,16 @@ export function RegistrosZona(p: RegistrosZonaProps) {
             )
           })
         )}
-      </Tabla>
+      </Table>
 
       <div className={`${styles.count} ${styles.countPie}`}>
-        <span>{texto}</span>
-        {paginacion}
+        <span>{text}</span>
+        {pagination}
       </div>
 
       {/* The secondary zone's expiry, which upstream draws next to the title. */}
-      {'expiry' in zona && (zona as { expiry?: string }).expiry != null && (
-        <div className={styles.meta}>Expiry: {fecha((zona as { expiry?: string }).expiry)}</div>
+      {'expiry' in zoneInfo && (zoneInfo as { expiry?: string }).expiry != null && (
+        <div className={styles.meta}>Expiry: {date((zoneInfo as { expiry?: string }).expiry)}</div>
       )}
     </>
   )

@@ -30,16 +30,16 @@ export function DesfirmarZona({
   onHecho: (a: Aviso) => void
 }) {
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (abierto) setAviso(null)
   }, [abierto])
 
   async function desfirmar() {
-    setOcupado(true)
+    setBusy(true)
     const outcome = await unsignZone(token, zone, node)
-    setOcupado(false)
+    setBusy(false)
 
     if (outcome.kind !== 'ok') {
       setAviso(avisoDeFallo(outcome))
@@ -55,9 +55,9 @@ export function DesfirmarZona({
       open={abierto}
       onOpenChange={(o) => !o && onCerrar()}
       title={`Unsign Zone - ${zone === '.' ? '<root>' : zone}`}
-      acciones={
+      actions={
         <>
-          <Button variant="danger" disabled={ocupado} onClick={() => void desfirmar()}>
+          <Button variant="danger" disabled={busy} onClick={() => void desfirmar()}>
             Unsign Zone
           </Button>
         </>

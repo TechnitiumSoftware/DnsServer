@@ -67,20 +67,20 @@ export function Admin({ token, sub }: AdminProps) {
   const alCluster = useCallback((s: ClusterState) => setCluster(s), [])
 
   const pedida = (sub ?? 'Sessions') as Subpestana
-  const activa: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Sessions'
+  const active: Subpestana = SUBPESTANAS.includes(pedida) ? pedida : 'Sessions'
 
   return (
     <div>
       <Avisador aviso={aviso} onCerrar={() => setAviso(null)} />
 
-      {activa === 'Sessions' && <Sessions token={token} cluster={cluster} onAviso={avisar} />}
-      {activa === 'Users' && <Users token={token} cluster={cluster} onAviso={avisar} />}
-      {activa === 'Groups' && <Groups token={token} onAviso={avisar} />}
-      {activa === 'Permissions' && (
+      {active === 'Sessions' && <Sessions token={token} cluster={cluster} onAviso={avisar} />}
+      {active === 'Users' && <Users token={token} cluster={cluster} onAviso={avisar} />}
+      {active === 'Groups' && <Groups token={token} onAviso={avisar} />}
+      {active === 'Permissions' && (
         <Permissions token={token} cluster={cluster} onAviso={avisar} />
       )}
-      {activa === 'SSO' && <Sso token={token} onAviso={avisar} />}
-      {activa === 'Cluster' && (
+      {active === 'SSO' && <Sso token={token} onAviso={avisar} />}
+      {active === 'Cluster' && (
         <Cluster token={token} cluster={cluster} onCluster={alCluster} onAviso={avisar} />
       )}
     </div>

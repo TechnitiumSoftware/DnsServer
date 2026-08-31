@@ -14,7 +14,7 @@ it showed:
 */
 
 /* The age, under the date: "(2 hours ago)". */
-.antiguedad {
+.age {
   margin-top: var(--s-1);
   font-size: var(--t-2);
   color: var(--faint);

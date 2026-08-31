@@ -13,7 +13,7 @@ import { Button } from '../../ui/Button'
 import { SectionHeader } from '../../ui/SectionHeader'
 import {Empty, Loading} from '../../ui/Empty'
 import styles from './Logs.module.css'
-import { Cuerpo, Panel } from '../../ui/Panel'
+import { Body, Panel } from '../../ui/Panel'
 import { avisoDeFallo, type Aviso } from '../../lib/aviso'
 import { Avisador } from '../../ui/Avisador'
 
@@ -46,7 +46,7 @@ export interface ViewLogsProps {
   canDeleteStats?: boolean
 }
 
-type Confirmacion = 'log' | 'allLogs' | 'allStats'
+type Confirmation = 'log' | 'allLogs' | 'allStats'
 
 export function ViewLogs({
   token,
@@ -56,11 +56,11 @@ export function ViewLogs({
 }: ViewLogsProps) {
   const [ficheros, setFicheros] = useState<LogFile[] | null>(null)
   const [abierto, setAbierto] = useState<string | null>(null)
-  const [cuerpo, setCuerpo] = useState<string | null>(null)
+  const [body, setCuerpo] = useState<string | null>(null)
   const [cargandoCuerpo, setCargandoCuerpo] = useState(false)
   const [aviso, setAviso] = useState<Aviso | null>(null)
-  const [ocupado, setOcupado] = useState(false)
-  const [confirmar, setConfirmar] = useState<Confirmacion | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [confirmar, setConfirmar] = useState<Confirmation | null>(null)
 
   // A failure on load is not drawn as an empty list; see `dhcp/Leases`.
   const cargar = useCallback(async () => {
@@ -81,24 +81,24 @@ export function ViewLogs({
     setAbierto(fileName)
     setCuerpo(null)
     setCargandoCuerpo(true)
-    const texto = await downloadLogText(token, fileName, node)
+    const text = await downloadLogText(token, fileName, node)
     setCargandoCuerpo(false)
-    setCuerpo(texto)
+    setCuerpo(text)
   }
 
   async function descargar() {
     if (abierto == null) return
-    setOcupado(true)
+    setBusy(true)
     await openLogDownload(token, abierto, node)
-    setOcupado(false)
+    setBusy(false)
   }
 
   async function borrarLog() {
     if (abierto == null) return
     setConfirmar(null)
-    setOcupado(true)
+    setBusy(true)
     const outcome = await deleteLog(token, abierto, node)
-    setOcupado(false)
+    setBusy(false)
     if (outcome.kind !== 'ok') return
 
     await cargar()
@@ -113,9 +113,9 @@ export function ViewLogs({
 
   async function borrarTodos() {
     setConfirmar(null)
-    setOcupado(true)
+    setBusy(true)
     const outcome = await deleteAllLogs(token, node)
-    setOcupado(false)
+    setBusy(false)
     if (outcome.kind !== 'ok') return
 
     await cargar()
@@ -130,9 +130,9 @@ export function ViewLogs({
 
   async function borrarStats() {
     setConfirmar(null)
-    setOcupado(true)
+    setBusy(true)
     const outcome = await deleteAllStats(token)
-    setOcupado(false)
+    setBusy(false)
     if (outcome.kind !== 'ok') return
 
     setAviso({
@@ -144,20 +144,20 @@ export function ViewLogs({
 
   if (ficheros == null) return <Loading />
 
-  const TEXTO_CONFIRM: Record<Confirmacion, { titulo: string; texto: string; etiqueta: string }> = {
+  const TEXTO_CONFIRM: Record<Confirmation, { titulo: string; text: string; etiqueta: string }> = {
     log: {
       titulo: 'Delete Log',
-      texto: `Are you sure you want to permanently delete the log file '${abierto ?? ''}'?`,
+      text: `Are you sure you want to permanently delete the log file '${abierto ?? ''}'?`,
       etiqueta: 'Delete',
     },
     allLogs: {
       titulo: 'Delete All Logs',
-      texto: 'Are you sure you want to permanently delete all log files?',
+      text: 'Are you sure you want to permanently delete all log files?',
       etiqueta: 'Delete All Logs',
     },
     allStats: {
       titulo: 'Delete All Stats',
-      texto: 'Are you sure you want to permanently delete all stats files?',
+      text: 'Are you sure you want to permanently delete all stats files?',
       etiqueta: 'Delete All Stats',
     },
   }
@@ -165,17 +165,17 @@ export function ViewLogs({
   return (
     <div className={styles.wrap}>
       <SectionHeader
-        seccion="Logs"
+        section="Logs"
         titulo="View Logs"
-        acciones={<>{/* logs.js:121 — "delete all logs" only exists if there are files. */}
+        actions={<>{/* logs.js:121 — "delete all logs" only exists if there are files. */}
           {canDeleteLogs && ficheros.length > 0 && (
-            <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('allLogs')}>
+            <Button variant="danger" disabled={busy} onClick={() => setConfirmar('allLogs')}>
               Delete All Logs
             </Button>
           )}
           {/* logs.js:117 — "delete all stats" is always offered. */}
           {canDeleteStats && (
-            <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('allStats')}>
+            <Button variant="danger" disabled={busy} onClick={() => setConfirmar('allStats')}>
               Delete All Stats
             </Button>
           )}</>}
@@ -185,7 +185,7 @@ export function ViewLogs({
 
       <div className={styles.dos}>
         <Panel titulo="Log Files" className={styles.panel}>
-          <Cuerpo className={styles.pbLista}>
+          <Body className={styles.pbLista}>
             {ficheros.length === 0 ? (
               <Empty>
                 {aviso?.type === 'danger'
@@ -202,39 +202,39 @@ export function ViewLogs({
                     aria-current={abierto === f.fileName}
                     onClick={() => void ver(f.fileName)}
                   >
-                    <span className={styles.nombre}>{f.fileName}</span>
+                    <span className={styles.name}>{f.fileName}</span>
                     <span className={styles.sz}>[{f.size}]</span>
                   </button>
                 ))}
               </div>
             )}
-          </Cuerpo>
+          </Body>
         </Panel>
 
         {abierto != null && (
           <Panel
             className={styles.panel}
             titulo={<span className={styles.mono}>{abierto}</span>}
-            acciones={
+            actions={
               <div className={styles.acts}>
-                <Button disabled={ocupado} onClick={() => void descargar()}>
+                <Button disabled={busy} onClick={() => void descargar()}>
                   Download
                 </Button>
                 {canDeleteLogs && (
-                  <Button variant="danger" disabled={ocupado} onClick={() => setConfirmar('log')}>
+                  <Button variant="danger" disabled={busy} onClick={() => setConfirmar('log')}>
                     Delete
                   </Button>
                 )}
               </div>
             }
           >
-            <Cuerpo>
+            <Body>
               {cargandoCuerpo ? (
                 <Loading />
               ) : (
-                <pre className={styles.out}>{cuerpo ?? ''}</pre>
+                <pre className={styles.out}>{body ?? ''}</pre>
               )}
-            </Cuerpo>
+            </Body>
           </Panel>
         )}
       </div>
@@ -242,9 +242,9 @@ export function ViewLogs({
       <Confirmar
         abierto={confirmar !== null}
         titulo={confirmar ? TEXTO_CONFIRM[confirmar].titulo : ''}
-        texto={confirmar ? TEXTO_CONFIRM[confirmar].texto : ''}
+        text={confirmar ? TEXTO_CONFIRM[confirmar].text : ''}
         etiqueta={confirmar ? TEXTO_CONFIRM[confirmar].etiqueta : ''}
-        ocupado={ocupado}
+        busy={busy}
         onCerrar={() => setConfirmar(null)}
         onConfirmar={() => {
           if (confirmar === 'log') void borrarLog()

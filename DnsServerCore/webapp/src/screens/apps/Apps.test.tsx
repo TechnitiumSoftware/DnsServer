@@ -52,8 +52,8 @@ function conTienda(storeApps: StoreApp[]) {
     .mockResolvedValue({ kind: 'ok', data: { status: 'ok', response: { storeApps } } } as never)
 }
 
-function tarjeta(nombre: string) {
-  return within(screen.getByRole('listitem', { name: nombre }))
+function tarjeta(name: string) {
+  return within(screen.getByRole('listitem', { name: name }))
 }
 
 describe('Apps — installed list', () => {
@@ -344,10 +344,10 @@ describe('Apps — tienda', () => {
     await screen.findByRole('listitem', { name: 'NO DATA' })
     await abrirTienda()
 
-    const fila = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
-    expect(fila.getByText('Version 11.1')).toBeInTheDocument()
-    expect(fila.getByText(/61\.54 KB/)).toBeInTheDocument()
-    expect(fila.getByText(/AdvancedBlockingApp-v11\.1\.zip/)).toBeInTheDocument()
+    const row = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
+    expect(row.getByText('Version 11.1')).toBeInTheDocument()
+    expect(row.getByText(/61\.54 KB/)).toBeInTheDocument()
+    expect(row.getByText(/AdvancedBlockingApp-v11\.1\.zip/)).toBeInTheDocument()
     expect(screen.getByText('Total Apps: 2')).toBeInTheDocument()
   })
 
@@ -358,14 +358,14 @@ describe('Apps — tienda', () => {
     await screen.findByRole('listitem', { name: 'NO DATA' })
     await abrirTienda()
 
-    const fila = within(
+    const row = within(
       await within(screen.getByRole('dialog')).findByRole('listitem', { name: 'NO DATA' }),
     )
-    expect(fila.getByText('Version 5.0')).toBeInTheDocument()
-    expect(fila.getByText('Update 6.0')).toBeInTheDocument()
-    expect(fila.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument()
-    expect(fila.getByRole('button', { name: 'Update' })).toBeInTheDocument()
-    expect(fila.getByRole('button', { name: 'Uninstall' })).toBeInTheDocument()
+    expect(row.getByText('Version 5.0')).toBeInTheDocument()
+    expect(row.getByText('Update 6.0')).toBeInTheDocument()
+    expect(row.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument()
+    expect(row.getByRole('button', { name: 'Update' })).toBeInTheDocument()
+    expect(row.getByRole('button', { name: 'Uninstall' })).toBeInTheDocument()
   })
 
   it('installing calls downloadAndInstall and alerts with the literal text', async () => {
@@ -378,8 +378,8 @@ describe('Apps — tienda', () => {
     await screen.findByText('No apps installed')
     await abrirTienda()
 
-    const fila = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
-    await userEvent.click(fila.getByRole('button', { name: 'Install' }))
+    const row = within(await screen.findByRole('listitem', { name: 'Advanced Blocking' }))
+    await userEvent.click(row.getByRole('button', { name: 'Install' }))
     expect(spy.mock.calls[0][1]).toBe('Advanced Blocking')
     expect(spy.mock.calls[0][2]).toBe('https://x/AdvancedBlockingApp-v11.1.zip')
     expect(
@@ -397,10 +397,10 @@ describe('Apps — tienda', () => {
     await screen.findByRole('listitem', { name: 'NO DATA' })
     await abrirTienda()
 
-    const fila = within(
+    const row = within(
       await within(screen.getAllByRole('dialog')[0]).findByRole('listitem', { name: 'NO DATA' }),
     )
-    await userEvent.click(fila.getByRole('button', { name: 'Uninstall' }))
+    await userEvent.click(row.getByRole('button', { name: 'Uninstall' }))
     // The confirmation stacks over the store's dialog.
     await userEvent.click(
       within(screen.getAllByRole('dialog').at(-1)!).getByRole('button', { name: 'Uninstall' }),

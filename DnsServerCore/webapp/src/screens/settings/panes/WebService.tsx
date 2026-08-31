@@ -133,7 +133,7 @@ export function WebService({ f, set, en }: PaneProps) {
           width="wide"
           help={
             <>
-              The HTTP header that must be used to read client's actual IP address when the request
+              The HTTP header that must be used to read client's current IP address when the request
               comes from a reverse proxy whose IP address is allowed in <b>Reverse Proxy Addresses</b>{' '}
               ACL above.
             </>

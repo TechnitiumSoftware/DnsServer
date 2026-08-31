@@ -20,12 +20,12 @@ Chart.js is used, not hand-written SVG, for two behavioural reasons:
 export function Chart({
   tipo,
   data,
-  alto = 230,
+  height = 230,
   aria,
 }: {
   tipo: ChartType
   data: ChartData
-  alto?: number
+  height?: number
   aria: string
 }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -35,7 +35,7 @@ export function Chart({
     if (!ref.current) return
     const css = getComputedStyle(document.documentElement)
     const tinta = css.getPropertyValue('--mute').trim() || '#8b95a7'
-    const linea = css.getPropertyValue('--line2').trim() || '#1a202b'
+    const line = css.getPropertyValue('--line2').trim() || '#1a202b'
 
     chart.current = new ChartJS(ref.current, {
       type: tipo,
@@ -50,8 +50,8 @@ export function Chart({
         scales:
           tipo === 'line'
             ? {
-                x: { ticks: { color: tinta, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: linea } },
-                y: { ticks: { color: tinta, font: { size: 10 } }, grid: { color: linea }, beginAtZero: true },
+                x: { ticks: { color: tinta, maxTicksLimit: 8, font: { size: 10 } }, grid: { color: line } },
+                y: { ticks: { color: tinta, font: { size: 10 } }, grid: { color: line }, beginAtZero: true },
               }
             : undefined,
       },
@@ -63,7 +63,7 @@ export function Chart({
   }, [tipo, data])
 
   return (
-    <div style={{ height: alto }}>
+    <div style={{ height: height }}>
       <canvas ref={ref} role="img" aria-label={aria} />
     </div>
   )

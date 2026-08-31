@@ -28,54 +28,54 @@ export const PESTANAS: { id: PestanaOpciones; etiqueta: string }[] = [
 ]
 
 export const ACCESOS_CONSULTA = [
-  { valor: 'Deny', etiqueta: 'Deny' },
-  { valor: 'Allow', etiqueta: 'Allow (default)' },
-  { valor: 'AllowOnlyPrivateNetworks', etiqueta: 'Allow Only Private Networks' },
-  { valor: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
-  { valor: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
+  { value: 'Deny', etiqueta: 'Deny' },
+  { value: 'Allow', etiqueta: 'Allow (default)' },
+  { value: 'AllowOnlyPrivateNetworks', etiqueta: 'Allow Only Private Networks' },
+  { value: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
+  { value: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
   {
-    valor: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
+    value: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
     etiqueta: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
   },
 ]
 
 export const TRANSFERENCIAS = [
-  { valor: 'Deny', etiqueta: 'Deny' },
-  { valor: 'Allow', etiqueta: 'Allow' },
-  { valor: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
-  { valor: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
+  { value: 'Deny', etiqueta: 'Deny' },
+  { value: 'Allow', etiqueta: 'Allow' },
+  { value: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
+  { value: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
   {
-    valor: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
+    value: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
     etiqueta: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
   },
 ]
 
 export const NOTIFICACIONES = [
-  { valor: 'None', etiqueta: 'None' },
-  { valor: 'ZoneNameServers', etiqueta: 'Name Servers In Zone' },
-  { valor: 'SpecifiedNameServers', etiqueta: 'Specified Name Servers' },
-  { valor: 'BothZoneAndSpecifiedNameServers', etiqueta: 'Both Zone Name Servers And Specified Name Servers' },
+  { value: 'None', etiqueta: 'None' },
+  { value: 'ZoneNameServers', etiqueta: 'Name Servers In Zone' },
+  { value: 'SpecifiedNameServers', etiqueta: 'Specified Name Servers' },
+  { value: 'BothZoneAndSpecifiedNameServers', etiqueta: 'Both Zone Name Servers And Specified Name Servers' },
   {
-    valor: 'SeparateNameServersForCatalogAndMemberZones',
+    value: 'SeparateNameServersForCatalogAndMemberZones',
     etiqueta: 'Separate Name Servers For Catalog And Member Zones',
   },
 ]
 
 export const ACTUALIZACIONES = [
-  { valor: 'Deny', etiqueta: 'Deny (default)' },
-  { valor: 'Allow', etiqueta: 'Allow' },
-  { valor: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
-  { valor: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
+  { value: 'Deny', etiqueta: 'Deny (default)' },
+  { value: 'Allow', etiqueta: 'Allow' },
+  { value: 'AllowOnlyZoneNameServers', etiqueta: 'Allow Only Name Servers In Zone' },
+  { value: 'UseSpecifiedNetworkACL', etiqueta: 'Use Specified Network Access Control List (ACL)' },
   {
-    valor: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
+    value: 'AllowZoneNameServersAndUseSpecifiedNetworkACL',
     etiqueta: 'Allow Zone Name Servers And Use Specified Network Access Control List (ACL)',
   },
 ]
 
 export const PROTOCOLOS_XFR = [
-  { valor: 'Tcp', etiqueta: 'XFR-over-TCP (default)' },
-  { valor: 'Tls', etiqueta: 'XFR-over-TLS' },
-  { valor: 'Quic', etiqueta: 'XFR-over-QUIC' },
+  { value: 'Tcp', etiqueta: 'XFR-over-TCP (default)' },
+  { value: 'Tls', etiqueta: 'XFR-over-TLS' },
+  { value: 'Quic', etiqueta: 'XFR-over-QUIC' },
 ]
 
 /* ── Interface state ───────────────────────────────────────────────────── */
@@ -108,7 +108,7 @@ export interface EstadoOpciones {
   notifySeparados: boolean
   /** Dynamic Updates */
   updateConNameServers: boolean
-  politicasDeSeguridad: boolean
+  securityPolicies: boolean
 }
 
 const SECUNDARIAS = ['Secondary', 'SecondaryForwarder', 'SecondaryCatalog']
@@ -310,7 +310,7 @@ export function estadoOpciones(r: OpcionesZona): EstadoOpciones {
     notifyConNameServers: tipo !== 'Forwarder' && tipo !== 'Catalog',
     notifySeparados: tipo === 'Catalog',
     updateConNameServers: !['Secondary', 'SecondaryForwarder', 'Forwarder'].includes(tipo),
-    politicasDeSeguridad: tipo === 'Primary' || tipo === 'Forwarder',
+    securityPolicies: tipo === 'Primary' || tipo === 'Forwarder',
   }
 }
 
@@ -351,8 +351,8 @@ In React there is no intermediate DOM, so here they are joined with `\n` and the
 result on the server is identical. It is noted in CONVENCIONES.md because it
 bites any screen with lists in a textarea.
 */
-function texto(lista: readonly string[] | null | undefined): string {
-  return (lista ?? []).join('\n')
+function text(list: readonly string[] | null | undefined): string {
+  return (list ?? []).join('\n')
 }
 
 export function formularioDesdeOpciones(r: OpcionesZona): FormularioOpciones {
@@ -361,7 +361,7 @@ export function formularioDesdeOpciones(r: OpcionesZona): FormularioOpciones {
     overrideCatalogQueryAccess: r.catalog != null && r.overrideCatalogQueryAccess === true,
     overrideCatalogZoneTransfer: r.catalog != null && r.overrideCatalogZoneTransfer === true,
     overrideCatalogNotify: r.catalog != null && r.overrideCatalogNotify === true,
-    primaryNameServerAddresses: texto(r.primaryNameServerAddresses),
+    primaryNameServerAddresses: text(r.primaryNameServerAddresses),
     // An unknown protocol falls to TCP, just like upstream's `default`.
     primaryZoneTransferProtocol:
       r.primaryZoneTransferProtocol === 'Tls' || r.primaryZoneTransferProtocol === 'Quic'
@@ -370,15 +370,15 @@ export function formularioDesdeOpciones(r: OpcionesZona): FormularioOpciones {
     primaryZoneTransferTsigKeyName: r.primaryZoneTransferTsigKeyName ?? '',
     validateZone: r.validateZone === true,
     queryAccess: r.queryAccess ?? 'Deny',
-    queryAccessNetworkACL: texto(r.queryAccessNetworkACL),
+    queryAccessNetworkACL: text(r.queryAccessNetworkACL),
     zoneTransfer: r.zoneTransfer ?? 'Deny',
-    zoneTransferNetworkACL: texto(r.zoneTransferNetworkACL),
-    zoneTransferTsigKeyNames: texto(r.zoneTransferTsigKeyNames),
+    zoneTransferNetworkACL: text(r.zoneTransferNetworkACL),
+    zoneTransferTsigKeyNames: text(r.zoneTransferTsigKeyNames),
     notify: r.notify ?? 'None',
-    notifyNameServers: texto(r.notifyNameServers),
-    notifySecondaryCatalogsNameServers: texto(r.notifySecondaryCatalogsNameServers),
+    notifyNameServers: text(r.notifyNameServers),
+    notifySecondaryCatalogsNameServers: text(r.notifySecondaryCatalogsNameServers),
     update: r.update ?? 'Deny',
-    updateNetworkACL: texto(r.updateNetworkACL),
+    updateNetworkACL: text(r.updateNetworkACL),
     updateSecurityPolicies: (r.updateSecurityPolicies ?? []).map(filaDesdePolitica),
   }
 }
@@ -395,7 +395,7 @@ export interface ErrorOpciones {
   title: string
   text: string
   tab: PestanaOpciones
-  campo: keyof FormularioOpciones
+  field: keyof FormularioOpciones
 }
 
 export type ResultadoOpciones = { error: ErrorOpciones } | { body: Record<string, string> }
@@ -406,23 +406,23 @@ in `lib/tabla-serie`, shared by the five screens with an editable table; all tha
 is said here is where the failing cell is.
 */
 function serializarPoliticas(
-  filas: FilaPolitica[],
-): { valor: string } | { error: ErrorOpciones } {
+  rows: FilaPolitica[],
+): { value: string } | { error: ErrorOpciones } {
   const r = serializarTabla(
-    filas.map((fila) =>
-      [fila.tsigKeyName, fila.domain, fila.allowedTypes].map((valor) => ({
-        tipo: 'texto' as const,
-        valor,
+    rows.map((row) =>
+      [row.tsigKeyName, row.domain, row.allowedTypes].map((value) => ({
+        tipo: 'text' as const,
+        value,
       })),
     ),
   )
-  if (r.ok) return { valor: r.valor }
+  if (r.ok) return { value: r.value }
   return {
     error: {
       title: r.fallo.title,
       text: r.fallo.text,
       tab: 'Dynamic Updates',
-      campo: 'updateSecurityPolicies',
+      field: 'updateSecurityPolicies',
     },
   }
 }
@@ -447,7 +447,7 @@ export function construirCuerpoOpciones(
           title: 'Missing!',
           text: 'Please enter at least one primary name server address to proceed.',
           tab: 'General',
-          campo: 'primaryNameServerAddresses',
+          field: 'primaryNameServerAddresses',
         },
       }
     }
@@ -481,24 +481,24 @@ export function construirCuerpoOpciones(
       notifySecondaryCatalogsNameServers: vacioEsFalso(f.notifySecondaryCatalogsNameServers),
       update: f.update,
       updateNetworkACL: vacioEsFalso(f.updateNetworkACL),
-      updateSecurityPolicies: politicas.valor.length === 0 ? 'false' : politicas.valor,
+      updateSecurityPolicies: politicas.value.length === 0 ? 'false' : politicas.value,
     },
   }
 }
 
 /** Which criteria enable their ACL list: the same four in all four sections. */
-export function aclEditable(valor: string): boolean {
+export function aclEditable(value: string): boolean {
   return (
-    valor === 'UseSpecifiedNetworkACL' ||
-    valor === 'AllowZoneNameServersAndUseSpecifiedNetworkACL'
+    value === 'UseSpecifiedNetworkACL' ||
+    value === 'AllowZoneNameServersAndUseSpecifiedNetworkACL'
   )
 }
 
 /** In Notify, the server list is enabled by three of the five criteria. */
-export function notificacionConLista(valor: string): boolean {
+export function notificacionConLista(value: string): boolean {
   return (
-    valor === 'SpecifiedNameServers' ||
-    valor === 'BothZoneAndSpecifiedNameServers' ||
-    valor === 'SeparateNameServersForCatalogAndMemberZones'
+    value === 'SpecifiedNameServers' ||
+    value === 'BothZoneAndSpecifiedNameServers' ||
+    value === 'SeparateNameServersForCatalogAndMemberZones'
   )
 }

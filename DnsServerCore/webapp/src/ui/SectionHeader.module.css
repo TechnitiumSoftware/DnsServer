@@ -9,7 +9,7 @@ not a single loose px is written here.
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--s-11);
-  margin-bottom: var(--hueco-bloque);
+  margin-bottom: var(--gap-bloque);
 }
 
 .izq { min-width: 0; }
@@ -93,11 +93,11 @@ subtracted, and the subtraction is written ONCE: the container's gap lives in
 title out of line again.
 */
 .pantalla {
-  --hueco: var(--s-9);
+  --gap: var(--s-9);
   display: flex;
   flex-direction: column;
-  gap: var(--hueco);
+  gap: var(--gap);
 }
 
 /* The section header, which is always the first child. */
-.pantalla > :first-child { margin-bottom: calc(var(--hueco-bloque) - var(--hueco)); }
+.pantalla > :first-child { margin-bottom: calc(var(--gap-bloque) - var(--gap)); }

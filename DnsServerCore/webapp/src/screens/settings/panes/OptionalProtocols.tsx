@@ -253,7 +253,7 @@ export function OptionalProtocols({ f, set, en }: PaneProps) {
           disabled={!en.dnsOverHttpRealIpHeader}
           help={
             <>
-              The HTTP header that must be used to read client's actual IP address when the request
+              The HTTP header that must be used to read client's current IP address when the request
               comes from a reverse proxy. The specified header will be read only when the request IP
               address is allowed by the <b>Reverse Proxy Network ACL</b>.
             </>

@@ -14,15 +14,15 @@ backwards** when it reaches the end: on the last page the last ten are visible,
 not just one. With fewer than ten pages they are all visible.
 */
 
-export interface Paginacion {
-  paginas: number[]
+export interface Pagination {
+  pages: number[]
   primera: boolean
-  anterior: number | null
-  siguiente: number | null
-  ultima: boolean
+  previous: number | null
+  next: number | null
+  last: boolean
 }
 
-export function ventanaDePaginas(pageNumber: number, totalPages: number): Paginacion {
+export function ventanaDePaginas(pageNumber: number, totalPages: number): Pagination {
   let inicio = pageNumber - 5
   if (inicio < 1) inicio = 1
 
@@ -33,15 +33,15 @@ export function ventanaDePaginas(pageNumber: number, totalPages: number): Pagina
     if (inicio < 1) inicio = 1
   }
 
-  const paginas: number[] = []
-  for (let i = inicio; i <= fin; i++) paginas.push(i)
+  const pages: number[] = []
+  for (let i = inicio; i <= fin; i++) pages.push(i)
 
   return {
-    paginas,
+    pages,
     primera: pageNumber > 1,
-    anterior: pageNumber > 1 ? pageNumber - 1 : null,
-    siguiente: pageNumber < totalPages ? pageNumber + 1 : null,
-    ultima: pageNumber < totalPages,
+    previous: pageNumber > 1 ? pageNumber - 1 : null,
+    next: pageNumber < totalPages ? pageNumber + 1 : null,
+    last: pageNumber < totalPages,
   }
 }
 
@@ -58,6 +58,6 @@ export function textoDeEstado(
   sustantivo: string,
 ): string {
   if (enPagina === 0) return `0 ${sustantivo}`
-  const ultima = primeraFila + enPagina - 1
-  return `${primeraFila}-${ultima} (${enPagina}) of ${total} ${sustantivo} (page ${pageNumber} of ${totalPages})`
+  const last = primeraFila + enPagina - 1
+  return `${primeraFila}-${last} (${enPagina}) of ${total} ${sustantivo} (page ${pageNumber} of ${totalPages})`
 }

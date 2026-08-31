@@ -13,9 +13,9 @@
 /* The box aligns with the label's first line, not with its box. */
 .check input { margin-top: var(--s-1); }
 .check input:disabled { cursor: default; }
-.texto { min-width: 0; }
+.text { min-width: 0; }
 
-.ayuda {
+.help {
   composes: conCodigo from './texto.module.css';
   font-size: var(--t-3);
   color: var(--mute);
@@ -73,7 +73,7 @@ element nor a pseudo-element the browser paints its own way is needed.
 
 .conmutador input:active:not(:disabled) { transform: none; }
 
-.conmutador .ayuda { margin-left: calc(var(--ctrl-track-w) + var(--s-6)); }
+.conmutador .help { margin-left: calc(var(--ctrl-track-w) + var(--s-6)); }
 
 @media (prefers-reduced-motion: reduce) {
   .conmutador input,

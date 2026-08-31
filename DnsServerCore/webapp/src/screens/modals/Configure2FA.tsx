@@ -94,9 +94,9 @@ export function Configure2FA({
       onOpenChange={onOpenChange}
       // The modal's title is the LONG form; "Configure 2FA" is only the user
       // menu's entry (index.html:3761). They are not the same string.
-      tamano="medio"
+      size="medium"
       title="Configure Two-factor Authentication (2FA)"
-      acciones={
+      actions={
         <>
           {enabled ? (
             <Button variant="danger" disabled={busy} onClick={() => void disable()}>

@@ -40,14 +40,14 @@ a state other times and a setting others.
 */
 
 export function SectionHeader({
-  seccion,
+  section,
   onVolver,
   titulo,
   etiquetas,
-  acciones,
+  actions,
 }: {
   /** The section name. Only when there are sub-tabs. */
-  seccion?: string
+  section?: string
   /** On a detail screen, the way back to the section. The kicker becomes that
    *  path: there used to be a "← Zones" above and a "ZONES" below, two elements
    *  saying the same thing two centimetres apart. */
@@ -57,27 +57,27 @@ export function SectionHeader({
   /** STATE pills. Counts go in the count bar. */
   etiquetas?: ReactNode
   /** Action bar, always top right. */
-  acciones?: ReactNode
+  actions?: ReactNode
 }) {
   return (
     <div className={styles.hrow}>
       <div className={styles.izq}>
-        {seccion != null && (
+        {section != null && (
           <nav className={styles.camino} aria-label="Breadcrumb">
             {onVolver != null ? (
               <button type="button" className={styles.ctx} onClick={onVolver}>
-                {seccion}
+                {section}
               </button>
             ) : (
-              <span className={styles.ctx}>{seccion}</span>
+              <span className={styles.ctx}>{section}</span>
             )}
-            <Icono nombre="chevronDerecha" tam={12} className={styles.sep} />
+            <Icono name="chevronDerecha" tam={12} className={styles.sep} />
           </nav>
         )}
         <h1 className={styles.titulo}>{titulo}</h1>
         {etiquetas != null && <div className={styles.tags}>{etiquetas}</div>}
       </div>
-      {acciones != null && <div className={styles.acts}>{acciones}</div>}
+      {actions != null && <div className={styles.acts}>{actions}</div>}
     </div>
   )
 }

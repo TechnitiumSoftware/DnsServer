@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { resolve, prepararServidor, TIPOS, PROTOCOLOS } from './dnsclient'
+import { resolve, prepararServidor, TYPES, PROTOCOLOS } from './dnsclient'
 import * as client from './client'
 
 afterEach(() => vi.restoreAllMocks())
 
 describe('dnsClient', () => {
   it('it offers the 28 types and the 5 protocols of upstream', () => {
-    expect(TIPOS).toHaveLength(28)
-    expect(TIPOS[0]).toBe('A')
-    expect(TIPOS).toContain('AXFR')
+    expect(TYPES).toHaveLength(28)
+    expect(TYPES[0]).toBe('A')
+    expect(TYPES).toContain('AXFR')
     expect(PROTOCOLOS).toEqual(['UDP','TCP','TLS','HTTPS','QUIC'])
   })
 

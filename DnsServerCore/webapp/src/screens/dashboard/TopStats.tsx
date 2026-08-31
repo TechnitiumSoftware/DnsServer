@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getTop, type Rango, type TipoTop, type TopEntry } from '../../api/dashboard'
+import { getTop, type Range, type TipoTop, type TopEntry } from '../../api/dashboard'
 import { Dialog } from '../../ui/Dialog'
-import { Tabla } from '../../ui/Table'
+import { Table } from '../../ui/Table'
 import { Loading } from '../../ui/Empty'
 import styles from './Dashboard.module.css'
 
@@ -31,7 +31,7 @@ const TITULOS: Record<TipoTop, string> = {
   TopBlockedDomains: 'Blocked Domains',
 }
 
-const CABECERA: Record<TipoTop, string> = {
+const HEADER: Record<TipoTop, string> = {
   TopClients: 'Client',
   TopDomains: 'Domain',
   TopBlockedDomains: 'Domain',
@@ -45,28 +45,28 @@ const CONTEO: Record<TipoTop, string> = {
 
 export function TopStats({
   tipo,
-  rango,
+  range,
   token,
   onCerrar,
 }: {
   /** `null` with the modal closed. */
   tipo: TipoTop | null
-  rango: Rango
+  range: Range
   token: string | null
   onCerrar: () => void
 }) {
-  const [filas, setFilas] = useState<TopEntry[]>([])
-  const [cargando, setCargando] = useState(false)
+  const [rows, setFilas] = useState<TopEntry[]>([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (tipo == null) return
-    setCargando(true)
+    setLoading(true)
     setFilas([])
-    void getTop(token, rango, tipo, LIMITE).then((r) => {
+    void getTop(token, range, tipo, LIMITE).then((r) => {
       setFilas(r)
-      setCargando(false)
+      setLoading(false)
     })
-  }, [tipo, rango, token])
+  }, [tipo, range, token])
 
   const esCliente = tipo === 'TopClients'
 
@@ -77,32 +77,32 @@ export function TopStats({
       /* Upstream gives it 600 px (`modalTopStats`), not the 940 of the wide
          tables, and the measurement proves it right: the domain column took 736 px
          for a text of 148. It is a two-column list, not a wide table. */
-      tamano="formulario"
+      size="form"
       title={tipo == null ? 'Top Stats' : `Top ${LIMITE} ${TITULOS[tipo]}`}
     >
-      {cargando ? (
+      {loading ? (
         <Loading compacto />
       ) : (
-        <Tabla
+        <Table
           className={styles.topTablaWrap}
           claseTabla={styles.topTabla}
-          cabecera={
+          header={
             <>
-              <th>{tipo == null ? '' : CABECERA[tipo]}</th>
+              <th>{tipo == null ? '' : HEADER[tipo]}</th>
               <th style={{ width: 110 }}>{tipo == null ? '' : CONTEO[tipo]}</th>
             </>
           }
-          vacia={filas.length === 0}
-          vacio="No Data"
+          isEmpty={rows.length === 0}
+          emptyText="No Data"
           columnas={2}
-          pie={
+          footer={
             <th colSpan={2}>
-              {tipo == null ? '' : `Total ${TITULOS[tipo]}: ${filas.length.toLocaleString()}`}
+              {tipo == null ? '' : `Total ${TITULOS[tipo]}: ${rows.length.toLocaleString()}`}
             </th>
           }
         >
-          {filas.map((f, i) => (
-            <tr key={`${f.name}|${i}`} className={f.rateLimited ? styles.limitada : undefined}>
+          {rows.map((f, i) => (
+            <tr key={`${f.name}|${i}`} className={f.rateLimited ? styles.limited : undefined}>
               <td>
                 <span className={styles.topNombre}>
                   {f.name}
@@ -117,7 +117,7 @@ export function TopStats({
               <td className={styles.topConteo}>{f.hits.toLocaleString()}</td>
             </tr>
           ))}
-        </Tabla>
+        </Table>
       )}
     </Dialog>
   )
