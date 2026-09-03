@@ -59,6 +59,10 @@ namespace DnsServerCore
         bool _noStackTrace;
         int _maxLogFileDays;
         bool _useLocalTime;
+        bool _enableSyslog;
+        string _syslogServerAddress = "";
+        int _syslogServerPort = SyslogLogger.DEFAULT_PORT;
+        SyslogLogger _syslogLogger;
 
         const string LOG_ENTRY_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
         const string LOG_FILE_DATE_TIME_FORMAT = "yyyy-MM-dd";
@@ -104,6 +108,9 @@ namespace DnsServerCore
                         WriteLogEntry(logEntry);
                     }
                 }
+
+                if ((_syslogLogger is not null) && _syslogLogger.IsEnabled)
+                    _syslogLogger.Send(e.ExceptionObject.ToString(), SyslogSeverity.Error, DateTime.UtcNow);
             };
 
             _logCleanupTimer = new Timer(delegate (object state)
@@ -187,6 +194,8 @@ namespace DnsServerCore
             _logCleanupTimer?.Dispose();
 
             await StopLoggingAsync();
+
+            _syslogLogger?.Dispose();
 
             lock (_saveLock)
             {
@@ -272,6 +281,16 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(strUseLocalTime))
                     _useLocalTime = bool.Parse(strUseLocalTime);
 
+                string strSyslogServerAddress = Environment.GetEnvironmentVariable("DNS_SERVER_SYSLOG_SERVER_ADDRESS");
+                if (!string.IsNullOrEmpty(strSyslogServerAddress))
+                    _syslogServerAddress = strSyslogServerAddress;
+
+                string strSyslogServerPort = Environment.GetEnvironmentVariable("DNS_SERVER_SYSLOG_SERVER_PORT");
+                if (!string.IsNullOrEmpty(strSyslogServerPort))
+                    _syslogServerPort = int.Parse(strSyslogServerPort);
+
+                _enableSyslog = !string.IsNullOrWhiteSpace(_syslogServerAddress);
+
                 lock (_saveLock)
                 {
                     SaveConfigFileInternal();
@@ -285,6 +304,7 @@ namespace DnsServerCore
             }
 
             ApplyMaxLogFileDays();
+            ApplySyslogSettings();
             ApplyLoggingType();
         }
 
@@ -305,6 +325,7 @@ namespace DnsServerCore
 
                 //apply config changes
                 ApplyMaxLogFileDays();
+                ApplySyslogSettings();
                 ApplyLoggingType();
 
                 //save config file
@@ -366,6 +387,7 @@ namespace DnsServerCore
             {
                 case 1:
                 case 2:
+                case 3:
                     _loggingType = (LoggingType)bR.ReadByte();
                     _logFolder = s.ReadShortString();
 
@@ -376,6 +398,19 @@ namespace DnsServerCore
 
                     _maxLogFileDays = bR.ReadInt32();
                     _useLocalTime = bR.ReadBoolean();
+
+                    if (version >= 3)
+                    {
+                        _enableSyslog = bR.ReadBoolean();
+                        _syslogServerAddress = s.ReadShortString();
+                        _syslogServerPort = bR.ReadUInt16();
+                    }
+                    else
+                    {
+                        _enableSyslog = false;
+                        _syslogServerAddress = "";
+                        _syslogServerPort = SyslogLogger.DEFAULT_PORT;
+                    }
                     break;
 
                 default:
@@ -388,13 +423,16 @@ namespace DnsServerCore
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("LS")); //format
-            bW.Write((byte)2); //version
+            bW.Write((byte)3); //version
 
             bW.Write((byte)_loggingType);
             s.WriteShortString(_logFolder);
             bW.Write(_noStackTrace);
             bW.Write(_maxLogFileDays);
             bW.Write(_useLocalTime);
+            bW.Write(_enableSyslog);
+            s.WriteShortString(_syslogServerAddress);
+            bW.Write((ushort)_syslogServerPort);
         }
 
         #endregion
@@ -434,6 +472,9 @@ namespace DnsServerCore
 
                         DateTime dateTime = _useLocalTime ? item._dateTime.ToLocalTime() : item._dateTime;
                         string logEntry = GetLogEntry(dateTime, item._message);
+
+                        if ((_syslogLogger is not null) && _syslogLogger.IsEnabled)
+                            _syslogLogger.Send(item._message, item._severity, item._dateTime);
 
                         if (_loggingType.HasFlag(LoggingType.Console))
                             Console.WriteLine(logEntry);
@@ -501,7 +542,7 @@ namespace DnsServerCore
             if (_isRunning)
             {
                 //running
-                if (_loggingType == LoggingType.None)
+                if ((_loggingType == LoggingType.None) && !SyslogActive)
                 {
                     //no logging enabled
                     StopLoggingAsync().Sync();
@@ -520,7 +561,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    //only console logging enabled; close open log file, if any
+                    //only console or syslog logging enabled; close open log file, if any
                     if (_logWriter is not null)
                     {
                         lock (_logFileLock)
@@ -533,9 +574,28 @@ namespace DnsServerCore
             else
             {
                 //stopped
-                if (_loggingType != LoggingType.None)
+                if ((_loggingType != LoggingType.None) || SyslogActive)
                     StartLogging();
             }
+        }
+
+        private bool SyslogActive
+        { get { return (_syslogLogger is not null) && _syslogLogger.IsEnabled; } }
+
+        private void ApplySyslogSettings()
+        {
+            if (_enableSyslog && IPAddress.TryParse(_syslogServerAddress, out IPAddress syslogServerAddress))
+            {
+                _syslogLogger ??= new SyslogLogger();
+                _syslogLogger.Update(syslogServerAddress, _syslogServerPort);
+            }
+            else
+            {
+                _syslogLogger?.Update(null, 0);
+            }
+
+            //start or stop the logging pipeline since syslog is an independent sink
+            ApplyLoggingType();
         }
 
         private void ApplyLogFolder()
@@ -755,17 +815,17 @@ namespace DnsServerCore
 
         public void Write(Exception ex)
         {
-            Write(_noStackTrace ? ex.Message : ex.ToString());
+            Write(_noStackTrace ? ex.Message : ex.ToString(), SyslogSeverity.Error);
         }
 
         public void Write(string message, Exception ex)
         {
-            Write(message + "\r\n" + (_noStackTrace ? ex.Message : ex.ToString()));
+            Write(message + "\r\n" + (_noStackTrace ? ex.Message : ex.ToString()), SyslogSeverity.Error);
         }
 
         public void Write(EndPoint ep, Exception ex)
         {
-            Write(ep, _noStackTrace ? ex.Message : ex.ToString());
+            Write(GetIpInfo(ep) + (_noStackTrace ? ex.Message : ex.ToString()), SyslogSeverity.Error);
         }
 
         public void Write(EndPoint ep, string message)
@@ -775,12 +835,12 @@ namespace DnsServerCore
 
         public void Write(EndPoint ep, string message, Exception ex)
         {
-            Write(GetIpInfo(ep) + message + "\r\n" + (_noStackTrace ? ex.Message : ex.ToString()));
+            Write(GetIpInfo(ep) + message + "\r\n" + (_noStackTrace ? ex.Message : ex.ToString()), SyslogSeverity.Error);
         }
 
         public void Write(EndPoint ep, DnsTransportProtocol protocol, Exception ex)
         {
-            Write(ep, protocol, _noStackTrace ? ex.Message : ex.ToString());
+            Write(GetIpInfo(ep) + "[" + protocol.ToString().ToUpper() + "] " + (_noStackTrace ? ex.Message : ex.ToString()), SyslogSeverity.Error);
         }
 
         public void Write(EndPoint ep, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response)
@@ -880,7 +940,7 @@ namespace DnsServerCore
                 responseInfo += "; ANSWER: " + answer;
             }
 
-            Write(ep, protocol, requestInfo + responseInfo);
+            Write(GetIpInfo(ep) + "[" + protocol.ToString().ToUpper() + "] " + requestInfo + responseInfo, SyslogSeverity.Informational);
         }
 
         public void Write(EndPoint ep, DnsTransportProtocol protocol, string message)
@@ -900,13 +960,13 @@ namespace DnsServerCore
 
         public void Write(EndPoint ep, string protocol, string message, Exception ex)
         {
-            Write(GetIpInfo(ep) + "[" + protocol.ToUpper() + "] " + message + "\r\n" + (_noStackTrace ? ex.Message : ex.ToString()));
+            Write(GetIpInfo(ep) + "[" + protocol.ToUpper() + "] " + message + "\r\n" + (_noStackTrace ? ex.Message : ex.ToString()), SyslogSeverity.Error);
         }
 
-        public void Write(string message)
+        public void Write(string message, SyslogSeverity severity = SyslogSeverity.Notice)
         {
-            if (_loggingType != LoggingType.None)
-                _channelWriter?.TryWrite(new LogQueueItem(message));
+            if ((_loggingType != LoggingType.None) || SyslogActive)
+                _channelWriter?.TryWrite(new LogQueueItem(message, severity));
         }
 
         public void DeleteCurrentLogFile()
@@ -994,6 +1054,56 @@ namespace DnsServerCore
             set { _useLocalTime = value; }
         }
 
+        public bool EnableSyslog
+        {
+            get { return _enableSyslog; }
+            set
+            {
+                if (_enableSyslog != value)
+                {
+                    _enableSyslog = value;
+
+                    ApplySyslogSettings();
+                }
+            }
+        }
+
+        public string SyslogServerAddress
+        {
+            get { return _syslogServerAddress; }
+            set
+            {
+                if (value is null)
+                    value = "";
+                else if (value.Length > 255)
+                    throw new ArgumentException("Syslog server address length cannot exceed 255 characters.", nameof(SyslogServerAddress));
+
+                if (!_syslogServerAddress.Equals(value, StringComparison.Ordinal))
+                {
+                    _syslogServerAddress = value;
+
+                    ApplySyslogSettings();
+                }
+            }
+        }
+
+        public int SyslogServerPort
+        {
+            get { return _syslogServerPort; }
+            set
+            {
+                if ((value < 1) || (value > 65535))
+                    throw new ArgumentOutOfRangeException(nameof(SyslogServerPort), "Syslog server port must be between 1 and 65535.");
+
+                if (_syslogServerPort != value)
+                {
+                    _syslogServerPort = value;
+
+                    ApplySyslogSettings();
+                }
+            }
+        }
+
         public string CurrentLogFile
         { get { return _logFile; } }
 
@@ -1008,15 +1118,17 @@ namespace DnsServerCore
 
             public readonly DateTime _dateTime;
             public readonly string _message;
+            public readonly SyslogSeverity _severity;
 
             #endregion
 
             #region constructor
 
-            public LogQueueItem(string message)
+            public LogQueueItem(string message, SyslogSeverity severity)
             {
                 _dateTime = DateTime.UtcNow;
                 _message = message;
+                _severity = severity;
             }
 
             #endregion

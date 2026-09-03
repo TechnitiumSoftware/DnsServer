@@ -5284,6 +5284,9 @@ RESPONSE:
 		"useLocalTime": false,
 		"logFolder": "logs",
 		"maxLogFileDays": 30,
+		"enableSyslog": false,
+		"syslogServerAddress": "",
+		"syslogServerPort": 514,
 		"enableInMemoryStats": false,
 		"maxStatFileDays": 365
 	},
@@ -5441,6 +5444,9 @@ WHERE:
 - `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Initial value is `false`.
 - `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Initial value is `logs`.
 - `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
+- `enableSyslog` (optional): Enable this option to send the server logs and DNS query logs to a remote syslog server using UDP with RFC 5424 message format. Initial value is `false`.
+- `syslogServerAddress` (optional): The IP address of the remote syslog server where the logs should be sent. Initial value is empty.
+- `syslogServerPort` (optional): The UDP port of the remote syslog server where the logs should be sent. Initial value is `514`.
 - `enableInMemoryStats` (optional): Set this option to `true` to enable in-memory stats. When enabled, only Last Hour data will be available on Dashboard and no stats data will be stored on disk.
 - `maxStatFileDays` (optional): Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 

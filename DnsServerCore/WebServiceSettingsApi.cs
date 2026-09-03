@@ -458,6 +458,9 @@ namespace DnsServerCore
                 jsonWriter.WriteBoolean("useLocalTime", _dnsWebService._log.UseLocalTime);
                 jsonWriter.WriteString("logFolder", _dnsWebService._log.LogFolder);
                 jsonWriter.WriteNumber("maxLogFileDays", _dnsWebService._log.MaxLogFileDays);
+                jsonWriter.WriteBoolean("enableSyslog", _dnsWebService._log.EnableSyslog);
+                jsonWriter.WriteString("syslogServerAddress", _dnsWebService._log.SyslogServerAddress);
+                jsonWriter.WriteNumber("syslogServerPort", _dnsWebService._log.SyslogServerPort);
 
                 jsonWriter.WriteBoolean("enableInMemoryStats", _dnsWebService._dnsServer.StatsManager.EnableInMemoryStats);
                 jsonWriter.WriteNumber("maxStatFileDays", _dnsWebService._dnsServer.StatsManager.MaxStatFileDays);
@@ -1714,6 +1717,15 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrForm("maxLogFileDays", int.Parse, out int maxLogFileDays))
                             _dnsWebService._log.MaxLogFileDays = maxLogFileDays;
+
+                        if (request.TryGetQueryOrForm("syslogServerAddress", out string syslogServerAddress))
+                            _dnsWebService._log.SyslogServerAddress = syslogServerAddress;
+
+                        if (request.TryGetQueryOrForm("syslogServerPort", int.Parse, out int syslogServerPort))
+                            _dnsWebService._log.SyslogServerPort = syslogServerPort;
+
+                        if (request.TryGetQueryOrForm("enableSyslog", bool.Parse, out bool enableSyslog))
+                            _dnsWebService._log.EnableSyslog = enableSyslog;
 
                         if (request.TryGetQueryOrForm("enableInMemoryStats", bool.Parse, out bool enableInMemoryStats))
                             _dnsWebService._dnsServer.StatsManager.EnableInMemoryStats = enableInMemoryStats;

@@ -1624,6 +1624,10 @@ function loadDnsSettings(responseJSON) {
     $("#txtLogFolderPath").val(responseJSON.response.logFolder);
     $("#txtMaxLogFileDays").val(responseJSON.response.maxLogFileDays);
 
+    $("#chkEnableSyslog").prop("checked", responseJSON.response.enableSyslog);
+    $("#txtSyslogServerAddress").val(responseJSON.response.syslogServerAddress);
+    $("#txtSyslogServerPort").val(responseJSON.response.syslogServerPort == null ? 514 : responseJSON.response.syslogServerPort);
+
     $("#chkEnableInMemoryStats").prop("checked", responseJSON.response.enableInMemoryStats);
     $("#txtMaxStatFileDays").val(responseJSON.response.maxStatFileDays);
 }
@@ -2193,11 +2197,14 @@ function saveDnsSettings(objBtn) {
         var useLocalTime = $("#chkUseLocalTime").prop("checked");
         var logFolder = $("#txtLogFolderPath").val();
         var maxLogFileDays = $("#txtMaxLogFileDays").val();
+        var enableSyslog = $("#chkEnableSyslog").prop("checked");
+        var syslogServerAddress = $("#txtSyslogServerAddress").val();
+        var syslogServerPort = $("#txtSyslogServerPort").val();
 
         var enableInMemoryStats = $("#chkEnableInMemoryStats").prop("checked");
         var maxStatFileDays = $("#txtMaxStatFileDays").val();
 
-        formData += "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&noStackTrace=" + noStackTrace + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays;
+        formData += "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&noStackTrace=" + noStackTrace + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableSyslog=" + enableSyslog + "&syslogServerAddress=" + encodeURIComponent(syslogServerAddress) + "&syslogServerPort=" + (syslogServerPort == "" ? 514 : syslogServerPort) + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays;
     }
 
     //send request

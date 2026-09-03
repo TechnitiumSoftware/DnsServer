@@ -2389,6 +2389,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                     </label>
                                                                     <div style="padding-top: 5px; padding-left: 20px;">Enables logging errors and audit logs to both the log file and console.</div>
                                                                 </div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableSyslog" type="checkbox"> Send Logs To Remote Syslog Server
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enable this option to send the server logs and DNS query logs to a remote syslog server (such as syslog-ng) using UDP with RFC 5424 message format.</div>
+
+                                                                    <div style="padding-top: 10px; padding-left: 20px;">
+                                                                        <input type="text" class="form-control" id="txtSyslogServerAddress" placeholder="Syslog Server IP Address" maxlength="255" style="display: inline; width: 200px;">
+                                                                        <input type="number" class="form-control" id="txtSyslogServerPort" placeholder="Port" min="1" max="65535" style="display: inline; width: 100px;">
+                                                                        <span>port (default 514)</span>
+                                                                    </div>
+
+                                                                    <div style="padding-top: 5px; padding-left: 20px;"><b>Warning!</b> The logs are sent unencrypted over UDP to the syslog server.</div>
+                                                                </div>
                                                             </div>
                                                         </div>
 

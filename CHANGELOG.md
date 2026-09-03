@@ -1,5 +1,10 @@
 # Technitium DNS Server Change Log
 
+## Version 15.5
+Release Date: 2 September 2026
+
+- Added "Log Server" option in Settings section Logging tab to send the server logs and DNS query logs to a remote syslog server using UDP with RFC 5424 message format with configurable server address and port.
+
 ## Version 15.4
 Release Date: 11 July 2026
 
