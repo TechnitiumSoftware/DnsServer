@@ -416,12 +416,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                             //hosts file format
                             firstWord = PopWord(ref line);
 
-                            if (!DnsClient.IsDomainNameValid(firstWord) && !IPAddress.TryParse(firstWord, out _))
-                                continue; //first word is neither a domain name nor an IP address; this is not a
-                                          //hosts-file/domain-list line (e.g. an unsupported Adblock cosmetic,
-                                          //procedural, or scriptlet filter) so avoid misreading a fragment of it
-                                          //as the intended hostname
-
                             if (line.Length == 0)
                             {
                                 hostname = firstWord;
@@ -431,9 +425,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 secondWord = PopWord(ref line);
 
                                 if ((secondWord.Length == 0) || secondWord.StartsWith('#'))
+                                {
                                     hostname = firstWord;
+                                }
                                 else
+                                {
+                                    if (!IPAddress.TryParse(firstWord, out _))
+                                        continue; //first word must be an IP address for using second word as hostname as per hosts file format
+
                                     hostname = secondWord;
+                                }
                             }
 
                             hostname = hostname.Trim('.').ToLowerInvariant();
@@ -822,7 +823,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         blockListZone.Add(domain, blockLists);
                     }
 
-                    blockLists.Add(blockListQueue.Key);
+                    if (!blockLists.Contains(blockListQueue.Key))
+                        blockLists.Add(blockListQueue.Key);
                 }
             }
 
