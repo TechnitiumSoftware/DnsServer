@@ -174,7 +174,7 @@ namespace DnsServerCore
             Directory.CreateDirectory(Path.Combine(_configFolder, "zones"));
 
             _log = new LogManager(isPortableApp, _configFolder);
-            _authManager = new AuthManager(_configFolder, _log);
+            _authManager = new AuthManager(this, _configFolder, _log);
 
             _api = new WebServiceApi(this, updateCheckUri);
             _dashboardApi = new WebServiceDashboardApi(this);

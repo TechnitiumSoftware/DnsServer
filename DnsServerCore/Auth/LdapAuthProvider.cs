@@ -17,55 +17,56 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns;
 using System;
 using System.Collections.Generic;
 using System.DirectoryServices.Protocols;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
+using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Auth
 {
-    sealed class LdapAuthResult
+    enum LdapAuthSslOption : byte
     {
-        public bool Success { get; init; }
-        public string LdapIdentifier { get; init; }
-        public string DisplayName { get; init; }
-        public IReadOnlyList<string> Groups { get; init; }
-        public string ErrorMessage { get; init; }
-
-        public static LdapAuthResult Failed(string message) =>
-            new LdapAuthResult { Success = false, ErrorMessage = message };
+        None = 0,
+        StartTLS = 1,
+        LDAPS = 2
     }
 
     sealed class LdapAuthProvider
     {
         #region variables
 
+        readonly DnsServer _dnsServer;
         readonly string _server;
         readonly int _port;
-        readonly bool _useSsl;
+        readonly LdapAuthSslOption _sslOption;
         readonly bool _ignoreSslErrors;
-        readonly string _bindDn;
+        readonly string _bindUsername;
         readonly string _bindPassword;
         readonly string _searchBase;
-        readonly string _userFilter;
+        readonly string _userSearchFilter;
         readonly string _groupAttribute;
 
         #endregion
 
         #region constructor
 
-        public LdapAuthProvider(string server, int port, bool useSsl, bool ignoreSslErrors, string bindDn, string bindPassword, string searchBase, string userFilter, string groupAttribute)
+        public LdapAuthProvider(DnsServer dnsServer, string server, int port, LdapAuthSslOption sslOption, bool ignoreSslErrors, string bindUsername, string bindPassword, string searchBase, string userSearchFilter = null, string groupAttribute = null)
         {
+            _dnsServer = dnsServer;
             _server = server;
             _port = port;
-            _useSsl = useSsl;
+            _sslOption = sslOption;
             _ignoreSslErrors = ignoreSslErrors;
-            _bindDn = bindDn;
+            _bindUsername = bindUsername;
             _bindPassword = bindPassword;
             _searchBase = searchBase;
-            _userFilter = string.IsNullOrWhiteSpace(userFilter) ? "(sAMAccountName={0})" : userFilter;
+            _userSearchFilter = string.IsNullOrWhiteSpace(userSearchFilter) ? "(sAMAccountName={0})" : userSearchFilter;
             _groupAttribute = string.IsNullOrWhiteSpace(groupAttribute) ? "memberOf" : groupAttribute;
         }
 
@@ -73,29 +74,51 @@ namespace DnsServerCore.Auth
 
         #region private
 
-        private LdapConnection CreateBoundConnection(string bindDn, string bindPassword)
+        private LdapConnection CreateBoundConnection(string bindUsername, string bindPassword)
         {
-            var identifier = new LdapDirectoryIdentifier(_server, _port);
-            var conn = new LdapConnection(identifier);
-            conn.SessionOptions.ProtocolVersion = 3;
-            conn.SessionOptions.ReferralChasing = ReferralChasingOptions.None;
-            conn.Timeout = TimeSpan.FromSeconds(15);
-            conn.AuthType = AuthType.Basic;
+            LdapDirectoryIdentifier ldapDirectoryIdentifier;
 
-            if (_ignoreSslErrors)
-                conn.SessionOptions.VerifyServerCertificate = (connection, certificate) => true;
+            if (IPAddress.TryParse(_server, out IPAddress serverIP))
+            {
+                ldapDirectoryIdentifier = new LdapDirectoryIdentifier(serverIP.ToString(), _port, false, false);
+            }
+            else
+            {
+                IReadOnlyList<IPAddress> ipAddresses = DnsClient.ResolveIPAsync(_dnsServer, _server, _dnsServer.IPv6Mode).Sync();
+                string[] servers = [.. ipAddresses.Convert(delegate (IPAddress ipAddress) { return ipAddress.ToString(); })];
 
-            // Port 636 = LDAPS (SSL-wrapped from the start); all other ports use StartTLS
-            bool useLdaps = _useSsl && _port == 636;
-            if (useLdaps)
-                conn.SessionOptions.SecureSocketLayer = true;
+                ldapDirectoryIdentifier = new LdapDirectoryIdentifier(servers, _port, false, false);
+            }
 
-            if (_useSsl && !useLdaps)
-                conn.SessionOptions.StartTransportLayerSecurity(null);
+            LdapConnection connection = new LdapConnection(ldapDirectoryIdentifier);
+            connection.SessionOptions.ProtocolVersion = 3;
+            connection.SessionOptions.ReferralChasing = ReferralChasingOptions.None;
+            connection.Timeout = TimeSpan.FromSeconds(15);
+            connection.AuthType = AuthType.Basic;
 
-            conn.Credential = new NetworkCredential(bindDn, bindPassword);
-            conn.Bind();
-            return conn;
+            switch (_sslOption)
+            {
+                case LdapAuthSslOption.StartTLS:
+                    connection.SessionOptions.StartTransportLayerSecurity(null);
+                    break;
+
+                case LdapAuthSslOption.LDAPS:
+                    connection.SessionOptions.SecureSocketLayer = true;
+                    break;
+            }
+
+            if (_ignoreSslErrors && (_sslOption != LdapAuthSslOption.None))
+            {
+                connection.SessionOptions.VerifyServerCertificate = static delegate (LdapConnection connection, X509Certificate certificate)
+                {
+                    return true;
+                };
+            }
+
+            connection.Credential = new NetworkCredential(bindUsername, bindPassword);
+            connection.Bind();
+
+            return connection;
         }
 
         private static string LdapFilterEscape(string value)
@@ -122,14 +145,16 @@ namespace DnsServerCore.Auth
                 return dn;
 
             int end = comma > eq ? comma : dn.Length;
+
             return dn.Substring(eq + 1, end - eq - 1).Trim();
         }
 
         private static string GetAttributeValue(SearchResultEntry entry, string attributeName)
         {
             DirectoryAttribute attr = entry.Attributes[attributeName];
-            if (attr == null || attr.Count == 0)
+            if ((attr is null) || attr.Count == 0)
                 return null;
+
             return attr[0] as string;
         }
 
@@ -137,137 +162,152 @@ namespace DnsServerCore.Auth
 
         #region public
 
-        public Task<LdapAuthResult> AuthenticateAsync(string username, string password)
+        public Task<AuthInfo> AuthenticateAsync(string username, string password)
         {
             return Task.Run(() =>
             {
                 // Step 1: bind service account and search for the user
-                string userDn;
+                string userDistinguishedName;
                 string displayName;
                 string userPrincipalName;
                 List<string> groups;
 
+                LdapConnection searchConnection = null;
+
                 try
                 {
-                    using LdapConnection searchConn = CreateBoundConnection(_bindDn, _bindPassword);
-
-                    string filter = string.Format(_userFilter, LdapFilterEscape(username));
-                    string[] attrs = new[] { "distinguishedName", "cn", "displayName", "userPrincipalName", _groupAttribute };
-
-                    var request = new SearchRequest(_searchBase, filter, SearchScope.Subtree, attrs);
-                    request.TimeLimit = TimeSpan.FromSeconds(15);
-
-                    var response = (SearchResponse)searchConn.SendRequest(request);
-
-                    SearchResultEntry entry = response.Entries.Count > 0 ? response.Entries[0] : null;
-
-                    if (entry is null)
-                        return LdapAuthResult.Failed("User not found in directory.");
-
-                    userDn = entry.DistinguishedName;
-
-                    displayName = GetAttributeValue(entry, "displayName");
-                    if (string.IsNullOrEmpty(displayName))
-                        displayName = GetAttributeValue(entry, "cn");
-                    if (string.IsNullOrEmpty(displayName))
-                        displayName = username;
-
-                    userPrincipalName = GetAttributeValue(entry, "userPrincipalName");
-
-                    groups = new List<string>();
-                    DirectoryAttribute groupAttr = entry.Attributes[_groupAttribute];
-                    if (groupAttr != null)
+                    //bind service account
+                    try
                     {
-                        foreach (string groupDn in (string[])groupAttr.GetValues(typeof(string)))
-                        {
-                            string cn = GetCnFromDn(groupDn);
-                            if (!string.IsNullOrEmpty(cn))
-                                groups.Add(cn);
-                        }
+                        searchConnection = CreateBoundConnection(_bindUsername, _bindPassword);
+                    }
+                    catch (LdapException ex) when (ex.ErrorCode == 49)
+                    {
+                        throw new LdapAuthException("LDAP service account credentials are invalid.", ex);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new LdapAuthException($"LDAP service account failed to bind.", ex);
                     }
 
-                    if (groups.Count == 0)
+                    //search for the user
+                    try
                     {
-                        // Fallback for directories that don't maintain a reverse group-membership
-                        // attribute on the user entry (e.g. stock OpenLDAP without the memberof
-                        // overlay loaded). Search for groups that list this user as a member
-                        // instead of relying on the user entry carrying _groupAttribute.
-                        // Best-effort: some directories (e.g. AD without RFC2307/Unix attributes)
-                        // don't define uniqueMember/memberUid at all, which errors instead of just
-                        // not matching - swallow that so it degrades to "no groups", same as before.
-                        try
+                        string searchFilter = string.Format(_userSearchFilter, LdapFilterEscape(username));
+                        string[] attributeList = ["distinguishedName", "cn", "displayName", "userPrincipalName", _groupAttribute];
+
+                        SearchRequest request = new SearchRequest(_searchBase, searchFilter, SearchScope.Subtree, attributeList);
+                        request.TimeLimit = TimeSpan.FromSeconds(15);
+
+                        SearchResponse response = (SearchResponse)searchConnection.SendRequest(request);
+
+                        SearchResultEntry entry = response.Entries.Count > 0 ? response.Entries[0] : null;
+                        if (entry is null)
+                            throw new LdapAuthFailedException("User was not found in the directory: " + username);
+
+                        userDistinguishedName = entry.DistinguishedName;
+
+                        displayName = GetAttributeValue(entry, "displayName");
+                        if (string.IsNullOrEmpty(displayName))
                         {
-                            string reverseFilter = "(|(member=" + LdapFilterEscape(userDn) + ")(uniqueMember=" + LdapFilterEscape(userDn) + ")(memberUid=" + LdapFilterEscape(username) + "))";
-                            var groupRequest = new SearchRequest(_searchBase, reverseFilter, SearchScope.Subtree, new[] { "cn" });
-                            groupRequest.TimeLimit = TimeSpan.FromSeconds(15);
+                            displayName = GetAttributeValue(entry, "cn");
+                            if (string.IsNullOrEmpty(displayName))
+                                displayName = username;
+                        }
 
-                            var groupResponse = (SearchResponse)searchConn.SendRequest(groupRequest);
+                        userPrincipalName = GetAttributeValue(entry, "userPrincipalName");
 
-                            foreach (SearchResultEntry groupEntry in groupResponse.Entries)
+                        groups = new List<string>();
+
+                        DirectoryAttribute groupAttr = entry.Attributes[_groupAttribute];
+                        if (groupAttr is not null)
+                        {
+                            foreach (string groupDn in (string[])groupAttr.GetValues(typeof(string)))
                             {
-                                string cn = GetAttributeValue(groupEntry, "cn");
+                                string cn = GetCnFromDn(groupDn);
                                 if (!string.IsNullOrEmpty(cn))
                                     groups.Add(cn);
                             }
                         }
-                        catch
-                        { }
+
+                        if (groups.Count == 0)
+                        {
+                            // Fallback for directories that don't maintain a reverse group-membership
+                            // attribute on the user entry (e.g. stock OpenLDAP without the memberof
+                            // overlay loaded). Search for groups that list this user as a member
+                            // instead of relying on the user entry carrying _groupAttribute.
+                            // Best-effort: some directories (e.g. AD without RFC2307/Unix attributes)
+                            // don't define uniqueMember/memberUid at all, which errors instead of just
+                            // not matching - swallow that so it degrades to "no groups", same as before.
+                            try
+                            {
+                                string reverseFilter = "(|(member=" + LdapFilterEscape(userDistinguishedName) + ")(uniqueMember=" + LdapFilterEscape(userDistinguishedName) + ")(memberUid=" + LdapFilterEscape(username) + "))";
+
+                                SearchRequest groupRequest = new SearchRequest(_searchBase, reverseFilter, SearchScope.Subtree, ["cn"]);
+                                groupRequest.TimeLimit = TimeSpan.FromSeconds(15);
+
+                                SearchResponse groupResponse = (SearchResponse)searchConnection.SendRequest(groupRequest);
+
+                                foreach (SearchResultEntry groupEntry in groupResponse.Entries)
+                                {
+                                    string cn = GetAttributeValue(groupEntry, "cn");
+                                    if (!string.IsNullOrEmpty(cn))
+                                        groups.Add(cn);
+                                }
+                            }
+                            catch
+                            { }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new LdapAuthException($"LDAP service account failed to search.", ex);
                     }
                 }
-                catch (LdapException ex) when (ex.ErrorCode == 49)
+                finally
                 {
-                    return LdapAuthResult.Failed("Service account credentials are invalid.");
-                }
-                catch (Exception ex)
-                {
-                    return LdapAuthResult.Failed($"Service account bind/search failed: {ex.Message}");
+                    searchConnection?.Dispose();
                 }
 
                 // Step 2: re-bind as the user to validate their password
                 // Prefer UPN (user@domain) over full DN — more reliable with AD
-                string bindUsername = !string.IsNullOrEmpty(userPrincipalName) ? userPrincipalName : userDn;
+                string foundUsername = string.IsNullOrEmpty(userPrincipalName) ? userDistinguishedName : userPrincipalName;
 
                 try
                 {
-                    using LdapConnection userConn = CreateBoundConnection(bindUsername, password);
+                    using LdapConnection userConnection = CreateBoundConnection(foundUsername, password);
                 }
                 catch (LdapException ex) when (ex.ErrorCode == 49)
                 {
-                    return LdapAuthResult.Failed("Invalid credentials.");
+                    throw new LdapAuthFailedException("Invalid password for user: " + username, ex);
                 }
                 catch (Exception ex)
                 {
-                    return LdapAuthResult.Failed($"User bind failed: {ex.Message}");
+                    throw new LdapAuthException("LDAP user account failed to bind.", ex);
                 }
 
-                return new LdapAuthResult
+                return new AuthInfo
                 {
-                    Success = true,
-                    LdapIdentifier = userDn,
                     DisplayName = displayName,
                     Groups = groups
                 };
             });
         }
 
-        public Task<string> TestConnectionAsync()
+        public Task TestConnectionAsync()
         {
             return Task.Run(() =>
             {
-                try
-                {
-                    using LdapConnection conn = CreateBoundConnection(_bindDn, _bindPassword);
-                    return (string)null; // null = success
-                }
-                catch (Exception ex)
-                {
-                    Exception inner = ex;
-                    while (inner.InnerException != null) inner = inner.InnerException;
-                    return inner == ex ? ex.Message : $"{ex.Message} → {inner.GetType().Name}: {inner.Message}";
-                }
+                using LdapConnection conn = CreateBoundConnection(_bindUsername, _bindPassword);
             });
         }
 
         #endregion
+
+        public readonly struct AuthInfo
+        {
+            public string DisplayName { get; init; }
+            public IReadOnlyList<string> Groups { get; init; }
+        }
     }
 }

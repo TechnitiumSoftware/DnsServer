@@ -516,8 +516,8 @@ namespace DnsServerCore.Cluster
             if (!_dnsWebService.IsWebServiceTlsEnabled)
                 throw new InvalidOperationException();
 
-            if (session.User.IsSsoUser)
-                throw new DnsServerException("Failed to initialize Cluster: a SSO user cannot initialize cluster. Please login with a local administrator user account and try again.");
+            if (session.User.Type != UserType.Local)
+                throw new DnsServerException("Failed to initialize Cluster: only a local administrator user can initialize cluster. Please login with a local administrator user account and try again.");
 
             clusterDomain = clusterDomain.ToLowerInvariant();
 

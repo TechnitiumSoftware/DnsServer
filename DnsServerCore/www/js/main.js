@@ -68,13 +68,22 @@ function showPageMain() {
 
     $("#pageLogin").hide();
 
-    if (sessionData.isSsoUser) {
-        $("#mnuUserChangePassword").hide();
-        $("#mnuUserConfigure2FA").hide();
-    }
-    else {
-        $("#mnuUserChangePassword").show();
-        $("#mnuUserConfigure2FA").show();
+    switch (sessionData.type) {
+        case "RemoteSSO":
+            $("#mnuUserChangePassword").hide();
+            $("#mnuUserConfigure2FA").hide();
+            break;
+
+        case "RemoteLDAP":
+            $("#mnuUserChangePassword").hide();
+            $("#mnuUserConfigure2FA").show();
+            break;
+
+        case "Local":
+        default:
+            $("#mnuUserChangePassword").show();
+            $("#mnuUserConfigure2FA").show();
+            break;
     }
 
     $("#mnuUser").show();
