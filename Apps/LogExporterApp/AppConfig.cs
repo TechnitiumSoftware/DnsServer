@@ -29,7 +29,7 @@ namespace LogExporter
         [JsonPropertyName("maxQueueSize")]
         public int MaxQueueSize { get; set; }
 
-        [JsonPropertyName("enableEdnsLogging ")]
+        [JsonPropertyName("enableEdnsLogging")]
         public bool EnableEdnsLogging { get; set; }
 
         [JsonPropertyName("file")]
