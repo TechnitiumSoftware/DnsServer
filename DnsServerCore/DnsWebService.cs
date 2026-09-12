@@ -1820,7 +1820,18 @@ namespace DnsServerCore
                 UsePollingFileWatcher = true
             };
 
-            builder.Environment.WebRootFileProvider = new PhysicalFileProvider(Path.Combine(_appFolder, "www"))
+            string wwwFolderPath = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_WWW_FOLDER_PATH");
+            if (string.IsNullOrEmpty(wwwFolderPath))
+            {
+                wwwFolderPath = Path.Combine(_appFolder, "www");
+            }
+            else if (!Directory.Exists(wwwFolderPath))
+            {
+                _log.Write("Web Service is falling back to the default web root folder since the folder configured by the DNS_SERVER_WEB_SERVICE_WWW_FOLDER_PATH environment variable does not exist: " + wwwFolderPath);
+                wwwFolderPath = Path.Combine(_appFolder, "www");
+            }
+
+            builder.Environment.WebRootFileProvider = new PhysicalFileProvider(wwwFolderPath)
             {
                 UseActivePolling = true,
                 UsePollingFileWatcher = true
