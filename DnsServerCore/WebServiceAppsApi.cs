@@ -276,6 +276,198 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
+            public async Task ListCustomRepositoryAppsAsync(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.View))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                IReadOnlyList<(string name, string repoUrl, string jsonData, string error)> repoResults = await _dnsWebService._dnsServer.DnsApplicationManager.GetCustomRepositoriesStoreAppsJsonDataAsync();
+
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
+                //parse each repo's data upfront so a parse failure can be reported as the repo's error too, not just a fetch failure
+                Dictionary<string, JsonDocument> parsedRepoData = new Dictionary<string, JsonDocument>();
+                Dictionary<string, string> repoNames = new Dictionary<string, string>();
+                Dictionary<string, string> repoErrors = new Dictionary<string, string>();
+
+                try
+                {
+                    foreach ((string name, string repoUrl, string jsonData, string fetchError) in repoResults)
+                    {
+                        repoNames[repoUrl] = name;
+
+                        if (fetchError is not null)
+                        {
+                            repoErrors[repoUrl] = fetchError;
+                            continue;
+                        }
+
+                        if (jsonData is null)
+                            continue; //should not happen when fetchError is null, but guard anyway
+
+                        JsonDocument jsonDocument;
+
+                        try
+                        {
+                            jsonDocument = JsonDocument.Parse(jsonData);
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsWebService._log.Write("DNS App repository returned invalid JSON data: " + repoUrl, ex);
+                            repoErrors[repoUrl] = "Repository data is not valid JSON: " + ex.Message;
+                            continue;
+                        }
+
+                        //a repository is expected to be a JSON array of app entries, but also accept a single
+                        //app entry as a bare JSON object (as published directly by some single-app repositories)
+                        JsonValueKind rootKind = jsonDocument.RootElement.ValueKind;
+                        if ((rootKind != JsonValueKind.Array) && (rootKind != JsonValueKind.Object))
+                        {
+                            jsonDocument.Dispose();
+                            repoErrors[repoUrl] = "Repository data must be a JSON array of app entries or a single app entry object.";
+                            continue;
+                        }
+
+                        parsedRepoData[repoUrl] = jsonDocument;
+                    }
+
+                    jsonWriter.WritePropertyName("repositories");
+                    jsonWriter.WriteStartArray();
+
+                    foreach ((string name, string repoUrl, _, _) in repoResults)
+                    {
+                        jsonWriter.WriteStartObject();
+
+                        jsonWriter.WriteString("name", name);
+                        jsonWriter.WriteString("url", repoUrl);
+
+                        if (repoErrors.TryGetValue(repoUrl, out string error))
+                            jsonWriter.WriteString("error", error);
+
+                        jsonWriter.WriteEndObject();
+                    }
+
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WritePropertyName("storeApps");
+                    jsonWriter.WriteStartArray();
+
+                    foreach (KeyValuePair<string, JsonDocument> parsedRepo in parsedRepoData)
+                    {
+                        string repoUrl = parsedRepo.Key;
+                        string repoName = repoNames[repoUrl];
+                        JsonElement root = parsedRepo.Value.RootElement;
+
+                        IEnumerable<JsonElement> jsonStoreApps = (root.ValueKind == JsonValueKind.Array) ? root.EnumerateArray() : new[] { root };
+
+                        foreach (JsonElement jsonStoreApp in jsonStoreApps)
+                        {
+                            try
+                            {
+                                string name = jsonStoreApp.GetProperty("name").GetString();
+                                string description = jsonStoreApp.GetProperty("description").GetString();
+                                string version = null;
+                                string url = null;
+                                string size = null;
+                                Version storeAppVersion = null;
+                                Version lastServerVersion = null;
+
+                                foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
+                                {
+                                    string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
+                                    Version requiredServerVersion = new Version(strServerVersion);
+
+                                    if (_dnsWebService._currentVersion < requiredServerVersion)
+                                        continue;
+
+                                    if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
+                                        continue;
+
+                                    version = jsonVersion.GetProperty("version").GetString();
+                                    url = jsonVersion.GetProperty("url").GetString();
+                                    size = jsonVersion.GetProperty("size").GetString();
+
+                                    storeAppVersion = new Version(version);
+                                    lastServerVersion = requiredServerVersion;
+                                }
+
+                                if (storeAppVersion is null)
+                                    continue; //app is not compatible with this server version
+
+                                jsonWriter.WriteStartObject();
+
+                                jsonWriter.WriteString("name", name);
+                                jsonWriter.WriteString("description", description);
+                                jsonWriter.WriteString("version", version);
+                                jsonWriter.WriteString("url", url);
+                                jsonWriter.WriteString("size", size);
+                                jsonWriter.WriteString("repository", repoUrl);
+                                jsonWriter.WriteString("repositoryName", repoName);
+
+                                bool installed = _dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
+
+                                jsonWriter.WriteBoolean("installed", installed);
+
+                                if (installed)
+                                {
+                                    jsonWriter.WriteString("installedVersion", DnsWebService.GetCleanVersion(installedApp.Version));
+                                    jsonWriter.WriteBoolean("updateAvailable", storeAppVersion > installedApp.Version);
+                                }
+
+                                jsonWriter.WriteEndObject();
+                            }
+                            catch (Exception ex)
+                            {
+                                //a single malformed app entry must not break the rest of this repo's listing, nor any other repo's
+                                _dnsWebService._log.Write("DNS App repository has a malformed app entry: " + repoUrl, ex);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    foreach (JsonDocument jsonDocument in parsedRepoData.Values)
+                        jsonDocument.Dispose();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            public void AddAppRepository(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                HttpRequest request = context.Request;
+
+                string name = request.GetQueryOrForm("name", "").Trim();
+                string url = request.GetQueryOrForm("url").Trim();
+
+                _dnsWebService._dnsServer.DnsApplicationManager.AddCustomRepository(name, url);
+
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS App repository was added: " + url);
+            }
+
+            public void RemoveAppRepository(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                HttpRequest request = context.Request;
+
+                string url = request.GetQueryOrForm("url").Trim();
+
+                _dnsWebService._dnsServer.DnsApplicationManager.RemoveCustomRepository(url);
+
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS App repository was removed: " + url);
+            }
+
             public async Task DownloadAndInstallAppAsync(HttpContext context)
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);

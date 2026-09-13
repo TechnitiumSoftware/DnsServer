@@ -150,7 +150,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab">Cache</a></li>
                                 <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab">Allowed</a></li>
                                 <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab">Blocked</a></li>
-                                <li id="mainPanelTabListApps" role="presentation"><a href="#mainPanelTabPaneApps" aria-controls="mainPanelTabPaneApps" role="tab" data-toggle="tab" onclick="refreshApps();">Apps</a></li>
+                                <li id="mainPanelTabListApps" role="presentation"><a href="#mainPanelTabPaneApps" aria-controls="mainPanelTabPaneApps" role="tab" data-toggle="tab" onclick="$('#appsTabListInstalled a').tab('show'); refreshApps();">Apps</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="refreshDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="refreshDhcpTab();">DHCP</a></li>
@@ -805,30 +805,77 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
 
                                 <div id="mainPanelTabPaneApps" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
-                                    <div id="divViewAppsLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li id="appsTabListInstalled" role="presentation" class="active"><a href="#appsTabPaneInstalled" aria-controls="appsTabPaneInstalled" role="tab" data-toggle="tab">Apps</a></li>
+                                        <li id="appsTabListCommunity" role="presentation"><a href="#appsTabPaneCommunity" aria-controls="appsTabPaneCommunity" role="tab" data-toggle="tab" onclick="refreshCommunityApps();">Community</a></li>
+                                    </ul>
 
-                                    <div id="divViewApps">
-                                        <div class="form-inline">
-                                            <div style="float: right;">
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
+                                    <div class="tab-content" style="padding-top: 10px;">
+                                        <div id="appsTabPaneInstalled" role="tabpanel" class="tab-pane active">
+                                            <div id="divViewAppsLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
+
+                                            <div id="divViewApps">
+                                                <div class="form-inline">
+                                                    <div style="float: right;">
+                                                        <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
+                                                        <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
+                                                    </div>
+                                                    <div style="clear: both;"></div>
+                                                </div>
+
+                                                <table id="tableApps" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="min-width: 100px;"><a href="#" onclick="sortTable('tableAppsBody', 0); return false;">Installed Apps</a></th>
+                                                            <th style="width: 96px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableAppsBody">
+                                                    </tbody>
+                                                    <tfoot id="tableAppsFooter">
+                                                        <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
+                                                    </tfoot>
+                                                </table>
                                             </div>
-                                            <div style="clear: both;"></div>
                                         </div>
 
-                                        <table id="tableApps" class="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th style="min-width: 100px;"><a href="#" onclick="sortTable('tableAppsBody', 0); return false;">Installed Apps</a></th>
-                                                    <th style="width: 96px;"></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="tableAppsBody">
-                                            </tbody>
-                                            <tfoot id="tableAppsFooter">
-                                                <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
-                                            </tfoot>
-                                        </table>
+                                        <div id="appsTabPaneCommunity" role="tabpanel" class="tab-pane">
+                                            <div id="divCommunityAppsAlert"></div>
+
+                                            <div class="well well-sm">
+                                                <label>DNS App Repositories</label>
+                                                <p style="font-size: 12px;">Add a third-party DNS App repository URL (a JSON manifest in the same format as the official DNS App Store) to browse and install apps from it. These apps are not maintained or vetted by Technitium. Enable automatic updates for these apps from Settings, or check back here and click Update manually when a new version is available.</p>
+
+                                                <div class="form-inline" style="margin-bottom: 10px;">
+                                                    <input id="txtCommunityRepoName" type="text" class="form-control" placeholder="Name" style="width: 160px;">
+                                                    <input id="txtCommunityRepoUrl" type="text" class="form-control" placeholder="https://example.com/store.json" style="width: 320px;">
+                                                    <button id="btnCommunityRepoAdd" type="button" class="btn btn-primary" onclick="addCommunityRepository();" data-loading-text="Adding...">Add Repository</button>
+                                                </div>
+
+                                                <table id="tableCommunityRepos" class="table table-condensed" style="margin-bottom: 0;">
+                                                    <tbody id="tableCommunityReposBody">
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div id="divCommunityAppsLoader" style="display: none; margin-top: 10px; height: 200px;"></div>
+
+                                            <div id="divCommunityApps">
+                                                <table id="tableCommunityStoreApps" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="min-width: 120px;">Community Apps</th>
+                                                            <th style="width: 96px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableCommunityStoreAppsBody">
+                                                    </tbody>
+                                                    <tfoot id="tableCommunityStoreAppsFooter">
+                                                        <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1105,17 +1152,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkDnsServerEnableCheckForUpdate" type="checkbox"> Enable Check For Update
+                                                                        <input id="chkDnsServerEnableCheckForUpdate" type="checkbox"> Check For Update: Core DNS Server
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables the DNS Server to check if an update is available when the Check For Update API is called which usually occurs after a user logs into the Web Console.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables the DNS Server to check if a core DNS Server update is available when the Check For Update API is called which usually occurs after a user logs into the Web Console.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkDnsAppsEnableAutomaticUpdate" type="checkbox"> Enable Automatic Update
+                                                                        <input id="chkDnsAppsEnableAutomaticUpdate" type="checkbox"> Enable Automatic Update: Official Apps
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will check for DNS Apps update once every day and will automatically download and install the updates.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">The DNS Server will check for updates to apps installed from the official DNS App Store once every day and will automatically download and install the updates.</div>
+
+                                                                <div class="checkbox" style="margin-top: 15px;">
+                                                                    <label>
+                                                                        <input id="chkDnsAppsEnableAutomaticUpdateCommunity" type="checkbox"> Enable Automatic Update: Community Apps
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Independently of the option above, the DNS Server will check for updates once every day for apps installed from Community (third-party) DNS App repositories and will automatically download and install the updates.</div>
                                                             </div>
                                                         </div>
                                                     </div>

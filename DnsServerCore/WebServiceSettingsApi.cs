@@ -98,6 +98,7 @@ namespace DnsServerCore
 
                 jsonWriter.WriteBoolean("dnsServerEnableCheckForUpdate", _dnsWebService._dnsServer.EnableCheckForUpdate);
                 jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _dnsWebService._dnsServer.DnsApplicationManager.EnableAutomaticUpdate);
+                jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdateCommunity", _dnsWebService._dnsServer.DnsApplicationManager.EnableCommunityAutomaticUpdate);
 
                 jsonWriter.WriteString("ipv6Mode", _dnsWebService._dnsServer.IPv6Mode.ToString());
                 jsonWriter.WriteBoolean("preferIPv6", _dnsWebService._dnsServer.IPv6Mode == IPv6Mode.Preferred);
@@ -637,6 +638,13 @@ namespace DnsServerCore
                             _dnsWebService._dnsServer.DnsApplicationManager.EnableAutomaticUpdate = dnsAppsEnableAutomaticUpdate;
 
                             clusterParameters.Add("dnsAppsEnableAutomaticUpdate", dnsAppsEnableAutomaticUpdate.ToString());
+                        }
+
+                        if (request.TryGetQueryOrForm("dnsAppsEnableAutomaticUpdateCommunity", bool.Parse, out bool dnsAppsEnableAutomaticUpdateCommunity))
+                        {
+                            _dnsWebService._dnsServer.DnsApplicationManager.EnableCommunityAutomaticUpdate = dnsAppsEnableAutomaticUpdateCommunity;
+
+                            clusterParameters.Add("dnsAppsEnableAutomaticUpdateCommunity", dnsAppsEnableAutomaticUpdateCommunity.ToString());
                         }
 
                         if (request.TryGetQueryOrFormEnum("ipv6Mode", out IPv6Mode ipv6Mode))
