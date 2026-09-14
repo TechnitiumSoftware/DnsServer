@@ -211,6 +211,9 @@ namespace DnsServerCore.Dns.Dnssec
                 case DnssecAlgorithm.ED448:
                     return new DnssecEddsaPrivateKey(keyType, new Ed448PrivateKeyParameters(RandomNumberGenerator.GetBytes(57)));
 
+                case DnssecAlgorithm.MLDSA44:
+                    return new DnssecMldsaPrivateKey(keyType, MLDsaPrivateKeyParameters.FromSeed(MLDsaParameters.ml_dsa_44, RandomNumberGenerator.GetBytes(32)));
+
                 default:
                     throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
             }
@@ -275,6 +278,9 @@ namespace DnsServerCore.Dns.Dnssec
                         return new DnssecEddsaPrivateKey(keyType, privateKey);
                     }
 
+                case DnssecAlgorithm.MLDSA44:
+                    throw new NotSupportedException("Importing an ML-DSA-44 private key from PEM is not supported. Use key generation instead.");
+
                 default:
                     throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
             }
@@ -307,6 +313,9 @@ namespace DnsServerCore.Dns.Dnssec
                         case DnssecAlgorithm.ED25519:
                         case DnssecAlgorithm.ED448:
                             return new DnssecEddsaPrivateKey(algorithm, bR, version);
+
+                        case DnssecAlgorithm.MLDSA44:
+                            return new DnssecMldsaPrivateKey(algorithm, bR, version);
 
                         default:
                             throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
