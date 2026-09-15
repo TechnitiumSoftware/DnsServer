@@ -279,7 +279,16 @@ namespace DnsServerCore.Dns.Dnssec
                     }
 
                 case DnssecAlgorithm.MLDSA44:
-                    throw new NotSupportedException("Importing an ML-DSA-44 private key from PEM is not supported. Use key generation instead.");
+                    using (PemReader pemReader = new PemReader(new StringReader(pemPrivateKey)))
+                    {
+                        if ((pemReader.ReadObject() is not MLDsaPrivateKeyParameters privateKey) || (privateKey.Parameters != MLDsaParameters.ml_dsa_44))
+                            throw new ArgumentException($"The ML-DSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must be for ML-DSA-44.", nameof(pemPrivateKey));
+
+                        if (privateKey.GetSeed() is null)
+                            throw new ArgumentException($"The ML-DSA-44 ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must use the seed encoding.", nameof(pemPrivateKey));
+
+                        return new DnssecMldsaPrivateKey(keyType, privateKey);
+                    }
 
                 default:
                     throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
