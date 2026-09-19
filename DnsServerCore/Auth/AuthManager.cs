@@ -42,6 +42,8 @@ namespace DnsServerCore.Auth
         ConcurrentDictionary<PermissionSection, Permission> _permissions = new ConcurrentDictionary<PermissionSection, Permission>(1, 11);
         ConcurrentDictionary<string, UserSession> _sessions = new ConcurrentDictionary<string, UserSession>(1, 10);
 
+        Dictionary<string, UserSession> _staticSessions; //predefined static session via environment variables
+
         readonly ConcurrentDictionary<IPAddress, int> _failedLoginAttemptNetworks = new ConcurrentDictionary<IPAddress, int>(1, 10);
         const int MAX_LOGIN_ATTEMPTS = 5;
 
@@ -178,6 +180,47 @@ namespace DnsServerCore.Auth
                 }
 
                 _log.Write("DNS Server auth config file was loaded: " + configFile);
+
+                //load static sessions
+                if (_staticSessions is null)
+                {
+                    string strStaticSessions = Environment.GetEnvironmentVariable("DNS_SERVER_AUTH_STATIC_SESSIONS");
+                    if (!string.IsNullOrEmpty(strStaticSessions))
+                    {
+                        string[] strStaticSessionEntries = strStaticSessions.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                        Dictionary<string, UserSession> staticSessions = new Dictionary<string, UserSession>(strStaticSessionEntries.Length);
+
+                        foreach (string strStaticSessionEntry in strStaticSessionEntries)
+                        {
+                            string[] parts = strStaticSessionEntry.Split(":", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            if (parts.Length != 2)
+                                continue;
+
+                            string username = parts[0];
+                            string token = parts[1];
+
+                            if (!_users.TryGetValue(username, out User user))
+                            {
+                                _log.Write($"Cannot load static session for user '{username}': no such user exist.");
+                                continue;
+                            }
+
+                            if (token.Length != 64)
+                            {
+                                _log.Write($"Cannot load static session for user '{username}': token length must be 64 bytes.");
+                                continue;
+                            }
+
+                            UserSession staticSession = new UserSession(token, user);
+
+                            if (!staticSessions.TryAdd(staticSession.Token, staticSession))
+                                _log.Write($"Cannot load static session for user '{username}': token is not unique.");
+                        }
+
+                        _staticSessions = staticSessions;
+                    }
+                }
 
                 if (passwordResetOption)
                 {
@@ -1442,8 +1485,14 @@ namespace DnsServerCore.Auth
 
         public UserSession GetSession(string token)
         {
-            if ((token is not null) && _sessions.TryGetValue(token, out UserSession session))
-                return session;
+            if (token is not null)
+            {
+                if (_sessions.TryGetValue(token, out UserSession session))
+                    return session;
+
+                if ((_staticSessions is not null) && _staticSessions.TryGetValue(token, out UserSession staticSession))
+                    return staticSession;
+            }
 
             return null;
         }
