@@ -113,7 +113,13 @@ else
             apt-get update >> $installLog 2>&1
 
             # Try to install the most common package name
-            if apt-cache show libicu74 >/dev/null 2>&1; then
+            if apt-cache show libicu78 >/dev/null 2>&1; then
+                echo "Installing libicu78 package..."
+                apt-get install -y libicu78 >> $installLog 2>&1
+            elif apt-cache show libicu76 >/dev/null 2>&1; then
+                echo "Installing libicu76 package..."
+                apt-get install -y libicu76 >> $installLog 2>&1
+            elif apt-cache show libicu74 >/dev/null 2>&1; then
                 echo "Installing libicu74 package..."
                 apt-get install -y libicu74 >> $installLog 2>&1
             elif apt-cache show libicu72 >/dev/null 2>&1; then
@@ -184,7 +190,7 @@ then
         echo "Configuring permissions..."
         chown -R $serviceUser:$serviceUser $dnsDir $dnsConfig $dnsLog >> $installLog 2>&1
 
-        echo "Restarting systemd service..."
+        echo "Restarting systemd 'dns' service..."
         systemctl restart dns.service >> $installLog 2>&1
     else
         mkdir -p $dnsLog
@@ -193,7 +199,7 @@ then
         useradd --system -M --shell /usr/sbin/nologin --user-group $serviceUser >> $installLog 2>&1
         chown -R $serviceUser:$serviceUser $dnsDir $dnsConfig $dnsLog >> $installLog 2>&1
 
-        echo "Configuring systemd service..."
+        echo "Configuring systemd 'dns' service..."
         cp $dnsDir/systemd.service /etc/systemd/system/dns.service
         systemctl enable dns.service >> $installLog 2>&1
 
@@ -222,7 +228,7 @@ then
         echo "Configuring permissions..."
         chown -R $serviceUser:$serviceUser $dnsDir $dnsConfig $dnsLog >> $installLog 2>&1
 
-        echo "Restarting OpenRC service..."
+        echo "Restarting OpenRC 'dns' service..."
         rc-service dns stop >> $installLog 2>&1
         rc-service dns start >> $installLog 2>&1
     else
@@ -233,7 +239,7 @@ then
         adduser -H -S -D -s /bin/false -G $serviceUser $serviceUser >> $installLog 2>&1
         chown -R $serviceUser:$serviceUser $dnsDir $dnsConfig $dnsLog >> $installLog 2>&1
 
-        echo "Configuring OpenRC service..."
+        echo "Configuring OpenRC 'dns' service..."
         cp $dnsDir/openrc.service /etc/init.d/dns
         chmod +x /etc/init.d/dns
         rc-update add dns >> $installLog 2>&1
