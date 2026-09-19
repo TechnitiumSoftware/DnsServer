@@ -32,7 +32,7 @@ namespace DnsServerCore
 {
     public partial class DnsWebService
     {
-        sealed class WebServiceAppsApi 
+        sealed class WebServiceAppsApi
         {
             #region variables
 
@@ -294,7 +294,7 @@ namespace DnsServerCore
                 DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.DownloadAndInstallAppAsync(name, new Uri(url));
 
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
-                
+
                 //trigger cluster update
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                     _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
@@ -361,7 +361,7 @@ namespace DnsServerCore
                         DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
                         _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS application '" + name + "' was installed successfully.");
-                        
+
                         //trigger cluster update
                         if (_dnsWebService._clusterManager.ClusterInitialized)
                             _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
@@ -416,7 +416,7 @@ namespace DnsServerCore
                         //trigger cluster update
                         if (_dnsWebService._clusterManager.ClusterInitialized)
                             _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
-                        
+
                         Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                         jsonWriter.WritePropertyName("updatedApp");
@@ -436,7 +436,7 @@ namespace DnsServerCore
                 }
             }
 
-            public void UninstallApp(HttpContext context)
+            public async Task UninstallAppAsync(HttpContext context)
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 
@@ -447,7 +447,7 @@ namespace DnsServerCore
 
                 string name = request.GetQueryOrForm("name").Trim();
 
-                _dnsWebService._dnsServer.DnsApplicationManager.UninstallApplication(name);
+                await _dnsWebService._dnsServer.DnsApplicationManager.UninstallApplicationAsync(name);
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DNS application '" + name + "' was uninstalled successfully.");
 
                 //trigger cluster update
