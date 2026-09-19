@@ -60,9 +60,9 @@ function refreshDhcpLeases() {
                     moment(dhcpLeases[i].leaseExpires).local().format("YYYY-MM-DD HH:mm");
 
                 tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Reserved Lease</a></li>";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Dynamic Lease</a></li>";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLeaseModal(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Remove Lease</a></li>";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" data-scope-name=\"" + htmlEncode(dhcpLeases[i].scope) + "\" onclick=\"convertToReservedLease(" + i + ", $(this).attr('data-scope-name'), '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Reserved Lease</a></li>";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" data-scope-name=\"" + htmlEncode(dhcpLeases[i].scope) + "\" onclick=\"convertToDynamicLease(" + i + ", $(this).attr('data-scope-name'), '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Convert To Dynamic Lease</a></li>";
+                tableHtmlRows += "<li><a href=\"#\" data-scope-name=\"" + htmlEncode(dhcpLeases[i].scope) + "\" onclick=\"showRemoveLeaseModal(" + i + ", $(this).attr('data-scope-name'), '" + dhcpLeases[i].clientIdentifier + "'); return false;\">Remove Lease</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
