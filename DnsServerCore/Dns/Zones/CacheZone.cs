@@ -442,25 +442,6 @@ namespace DnsServerCore.Dns.Zones
                     }
                     break;
 
-                case DnsResourceRecordType.SOA:
-                case DnsResourceRecordType.DNSKEY:
-                    {
-                        //since some zones have CNAME at apex!
-                        if (entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-                            return ValidateRRSet(existingRecords, serveStale, skipSpecialCacheRecord);
-
-                        if (entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
-                        {
-                            IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(existingCNAMERecords, serveStale, skipSpecialCacheRecord);
-                            if (rrset.Count > 0)
-                            {
-                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecordData))
-                                    return rrset;
-                            }
-                        }
-                    }
-                    break;
-
                 case DnsResourceRecordType.ANY:
                     List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>(entries.Count * 2);
 
@@ -480,16 +461,6 @@ namespace DnsServerCore.Dns.Zones
 
                 default:
                     {
-                        if (entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
-                        {
-                            IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(existingCNAMERecords, serveStale, skipSpecialCacheRecord);
-                            if (rrset.Count > 0)
-                            {
-                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecordData))
-                                    return rrset;
-                            }
-                        }
-
                         switch (type)
                         {
                             case DnsResourceRecordType.NS: //normal NS query
@@ -511,6 +482,16 @@ namespace DnsServerCore.Dns.Zones
                             {
                                 if ((existingParentNSRecords.Count > 0) && (existingParentNSRecords[0].RDATA is DnsCache.DnsSpecialCacheRecordData))
                                     return ValidateRRSet(existingParentNSRecords, serveStale, skipSpecialCacheRecord); //parent side NS record does not exist so use this to answer for child NS queries
+                            }
+                        }
+
+                        if (entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
+                        {
+                            IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(existingCNAMERecords, serveStale, skipSpecialCacheRecord);
+                            if (rrset.Count > 0)
+                            {
+                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecordData))
+                                    return rrset;
                             }
                         }
                     }
