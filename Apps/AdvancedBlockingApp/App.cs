@@ -618,7 +618,7 @@ namespace AdvancedBlocking
 
                 DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _blockingAnswerTtl, new DnsTXTRecordData(blockingReport))];
 
-                return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer));
+                return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer));
             }
             else
             {
@@ -632,12 +632,14 @@ namespace AdvancedBlocking
                 }
 
                 DnsResponseCode rcode;
+                bool ra;
                 IReadOnlyList<DnsResourceRecord>? answer = null;
                 IReadOnlyList<DnsResourceRecord>? authority = null;
 
                 if (blockListUrl!.BlockAsNxDomain)
                 {
                     rcode = DnsResponseCode.NxDomain;
+                    ra = !group.AllowTxtBlockingReport;
 
                     if (blockedDomain is null)
                         blockedDomain = question.Name;
@@ -651,6 +653,7 @@ namespace AdvancedBlocking
                 else
                 {
                     rcode = DnsResponseCode.NoError;
+                    ra = true;
 
                     switch (question.Type)
                     {
@@ -703,7 +706,7 @@ namespace AdvancedBlocking
                     }
                 }
 
-                return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options));
+                return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, ra, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options));
             }
         }
 
@@ -1415,9 +1418,16 @@ namespace AdvancedBlocking
                                 secondWord = PopWord(ref line);
 
                                 if ((secondWord.Length == 0) || secondWord.StartsWith('#'))
+                                {
                                     hostname = firstWord;
+                                }
                                 else
+                                {
+                                    if (!IPAddress.TryParse(firstWord, out _))
+                                        continue; //first word must be an IP address for using second word as hostname as per hosts file format
+
                                     hostname = secondWord;
+                                }
                             }
 
                             hostname = hostname.Trim('.').ToLowerInvariant();
