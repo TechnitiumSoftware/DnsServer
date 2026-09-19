@@ -1601,15 +1601,6 @@ namespace DnsServerCore
                         zoneName = zoneName.Trim('.');
                     }
 
-                    if (zoneName.Contains('*'))
-                        throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
-
-                    foreach (char invalidChar in Path.GetInvalidFileNameChars())
-                    {
-                        if (zoneName.Contains(invalidChar))
-                            throw new DnsWebServiceException("The zone name contains an invalid character: " + invalidChar);
-                    }
-
                     if (DnsClient.IsDomainNameUnicode(zoneName))
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
                 }
