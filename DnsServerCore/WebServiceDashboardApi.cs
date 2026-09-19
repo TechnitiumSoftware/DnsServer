@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
+using DnsServerCore.Dns;
 using DnsServerCore.HttpApi.Models;
 using Microsoft.AspNetCore.Http;
 using System;
@@ -770,7 +771,10 @@ namespace DnsServerCore
 
                 DashboardStatsType type = request.GetQueryOrFormEnum("type", DashboardStatsType.LastHour);
                 DashboardTopStatsType statsType = request.GetQueryOrFormEnum<DashboardTopStatsType>("statsType");
-                int limit = request.GetQueryOrForm("limit", int.Parse, 1000);
+
+                int limit = request.GetQueryOrForm("limit", int.Parse, StatsManager.STATS_TOP_LIMIT);
+                if (limit > StatsManager.STATS_TOP_LIMIT)
+                    limit = StatsManager.STATS_TOP_LIMIT;
 
                 DateTime startDate = default;
                 DateTime endDate = default;
