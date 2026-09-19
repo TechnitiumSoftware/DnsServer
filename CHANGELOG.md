@@ -1,5 +1,29 @@
 # Technitium DNS Server Change Log
 
+## Version 15.5
+Release Date: 19 September 2026
+
+- Added support for LDAP authentication. Thanks to Roy Hagland (@Hemsby) for the PR #1869.
+- Implemented support for [draft-farrokhi-dnsop-ede-nta](https://datatracker.ietf.org/doc/html/draft-farrokhi-dnsop-ede-nta). NTA can be added by creating a Conditional Forwarder zone for the domain name with DNSSEC validation disabled. The FWD record's comments are used with the Extended DNS Error (EDE) included in the response.
+- Added Zone File Editor option for Primary and Conditional Forwarder zones.
+- Added support for predefined static API sessions that are configured using new `DNS_SERVER_AUTH_STATIC_SESSIONS` environment variable.
+- Added new `DNS_SERVER_WEB_SERVICE_WWW_FOLDER_PATH` environment variable that allows changing the web service www root folder to allow using custom web service GUI. Thanks to Adrián García (@byGarcia) for PR #2138.
+- Updated docker compose to add health check option that uses the Health Check API call.
+- Updated Health Check API to be allowed to be called from loopback addresses without requiring authentication to support Docker health check.
+- Fixed multi-hop amplification vulnerability reported by Qifan Zhang from Palo Alto Networks, that used multiple CNAME and delegation hops achieving a 4,096:1 packet amplification factor.
+- Fixed cache poisoning vulnerability reported by Qifan Zhang from Palo Alto Networks, that allowed caching out-of-bailiwick DNAME record received from an attacker controlled zone targeting any domain name.
+- Fixed DNSSEC validation bypass vulnerability reported by Qifan Zhang from Palo Alto Networks, that allowed an attacker controlled zone to inject out-of-bailiwick DS (Delegation Signer) records in referral responses to poison the resolver cache and disable DNSSEC validation for arbitrary signed zones.
+- Fixed Denial of Service (DoS) vulnerability reported by Xuanchao Xie, that allowed an attacker to exploit DNS-over-HTTPS/3 (DoH/3) protocol service implementation to cause the DNS server to buffer large amount of data in memory causing the server to crash with Out Of Memory (OOM) error.
+- Fixed authorization bypass vulnerability reported by Tao Pan (@pant0m), that allowed using `ptr` option feature in Add Record and Update Record API calls, and Delete Record API call to add/overwrite/delete PTR record in arbitrary reverse zone that the current user did not have modify permissions to.
+- Fixed persistent Denial of Service (DoS) vulnerability affecting attacker selected victim domain name reported by Abdullah Al Ishtiaq, Kai Tu, Matthew Carter, Xiaotian Zhou, Ananna Rahman, Yilu Dong, Tianwei Yu, Ali Ranjbar, and Syed Rafiul Hussain from SyNSec Lab, The Pennsylvania State University. This vulnerability caused the attacker to add victim domain name to the background resolver task which fails to execute and requires the DNS Server to restart to recover.
+- Fixed off-path cache poisoning vulnerability reported by Lior Shafir, Ameer Saleh, Prof. Raja Giryes, and Prof. Avishai Wool from Tel-Aviv University, that allowed an attacker to inject CNAME record in cache that caused all queries for the victim domain name to get redirected to the attacker's domain name that the CNAME specified.
+- Fixed multiple stored XSS vulnerabilities reported by Yuqi Qiu and Xiang Li from AOSP Lab, Nankai University.
+- Fixed zone name validation bypass vulnerability in Clone Zone and DNS Client Import API calls reported by Yuqi Qiu and Xiang Li from AOSP Lab, Nankai University.
+- Fixed severe bug in DNS Client response sanitization function that caused Out Of Memory (OOM) exception resulting the DNS server to crash when specific types of response was received.
+- Removed Auto Prefetch feature since it was not really effective while requiring too many system resources to function. Note that basic Prefetch feature is still available.
+- Wild IP App: Updated app to add hex string support for IPv4. Thanks to Marty Cannon (@swimlane-marty) for the PR #2056.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 15.4
 Release Date: 11 July 2026
 
