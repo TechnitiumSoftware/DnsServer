@@ -825,7 +825,18 @@ function refreshZones(checkDisplay, pageNumber) {
                 tableHtmlRows += "<td>" + lastModified + "</td>";
 
                 tableHtmlRows += "<td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnZoneRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">Edit Zone</a></li>";
+
+                switch (zones[i].type) {
+                    case "Primary":
+                    case "Forwarder":
+                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">Edit Zone</a></li>";
+                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showEditZoneFileModal('" + name + "'); return false;\">Edit Zone File</a></li>";
+                        break;
+
+                    default:
+                        tableHtmlRows += "<li><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">View Zone</a></li>";
+                        break;
+                }
 
                 tableHtmlRows += "<li id=\"mnuEnableZone" + id + "\"" + (zones[i].disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"enableZoneMenu(this); return false;\">Enable</a></li>";
                 tableHtmlRows += "<li id=\"mnuDisableZone" + id + "\"" + (!zones[i].disabled ? "" : " style=\"display: none;\"") + "><a href=\"#\" data-id=\"" + id + "\" data-zone=\"" + htmlEncode(name) + "\" onclick=\"disableZoneMenu(this); return false;\">Disable</a></li>";
@@ -1224,6 +1235,86 @@ function deleteZone(objBtn) {
     });
 }
 
+function showEditZoneFileModal(zone) {
+    var divEditZoneFileAlert = $("#divEditZoneFileAlert");
+    var divEditZoneFileLoader = $("#divEditZoneFileLoader");
+    var divEditZoneFile = $("#divEditZoneFile");
+
+    $("#lblEditZoneFileName").text(zone);
+    $("#chkEditZoneFileOverwriteSoaSerial").prop("checked", false);
+
+    divEditZoneFileLoader.show();
+    divEditZoneFile.hide();
+
+    $("#btnEditZoneFile").button("reset");
+
+    var node = $("#optZonesClusterNode").val();
+
+    $("#modalEditZoneFile").modal("show");
+
+    HTTPRequest({
+        url: "api/zones/export?zone=" + encodeURIComponent(zone) + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
+        isTextResponse: true,
+        success: function (response) {
+            divEditZoneFileLoader.hide();
+
+            if (response.status != null)
+                response = JSON.stringify(response, null, 2);
+
+            $("#txtEditZoneFileText").val(response);
+            divEditZoneFile.show();
+        },
+        error: function () {
+            divEditZoneFileLoader.hide();
+        },
+        invalidToken: function () {
+            $("#modalEditZoneFile").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divEditZoneFileAlert,
+        objLoaderPlaceholder: divEditZoneFileLoader
+    });
+}
+
+function saveEditZoneFile() {
+    var divEditZoneFileAlert = $("#divEditZoneFileAlert");
+
+    var zone = $("#lblEditZoneFileName").text();
+    var overwriteSoaSerial = $("#chkEditZoneFileOverwriteSoaSerial").prop("checked");
+    var formData = $("#txtEditZoneFileText").val();;
+
+    var node = $("#optZonesClusterNode").val();
+
+    var btn = $("#btnEditZoneFile");
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/zones/import?zone=" + encodeURIComponent(zone) + "&overwriteZone=true&overwriteSoaSerial=" + overwriteSoaSerial + "&node=" + encodeURIComponent(node),
+        token: sessionData.token,
+        method: "POST",
+        data: formData,
+        contentType: "text/plain",
+        processData: false,
+        success: function (responseJSON) {
+            $("#modalEditZoneFile").modal("hide");
+
+            if ($("#divEditZone").is(":visible"))
+                showEditZone(zone);
+
+            showAlert("success", "Zone Saved!", "The zone file was saved successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            $("#modalEditZoneFile").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divEditZoneFileAlert
+    });
+}
+
 function showImportZoneModal(zone) {
     $("#lblImportZoneName").text(zone);
     $("#divImportZoneAlert").html("");
@@ -1302,7 +1393,7 @@ function importZone() {
             showAlert("success", "Zone Imported!", "The zone file was imported successfully.");
         },
         error: function () {
-            btn.button('reset');
+            btn.button("reset");
         },
         invalidToken: function () {
             $("#modalImportZone").modal("hide");
@@ -2766,7 +2857,7 @@ function showAddZoneModal() {
     $("#divAddZoneForwarderDnssecValidation").hide();
     $("#divAddZoneForwarderProxy").hide();
 
-    $("#btnAddZone").button('reset');
+    $("#btnAddZone").button("reset");
 
     $("#modalAddZone").modal("show");
 
@@ -3298,6 +3389,7 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
             switch (responseJSON.response.zone.type) {
                 case "Primary":
                 case "Forwarder":
+                    $("#lnkEditZoneFile").show();
                     $("#lnkImportZone").show();
                     $("#lnkExportZone").show();
                     break;
@@ -3306,11 +3398,13 @@ function showEditZone(zone, showPageNumber, zoneFilterName, zoneFilterType) {
                 case "SecondaryForwarder":
                 case "SecondaryCatalog":
                 case "Catalog":
+                    $("#lnkEditZoneFile").hide();
                     $("#lnkImportZone").hide();
                     $("#lnkExportZone").show();
                     break;
 
                 default:
+                    $("#lnkEditZoneFile").hide();
                     $("#lnkImportZone").hide();
                     $("#lnkExportZone").hide();
                     break;
@@ -5544,10 +5638,10 @@ function showEditRecordModal(objBtn) {
             $("#optAddEditRecordDataAppName").prop("disabled", true);
             $("#optAddEditRecordDataClassPath").prop("disabled", true);
 
-            $("#optAddEditRecordDataAppName").html("<option>" + divData.attr("data-record-app-name") + "</option>")
+            $("#optAddEditRecordDataAppName").html("<option>" + htmlEncode( divData.attr("data-record-app-name")) + "</option>")
             $("#optAddEditRecordDataAppName").val(divData.attr("data-record-app-name"))
 
-            $("#optAddEditRecordDataClassPath").html("<option>" + divData.attr("data-record-classpath") + "</option>")
+            $("#optAddEditRecordDataClassPath").html("<option>" + htmlEncode(divData.attr("data-record-classpath")) + "</option>")
             $("#optAddEditRecordDataClassPath").val(divData.attr("data-record-classpath"))
 
             $("#txtAddEditRecordDataData").val(divData.attr("data-record-data"))
