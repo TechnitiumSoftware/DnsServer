@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Auth;
 using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -268,7 +269,7 @@ namespace DnsServerCore
                 HttpRequest request = context.Request;
 
                 string allowedZones = request.GetQueryOrForm("allowedZones");
-                string[] allowedZonesList = allowedZones.Split(',');
+                string[] allowedZonesList = allowedZones.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                 for (int i = 0; i < allowedZonesList.Length; i++)
                 {
@@ -473,7 +474,7 @@ namespace DnsServerCore
                 HttpRequest request = context.Request;
 
                 string blockedZones = request.GetQueryOrForm("blockedZones");
-                string[] blockedZonesList = blockedZones.Split(',');
+                string[] blockedZonesList = blockedZones.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                 for (int i = 0; i < blockedZonesList.Length; i++)
                 {
