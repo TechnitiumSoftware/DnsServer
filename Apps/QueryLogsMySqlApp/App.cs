@@ -391,7 +391,7 @@ USE `{_databaseName}`;
 
 CREATE TABLE IF NOT EXISTS dns_logs
 (
-    dlid INT PRIMARY KEY AUTO_INCREMENT,
+    dlid BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
     server varchar(255),
     timestamp DATETIME NOT NULL,
     client_ip VARCHAR(39) NOT NULL,
