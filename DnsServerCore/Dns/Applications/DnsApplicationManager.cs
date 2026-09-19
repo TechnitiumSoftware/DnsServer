@@ -29,6 +29,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Http.Client;
 
@@ -60,6 +61,8 @@ namespace DnsServerCore.Dns.Applications
         const int APP_UPDATE_TIMER_INITIAL_INTERVAL = 10000;
         const int APP_UPDATE_TIMER_PERIODIC_INTERVAL = 86400000;
 
+        SemaphoreSlim _opsLock = new SemaphoreSlim(1, 1);
+
         #endregion
 
         #region constructor
@@ -90,7 +93,13 @@ namespace DnsServerCore.Dns.Applications
                 _appUpdateTimer?.Dispose();
 
                 if (_applications != null)
-                    UnloadAllApplications();
+                    UnloadAllApplicationsAsync().Sync();
+
+                if (_opsLock is not null)
+                {
+                    _opsLock.Dispose();
+                    _opsLock = null;
+                }
             }
 
             _disposed = true;
@@ -204,6 +213,20 @@ namespace DnsServerCore.Dns.Applications
 
         private void StartAutomaticUpdate()
         {
+            async Task DownloadAndUpdateAsync(DnsApplication application, string url)
+            {
+                try
+                {
+                    await DownloadAndUpdateAppAsync(application.Name, new Uri(url));
+
+                    _dnsServer.LogManager.Write("DNS application '" + application.Name + "' was automatically updated successfully from: " + url);
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.LogManager.Write("Failed to automatically download and update DNS application '" + application.Name + "'.", ex);
+                }
+            }
+
             if (_appUpdateTimer is null)
             {
                 _appUpdateTimer = new Timer(async delegate (object state)
@@ -220,6 +243,7 @@ namespace DnsServerCore.Dns.Applications
                         JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
                         Version currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
+                        List<Task> tasks = new List<Task>();
 
                         foreach (DnsApplication application in _applications.Values)
                         {
@@ -251,23 +275,14 @@ namespace DnsServerCore.Dns.Applications
                                     }
 
                                     if ((storeAppVersion is not null) && (storeAppVersion > application.Version))
-                                    {
-                                        try
-                                        {
-                                            await DownloadAndUpdateAppAsync(application.Name, new Uri(url));
-
-                                            _dnsServer.LogManager.Write("DNS application '" + application.Name + "' was automatically updated successfully from: " + url);
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            _dnsServer.LogManager.Write("Failed to automatically download and update DNS application '" + application.Name + "'.", ex);
-                                        }
-                                    }
+                                        tasks.Add(DownloadAndUpdateAsync(application, url));
 
                                     break;
                                 }
                             }
                         }
+
+                        await Task.WhenAll(tasks);
                     }
                     catch (Exception ex)
                     {
@@ -311,172 +326,212 @@ namespace DnsServerCore.Dns.Applications
 
         #region public
 
-        public void UnloadAllApplications()
+        public async Task UnloadAllApplicationsAsync()
         {
-            foreach (KeyValuePair<string, DnsApplication> application in _applications)
+            await _opsLock.WaitAsync();
+            try
             {
-                try
-                {
-                    application.Value.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    _dnsServer.LogManager.Write(ex);
-                }
-            }
-
-            _applications.Clear();
-            _dnsRequestControllers = Array.Empty<IDnsRequestController>();
-            _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
-            _dnsRequestBlockingHandlers = Array.Empty<IDnsRequestBlockingHandler>();
-            _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
-            _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
-        }
-
-        public async Task LoadAllApplicationsAsync()
-        {
-            UnloadAllApplications();
-
-            List<Task> tasks = new List<Task>();
-
-            foreach (string applicationFolder in Directory.GetDirectories(_appsPath))
-            {
-                tasks.Add(Task.Run(async delegate ()
+                foreach (KeyValuePair<string, DnsApplication> application in _applications)
                 {
                     try
                     {
-                        _dnsServer.LogManager.Write("DNS Server is loading DNS application: " + Path.GetFileName(applicationFolder));
-
-                        _ = await LoadApplicationAsync(applicationFolder, false);
-
-                        _dnsServer.LogManager.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
-                    }
-                    catch (Exception ex)
-                    {
-                        _dnsServer.LogManager.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder), ex);
-                    }
-                }));
-            }
-
-            await Task.WhenAll(tasks);
-
-            RefreshAppObjectLists();
-        }
-
-        public async Task<DnsApplication> InstallApplicationAsync(string applicationName, Stream appZipStream)
-        {
-            foreach (char invalidChar in Path.GetInvalidFileNameChars())
-            {
-                if (applicationName.Contains(invalidChar))
-                    throw new DnsServerException("The application name contains an invalid character: " + invalidChar);
-            }
-
-            if (_applications.ContainsKey(applicationName))
-                throw new DnsServerException("DNS application already exists: " + applicationName);
-
-            string applicationFolder = Path.GetFullPath(Path.Combine(_appsPath, applicationName));
-            if (!applicationFolder.StartsWith(_appsPath + Path.DirectorySeparatorChar))
-                throw new DnsServerException("The application name is invalid: " + applicationName);
-
-            if (Directory.Exists(applicationFolder))
-                Directory.Delete(applicationFolder, true);
-
-            Directory.CreateDirectory(applicationFolder);
-
-            //keep a copy of the zip file in the application folder for transferring to other nodes
-            await using (FileStream zipCopyStream = new FileStream(Path.Combine(applicationFolder, applicationName + ".zip"), FileMode.Create, FileAccess.ReadWrite))
-            {
-                await appZipStream.CopyToAsync(zipCopyStream);
-
-                zipCopyStream.Position = 0;
-
-                await using (ZipArchive appZip = new ZipArchive(zipCopyStream, ZipArchiveMode.Read, false, Encoding.UTF8))
-                {
-                    try
-                    {
-                        await appZip.ExtractToDirectoryAsync(applicationFolder, true);
-
-                        return await LoadApplicationAsync(applicationFolder, true);
-                    }
-                    catch
-                    {
-                        await appZip.DisposeAsync();
-
-                        if (Directory.Exists(applicationFolder))
-                            Directory.Delete(applicationFolder, true);
-
-                        throw;
-                    }
-                }
-            }
-        }
-
-        public async Task<DnsApplication> UpdateApplicationAsync(string applicationName, Stream appZipStream)
-        {
-            if (!_applications.ContainsKey(applicationName))
-                throw new DnsServerException("DNS application does not exists: " + applicationName);
-
-            string applicationFolder = Path.Combine(_appsPath, applicationName);
-
-            //keep a copy of the zip file in the application folder for transferring to other nodes
-            await using (FileStream zipCopyStream = new FileStream(Path.Combine(applicationFolder, applicationName + ".zip"), FileMode.Create, FileAccess.ReadWrite))
-            {
-                await appZipStream.CopyToAsync(zipCopyStream);
-
-                zipCopyStream.Position = 0;
-
-                await using (ZipArchive appZip = new ZipArchive(zipCopyStream, ZipArchiveMode.Read, false, Encoding.UTF8))
-                {
-                    UnloadApplication(applicationName);
-
-                    foreach (ZipArchiveEntry entry in appZip.Entries)
-                    {
-                        string filePath = Path.GetFullPath(Path.Combine(applicationFolder, entry.FullName));
-                        if (!filePath.StartsWith(applicationFolder + Path.DirectorySeparatorChar))
-                            throw new IOException("Extracting Zip entry would have resulted in a file outside the specified destination directory.");
-
-                        if ((entry.Name == "dnsApp.config") && File.Exists(filePath))
-                            continue; //avoid overwriting existing config file
-
-                        if ((entry.Length == 0) && (entry.Name.Length == 0) && entry.FullName.EndsWith('/'))
-                        {
-                            //directory entry
-                            Directory.CreateDirectory(filePath);
-                        }
-                        else
-                        {
-                            //file entry
-                            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-                            await entry.ExtractToFileAsync(filePath, true);
-                        }
-                    }
-
-                    return await LoadApplicationAsync(applicationFolder, true);
-                }
-            }
-        }
-
-        public void UninstallApplication(string applicationName)
-        {
-            if (_applications.TryRemove(applicationName, out DnsApplication removedApp))
-            {
-                RefreshAppObjectLists();
-
-                removedApp.ConfigUpdated -= Application_ConfigUpdated;
-                removedApp.Dispose();
-
-                if (Directory.Exists(removedApp.DnsServer.ApplicationFolder))
-                {
-                    try
-                    {
-                        Directory.Delete(removedApp.DnsServer.ApplicationFolder, true);
+                        application.Value.Dispose();
                     }
                     catch (Exception ex)
                     {
                         _dnsServer.LogManager.Write(ex);
                     }
                 }
+
+                _applications.Clear();
+                _dnsRequestControllers = Array.Empty<IDnsRequestController>();
+                _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
+                _dnsRequestBlockingHandlers = Array.Empty<IDnsRequestBlockingHandler>();
+                _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
+                _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
+            }
+            finally
+            {
+                _opsLock.Release();
+            }
+        }
+
+        public async Task LoadAllApplicationsAsync()
+        {
+            await UnloadAllApplicationsAsync();
+
+            await _opsLock.WaitAsync();
+            try
+            {
+                List<Task> tasks = new List<Task>();
+
+                foreach (string applicationFolder in Directory.GetDirectories(_appsPath))
+                {
+                    tasks.Add(Task.Run(async delegate ()
+                    {
+                        try
+                        {
+                            _dnsServer.LogManager.Write("DNS Server is loading DNS application: " + Path.GetFileName(applicationFolder));
+
+                            _ = await LoadApplicationAsync(applicationFolder, false);
+
+                            _dnsServer.LogManager.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.LogManager.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder), ex);
+                        }
+                    }));
+                }
+
+                await Task.WhenAll(tasks);
+
+                RefreshAppObjectLists();
+            }
+            finally
+            {
+                _opsLock.Release();
+            }
+        }
+
+        public async Task<DnsApplication> InstallApplicationAsync(string applicationName, Stream appZipStream)
+        {
+            await _opsLock.WaitAsync();
+            try
+            {
+                foreach (char invalidChar in Path.GetInvalidFileNameChars())
+                {
+                    if (applicationName.Contains(invalidChar))
+                        throw new DnsServerException("The application name contains an invalid character: " + invalidChar);
+                }
+
+                if (_applications.ContainsKey(applicationName))
+                    throw new DnsServerException("DNS application already exists: " + applicationName);
+
+                string applicationFolder = Path.GetFullPath(Path.Combine(_appsPath, applicationName));
+                if (!applicationFolder.StartsWith(_appsPath + Path.DirectorySeparatorChar))
+                    throw new DnsServerException("The application name is invalid: " + applicationName);
+
+                if (Directory.Exists(applicationFolder))
+                    Directory.Delete(applicationFolder, true);
+
+                Directory.CreateDirectory(applicationFolder);
+
+                //keep a copy of the zip file in the application folder for transferring to other nodes
+                await using (FileStream zipCopyStream = new FileStream(Path.Combine(applicationFolder, applicationName + ".zip"), FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await appZipStream.CopyToAsync(zipCopyStream);
+
+                    zipCopyStream.Position = 0;
+
+                    await using (ZipArchive appZip = new ZipArchive(zipCopyStream, ZipArchiveMode.Read, false, Encoding.UTF8))
+                    {
+                        try
+                        {
+                            await appZip.ExtractToDirectoryAsync(applicationFolder, true);
+
+                            return await LoadApplicationAsync(applicationFolder, true);
+                        }
+                        catch
+                        {
+                            await appZip.DisposeAsync();
+
+                            if (Directory.Exists(applicationFolder))
+                                Directory.Delete(applicationFolder, true);
+
+                            throw;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _opsLock.Release();
+            }
+        }
+
+        public async Task<DnsApplication> UpdateApplicationAsync(string applicationName, Stream appZipStream)
+        {
+            await _opsLock.WaitAsync();
+            try
+            {
+                if (!_applications.ContainsKey(applicationName))
+                    throw new DnsServerException("DNS application does not exists: " + applicationName);
+
+                string applicationFolder = Path.Combine(_appsPath, applicationName);
+
+                //keep a copy of the zip file in the application folder for transferring to other nodes
+                await using (FileStream zipCopyStream = new FileStream(Path.Combine(applicationFolder, applicationName + ".zip"), FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await appZipStream.CopyToAsync(zipCopyStream);
+
+                    zipCopyStream.Position = 0;
+
+                    await using (ZipArchive appZip = new ZipArchive(zipCopyStream, ZipArchiveMode.Read, false, Encoding.UTF8))
+                    {
+                        UnloadApplication(applicationName);
+
+                        foreach (ZipArchiveEntry entry in appZip.Entries)
+                        {
+                            string filePath = Path.GetFullPath(Path.Combine(applicationFolder, entry.FullName));
+                            if (!filePath.StartsWith(applicationFolder + Path.DirectorySeparatorChar))
+                                throw new IOException("Extracting Zip entry would have resulted in a file outside the specified destination directory.");
+
+                            if ((entry.Name == "dnsApp.config") && File.Exists(filePath))
+                                continue; //avoid overwriting existing config file
+
+                            if ((entry.Length == 0) && (entry.Name.Length == 0) && entry.FullName.EndsWith('/'))
+                            {
+                                //directory entry
+                                Directory.CreateDirectory(filePath);
+                            }
+                            else
+                            {
+                                //file entry
+                                Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                                await entry.ExtractToFileAsync(filePath, true);
+                            }
+                        }
+
+                        return await LoadApplicationAsync(applicationFolder, true);
+                    }
+                }
+            }
+            finally
+            {
+                _opsLock.Release();
+            }
+        }
+
+        public async Task UninstallApplicationAsync(string applicationName)
+        {
+            await _opsLock.WaitAsync();
+            try
+            {
+                if (_applications.TryRemove(applicationName, out DnsApplication removedApp))
+                {
+                    RefreshAppObjectLists();
+
+                    removedApp.ConfigUpdated -= Application_ConfigUpdated;
+                    removedApp.Dispose();
+
+                    if (Directory.Exists(removedApp.DnsServer.ApplicationFolder))
+                    {
+                        try
+                        {
+                            Directory.Delete(removedApp.DnsServer.ApplicationFolder, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            _dnsServer.LogManager.Write(ex);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _opsLock.Release();
             }
         }
 
