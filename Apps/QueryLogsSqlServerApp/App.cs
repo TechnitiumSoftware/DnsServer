@@ -403,7 +403,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name='dns_logs' and type='U')
 BEGIN
     CREATE TABLE dns_logs
     (
-        dlid INT IDENTITY(1,1) PRIMARY KEY,
+        dlid BIGINT IDENTITY(1,1) PRIMARY KEY,
         server varchar(255),
         timestamp DATETIME NOT NULL,
         client_ip VARCHAR(39) NOT NULL,
