@@ -110,6 +110,12 @@
 				"version": "11.1",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v11.1.zip",
 				"size": "61.54 KB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "11.2",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v11.2.zip",
+				"size": "61.59 KB"
 			}
 		]
 	},
@@ -182,6 +188,12 @@
 				"version": "5.1",
 				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v5.1.zip",
 				"size": "23.92 KB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "5.2",
+				"url": "https://download.technitium.com/dns/apps/AdvancedForwardingApp-v5.2.zip",
+				"size": "24.51 KB"
 			}
 		]
 	},
@@ -836,6 +848,12 @@
 				"version": "10.1",
 				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v10.1.zip",
 				"size": "10.75 MB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "10.1.1",
+				"url": "https://download.technitium.com/dns/apps/GeoContinentApp-v10.1.1.zip",
+				"size": "10.75 MB"
 			}
 		]
 	},
@@ -932,6 +950,12 @@
 				"version": "10.1",
 				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v10.1.zip",
 				"size": "10.75 MB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "10.1.1",
+				"url": "https://download.technitium.com/dns/apps/GeoCountryApp-v10.1.1.zip",
+				"size": "10.75 MB"
 			}
 		]
 	},
@@ -1022,6 +1046,12 @@
 				"version": "10.0.1",
 				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v10.0.1.zip",
 				"size": "36.98 MB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "10.0.2",
+				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp-v10.0.2.zip",
+				"size": "36.98 MB"
 			}
 		]
 	},
@@ -1070,6 +1100,12 @@
 				"version": "3.0.1",
 				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v3.0.1.zip",
 				"size": "213.53 KB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "3.1",
+				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v3.1.zip",
+				"size": "213.76 KB"
 			}
 		]
 	},
@@ -1286,6 +1322,12 @@
 				"version": "4.1.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v4.1.1.zip",
 				"size": "466.58 KB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "4.2",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsMySqlApp-v4.2.zip",
+				"size": "467.97 KB"
 			}
 		]
 	},
@@ -1316,6 +1358,12 @@
 				"version": "1.2.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsPostgreSqlApp-v1.2.1.zip",
 				"size": "599.14 KB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "1.3",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsPostgreSqlApp-v1.3.zip",
+				"size": "599.16 KB"
 			}
 		]
 	},
@@ -1436,6 +1484,12 @@
 				"version": "9.1.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v9.1.1.zip",
 				"size": "15.93 MB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "9.1.2",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v9.1.2.zip",
+				"size": "16.66 MB"
 			}
 		]
 	},
@@ -1496,6 +1550,12 @@
 				"version": "3.1.1",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v3.1.1.zip",
 				"size": "3.99 MB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "3.2",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v3.2.zip",
+				"size": "3.42 MB"
 			}
 		]
 	},
@@ -1699,7 +1759,7 @@
 	},
 	{
 		"name": "Wild IP",
-		"description": "Allows creating APP records in primary and forwarder zones that can return the IP address embedded in the subdomain name for A and AAAA queries. It works similar to sslip.io.",
+		"description": "Allows creating APP records in primary and forwarder zones that can return the IP address embedded in the subdomain name for A and AAAA queries, including compact hexadecimal IPv4 labels. It works similar to sslip.io.",
 		"versions": [
 			{
 				"serverVersion": "9.0",
@@ -1754,6 +1814,12 @@
 				"version": "6.0",
 				"url": "https://download.technitium.com/dns/apps/WildIpApp-v6.zip",
 				"size": "14.02 KB"
+			},
+			{
+				"serverVersion": "15.5",
+				"version": "6.1",
+				"url": "https://download.technitium.com/dns/apps/WildIpApp-v6.1.zip",
+				"size": "14.42 KB"
 			}
 		]
 	},
