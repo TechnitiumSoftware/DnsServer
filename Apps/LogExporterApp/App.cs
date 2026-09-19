@@ -114,7 +114,7 @@ namespace LogExporter
             if (_config.HttpTarget!.Enabled)
             {
                 _exportManager.RemoveStrategy(typeof(HttpExportStrategy));
-                _exportManager.AddStrategy(new HttpExportStrategy(_config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
+                _exportManager.AddStrategy(new HttpExportStrategy(_dnsServer, _config.HttpTarget.Endpoint, _config.HttpTarget.Headers));
             }
             else
             {
