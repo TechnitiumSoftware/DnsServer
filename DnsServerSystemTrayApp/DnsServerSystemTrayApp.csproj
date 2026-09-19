@@ -11,7 +11,7 @@
 		<AssemblyName>DnsServerSystemTrayApp</AssemblyName>
 		<Authors>Shreyas Zare</Authors>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>7.0.1</Version>
+		<Version>7.0.2</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
@@ -43,8 +43,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="System.Management" Version="10.0.9" />
-		<PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.9" />
+		<PackageReference Include="System.Management" Version="10.0.12" />
+		<PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
 	</ItemGroup>
 
 	<ItemGroup>
