@@ -59,8 +59,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         Timer _cacheMaintenanceTimer;
         readonly Lock _cacheMaintenanceTimerLock = new Lock();
-        const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 5 * 60 * 1000;
-        const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 5 * 60 * 1000;
+        const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 1 * 60 * 1000;
+        const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 1 * 60 * 1000;
 
         #endregion
 
