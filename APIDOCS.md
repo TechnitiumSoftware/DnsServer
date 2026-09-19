@@ -5093,8 +5093,8 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "15.3",
-		"uptimestamp": "2026-06-28T11:11:12.2702919Z",
+		"version": "15.5",
+		"uptimestamp": "2026-09-19T11:11:12.2702919Z",
 		"clusterInitialized": false,
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
@@ -5251,8 +5251,6 @@ RESPONSE:
 		"cacheFailureRecordTtl": 10,
 		"cachePrefetchEligibility": 2,
 		"cachePrefetchTrigger": 9,
-		"cachePrefetchSampleIntervalInMinutes": 5,
-		"cachePrefetchSampleEligibilityHitsPerHour": 30,
 		"enableBlocking": true,
 		"allowTxtBlockingReport": true,
 		"blockingBypassList": [],
@@ -5299,7 +5297,7 @@ This call allows to change the DNS server settings.
 Note! Any parameter passed with this API call will overwrite existing value for that parameter. If you wish to append new values instead then you should first call the Get DNS Settings API to get the existing value, append your new value to it, and then pass the updated value with this API call.
 
 URL:\
-`http://localhost:5380/api/settings/set?dnsServerDomain=server1&dnsServerLocalEndPoints=0.0.0.0:53,[::]:53&webServiceLocalAddresses=0.0.0.0,[::]&webServiceHttpPort=5380&webServiceEnableTls=false&webServiceTlsPort=53443&webServiceTlsCertificatePath=&webServiceTlsCertificatePassword=&enableDnsOverHttp=false&enableDnsOverTls=false&enableDnsOverHttps=false&dnsTlsCertificatePath=&dnsTlsCertificatePassword=&preferIPv6=false&logQueries=true&allowRecursion=true&allowRecursionOnlyForPrivateNetworks=true&randomizeName=true&cachePrefetchEligibility=2&cachePrefetchTrigger=9&cachePrefetchSampleIntervalInMinutes=5&cachePrefetchSampleEligibilityHitsPerHour=30&proxyType=socks5&proxyAddress=192.168.10.2&proxyPort=9050&proxyUsername=username&proxyPassword=password&proxyBypass=127.0.0.0/8,169.254.0.0/16,fe80::/10,::1,localhost&forwarders=192.168.10.2&forwarderProtocol=Udp&useNxDomainForBlocking=false&blockListUrls=https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts,https://mirror1.malwaredomains.com/files/justdomains,https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt,https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt`
+`http://localhost:5380/api/settings/set?dnsServerDomain=server1&dnsServerLocalEndPoints=0.0.0.0:53,[::]:53&webServiceLocalAddresses=0.0.0.0,[::]&webServiceHttpPort=5380&webServiceEnableTls=false&webServiceTlsPort=53443&webServiceTlsCertificatePath=&webServiceTlsCertificatePassword=&enableDnsOverHttp=false&enableDnsOverTls=false&enableDnsOverHttps=false&dnsTlsCertificatePath=&dnsTlsCertificatePassword=&preferIPv6=false&logQueries=true&allowRecursion=true&allowRecursionOnlyForPrivateNetworks=true&randomizeName=true&cachePrefetchEligibility=2&cachePrefetchTrigger=9&proxyType=socks5&proxyAddress=192.168.10.2&proxyPort=9050&proxyUsername=username&proxyPassword=password&proxyBypass=127.0.0.0/8,169.254.0.0/16,fe80::/10,::1,localhost&forwarders=192.168.10.2&forwarderProtocol=Udp&useNxDomainForBlocking=false&blockListUrls=https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts,https://mirror1.malwaredomains.com/files/justdomains,https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt,https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt`
 
 OBSOLETE PATH:\
 `/api/setDnsSettings`
@@ -5411,8 +5409,6 @@ WHERE:
 - `cacheFailureRecordTtl` (optional): The failure TTL value to used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution to name servers that are responding with `ServerFailure`. Initial value is `60`.
 - `cachePrefetchEligibility` (optional): The minimum initial TTL value of a record needed to be eligible for prefetching.
 - `cachePrefetchTrigger` (optional): A record with TTL value less than trigger value will initiate prefetch operation immediately for itself. Set `0` to disable prefetching & auto prefetching.
-- `cachePrefetchSampleIntervalInMinutes` (optional): The interval to sample eligible domain names from last hour stats for auto prefetch.
-- `cachePrefetchSampleEligibilityHitsPerHour` (optional): Minimum required hits per hour for a domain name to be eligible for auto prefetch.
 - `enableBlocking` (optional, cluster parameter): Sets the DNS server to block domain names using Blocked Zone and Block List Zone.
 - `allowTxtBlockingReport` (optional, cluster parameter): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
 - `blockingBypassList` (optional, cluster parameter): A comma separated list of IP addresses or network addresses that are allowed to bypass blocking.
