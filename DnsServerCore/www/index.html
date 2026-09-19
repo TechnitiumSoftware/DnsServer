@@ -571,6 +571,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         Options <span class="caret"></span>
                                                     </button>
                                                     <ul class="dropdown-menu">
+                                                        <li id="lnkEditZoneFile"><a href="#" onclick="showEditZoneFileModal($('#titleEditZone').attr('data-zone')); return false;">Edit Zone File</a></li>
                                                         <li id="lnkImportZone"><a href="#" onclick="showImportZoneModal($('#titleEditZone').attr('data-zone')); return false;">Import Zone</a></li>
                                                         <li id="lnkExportZone"><a href="#" onclick="exportZone($('#titleEditZone').attr('data-zone')); return false;">Export Zone</a></li>
                                                         <li id="lnkZoneConvert"><a href="#" onclick="showConvertZoneModal($('#titleEditZone').attr('data-zone'), $('#titleEditZone').attr('data-zone-type')); return false;">Convert Zone</a></li>
@@ -2037,30 +2038,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
                                                             <div class="col-sm-8">
                                                                 <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
+                                                                <span>seconds (recommended 9; set 0 to disable prefetching)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
                                                         </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtCachePrefetchSampleIntervalInMinutes" class="col-sm-3 control-label">Auto Prefetch Sampling</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCachePrefetchSampleIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
-                                                                <span>minutes (valid range 1-60; default 5)</span>
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval to sample eligible domain names from last hour stats for auto prefetch.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtCachePrefetchSampleEligibilityHitsPerHour" class="col-sm-3 control-label">Auto Prefetch Eligibility</label>
-                                                            <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtCachePrefetchSampleEligibilityHitsPerHour" placeholder="hits" style="width: 100px; display: inline;">
-                                                                <span>hits/hour (default 30)</span>
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
-                                                        </div>
-
-                                                        <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Auto prefetch eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with auto prefetch sampling interval and eligibility to get best results.</div>
                                                     </div>
                                                 </div>
 
@@ -5099,12 +5080,51 @@ MII...
         </form>
     </div>
 
+    <div id="modalEditZoneFile" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 780px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Edit Zone File - <span id="lblEditZoneFileName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divEditZoneFileAlert"></div>
+
+                    <div id="divEditZoneFileLoader" style="height: 500px;"></div>
+
+                    <div id="divEditZoneFile">
+                        <div class="form-group">
+                            <label for="txtEditZoneFileText" class="control-label">Zone File Editor</label>
+                            <textarea id="txtEditZoneFileText" class="form-control" rows="15" spellcheck="false" style="white-space: nowrap;"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="checkbox">
+                                <label>
+                                    <input id="chkEditZoneFileOverwriteSoaSerial" type="checkbox"> Overwrite SOA Serial
+                                </label>
+                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to overwrite existing SOA record serial with the SOA record serial specified in the zone file editor.</div>
+                            </div>
+                        </div>
+
+                        <p><b>Note!</b> The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
+                        <p><b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnEditZoneFile" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveEditZoneFile(); return false;">Save</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="modalImportZone" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document" style="width: 780px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Import - <span id="lblImportZoneName"></span></h4>
+                    <h4 class="modal-title">Import Zone - <span id="lblImportZoneName"></span></h4>
                 </div>
                 <div class="modal-body">
                     <div id="divImportZoneAlert"></div>
@@ -5163,7 +5183,7 @@ MII...
                     <div id="divImportZoneTextEditor">
                         <div class="form-group">
                             <label for="txtImportZoneText" class="control-label">Text Editor</label>
-                            <textarea id="txtImportZoneText" class="form-control" rows="15" spellcheck="false"></textarea>
+                            <textarea id="txtImportZoneText" class="form-control" rows="15" spellcheck="false" style="white-space: nowrap;"></textarea>
                             <div style="padding-top: 5px;">Enter the records to be imported above in standard zone file format.</div>
                         </div>
                     </div>
