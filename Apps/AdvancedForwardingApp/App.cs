@@ -194,7 +194,7 @@ namespace AdvancedForwarding
             DnsQuestionRecord question = request.Question[0];
             string qname = question.Name;
 
-            if (!group.TryGetForwarderRecords(qname, out IReadOnlyList<DnsForwarderRecordData>? forwarderRecords, out string? matchedDomain))
+            if (!group.TryGetForwarderRecords(qname, out IReadOnlyList<DnsForwarderRecordData>? forwarderRecords, out string? matchedDomain) || (forwarderRecords.Count == 0))
                 return null;
 
             if ("*".Equals(matchedDomain, StringComparison.OrdinalIgnoreCase))
