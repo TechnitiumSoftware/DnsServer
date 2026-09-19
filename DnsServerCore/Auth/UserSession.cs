@@ -75,6 +75,19 @@ namespace DnsServerCore.Auth
                 _lastSeenUserAgent = _lastSeenUserAgent.Substring(0, 255);
         }
 
+        public UserSession(string token, User user)
+        {
+            if (token is null)
+                throw new ArgumentNullException(nameof(token));
+
+            if (token.Length != 64)
+                throw new ArgumentException("Token length must be 64 bytes");
+
+            _token = token.ToLowerInvariant();
+            _type = UserSessionType.ApiToken;
+            _user = user;
+        }
+
         public UserSession(BinaryReader bR, IReadOnlyDictionary<string, User> users)
         {
             switch (bR.ReadByte())
