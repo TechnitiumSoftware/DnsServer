@@ -183,7 +183,7 @@ function resolveQuery(importRecords) {
                     var rawListHtml = "";
 
                     for (var i = 0; i < responseJSON.response.rawResponses.length; i++) {
-                        rawListHtml += "<li class=\"list-group-item\"><pre style=\"margin-top: 5px; margin-bottom: 5px;\">" + JSON.stringify(responseJSON.response.rawResponses[i], null, 2) + "</pre></li>";
+                        rawListHtml += "<li class=\"list-group-item\"><pre style=\"margin-top: 5px; margin-bottom: 5px;\">" + htmlEncode(JSON.stringify(responseJSON.response.rawResponses[i], null, 2)) + "</pre></li>";
                     }
 
                     $("#spanDnsClientRawResponsesCount").text(responseJSON.response.rawResponses.length);
