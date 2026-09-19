@@ -387,7 +387,7 @@ namespace QueryLogsPostgreSql
                                 command.CommandText = @$"
 CREATE TABLE IF NOT EXISTS dns_logs
 (
-    dlid SERIAL PRIMARY KEY,
+    dlid BIGSERIAL PRIMARY KEY,
     server varchar(255),
     timestamp timestamp with time zone NOT NULL,
     client_ip VARCHAR(39) NOT NULL,
