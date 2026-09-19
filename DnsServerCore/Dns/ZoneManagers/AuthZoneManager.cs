@@ -864,6 +864,18 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region zone create / delete / convert / clone
 
+        private static void ValidateZoneName(string zoneName)
+        {
+            if (zoneName.Contains('*'))
+                throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
+
+            foreach (char invalidChar in Path.GetInvalidFileNameChars())
+            {
+                if (zoneName.Contains(invalidChar))
+                    throw new DnsWebServiceException("The zone name contains an invalid character: " + invalidChar);
+            }
+        }
+
         internal AuthZoneInfo CreateSpecialPrimaryZone(string zoneName, DnsSOARecordData soaRecord, DnsNSRecordData ns)
         {
             PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, soaRecord, ns);
@@ -949,6 +961,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreatePrimaryZone(string zoneName, bool useSoaSerialDateScheme)
         {
+            ValidateZoneName(zoneName);
+
             PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, useSoaSerialDateScheme);
 
             _zoneIndexLock.EnterWriteLock();
@@ -987,6 +1001,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string zoneName, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null, DnsTransportProtocol primaryZoneTransferProtocol = DnsTransportProtocol.Tcp, string primaryZoneTransferTsigKeyName = null, bool validateZone = false, bool ignoreSoaFailure = false)
         {
+            ValidateZoneName(zoneName);
+
             SecondaryZone apexZone = await SecondaryZone.CreateAsync(_dnsServer, zoneName, primaryNameServerAddresses, primaryZoneTransferProtocol, primaryZoneTransferTsigKeyName, validateZone, ignoreSoaFailure);
 
             _zoneIndexLock.EnterWriteLock();
@@ -1027,6 +1043,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public async Task<AuthZoneInfo> CreateStubZoneAsync(string zoneName, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null, bool ignoreSoaFailure = false)
         {
+            ValidateZoneName(zoneName);
+
             StubZone apexZone = await StubZone.CreateAsync(_dnsServer, zoneName, primaryNameServerAddresses, ignoreSoaFailure);
 
             _zoneIndexLock.EnterWriteLock();
@@ -1055,6 +1073,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreateForwarderZone(string zoneName)
         {
+            ValidateZoneName(zoneName);
+
             ForwarderZone apexZone = new ForwarderZone(_dnsServer, zoneName);
 
             _zoneIndexLock.EnterWriteLock();
@@ -1081,6 +1101,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreateForwarderZone(string zoneName, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, DnsForwarderRecordProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
         {
+            ValidateZoneName(zoneName);
+
             ForwarderZone apexZone = new ForwarderZone(_dnsServer, zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, fwdRecordComments);
 
             _zoneIndexLock.EnterWriteLock();
@@ -1119,6 +1141,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreateSecondaryForwarderZone(string zoneName, IReadOnlyList<NameServerAddress> primaryNameServerAddresses = null, DnsTransportProtocol primaryZoneTransferProtocol = DnsTransportProtocol.Tcp, string primaryZoneTransferTsigKeyName = null)
         {
+            ValidateZoneName(zoneName);
+
             SecondaryForwarderZone apexZone = new SecondaryForwarderZone(_dnsServer, zoneName, primaryNameServerAddresses, primaryZoneTransferProtocol, primaryZoneTransferTsigKeyName);
 
             _zoneIndexLock.EnterWriteLock();
@@ -1147,6 +1171,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreateCatalogZone(string zoneName)
         {
+            ValidateZoneName(zoneName);
+
             CatalogZone apexZone = new CatalogZone(_dnsServer, zoneName);
 
             _zoneIndexLock.EnterWriteLock();
@@ -1190,6 +1216,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreateSecondaryCatalogZone(string zoneName, IReadOnlyList<NameServerAddress> primaryNameServerAddresses, DnsTransportProtocol primaryZoneTransferProtocol = DnsTransportProtocol.Tcp, string primaryZoneTransferTsigKeyName = null)
         {
+            ValidateZoneName(zoneName);
+
             SecondaryCatalogZone apexZone = new SecondaryCatalogZone(_dnsServer, zoneName, primaryNameServerAddresses, primaryZoneTransferProtocol, primaryZoneTransferTsigKeyName);
 
             _zoneIndexLock.EnterWriteLock();
