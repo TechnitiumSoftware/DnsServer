@@ -383,9 +383,10 @@ namespace DnsServerCore
         {
             if (Environment.OSVersion.Platform == PlatformID.Unix)
             {
-                //adding a conditional forwarder zone for disabling DNSSEC validation for ntp.org so that systems with no real-time clock can sync time
+                //adding Negative Trust Anchor (NTA) for ntp.org so that systems with no real-time clock can sync time
                 string ntpDomain = "ntp.org";
-                string fwdRecordComments = "This forwarder zone was automatically created to disable DNSSEC validation for ntp.org to allow systems with no real-time clock (e.g. Raspberry Pi) to sync time via NTP when booting.";
+                string fwdRecordComments = "Negative Trust Anchor for ntp.org to allow systems with no real-time clock to sync time.";
+
                 if (_dnsServer.AuthZoneManager.CreateForwarderZone(ntpDomain, DnsTransportProtocol.Udp, "this-server", false, DnsForwarderRecordProxyType.DefaultProxy, null, 0, null, null, fwdRecordComments) is not null)
                 {
                     //set permissions
@@ -1354,13 +1355,13 @@ namespace DnsServerCore
                             foreach (KeyValuePair<string, DnsApplication> application in _dnsServer.DnsApplicationManager.Applications)
                             {
                                 if (!existingApplications.Contains(application.Key))
-                                    _dnsServer.DnsApplicationManager.UninstallApplication(application.Key);
+                                    await _dnsServer.DnsApplicationManager.UninstallApplicationAsync(application.Key);
                             }
                         }
                         else
                         {
                             //unload apps
-                            _dnsServer.DnsApplicationManager.UnloadAllApplications();
+                            await _dnsServer.DnsApplicationManager.UnloadAllApplicationsAsync();
 
                             if (deleteExistingFiles)
                             {
@@ -2184,7 +2185,7 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/apps/downloadAndUpdate", _appsApi.DownloadAndUpdateAppAsync);
             _webService.MapPost("/api/apps/install", _appsApi.InstallAppAsync);
             _webService.MapPost("/api/apps/update", _appsApi.UpdateAppAsync);
-            _webService.MapGetAndPost("/api/apps/uninstall", _appsApi.UninstallApp);
+            _webService.MapGetAndPost("/api/apps/uninstall", _appsApi.UninstallAppAsync);
             _webService.MapGetAndPost("/api/apps/config/get", _appsApi.GetAppConfigAsync);
             _webService.MapGetAndPost("/api/apps/config/set", _appsApi.SetAppConfigAsync);
 
