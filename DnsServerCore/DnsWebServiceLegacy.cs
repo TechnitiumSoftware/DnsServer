@@ -628,8 +628,8 @@ namespace DnsServerCore
 
                 _dnsServer.CachePrefetchEligibility = bR.ReadInt32();
                 _dnsServer.CachePrefetchTrigger = bR.ReadInt32();
-                _dnsServer.CachePrefetchSampleIntervalMinutes = bR.ReadInt32();
-                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = bR.ReadInt32();
+                _ = bR.ReadInt32(); //_dnsServer.CachePrefetchSampleIntervalMinutes 
+                _ = bR.ReadInt32(); //_dnsServer.CachePrefetchSampleEligibilityHitsPerHour
 
                 //blocking
                 _dnsServer.EnableBlocking = bR.ReadBoolean();
@@ -1016,15 +1016,13 @@ namespace DnsServerCore
             {
                 _dnsServer.CachePrefetchEligibility = bR.ReadInt32();
                 _dnsServer.CachePrefetchTrigger = bR.ReadInt32();
-                _dnsServer.CachePrefetchSampleIntervalMinutes = bR.ReadInt32();
-                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = bR.ReadInt32();
+                _ = bR.ReadInt32(); //_dnsServer.CachePrefetchSampleIntervalMinutes
+                _ = bR.ReadInt32(); //_dnsServer.CachePrefetchSampleEligibilityHitsPerHour
             }
             else
             {
                 _dnsServer.CachePrefetchEligibility = 2;
                 _dnsServer.CachePrefetchTrigger = 9;
-                _dnsServer.CachePrefetchSampleIntervalMinutes = 5;
-                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = 30;
             }
 
             NetProxyType proxyType = (NetProxyType)bR.ReadByte();
