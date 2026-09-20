@@ -62,6 +62,25 @@ namespace DnsServerCore
                 jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
                 jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
 
+                bool dnsCookieSecretReady = _dnsWebService._dnsServer.TryGetDnsCookieSecretCoordinationStatus(out long dnsCookieGeneration,
+                    out Dns.Security.DnsCookieSecretRolloverState dnsCookieRolloverState, out string activeDnsCookieSecretFingerprint,
+                    out string secondaryDnsCookieSecretFingerprint, out _);
+                jsonWriter.WriteBoolean("dnsCookieSecretReady", dnsCookieSecretReady);
+                if (dnsCookieSecretReady)
+                {
+                    jsonWriter.WriteNumber("dnsCookieSecretGeneration", dnsCookieGeneration);
+                    jsonWriter.WriteString("dnsCookieSecretState", dnsCookieRolloverState.ToString());
+                    jsonWriter.WriteString("dnsCookieActiveSecretFingerprint", activeDnsCookieSecretFingerprint);
+                    jsonWriter.WriteString("dnsCookieSecondarySecretFingerprint", secondaryDnsCookieSecretFingerprint);
+                }
+                else
+                {
+                    jsonWriter.WriteNull("dnsCookieSecretGeneration");
+                    jsonWriter.WriteNull("dnsCookieSecretState");
+                    jsonWriter.WriteNull("dnsCookieActiveSecretFingerprint");
+                    jsonWriter.WriteNull("dnsCookieSecondarySecretFingerprint");
+                }
+
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {
                     jsonWriter.WriteString("clusterDomain", _dnsWebService._clusterManager.ClusterDomain);

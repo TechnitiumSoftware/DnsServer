@@ -31,6 +31,11 @@ namespace DnsServerCore.HttpApi.Models
         public ushort ConfigRefreshIntervalSeconds { get; set; }
         public ushort ConfigRetryIntervalSeconds { get; set; }
         public DateTime? ConfigLastSynced { get; set; }
+        public bool DnsCookieSecretReady { get; set; }
+        public long? DnsCookieSecretGeneration { get; set; }
+        public string? DnsCookieSecretState { get; set; }
+        public string? DnsCookieActiveSecretFingerprint { get; set; }
+        public string? DnsCookieSecondarySecretFingerprint { get; set; }
         public List<ClusterNodeInfo>? ClusterNodes { get; set; }
 
         public class ClusterNodeInfo
