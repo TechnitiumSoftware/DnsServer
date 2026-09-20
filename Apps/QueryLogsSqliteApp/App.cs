@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text.Json;
 using System.Threading;
@@ -31,6 +32,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace QueryLogsSqlite
@@ -264,7 +266,7 @@ namespace QueryLogsSqlite
                     {
                         await using (SqliteCommand command = connection.CreateCommand())
                         {
-                            command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer) VALUES (@timestamp, @client_ip, @protocol, @response_type, @response_rtt, @rcode, @qname, @qtype, @qclass, @answer);";
+                            command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, response_rtt, rcode, qname, qtype, qclass, answer, ede) VALUES (@timestamp, @client_ip, @protocol, @response_type, @response_rtt, @rcode, @qname, @qtype, @qclass, @answer, @ede);";
 
                             SqliteParameter paramTimestamp = command.Parameters.Add("@timestamp", SqliteType.Text);
                             SqliteParameter paramClientIp = command.Parameters.Add("@client_ip", SqliteType.Text);
@@ -276,6 +278,7 @@ namespace QueryLogsSqlite
                             SqliteParameter paramQtype = command.Parameters.Add("@qtype", SqliteType.Integer);
                             SqliteParameter paramQclass = command.Parameters.Add("@qclass", SqliteType.Integer);
                             SqliteParameter paramAnswer = command.Parameters.Add("@answer", SqliteType.Text);
+                            SqliteParameter paramEde = command.Parameters.Add("@ede", SqliteType.Text);
 
                             foreach (LogEntry log in logs)
                             {
@@ -338,6 +341,15 @@ namespace QueryLogsSqlite
                                     }
 
                                     paramAnswer.Value = answer;
+                                }
+
+                                if (log.Response.DnsClientExtendedErrors is null || log.Response.DnsClientExtendedErrors.Count == 0)
+                                {
+                                    paramEde.Value = DBNull.Value;
+                                }
+                                else
+                                {
+                                    paramEde.Value = JsonSerializer.Serialize(log.Response.DnsClientExtendedErrors.Select(e => new EdeRecord((int)e.InfoCode, e.ExtraText)));
                                 }
 
                                 await command.ExecuteNonQueryAsync();
@@ -430,7 +442,8 @@ CREATE TABLE IF NOT EXISTS dns_logs
     qname VARCHAR(255),
     qtype SMALLINT,
     qclass SMALLINT,
-    answer TEXT
+    answer TEXT,
+    ede TEXT
 );
 ";
                     await command.ExecuteNonQueryAsync();
@@ -441,6 +454,17 @@ CREATE TABLE IF NOT EXISTS dns_logs
                     await using (SqliteCommand command = connection.CreateCommand())
                     {
                         command.CommandText = "ALTER TABLE dns_logs ADD COLUMN response_rtt REAL;";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                }
+                catch
+                { }
+
+                try
+                {
+                    await using (SqliteCommand command = connection.CreateCommand())
+                    {
+                        command.CommandText = "ALTER TABLE dns_logs ADD COLUMN ede TEXT;";
                         await command.ExecuteNonQueryAsync();
                     }
                 }
@@ -690,7 +714,8 @@ SELECT
     qname,
     qtype,
     qclass,
-    answer
+    answer,
+    ede
 FROM
     dns_logs
 " + (string.IsNullOrEmpty(whereClause) ? "" : "WHERE " + whereClause) + @"
@@ -754,7 +779,24 @@ LIMIT @limit OFFSET @offset";
                             else
                                 answer = reader.GetString(10);
 
-                            entries.Add(new DnsLogEntry(rowNumber, reader.GetDateTime(1), IPAddress.Parse(reader.GetString(2)), (DnsTransportProtocol)reader.GetByte(3), (DnsServerResponseType)reader.GetByte(4), responseRtt, (DnsResponseCode)reader.GetByte(6), question, answer));
+                            List<DnsLogExtendedError>? extendedErrors = null;
+
+                            if (!reader.IsDBNull(11))
+                            {
+                                List<EdeRecord>? edeRecords = JsonSerializer.Deserialize<List<EdeRecord>>(reader.GetString(11));
+
+                                if (edeRecords is not null)
+                                {
+                                    extendedErrors = new List<DnsLogExtendedError>(edeRecords.Count);
+
+                                    foreach (EdeRecord edeRecord in edeRecords)
+                                    {
+                                        extendedErrors.Add(new DnsLogExtendedError((EDnsExtendedDnsErrorCode)edeRecord.InfoCode, edeRecord.ExtraText));
+                                    }
+                                }
+                            }
+
+                            entries.Add(new DnsLogEntry(rowNumber, reader.GetDateTime(1), IPAddress.Parse(reader.GetString(2)), (DnsTransportProtocol)reader.GetByte(3), (DnsServerResponseType)reader.GetByte(4), responseRtt, (DnsResponseCode)reader.GetByte(6), question, answer, extendedErrors));
 
                             if (descendingOrder)
                                 rowNumber--;
@@ -776,6 +818,8 @@ LIMIT @limit OFFSET @offset";
         { get { return "Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console."; } }
 
         #endregion
+
+        private sealed record EdeRecord(int InfoCode, string? ExtraText);
 
         readonly struct LogEntry
         {
