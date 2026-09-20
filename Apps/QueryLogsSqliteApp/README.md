@@ -6,7 +6,7 @@ A DNS App for Technitium DNS Server that logs DNS queries to a SQLite database.
 
 - **Async logging** – writes log entries through a bounded queue
 - **Cleanup support** – prunes old records by age/count
-- **Optional in-memory mode** – can use an in-memory database
+- **Optional in-memory mode** – can use an in-memory database (with sync to file option)
 - **Vacuum support** – can vacuum after cleanup when enabled
 
 ## Integration / extension points
@@ -54,6 +54,8 @@ The database table stores values for some fields in numeric format. The fields a
 | `maxLogRecords` | number | `0` | Maximum number of retained log records. `0` disables count-based cleanup. |
 | `enableVacuum` | boolean | `false` | Runs `VACUUM` after cleanup when records were deleted. |
 | `useInMemoryDb` | boolean | `false` | Uses an in-memory SQLite database. |
+| `inMemoryDbSyncToFile` | boolean | `false` | Syncs the in-memory database to a file. |
+| `inMemoryDbSyncInterval` | number | `0` | Interval (in minutes) for syncing in-memory database to file. `0` disables interval syncing. |
 | `sqliteDbPath` | string | `querylogs.db` | Path to the SQLite database file. |
 | `connectionString` | string | `Data Source='{sqliteDbPath}'; Cache=Shared;` | SQLite connection string template. |
 
@@ -69,6 +71,8 @@ The example below matches the shipped `dnsApp.config` values, which enable 7-day
   "maxLogRecords": 10000,
   "enableVacuum": false,
   "useInMemoryDb": false,
+  "inMemoryDbSyncToFile": false,
+  "inMemoryDbSyncInterval": 0,
   "sqliteDbPath": "querylogs.db",
   "connectionString": "Data Source='{sqliteDbPath}'; Cache=Shared;"
 }

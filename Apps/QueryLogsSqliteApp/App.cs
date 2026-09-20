@@ -19,12 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using Microsoft.Data.Sqlite;
+using SQLitePCL;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
@@ -37,6 +39,28 @@ namespace QueryLogsSqlite
 {
     public sealed class App : IDnsApplication, IDnsQueryLogger, IDnsQueryLogs
     {
+#pragma warning disable CA1401 // P/Invokes should not be visible
+#pragma warning disable CA2101 // Specify marshaling for P/Invoke string arguments
+#pragma warning disable SYSLIB1054 // Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time
+        [DllImport("e_sqlite3", CallingConvention = CallingConvention.StdCall, ExactSpelling = true)]
+        public static extern IntPtr sqlite3_serialize( sqlite3 db, [MarshalAs(UnmanagedType.LPStr)] string a, IntPtr piSize, uint mFlags );
+
+        [DllImport("e_sqlite3", CallingConvention = CallingConvention.StdCall, ExactSpelling = true)]
+        public static extern int sqlite3_deserialize( sqlite3 db, [MarshalAs(UnmanagedType.LPStr)] string a, IntPtr pData, IntPtr szDb, IntPtr szBuf, uint mFlags );
+
+        // SQLite allocator/free wrappers so ownership can be transferred to SQLite safely
+        [DllImport("e_sqlite3", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern IntPtr sqlite3_malloc( long size );
+
+        [DllImport("e_sqlite3", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void sqlite3_free( IntPtr ptr );
+#pragma warning restore SYSLIB1054 // Use 'LibraryImportAttribute' instead of 'DllImportAttribute' to generate P/Invoke marshalling code at compile time
+#pragma warning restore CA2101 // Specify marshaling for P/Invoke string arguments
+#pragma warning restore CA1401 // P/Invokes should not be visible
+
+        private const int SQLITE_OK = 0;
+        private const uint SQLITE_DESERIALIZE_FREEONCLOSE = 0x0001; // from sqlite3 docs
+
         #region variables
 
         readonly static JsonDocumentOptions _jsonParseOptions = new JsonDocumentOptions() { CommentHandling = JsonCommentHandling.Skip };
@@ -49,6 +73,11 @@ namespace QueryLogsSqlite
         int _maxLogRecords;
         bool _enableVacuum;
         bool _useInMemoryDb;
+        /// <summary>Define if syncing the in-memory database to a file is enabled.</summary>
+        private bool _inMemoryDbSyncToFile;
+        /// <summary>Interval (in milliseconds) for syncing in-memory database to file. `0` disables interval syncing.</summary>
+        private int _inMemoryDbSyncInterval;
+        private string _sqliteDbPath;
         string? _connectionString;
 
         SqliteConnection? _inMemoryConnection;
@@ -61,6 +90,7 @@ namespace QueryLogsSqlite
         const int BULK_REMOVE_COUNT = 10000;
 
         readonly Timer _cleanupTimer;
+        private readonly Timer _inMemorySyncToFileTimer;
         const int CLEAN_UP_TIMER_INITIAL_INTERVAL = 5 * 1000;
         const int CLEAN_UP_TIMER_PERIODIC_INTERVAL = 15 * 60 * 1000;
 
@@ -70,6 +100,7 @@ namespace QueryLogsSqlite
 
         public App()
         {
+            _sqliteDbPath = string.Empty;
             _cleanupTimer = new Timer(async delegate (object? state)
             {
                 try
@@ -163,6 +194,15 @@ namespace QueryLogsSqlite
                     { }
                 }
             });
+            _inMemorySyncToFileTimer = new Timer(async delegate ( object? state )
+            {
+                _ = saveToFile(_inMemoryConnection!);
+                try
+                {
+                    _inMemorySyncToFileTimer?.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
+                } catch ( ObjectDisposedException )
+                { }
+            });
         }
 
         #endregion
@@ -179,11 +219,17 @@ namespace QueryLogsSqlite
             _enableLogging = false; //turn off logging
 
             _cleanupTimer?.Dispose();
+            _inMemorySyncToFileTimer?.Dispose();
 
             StopChannel();
 
             if (_inMemoryConnection is not null)
             {
+                if ( _inMemoryDbSyncToFile )
+                {
+                    _ = saveToFile(_inMemoryConnection);
+                }
+
                 _inMemoryConnection.Dispose();
                 _inMemoryConnection = null;
             }
@@ -356,6 +402,94 @@ namespace QueryLogsSqlite
             }
         }
 
+        private bool saveToFile( SqliteConnection inMemoryConnection )
+        {
+            try
+            {
+                var sqlDataByteArr = serializeDb(inMemoryConnection);
+                if ( sqlDataByteArr.Length > 0 )
+                    File.WriteAllBytes(_sqliteDbPath, sqlDataByteArr);
+                return true;
+            } catch ( Exception )
+            {
+                return false;
+            }
+        }
+
+        private static byte[] serializeDb( SqliteConnection inMemoryConnection )
+        {
+            if ( inMemoryConnection.Handle == null )
+                return [];
+
+            var lengthInput = IntPtr.Zero;
+            var unmanagedResult = IntPtr.Zero;
+
+            try
+            {
+                lengthInput = Marshal.AllocHGlobal(sizeof(long));
+                unmanagedResult = sqlite3_serialize(inMemoryConnection.Handle, "main", lengthInput, 0); // https://www.sqlite.org/c3ref/serialize.html main is mentioned as an example and is what works
+
+                if ( unmanagedResult == IntPtr.Zero )
+                    return [];
+
+                var lengthResult = (int)Marshal.ReadInt64(lengthInput); // Cast as int for the Marshal.Copy. Db is only a cache of a few Mb in our case
+                if ( lengthResult <= 0 )
+                    return [];
+
+                var managedResult = new byte[lengthResult];
+                Marshal.Copy(unmanagedResult, managedResult, 0, lengthResult);
+
+                return managedResult;
+            } finally
+            {
+                if ( lengthInput != IntPtr.Zero )
+                    Marshal.FreeHGlobal(lengthInput);
+
+                if ( unmanagedResult != IntPtr.Zero )
+                {
+                    // sqlite3_serialize returns a buffer allocated by sqlite3_malloc; free with sqlite3_free
+                    sqlite3_free(unmanagedResult);
+                }
+            }
+        }
+
+        private static bool deserializeDb( SqliteConnection inMemoryConnection, byte[] sqlDataByteArr )
+        {
+            if ( inMemoryConnection.Handle == null )
+                return false;
+
+            if ( sqlDataByteArr.Length == 0 )
+                return false;
+
+            var size = sqlDataByteArr.Length;
+            // Allocate using SQLite's allocator so we can safely transfer ownership to SQLite with FREEONCLOSE.
+            IntPtr nativeBuffer = sqlite3_malloc(size);
+            if ( nativeBuffer == IntPtr.Zero )
+                return false;
+
+            try
+            {
+                Marshal.Copy(sqlDataByteArr, 0, nativeBuffer, sqlDataByteArr.Length);
+
+                // Pass FREEONCLOSE so SQLite will free the buffer when it no longer needs it.
+                var rc = sqlite3_deserialize(inMemoryConnection.Handle, "main", nativeBuffer, size, size, SQLITE_DESERIALIZE_FREEONCLOSE);
+                if ( rc != SQLITE_OK )
+                {
+                    // SQLite did not accept the buffer; free it ourselves.
+                    sqlite3_free(nativeBuffer);
+                    return false;
+                }
+
+                // Success: ownership transferred to SQLite, do not free nativeBuffer here.
+                return true;
+            } catch
+            {
+                // If any unexpected exception occurs free the buffer to avoid leak.
+                sqlite3_free(nativeBuffer);
+                throw;
+            }
+        }
+
         #endregion
 
         #region public
@@ -376,6 +510,12 @@ namespace QueryLogsSqlite
             _maxLogRecords = jsonConfig.GetPropertyValue("maxLogRecords", 0);
             _enableVacuum = jsonConfig.GetPropertyValue("enableVacuum", false);
             _useInMemoryDb = jsonConfig.GetPropertyValue("useInMemoryDb", false);
+			_inMemoryDbSyncToFile = jsonConfig.GetPropertyValue("inMemoryDbSyncToFile", false);
+			_inMemoryDbSyncInterval = jsonConfig.GetPropertyValue("inMemoryDbSyncInterval", 0) * 60 * 1000; // Convert minutes to milliseconds
+            _sqliteDbPath = jsonConfig.GetPropertyValue("sqliteDbPath", "querylogs.db");
+
+            if ( !Path.IsPathRooted(_sqliteDbPath) )
+                _sqliteDbPath = Path.Combine(_dnsServer.ApplicationFolder, _sqliteDbPath);
 
             if (_useInMemoryDb)
             {
@@ -387,6 +527,18 @@ namespace QueryLogsSqlite
 
                     _inMemoryConnection = new SqliteConnection(_connectionString);
                     await _inMemoryConnection.OpenAsync();
+                    if ( _inMemoryDbSyncToFile )
+                    {
+                        if ( _inMemoryDbSyncInterval > 0 )
+                            // Only enable the timer if the interval is greater than 0. Otherwise, interval syncing will not happen.
+                            _inMemorySyncToFileTimer.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
+                        if ( File.Exists(_sqliteDbPath) )
+                        {
+                            var sqlDataByteArr = File.ReadAllBytes(_sqliteDbPath);
+                            if ( !deserializeDb(_inMemoryConnection, sqlDataByteArr) )
+                                throw new Exception($"Could not load '{_sqliteDbPath}' into memory.");
+                        }
+                    }
                 }
             }
             else
@@ -397,13 +549,8 @@ namespace QueryLogsSqlite
                     _inMemoryConnection = null;
                 }
 
-                string sqliteDbPath = jsonConfig.GetPropertyValue("sqliteDbPath", "querylogs.db");
-                string connectionString = jsonConfig.GetPropertyValue("connectionString", "Data Source='{sqliteDbPath}'; Cache=Shared;");
-
-                if (!Path.IsPathRooted(sqliteDbPath))
-                    sqliteDbPath = Path.Combine(_dnsServer.ApplicationFolder, sqliteDbPath);
-
-                connectionString = connectionString.Replace("{sqliteDbPath}", sqliteDbPath);
+                string connectionString = jsonConfig.GetPropertyValue("connectionString", "Data Source='{sqliteDbPath}'; Cache=Shared;")
+                    .Replace("{sqliteDbPath}", _sqliteDbPath);
 
                 if ((_connectionString is not null) && !_connectionString.Equals(connectionString, StringComparison.Ordinal))
                     SqliteConnection.ClearAllPools(); //close previous db file
