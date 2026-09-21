@@ -1477,6 +1477,9 @@ namespace DnsServerCore.Dhcp
 
         public bool TryAddReservedLease(Lease reservedLease)
         {
+            if (!IsAddressInNetwork(reservedLease.Address))
+                throw new ArgumentOutOfRangeException(nameof(reservedLease), "Reserved address must be within the scope's subnet.");
+
             if (_reservedLeases.TryAdd(reservedLease.ClientIdentifier, reservedLease))
             {
                 _dhcpServer.AddDnsEntries(this, reservedLease);
@@ -2175,8 +2178,8 @@ namespace DnsServerCore.Dhcp
                 {
                     foreach (Lease reservedLease in value)
                     {
-                        if (!IsAddressInRange(reservedLease.Address))
-                            throw new ArgumentOutOfRangeException(nameof(ReservedLeases), "Reserved address must be in scope range.");
+                        if (!IsAddressInNetwork(reservedLease.Address))
+                            throw new ArgumentOutOfRangeException(nameof(ReservedLeases), "Reserved address must be within the scope's subnet.");
                     }
 
                     //remove DNS entries for reserved leases being removed or has updated domain name
