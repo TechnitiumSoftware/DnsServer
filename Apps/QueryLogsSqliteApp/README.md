@@ -55,7 +55,7 @@ The database table stores values for some fields in numeric format. The fields a
 | `enableVacuum` | boolean | `false` | Runs `VACUUM` after cleanup when records were deleted. |
 | `useInMemoryDb` | boolean | `false` | Uses an in-memory SQLite database. |
 | `inMemoryDbSyncToFile` | boolean | `false` | Syncs the in-memory database to a file. |
-| `inMemoryDbSyncInterval` | number | `0` | Interval (in minutes) for syncing in-memory database to file. `0` disables interval syncing. |
+| `inMemoryDbSyncIntervalMin` | number | `0` | Interval (in minutes) for syncing in-memory database to file. `0` disables interval syncing. |
 | `sqliteDbPath` | string | `querylogs.db` | Path to the SQLite database file. |
 | `connectionString` | string | `Data Source='{sqliteDbPath}'; Cache=Shared;` | SQLite connection string template. |
 
@@ -72,7 +72,7 @@ The example below matches the shipped `dnsApp.config` values, which enable 7-day
   "enableVacuum": false,
   "useInMemoryDb": false,
   "inMemoryDbSyncToFile": false,
-  "inMemoryDbSyncInterval": 0,
+  "inMemoryDbSyncIntervalMin": 0,
   "sqliteDbPath": "querylogs.db",
   "connectionString": "Data Source='{sqliteDbPath}'; Cache=Shared;"
 }

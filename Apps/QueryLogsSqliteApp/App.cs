@@ -75,8 +75,8 @@ namespace QueryLogsSqlite
         bool _useInMemoryDb;
         /// <summary>Define if syncing the in-memory database to a file is enabled.</summary>
         private bool _inMemoryDbSyncToFile;
-        /// <summary>Interval (in milliseconds) for syncing in-memory database to file. `0` disables interval syncing.</summary>
-        private int _inMemoryDbSyncInterval;
+        /// <summary>Interval (in minutes) for syncing in-memory database to file. `0` disables interval syncing.</summary>
+        private int _inMemoryDbSyncIntervalMin;
         private string _sqliteDbPath;
         string? _connectionString;
 
@@ -207,7 +207,7 @@ namespace QueryLogsSqlite
 
                 try
                 {
-                    _inMemorySyncToFileTimer?.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
+                    _inMemorySyncToFileTimer?.Change(_inMemoryDbSyncIntervalMin, Timeout.Infinite);
                 } catch ( ObjectDisposedException )
                 { }
             });
@@ -557,7 +557,7 @@ namespace QueryLogsSqlite
             _enableVacuum = jsonConfig.GetPropertyValue("enableVacuum", false);
             _useInMemoryDb = jsonConfig.GetPropertyValue("useInMemoryDb", false);
 			_inMemoryDbSyncToFile = jsonConfig.GetPropertyValue("inMemoryDbSyncToFile", false);
-			_inMemoryDbSyncInterval = jsonConfig.GetPropertyValue("inMemoryDbSyncInterval", 0) * 60 * 1000; // Convert minutes to milliseconds
+			_inMemoryDbSyncIntervalMin = jsonConfig.GetPropertyValue("inMemoryDbSyncIntervalMin", 0) * 60 * 1000; // Convert minutes to milliseconds
             _sqliteDbPath = jsonConfig.GetPropertyValue("sqliteDbPath", "querylogs.db");
 
             if ( !Path.IsPathRooted(_sqliteDbPath) )
@@ -583,10 +583,10 @@ namespace QueryLogsSqlite
                 }
 
                 if ( _inMemoryDbSyncToFile
-                    && _inMemoryDbSyncInterval > 0 )
+                    && _inMemoryDbSyncIntervalMin > 0 )
                 {
                     // Only enable the timer if the interval is greater than 0. Otherwise, interval syncing will not happen.
-                    _inMemorySyncToFileTimer.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
+                    _inMemorySyncToFileTimer.Change(_inMemoryDbSyncIntervalMin, Timeout.Infinite);
                 }
             }
             else
