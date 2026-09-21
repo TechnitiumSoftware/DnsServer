@@ -198,11 +198,13 @@ namespace QueryLogsSqlite
             {
                 if ( _inMemoryConnection == null )
                 {
-                    _dnsServer?.WriteLog("In-memory database sync was executed on closed connection.");
+                    _dnsServer?.WriteLog("In-memory database sync was executed on a closed connection.");
                     return;
                 }
 
-                _ = saveToFile(_inMemoryConnection);
+                if ( !await saveInmemoryToFile(_inMemoryConnection) )
+                    _dnsServer?.WriteLog("In-memory database sync to file failed.");
+
                 try
                 {
                     _inMemorySyncToFileTimer?.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
@@ -233,7 +235,7 @@ namespace QueryLogsSqlite
             {
                 if ( _inMemoryDbSyncToFile )
                 {
-                    _ = saveToFile(_inMemoryConnection);
+                    _ = saveInmemoryToFile_sync(_inMemoryConnection);
                 }
 
                 _inMemoryConnection.Dispose();
@@ -408,7 +410,22 @@ namespace QueryLogsSqlite
             }
         }
 
-        private bool saveToFile( SqliteConnection inMemoryConnection )
+        private async Task<bool> saveInmemoryToFile( SqliteConnection inMemoryConnection )
+        {
+            try
+            {
+                await Task.Run(( ) =>
+                {
+                    saveInmemoryToFile_sync(inMemoryConnection);
+                });
+                return true;
+            } catch ( Exception )
+            {
+                return false;
+            }
+        }
+
+        private bool saveInmemoryToFile_sync( SqliteConnection inMemoryConnection )
         {
             try
             {
@@ -416,6 +433,20 @@ namespace QueryLogsSqlite
                 if ( sqlDataByteArr.Length > 0 )
                     File.WriteAllBytes(_sqliteDbPath, sqlDataByteArr);
                 return true;
+            } catch ( Exception )
+            {
+                return false;
+            }
+        }
+
+        private static async Task<bool> loadInmemoryFromFile( SqliteConnection inMemoryConnection, byte[] sqlDataByteArr )
+        {
+            try
+            {
+                return await Task.Run(( ) =>
+                {
+                    return deserializeDb(inMemoryConnection, sqlDataByteArr);
+                });
             } catch ( Exception )
             {
                 return false;
@@ -550,7 +581,7 @@ namespace QueryLogsSqlite
                         if ( File.Exists(_sqliteDbPath) )
                         {
                             var sqlDataByteArr = File.ReadAllBytes(_sqliteDbPath);
-                            if ( !await deserializeDb(_inMemoryConnection, sqlDataByteArr) )
+                            if ( !await loadInmemoryFromFile(_inMemoryConnection, sqlDataByteArr) )
                                 throw new Exception($"Could not load '{_sqliteDbPath}' into memory.");
                         }
                     }
@@ -563,7 +594,7 @@ namespace QueryLogsSqlite
                     // Stop the timer if it was running, since we are no longer using the in-memory database.
                     _inMemorySyncToFileTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     if ( old_inMemoryDbSyncToFile )
-                        saveToFile(_inMemoryConnection);
+                        await saveInmemoryToFile(_inMemoryConnection);
                     await _inMemoryConnection.DisposeAsync();
                     _inMemoryConnection = null;
                 }
