@@ -343,14 +343,21 @@ namespace QueryLogsSqlite
                                     paramAnswer.Value = answer;
                                 }
 
-                                if (log.Response.DnsClientExtendedErrors is null || log.Response.DnsClientExtendedErrors.Count == 0)
+                                List<EdeRecord>? edeRecords = null;
+
+                                if (log.Response.EDNS is not null)
                                 {
-                                    paramEde.Value = DBNull.Value;
+                                    foreach (EDnsOption option in log.Response.EDNS.Options)
+                                    {
+                                        if ((option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR) && (option.Data is EDnsExtendedDnsErrorOptionData edeOption))
+                                        {
+                                            edeRecords ??= new List<EdeRecord>(2);
+                                            edeRecords.Add(new EdeRecord((int)edeOption.InfoCode, edeOption.ExtraText));
+                                        }
+                                    }
                                 }
-                                else
-                                {
-                                    paramEde.Value = JsonSerializer.Serialize(log.Response.DnsClientExtendedErrors.Select(e => new EdeRecord((int)e.InfoCode, e.ExtraText)));
-                                }
+
+                                paramEde.Value = edeRecords is null ? DBNull.Value : JsonSerializer.Serialize(edeRecords);
 
                                 await command.ExecuteNonQueryAsync();
                             }
