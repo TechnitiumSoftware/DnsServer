@@ -196,7 +196,13 @@ namespace QueryLogsSqlite
             });
             _inMemorySyncToFileTimer = new Timer(async delegate ( object? state )
             {
-                _ = saveToFile(_inMemoryConnection!);
+                if ( _inMemoryConnection == null )
+                {
+                    _dnsServer?.WriteLog("In-memory database sync was executed on closed connection.");
+                    return;
+                }
+
+                _ = saveToFile(_inMemoryConnection);
                 try
                 {
                     _inMemorySyncToFileTimer?.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
@@ -453,7 +459,7 @@ namespace QueryLogsSqlite
             }
         }
 
-        private static bool deserializeDb( SqliteConnection inMemoryConnection, byte[] sqlDataByteArr )
+        private static async Task<bool> deserializeDb( SqliteConnection inMemoryConnection, byte[] sqlDataByteArr )
         {
             if ( inMemoryConnection.Handle == null )
                 return false;
@@ -461,24 +467,29 @@ namespace QueryLogsSqlite
             if ( sqlDataByteArr.Length == 0 )
                 return false;
 
-            var size = sqlDataByteArr.Length;
             // Allocate using SQLite's allocator so we can safely transfer ownership to SQLite with FREEONCLOSE.
+            var size = sqlDataByteArr.Length;
             IntPtr nativeBuffer = sqlite3_malloc(size);
             if ( nativeBuffer == IntPtr.Zero )
                 return false;
 
             try
             {
+                var tmpDb = new SqliteConnection("Data Source=TempDb;Mode=Memory;");
+                await tmpDb.OpenAsync();
+                if ( tmpDb.Handle == null )
+                {
+                    sqlite3_free(nativeBuffer);
+                    await tmpDb.DisposeAsync();
+                    return false;
+                }
+
                 Marshal.Copy(sqlDataByteArr, 0, nativeBuffer, sqlDataByteArr.Length);
 
                 // Pass FREEONCLOSE so SQLite will free the buffer when it no longer needs it.
-                var rc = sqlite3_deserialize(inMemoryConnection.Handle, "main", nativeBuffer, size, size, SQLITE_DESERIALIZE_FREEONCLOSE);
-                if ( rc != SQLITE_OK )
-                {
-                    // SQLite did not accept the buffer; free it ourselves.
-                    sqlite3_free(nativeBuffer);
-                    return false;
-                }
+                var rc = sqlite3_deserialize(tmpDb.Handle, "main", nativeBuffer, size, size, SQLITE_DESERIALIZE_FREEONCLOSE);
+
+                tmpDb.BackupDatabase(inMemoryConnection);
 
                 // Success: ownership transferred to SQLite, do not free nativeBuffer here.
                 return true;
@@ -503,6 +514,10 @@ namespace QueryLogsSqlite
 
             using JsonDocument jsonDocument = JsonDocument.Parse(config, _jsonParseOptions);
             JsonElement jsonConfig = jsonDocument.RootElement;
+
+            // Backup the current value of _inMemoryDbSyncToFile before reading the new configuration.
+            // When switching from in-memory to file-based database, ensure that we sync to file (if it was enabled), so file-based still gets the latest data.
+            var old_inMemoryDbSyncToFile = _inMemoryDbSyncToFile;
 
             bool enableLogging = jsonConfig.GetPropertyValue("enableLogging", true);
             int maxQueueSize = jsonConfig.GetPropertyValue("maxQueueSize", 200000);
@@ -535,7 +550,7 @@ namespace QueryLogsSqlite
                         if ( File.Exists(_sqliteDbPath) )
                         {
                             var sqlDataByteArr = File.ReadAllBytes(_sqliteDbPath);
-                            if ( !deserializeDb(_inMemoryConnection, sqlDataByteArr) )
+                            if ( !await deserializeDb(_inMemoryConnection, sqlDataByteArr) )
                                 throw new Exception($"Could not load '{_sqliteDbPath}' into memory.");
                         }
                     }
@@ -545,6 +560,10 @@ namespace QueryLogsSqlite
             {
                 if (_inMemoryConnection is not null)
                 {
+                    // Stop the timer if it was running, since we are no longer using the in-memory database.
+                    _inMemorySyncToFileTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    if ( old_inMemoryDbSyncToFile )
+                        saveToFile(_inMemoryConnection);
                     await _inMemoryConnection.DisposeAsync();
                     _inMemoryConnection = null;
                 }
