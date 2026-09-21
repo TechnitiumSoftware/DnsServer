@@ -573,18 +573,20 @@ namespace QueryLogsSqlite
 
                     _inMemoryConnection = new SqliteConnection(_connectionString);
                     await _inMemoryConnection.OpenAsync();
-                    if ( _inMemoryDbSyncToFile )
+                    if ( _inMemoryDbSyncToFile
+                        && File.Exists(_sqliteDbPath) )
                     {
-                        if ( _inMemoryDbSyncInterval > 0 )
-                            // Only enable the timer if the interval is greater than 0. Otherwise, interval syncing will not happen.
-                            _inMemorySyncToFileTimer.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
-                        if ( File.Exists(_sqliteDbPath) )
-                        {
-                            var sqlDataByteArr = File.ReadAllBytes(_sqliteDbPath);
-                            if ( !await loadInmemoryFromFile(_inMemoryConnection, sqlDataByteArr) )
-                                throw new Exception($"Could not load '{_sqliteDbPath}' into memory.");
-                        }
+                        var sqlDataByteArr = File.ReadAllBytes(_sqliteDbPath);
+                        if ( !await loadInmemoryFromFile(_inMemoryConnection, sqlDataByteArr) )
+                            throw new Exception($"Could not load '{_sqliteDbPath}' into memory.");
                     }
+                }
+
+                if ( _inMemoryDbSyncToFile
+                    && _inMemoryDbSyncInterval > 0 )
+                {
+                    // Only enable the timer if the interval is greater than 0. Otherwise, interval syncing will not happen.
+                    _inMemorySyncToFileTimer.Change(_inMemoryDbSyncInterval, Timeout.Infinite);
                 }
             }
             else
