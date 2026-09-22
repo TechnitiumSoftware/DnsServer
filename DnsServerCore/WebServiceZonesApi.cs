@@ -2276,6 +2276,22 @@ namespace DnsServerCore
                         }
                         break;
 
+                    case "MLDSA":
+                        {
+                            DnssecAlgorithm dnssecAlgorithm = DnssecAlgorithm.MLDSA44;
+
+                            if (pemKskPrivateKey is null)
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey);
+                            else
+                                kskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.KeySigningKey, pemKskPrivateKey);
+
+                            if (pemZskPrivateKey is null)
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey);
+                            else
+                                zskPrivateKey = DnssecPrivateKey.Create(dnssecAlgorithm, DnssecPrivateKeyType.ZoneSigningKey, pemZskPrivateKey);
+                        }
+                        break;
+
                     default:
                         throw new NotSupportedException("Algorithm is not supported: " + algorithm);
                 }
@@ -2694,6 +2710,24 @@ namespace DnsServerCore
                                 default:
                                     throw new NotSupportedException("EdDSA curve is not supported: " + curve);
                             }
+
+                            if (pemPrivateKey is null)
+                            {
+                                privateKey = _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecPrivateKey(zoneName, keyType, dnssecAlgorithm, rolloverDays);
+                            }
+                            else
+                            {
+                                privateKey = DnssecPrivateKey.Create(dnssecAlgorithm, keyType, pemPrivateKey);
+                                privateKey.RolloverDays = rolloverDays;
+
+                                _dnsWebService._dnsServer.AuthZoneManager.AddPrimaryZoneDnssecPrivateKey(zoneName, privateKey);
+                            }
+                        }
+                        break;
+
+                    case "MLDSA":
+                        {
+                            DnssecAlgorithm dnssecAlgorithm = DnssecAlgorithm.MLDSA44;
 
                             if (pemPrivateKey is null)
                             {

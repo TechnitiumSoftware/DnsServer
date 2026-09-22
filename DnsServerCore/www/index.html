@@ -4687,6 +4687,7 @@ ns1.example.com ([2001:db8::])
                                             <option value="ECDSAP384SHA384">ECDSAP384SHA384 (14)</option>
                                             <option value="ED25519">ED25519 (15)</option>
                                             <option value="ED448">ED448 (16)</option>
+                                            <option value="MLDSA44">MLDSA44 (18)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -5727,6 +5728,12 @@ ns1.example.com ([2001:db8::])
                                         EdDSA
                                     </label>
                                 </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneAlgorithm" id="rdDnssecSignZoneAlgorithmMldsa" value="MLDSA">
+                                        ML-DSA (post-quantum, experimental)
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -6074,6 +6081,7 @@ MII...
                                                 <option>RSA</option>
                                                 <option value="ECDSA">ECDSA (recommended)</option>
                                                 <option value="EDDSA">EdDSA</option>
+                                                <option value="MLDSA">ML-DSA (post-quantum, experimental)</option>
                                             </select>
                                         </div>
                                     </div>
