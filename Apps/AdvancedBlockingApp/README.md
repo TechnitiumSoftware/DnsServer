@@ -94,6 +94,7 @@ Each group defines its own blocking policy:
 | `regexAllowListUrls` | array | `[]` | URLs to regex allow list files |
 | `regexBlockListUrls` | array | `[]` | URLs to regex block list files |
 | `adblockListUrls` | array | `[]` | URLs to AdBlock-format lists |
+| `adblockRules` | array | `[]` | Inline custom AdBlock-format rules directly in configuration |
 
 ### Block List URL Formats
 
@@ -220,48 +221,63 @@ One regex pattern per line:
 .*tracking.*\.com$
 ```
 
-### AdBlock Lists
+### AdBlock Lists & Custom Rules
 
-As of v12.0, the AdBlock parser supports the majority of the AdGuard/AdBlock DNS-relevant syntax rather than only the plain `||domain^` form:
+The AdBlock parser provides enterprise-grade support for standard AdBlock-style DNS filtering rules. Rules can be loaded from remote/local URLs via `adblockListUrls` or specified directly inline in the group configuration via `adblockRules`:
 
 ```
 ! Comment
 ||ads.example.com^
 ||tracking.example.com^$important
 @@||safe.example.com^
+|exact.example.com|
+|exact.example.org^
 ||ads*.example.com^
 *.telemetry.example.com
 example.com$dnstype=A|AAAA
+example.com$dnstype=~HTTPS
 sub.example.com$denyallow=allowed.sub.example.com
+||corp.internal^$client=192.168.1.50
+||guest.internal^$client=10.0.0.0/24
+||safe.internal^$client=~192.168.1.99
 ||bad.example.com^$badfilter
-||redirect.example.com^$dnsrewrite=127.0.0.1
+||redirect.example.com^$dnsrewrite=forcesafesearch.google.com
+||custom.example.com^$dnsrewrite=127.0.0.1
 ||nx.example.com^$dnsrewrite=NXDOMAIN
+||empty.example.com^$dnsrewrite=$empty
 /^ads[0-9]+\.example\.com$/$important
 ```
 
-Supported modifiers (all other modifiers, e.g. `third-party`, `domain=`, `doc`, `all`, `match-case`, `client=`, `ctag=`, `app=`, are recognized and silently ignored rather than invalidating the rule):
+#### Supported Syntax & Modifiers
 
-| Modifier | Behavior |
+| Modifier / Syntax | Behavior |
 | --- | --- |
-| `$important` | Rule takes precedence over any rule (allow or block) without `$important` in any list of the group. Between two conflicting `$important` rules, block wins. |
-| `$badfilter` | Cancels other rules (of the same allow/block polarity) in the **same list** whose domain/pattern text matches. This is an approximation of AdGuard's exact-rule-text `$badfilter` matching (cross-list cancellation is not supported). |
-| `$dnstype=TYPE\|TYPE...` | Restricts the rule to only apply for the listed DNS query types (e.g. `A`, `AAAA`, `HTTPS`). Negated entries (`~TYPE`) are not modeled and are treated as a positive match. |
-| `$denyallow=domain\|domain...` | Excludes the listed domains (and their subdomains) from an otherwise-matching wildcard/regex rule. |
-| `$dnsrewrite=value` | Returns a custom answer instead of the group's default blocking response. Supported forms: a bare IP address (`$dnsrewrite=127.0.0.1`), a typed IP (`$dnsrewrite=AAAA;::1`), and the `NOERROR`/`NXDOMAIN`/`REFUSED` response-code keywords. CNAME/TXT/HTTPS/SVCB/MX rewrite targets require re-invoking the resolver and are **not supported** — such rules fall back to the group's normal default blocking behavior. |
+| `||domain^` | Blocks/allows `domain` and all its subdomains. |
+| `|domain|` or `|domain^` | **Exact domain match**: Matches only the exact domain name without matching subdomains. |
+| `@@` | Allowlist rule prefix (unblocks matching domains). |
+| `$important` | Rule takes precedence over any rule (allow or block) without `$important` across all lists in the group. Between two conflicting `$important` rules, block wins. |
+| `$badfilter` | **Group-wide cancellation**: Cancels matching rules (of the same polarity) across all lists in the entire group. |
+| `$dnstype=TYPE\|TYPE...` | Restricts the rule to apply only for specified DNS query types (e.g. `A`, `AAAA`, `HTTPS`). |
+| `$dnstype=~TYPE` | **Negated query types**: Inverts the match condition, matching any query type *except* the negated type (e.g. `$dnstype=~HTTPS` matches `A` and `AAAA` but skips `HTTPS`). Multiple types can be negated (`$dnstype=~HTTPS\|~SVCB`). |
+| `$client=client\|...` | **Client IP & Subnet Filtering**: Restricts rule application to specific client IP addresses (`192.168.1.50`) or CIDR subnets (`10.0.0.0/24`). Negation is supported via `~$client=...` or `$client=~IP` to exclude clients. |
+| `$denyallow=domain\|domain...` | Excludes the listed domains (and their subdomains) from an otherwise-matching wildcard or regex rule. |
+| `$dnsrewrite=value` | Custom DNS response action. Fully supported formats: |
+| | - **Bare IP Address**: `$dnsrewrite=127.0.0.1` or `$dnsrewrite=::1` |
+| | - **Typed IP Address**: `$dnsrewrite=A;1.2.3.4` or `$dnsrewrite=AAAA;::1` |
+| | - **CNAME Redirection**: `$dnsrewrite=cname.target` or `$dnsrewrite=CNAME;cname.target` (automatically queries and returns target records) |
+| | - **TXT Records**: `$dnsrewrite=TXT;payload` |
+| | - **PTR Records**: `$dnsrewrite=PTR;host.example.com` |
+| | - **MX Records**: `$dnsrewrite=MX;10;mail.example.com` |
+| | - **RCode Responses**: `$dnsrewrite=NXDOMAIN`, `$dnsrewrite=REFUSED`, `$dnsrewrite=SERVFAIL`, `$dnsrewrite=NOERROR` |
+| | - **Empty Responses**: `$dnsrewrite=$empty` (NOERROR NODATA) |
 
-Also supported:
+#### Advanced Features
 
-- **Wildcards** in the domain portion (`||ads*.example.com^`, `*.ads.example.com`) via automatic regex compilation (a lone `*.` prefix is optimized to the same fast path as a plain domain rule).
-- **Regex rules** (`/pattern/` or `/pattern/$modifiers`), matched directly against the query's domain name.
-- **Bare-domain fallback**: a line containing just a hostname (with optional wildcard and optional trailing `$modifiers`), similar to a hosts-file entry but without the `0.0.0.0` prefix.
-
-**Explicitly out of scope** (since this app only ever sees a DNS query, never a URL or page content):
-
-- Cosmetic/element-hiding rules (`##`, `#@#`, `#$#`, `#%#`, `#?#`, `$$`) — detected and skipped.
-- Single-pipe URL-anchor rules (`|https://example.com/path`) and any `||domain^/path`-style path-qualified rule.
-- `$dnsrewrite=` targets other than an IP address or a bare response-code keyword (CNAME/TXT/HTTPS/SVCB/MX).
-- Exact-rule-text `$badfilter` matching and cross-list `$badfilter` cancellation (approximated instead, see above).
-- `$client=`/`$ctag=`/`$app=` enforcement (parsed but ignored).
+- **CNAME Cloaking Protection**: Implements `IDnsPostProcessor` to intercept upstream DNS responses where canonical tracking domains disguise themselves behind third-party CNAME aliases. If any aliased target is blocked by the group policy, the query is blocked immediately.
+- **Domain-Partitioned Indexing**: Rules are partitioned by base domain suffixes (`Dictionary<string, List<AdBlockRule>>`), providing lightning-fast $O(1)$ lookup performance with zero CPU bottlenecks.
+- **Wildcard Compilation**: Supports mid-domain wildcards (`||ads*.example.com^`) and leading wildcards (`*.ads.example.com`) with fast-path optimizations.
+- **Full Regex Support**: Direct regular expression matching via `/pattern/` and `/pattern/$modifiers`.
+- **Cosmetic & Scriptlet Safety**: Element hiding (`##`, `#@#`, `#$#`, `#%#`, `#?#`, `$$`) and HTTP path rules are safely filtered out during parsing, allowing full compatibility with standard browser adblock lists.
 
 
 ## How Blocking Works
