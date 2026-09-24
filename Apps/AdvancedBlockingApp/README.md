@@ -222,14 +222,47 @@ One regex pattern per line:
 
 ### AdBlock Lists
 
-Supports a subset of AdBlock syntax:
+As of v12.0, the AdBlock parser supports the majority of the AdGuard/AdBlock DNS-relevant syntax rather than only the plain `||domain^` form:
 
-```regex
+```
 ! Comment
 ||ads.example.com^
-||tracking.example.com^$all
+||tracking.example.com^$important
 @@||safe.example.com^
+||ads*.example.com^
+*.telemetry.example.com
+example.com$dnstype=A|AAAA
+sub.example.com$denyallow=allowed.sub.example.com
+||bad.example.com^$badfilter
+||redirect.example.com^$dnsrewrite=127.0.0.1
+||nx.example.com^$dnsrewrite=NXDOMAIN
+/^ads[0-9]+\.example\.com$/$important
 ```
+
+Supported modifiers (all other modifiers, e.g. `third-party`, `domain=`, `doc`, `all`, `match-case`, `client=`, `ctag=`, `app=`, are recognized and silently ignored rather than invalidating the rule):
+
+| Modifier | Behavior |
+| --- | --- |
+| `$important` | Rule takes precedence over any rule (allow or block) without `$important` in any list of the group. Between two conflicting `$important` rules, block wins. |
+| `$badfilter` | Cancels other rules (of the same allow/block polarity) in the **same list** whose domain/pattern text matches. This is an approximation of AdGuard's exact-rule-text `$badfilter` matching (cross-list cancellation is not supported). |
+| `$dnstype=TYPE\|TYPE...` | Restricts the rule to only apply for the listed DNS query types (e.g. `A`, `AAAA`, `HTTPS`). Negated entries (`~TYPE`) are not modeled and are treated as a positive match. |
+| `$denyallow=domain\|domain...` | Excludes the listed domains (and their subdomains) from an otherwise-matching wildcard/regex rule. |
+| `$dnsrewrite=value` | Returns a custom answer instead of the group's default blocking response. Supported forms: a bare IP address (`$dnsrewrite=127.0.0.1`), a typed IP (`$dnsrewrite=AAAA;::1`), and the `NOERROR`/`NXDOMAIN`/`REFUSED` response-code keywords. CNAME/TXT/HTTPS/SVCB/MX rewrite targets require re-invoking the resolver and are **not supported** — such rules fall back to the group's normal default blocking behavior. |
+
+Also supported:
+
+- **Wildcards** in the domain portion (`||ads*.example.com^`, `*.ads.example.com`) via automatic regex compilation (a lone `*.` prefix is optimized to the same fast path as a plain domain rule).
+- **Regex rules** (`/pattern/` or `/pattern/$modifiers`), matched directly against the query's domain name.
+- **Bare-domain fallback**: a line containing just a hostname (with optional wildcard and optional trailing `$modifiers`), similar to a hosts-file entry but without the `0.0.0.0` prefix.
+
+**Explicitly out of scope** (since this app only ever sees a DNS query, never a URL or page content):
+
+- Cosmetic/element-hiding rules (`##`, `#@#`, `#$#`, `#%#`, `#?#`, `$$`) — detected and skipped.
+- Single-pipe URL-anchor rules (`|https://example.com/path`) and any `||domain^/path`-style path-qualified rule.
+- `$dnsrewrite=` targets other than an IP address or a bare response-code keyword (CNAME/TXT/HTTPS/SVCB/MX).
+- Exact-rule-text `$badfilter` matching and cross-list `$badfilter` cancellation (approximated instead, see above).
+- `$client=`/`$ctag=`/`$app=` enforcement (parsed but ignored).
+
 
 ## How Blocking Works
 
@@ -238,9 +271,10 @@ Supports a subset of AdBlock syntax:
    - Then, client IP/network mapping (`networkGroupMap`)
    - More specific network matches take precedence
 
-2. **Allow Check**: If the domain matches any allow list (static, URL-based, regex, or AdBlock whitelist), the request is NOT blocked.
+2. **Allow Check**: If the domain matches any allow list (static, URL-based, regex, or AdBlock whitelist), the request is NOT blocked — unless a higher-priority `$important` AdBlock block rule matches, in which case the block wins.
 
 3. **Block Check**: If the domain matches any block list, the app returns:
+   - The custom answer from `$dnsrewrite=` if the matched AdBlock rule carries one and it's a supported form
    - `NXDOMAIN` if `blockAsNxDomain` is `true`
    - Configured `blockingAddresses` for A/AAAA queries
    - NO DATA response for other query types
