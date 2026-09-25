@@ -1,8 +1,6 @@
 #!/bin/sh
 
-_original_umask=$(umask)
 umask 0022
-trap "umask $_original_umask" EXIT
 
 dotnetDir="/opt/dotnet"
 dotnetVersion="10.0"
