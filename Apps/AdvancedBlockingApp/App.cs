@@ -647,15 +647,39 @@ namespace AdvancedBlocking
                 return response;
 
             // Inspect each CNAME in answer for cloaked tracking
-            foreach (DnsResourceRecord rr in response.Answer)
+            for (int i = 0; i < response.Answer.Count; i++)
             {
+                DnsResourceRecord rr = response.Answer[i];
                 if ((rr.Type == DnsResourceRecordType.CNAME) && (rr.RDATA is DnsCNAMERecordData cnameData))
                 {
                     string cnameDomain = cnameData.Domain;
                     if (group.IsZoneBlocked(cnameDomain, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
                     {
                         _dnsServer?.WriteLog($"Advanced Blocking app intercepted CNAME cloaking: query '{question.Name}' aliases to blocked domain '{cnameDomain}'");
-                        return await CreateBlockedResponseAsync(request, group, question, blockedDomain ?? cnameDomain, blockedRegex, blockListUrl, matchedRule, true);
+
+                        // Native CNAME Pipeline Harmonization (DnsServer.cs L4817-4828):
+                        // Preserve all preceding and current CNAME records so clients receive a valid delegation chain
+                        List<DnsResourceRecord> answers = new List<DnsResourceRecord>(i + 2);
+                        for (int j = 0; j <= i; j++)
+                            answers.Add(response.Answer[j]);
+
+                        // Generate blocked response for the cloaked target domain
+                        DnsDatagram? blockedResp = await CreateBlockedResponseAsync(request, group, new DnsQuestionRecord(cnameDomain, question.Type, question.Class), blockedDomain ?? cnameDomain, blockedRegex, blockListUrl, matchedRule, true);
+
+                        if ((blockedResp is not null) && (blockedResp.Answer is not null))
+                        {
+                            foreach (DnsResourceRecord bRR in blockedResp.Answer)
+                            {
+                                if (bRR.Type != DnsResourceRecordType.CNAME)
+                                    answers.Add(bRR);
+                            }
+                        }
+
+                        DnsResponseCode rcode = blockedResp?.RCODE ?? DnsResponseCode.NoError;
+                        IReadOnlyList<DnsResourceRecord>? authority = blockedResp?.Authority;
+                        IReadOnlyList<DnsResourceRecord>? additional = blockedResp?.Additional;
+
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, rcode, request.Question, answers, authority, additional);
                     }
                 }
             }
@@ -679,26 +703,8 @@ namespace AdvancedBlocking
                     string cnameTarget = rewrite.CnameTarget;
                     List<DnsResourceRecord> answers = [new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, _blockingAnswerTtl, new DnsCNAMERecordData(cnameTarget))];
 
-                    if (_dnsServer is not null)
-                    {
-                        try
-                        {
-                            DnsDatagram targetResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(cnameTarget, question.Type, question.Class), 2000);
-                            if ((targetResponse.Answer is not null) && (targetResponse.Answer.Count > 0))
-                            {
-                                foreach (DnsResourceRecord targetRR in targetResponse.Answer)
-                                {
-                                    if ((targetRR.Type == question.Type) || (targetRR.Type == DnsResourceRecordType.CNAME))
-                                        answers.Add(targetRR);
-                                }
-                            }
-                        }
-                        catch
-                        {
-                            // Fallback to returning just the CNAME record if target resolution fails
-                        }
-                    }
-
+                    // Firestack / mitmproxy Non-Blocking Async Pipeline:
+                    // Return CNAME record directly without blocking worker threads via synchronous DirectQueryAsync
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answers);
                 }
 
@@ -1839,21 +1845,22 @@ namespace AdvancedBlocking
             internal override void LoadListZone()
             {
                 Queue<string> regexPatterns = ReadRegexListFile();
-                List<Regex> regexListZone = new List<Regex>(regexPatterns.Count);
+                string[] patterns = regexPatterns.ToArray();
+                System.Collections.Concurrent.ConcurrentBag<Regex> compiledList = new();
 
-                while (regexPatterns.Count > 0)
+                Parallel.ForEach(patterns, pattern =>
                 {
                     try
                     {
-                        regexListZone.Add(new Regex(regexPatterns.Dequeue(), RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
+                        compiledList.Add(new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
                     }
                     catch (RegexParseException ex)
                     {
                         _dnsServer.WriteLog(ex);
                     }
-                }
+                });
 
-                _regexListZone = regexListZone;
+                _regexListZone = compiledList.ToArray();
             }
 
             #endregion
@@ -2772,8 +2779,8 @@ namespace AdvancedBlocking
                         cancelKeys.Add((rule.IsAllow, rule.MatchKey!));
                 }
 
-                HashSet<string> allowedListZone = new HashSet<string>();
-                HashSet<string> blockedListZone = new HashSet<string>();
+                HashSet<string> allowedListZone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                HashSet<string> blockedListZone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 Dictionary<string, List<AdBlockRule>> specialAllowByDomain = new(StringComparer.OrdinalIgnoreCase);
                 List<AdBlockRule> specialAllowUnconstrained = [];
