@@ -978,7 +978,7 @@ namespace DnsServerCore.Dns
                 }
                 else
                 {
-                    string dnsTlsCertificateAbsolutePath = ConvertToAbsolutePath(_dnsTlsCertificatePath);
+                    string dnsTlsCertificateAbsolutePath = _log.ConvertToAbsolutePath(_dnsTlsCertificatePath);
 
                     try
                     {
@@ -1512,7 +1512,7 @@ namespace DnsServerCore.Dns
                 {
                     if (!string.IsNullOrEmpty(_dnsTlsCertificatePath))
                     {
-                        string dnsTlsCertificatePath = ConvertToAbsolutePath(_dnsTlsCertificatePath);
+                        string dnsTlsCertificatePath = _log.ConvertToAbsolutePath(_dnsTlsCertificatePath);
 
                         try
                         {
@@ -1629,7 +1629,7 @@ namespace DnsServerCore.Dns
             if (dnsTlsCertificatePassword?.Length > 255)
                 throw new ArgumentException("DNS optional protocols TLS certificate password length cannot exceed 255 characters.", nameof(dnsTlsCertificatePassword));
 
-            dnsTlsCertificatePath = ConvertToAbsolutePath(dnsTlsCertificatePath);
+            dnsTlsCertificatePath = _log.ConvertToAbsolutePath(dnsTlsCertificatePath);
 
             if (throwException)
             {
@@ -1647,29 +1647,10 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            _dnsTlsCertificatePath = ConvertToRelativePath(dnsTlsCertificatePath);
+            _dnsTlsCertificatePath = _log.ConvertToRelativePath(dnsTlsCertificatePath);
             _dnsTlsCertificatePassword = dnsTlsCertificatePassword;
 
             StartTlsCertificateUpdateTimer();
-        }
-
-        private string ConvertToRelativePath(string path)
-        {
-            if (path.StartsWith(_configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                path = path.Substring(_configFolder.Length).TrimStart(Path.DirectorySeparatorChar);
-
-            return path;
-        }
-
-        private string ConvertToAbsolutePath(string path)
-        {
-            if (path is null)
-                return null;
-
-            if (Path.IsPathRooted(path))
-                return path;
-
-            return Path.Combine(_configFolder, path);
         }
 
         #endregion
@@ -2670,10 +2651,18 @@ namespace DnsServerCore.Dns
 
                         using (MemoryStream mS = new MemoryStream(32))
                         {
-                            await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                            try
                             {
-                                return request.Body.CopyToAsync(mS, 32, cancellationToken1);
-                            }, _tcpReceiveTimeout, cancellationToken);
+                                await TechnitiumLibrary.TaskExtensions.TimeoutAsync(delegate (CancellationToken cancellationToken1)
+                                {
+                                    return request.Body.CopyToAsync(mS, 32, cancellationToken1);
+                                }, _tcpReceiveTimeout, cancellationToken);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                //do not log receive timeout exception
+                                return;
+                            }
 
                             mS.Position = 0;
                             dnsRequest = DnsDatagram.ReadFrom(mS);
@@ -3111,7 +3100,7 @@ namespace DnsServerCore.Dns
                         {
                             if (
                                   uRecord.Name.Equals(policy.Key, StringComparison.OrdinalIgnoreCase) ||
-                                  (policy.Key.StartsWith("*.") && uRecord.Name.EndsWith(policy.Key.Substring(1), StringComparison.OrdinalIgnoreCase))
+                                  (policy.Key.StartsWith("*.", StringComparison.Ordinal) && uRecord.Name.EndsWith(policy.Key.Substring(1), StringComparison.OrdinalIgnoreCase))
                                )
                             {
                                 foreach (DnsResourceRecordType allowedType in policy.Value)
@@ -4102,6 +4091,8 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> ProcessCNAMEAsync(DnsDatagram request, DnsDatagram response, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool skipDnsAppAuthoritativeRequestHandlers, int clientTimeout, DnsClient.ResolverContext context)
         {
+            bool authenticData = response.AuthenticData;
+
             List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count + 4);
             newAnswer.AddRange(response.Answer);
 
@@ -4232,6 +4223,8 @@ namespace DnsServerCore.Dns
                 if (newResponse.Metadata is not null)
                     responseRtt += newResponse.Metadata.RoundTripTime;
 
+                authenticData &= newResponse.AuthenticData;
+
                 //check last response
                 if (newResponse.Answer.Count == 0)
                     break; //cannot proceed to resolve further
@@ -4291,7 +4284,7 @@ namespace DnsServerCore.Dns
 
                 additional = lastResponse.Additional;
 
-                finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional) { Tag = response.Tag };
+                finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, authenticData, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional) { Tag = response.Tag };
             }
             else
             {
@@ -4331,7 +4324,7 @@ namespace DnsServerCore.Dns
                 {
                     additional = newResponse.Additional;
 
-                    finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional) { Tag = response.Tag };
+                    finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, authenticData, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional) { Tag = response.Tag };
                 }
                 else
                 {
@@ -4362,7 +4355,7 @@ namespace DnsServerCore.Dns
                         additional = newAdditional;
                     }
 
-                    finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) { Tag = response.Tag };
+                    finalResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, authenticData, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, _dnssecValidation && request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) { Tag = response.Tag };
                 }
             }
 
@@ -4636,7 +4629,7 @@ namespace DnsServerCore.Dns
 
                         IReadOnlyList<DnsResourceRecord> answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _blockingAnswerTtl, new DnsTXTRecordData("source=blocked-zone; domain=" + blockedDomain))];
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
                     }
                     else
                     {
@@ -4729,7 +4722,7 @@ namespace DnsServerCore.Dns
                                 break;
                         }
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, EDnsHeaderFlags.None, options) { Tag = DnsServerResponseType.Blocked };
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, !_allowTxtBlockingReport, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, EDnsHeaderFlags.None, options) { Tag = DnsServerResponseType.Blocked };
                     }
                 }
             }

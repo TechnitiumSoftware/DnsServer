@@ -995,7 +995,7 @@ namespace AdvancedBlocking
 
                 DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _blockingAnswerTtl, new DnsTXTRecordData(blockingReport))];
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
             else
             {
@@ -1009,7 +1009,6 @@ namespace AdvancedBlocking
                 }
 
                 DnsResponseCode rcode;
-                bool ra;
                 IReadOnlyList<DnsResourceRecord>? answer = null;
                 IReadOnlyList<DnsResourceRecord>? authority = null;
 
@@ -1018,7 +1017,6 @@ namespace AdvancedBlocking
                 if (blockAsNxDomain)
                 {
                     rcode = DnsResponseCode.NxDomain;
-                    ra = !group.AllowTxtBlockingReport;
 
                     if (blockedDomain is null)
                         blockedDomain = question.Name;
@@ -1032,7 +1030,6 @@ namespace AdvancedBlocking
                 else
                 {
                     rcode = DnsResponseCode.NoError;
-                    ra = true;
 
                     IReadOnlyList<DnsARecordData> aRecords = blockListUrl is not null ? blockListUrl.ARecords : group.ARecords;
                     IReadOnlyList<DnsAAAARecordData> aaaaRecords = blockListUrl is not null ? blockListUrl.AAAARecords : group.AAAARecords;
@@ -1088,7 +1085,7 @@ namespace AdvancedBlocking
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, ra, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, !group.AllowTxtBlockingReport, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options);
             }
         }
 

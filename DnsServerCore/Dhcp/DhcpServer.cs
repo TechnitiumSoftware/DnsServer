@@ -243,28 +243,64 @@ namespace DnsServerCore.Dhcp
                     //send dns datagram
                     if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
                     {
+                        //If the 'giaddr' field in a DHCP message from a client is non-zero, the server sends any return messages to the 'DHCP server' port on the BOOTP relay agent whose address appears in 'giaddr'.
                         //received request via relay agent so send unicast response to relay agent on port 67
                         await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67));
                     }
-                    else if (!request.ClientIpAddress.Equals(IPAddress.Any))
-                    {
-                        //client is already configured and renewing lease so send unicast response on port 68
-                        await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
-                    }
                     else
                     {
-                        Socket udpSocket;
+                        switch (response.DhcpMessageType?.Type ?? DhcpMessageType.Unknown)
+                        {
+                            case DhcpMessageType.Nak:
+                                {
+                                    //In all cases, when 'giaddr' is zero, the server broadcasts any DHCPNAK messages to 0xffffffff.
+                                    Socket udpSocket;
 
-                        //send response as broadcast on port 68 on appropriate interface bound socket
-                        if (_udpListeners.TryGetValue(response.ServerIdentifier.Address, out UdpListener listener))
-                            udpSocket = listener.Socket; //found scope specific socket
-                        else
-                            udpSocket = udpListener; //no appropriate socket found so use default socket
+                                    //send response as broadcast on port 68 on appropriate interface bound socket
+                                    if (_udpListeners.TryGetValue(response.ServerIdentifier.Address, out UdpListener listener))
+                                        udpSocket = listener.Socket; //found scope specific socket
+                                    else
+                                        udpSocket = udpListener; //no appropriate socket found so use default socket
 
-                        if (OperatingSystem.IsMacOS())
-                            await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
-                        else
-                            await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
+                                    if (OperatingSystem.IsMacOS())
+                                        await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
+                                    else
+                                        await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
+                                }
+                                break;
+
+                            case DhcpMessageType.Offer:
+                            case DhcpMessageType.Ack:
+                                if (!request.ClientIpAddress.Equals(IPAddress.Any))
+                                {
+                                    //If the 'giaddr' field is zero and the 'ciaddr' field is nonzero, then the server unicasts DHCPOFFER and DHCPACK messages to the address in 'ciaddr'.
+                                    //client is already configured and renewing lease so send unicast response on port 68
+                                    await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
+                                }
+                                else
+                                {
+                                    //If 'giaddr' is zero and 'ciaddr' is zero, and the broadcast bit is set, then the server broadcasts DHCPOFFER and DHCPACK messages to 0xffffffff.
+                                    //If the broadcast bit is not set and 'giaddr' is zero and 'ciaddr' is zero, then the server unicasts DHCPOFFER and DHCPACK messages to the client's hardware address and 'yiaddr' address.
+
+                                    //If the BROADCAST bit is cleared to 0, the message SHOULD be sent as an IP unicast to the IP address specified in the 'yiaddr' field and the link-layer address specified in the 'chaddr' field.
+                                    //If unicasting is not possible, the message MAY be sent as an IP broadcast using an IP broadcast address (preferably 0xffffffff) as the IP destination address and the link-layer broadcast address as the link-layer destination address.
+
+                                    //send response as broadcase for both above cases since sending to client's hardware address directly is not supported
+                                    Socket udpSocket;
+
+                                    //send response as broadcast on port 68 on appropriate interface bound socket
+                                    if (_udpListeners.TryGetValue(response.ServerIdentifier.Address, out UdpListener listener))
+                                        udpSocket = listener.Socket; //found scope specific socket
+                                    else
+                                        udpSocket = udpListener; //no appropriate socket found so use default socket
+
+                                    if (OperatingSystem.IsMacOS())
+                                        await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
+                                    else
+                                        await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
+                                }
+                                break;
+                        }
                     }
                 }
             }
@@ -621,7 +657,7 @@ namespace DnsServerCore.Dhcp
             if (request.RelayAgentIpAddress.Equals(IPAddress.Any))
             {
                 //no relay agent
-                if (request.ClientIpAddress.Equals(IPAddress.Any))
+                if (request.ClientIpAddress.Equals(IPAddress.Any) || remoteAddress.Equals(IPAddress.Any)) //consider udp src ip too due to buggy clients
                 {
                     if (!ipPacketInformation.Address.Equals(IPAddress.Broadcast))
                         return null; //message destination address must be broadcast address

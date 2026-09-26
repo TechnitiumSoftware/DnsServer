@@ -198,7 +198,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                    string webServiceTlsCertificatePath = _log.ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
                     try
                     {
@@ -824,7 +824,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                    string webServiceTlsCertificatePath = _log.ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
                     try
                     {

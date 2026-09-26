@@ -1,5 +1,7 @@
 #!/bin/sh
 
+umask 0022
+
 dotnetDir="/opt/dotnet"
 dotnetVersion="10.0"
 dotnetRuntime="Microsoft.AspNetCore.App 10.0."
