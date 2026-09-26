@@ -371,7 +371,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (line.StartsWith('#') || line.StartsWith('!'))
                             continue; //skip comment line
 
-                        if (line.StartsWith("||"))
+                        if (line.StartsWith("||", StringComparison.Ordinal))
                         {
                             //adblock format
                             i = line.IndexOf('^');
@@ -391,7 +391,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                     domains.Enqueue(domain.ToLowerInvariant());
                             }
                         }
-                        else if (line.StartsWith("@@||"))
+                        else if (line.StartsWith("@@||", StringComparison.Ordinal))
                         {
                             //adblock format - exception syntax
                             i = line.IndexOf('^');

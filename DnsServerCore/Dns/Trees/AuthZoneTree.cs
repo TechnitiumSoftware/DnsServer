@@ -973,7 +973,7 @@ namespace DnsServerCore.Dns.Trees
         {
             List<DnsResourceRecord> nsecRecords = null;
 
-            if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+            if (zone.Name.StartsWith("*.", StringComparison.Ordinal) || zone.Name.Equals('*'))
             {
                 //for wildcard case, we need to add proof of cover since validator wont be able to match qname to the NO DATA NSEC record
                 nsecRecords = new List<DnsResourceRecord>(4);
@@ -1006,7 +1006,7 @@ namespace DnsServerCore.Dns.Trees
             DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
             List<DnsResourceRecord> nsec3Records = null;
 
-            if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+            if (zone.Name.StartsWith("*.", StringComparison.Ordinal) || zone.Name.Equals('*'))
             {
                 //for wildcard case, we need to add the closest encloser and add proof of cover since validator wont be able to match qname hashed owner name to the NO DATA NSEC3 record
                 string closestEncloser = AuthZoneManager.GetParentZone(zone.Name);

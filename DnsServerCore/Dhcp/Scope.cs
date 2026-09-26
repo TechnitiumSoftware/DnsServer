@@ -1278,7 +1278,7 @@ namespace DnsServerCore.Dhcp
 
                     foreach (KeyValuePair<string, VendorSpecificInformationOption> entry in _vendorInfo)
                     {
-                        if (entry.Key.StartsWith(match))
+                        if (entry.Key.StartsWith(match, StringComparison.Ordinal))
                         {
                             int i = entry.Key.IndexOf(')', match.Length);
                             if (i < match.Length)

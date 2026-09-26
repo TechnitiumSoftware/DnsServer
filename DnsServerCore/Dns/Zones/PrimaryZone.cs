@@ -893,7 +893,7 @@ namespace DnsServerCore.Dns.Zones
                 partialNSec3Records.Add(zone.GetPartialNSec3Record(_name, ttl, iterations, salt));
 
                 int zoneLabelCount = DnsRRSIGRecordData.GetLabelCount(zone.Name);
-                if (zone.Name.StartsWith("*."))
+                if (zone.Name.StartsWith("*.", StringComparison.Ordinal))
                     zoneLabelCount++; //need to consider wildcard label for ENT detection
 
                 if ((zoneLabelCount - apexLabelCount) > 1)
@@ -1964,7 +1964,7 @@ namespace DnsServerCore.Dns.Zones
 
                     int apexLabelCount = DnsRRSIGRecordData.GetLabelCount(_name);
                     int zoneLabelCount = DnsRRSIGRecordData.GetLabelCount(zone.Name);
-                    if (zone.Name.StartsWith("*.") || zone.Name.Equals('*'))
+                    if (zone.Name.StartsWith("*.", StringComparison.Ordinal) || zone.Name.Equals('*'))
                         zoneLabelCount++; //need to consider wildcard label for ENT detection
 
                     if ((zoneLabelCount - apexLabelCount) > 1)

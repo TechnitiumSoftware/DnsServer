@@ -3111,7 +3111,7 @@ namespace DnsServerCore.Dns
                         {
                             if (
                                   uRecord.Name.Equals(policy.Key, StringComparison.OrdinalIgnoreCase) ||
-                                  (policy.Key.StartsWith("*.") && uRecord.Name.EndsWith(policy.Key.Substring(1), StringComparison.OrdinalIgnoreCase))
+                                  (policy.Key.StartsWith("*.", StringComparison.Ordinal) && uRecord.Name.EndsWith(policy.Key.Substring(1), StringComparison.OrdinalIgnoreCase))
                                )
                             {
                                 foreach (DnsResourceRecordType allowedType in policy.Value)

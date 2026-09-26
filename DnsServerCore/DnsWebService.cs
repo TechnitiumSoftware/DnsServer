@@ -946,7 +946,7 @@ namespace DnsServerCore
                             //extract log files from backup
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (entry.FullName.StartsWith("logs/"))
+                                if (entry.FullName.StartsWith("logs/", StringComparison.Ordinal))
                                 {
                                     try
                                     {
@@ -992,7 +992,7 @@ namespace DnsServerCore
                         //extract any certs
                         foreach (ZipArchiveEntry certEntry in backupZip.Entries)
                         {
-                            if (certEntry.FullName.StartsWith("apps/"))
+                            if (certEntry.FullName.StartsWith("apps/", StringComparison.Ordinal))
                                 continue;
 
                             if (certEntry.FullName.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase) || certEntry.FullName.EndsWith(".p12", StringComparison.OrdinalIgnoreCase))
@@ -1081,7 +1081,7 @@ namespace DnsServerCore
 
                                 foreach (ZipArchiveEntry entry in backupZip.Entries)
                                 {
-                                    if (!entry.FullName.StartsWith("zones/") || !entry.FullName.EndsWith(".keys", StringComparison.Ordinal))
+                                    if (!entry.FullName.StartsWith("zones/", StringComparison.Ordinal) || !entry.FullName.EndsWith(".keys", StringComparison.Ordinal))
                                         continue;
 
                                     string memberZoneName = Path.GetFileNameWithoutExtension(entry.Name);
@@ -1146,7 +1146,7 @@ namespace DnsServerCore
                             //extract zone files from backup
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (entry.FullName.StartsWith("zones/"))
+                                if (entry.FullName.StartsWith("zones/", StringComparison.Ordinal))
                                 {
                                     try
                                     {
@@ -1230,7 +1230,7 @@ namespace DnsServerCore
                         //extract block list files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("blocklists/"))
+                            if (entry.FullName.StartsWith("blocklists/", StringComparison.Ordinal))
                             {
                                 try
                                 {
@@ -1265,7 +1265,7 @@ namespace DnsServerCore
                             //install or update app from zip
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (!entry.FullName.StartsWith("apps/"))
+                                if (!entry.FullName.StartsWith("apps/", StringComparison.Ordinal))
                                     continue;
 
                                 string[] fullNameParts = entry.FullName.Split('/');
@@ -1299,7 +1299,7 @@ namespace DnsServerCore
                             //update app config
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (!entry.FullName.StartsWith("apps/"))
+                                if (!entry.FullName.StartsWith("apps/", StringComparison.Ordinal))
                                     continue;
 
                                 string[] fullNameParts = entry.FullName.Split('/');
@@ -1340,7 +1340,7 @@ namespace DnsServerCore
 
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (!entry.FullName.StartsWith("apps/"))
+                                if (!entry.FullName.StartsWith("apps/", StringComparison.Ordinal))
                                     continue;
 
                                 string[] fullNameParts = entry.FullName.Split('/');
@@ -1386,7 +1386,7 @@ namespace DnsServerCore
                             //extract apps files from backup
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (entry.FullName.StartsWith("apps/"))
+                                if (entry.FullName.StartsWith("apps/", StringComparison.Ordinal))
                                 {
                                     string filePath = Path.GetFullPath(Path.Combine(_configFolder, entry.FullName));
                                     if (!filePath.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar))
@@ -1447,7 +1447,7 @@ namespace DnsServerCore
                             //extract scope files from backup
                             foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                if (entry.FullName.StartsWith("scopes/"))
+                                if (entry.FullName.StartsWith("scopes/", StringComparison.Ordinal))
                                 {
                                     try
                                     {
@@ -1504,7 +1504,7 @@ namespace DnsServerCore
                         //extract stats files from backup
                         foreach (ZipArchiveEntry entry in backupZip.Entries)
                         {
-                            if (entry.FullName.StartsWith("stats/"))
+                            if (entry.FullName.StartsWith("stats/", StringComparison.Ordinal))
                             {
                                 try
                                 {
@@ -2530,7 +2530,7 @@ namespace DnsServerCore
             exceptionHandlerApp.Run(async delegate (HttpContext context)
             {
                 IExceptionHandlerPathFeature exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-                if (exceptionHandlerPathFeature.Path.StartsWith("/api/"))
+                if (exceptionHandlerPathFeature.Path.StartsWith("/api/", StringComparison.Ordinal))
                 {
                     Exception ex = exceptionHandlerPathFeature.Error;
 

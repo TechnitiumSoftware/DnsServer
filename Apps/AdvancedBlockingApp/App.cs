@@ -1642,7 +1642,7 @@ namespace AdvancedBlocking
                             if (line.StartsWith('!'))
                                 continue; //skip comment line
 
-                            if (line.StartsWith("||"))
+                            if (line.StartsWith("||", StringComparison.Ordinal))
                             {
                                 int i = line.IndexOf('^');
                                 if (i > -1)
@@ -1661,7 +1661,7 @@ namespace AdvancedBlocking
                                         blockedDomains.Enqueue(domain);
                                 }
                             }
-                            else if (line.StartsWith("@@||"))
+                            else if (line.StartsWith("@@||", StringComparison.Ordinal))
                             {
                                 int i = line.IndexOf('^');
                                 if (i > -1)
