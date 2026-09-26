@@ -98,6 +98,42 @@ namespace AdvancedBlocking
 
         private void RefreshCoreAllowedZones()
         {
+            // 1. Try to refresh via live reflection if AllowedZoneManager is available
+            if (_coreAllowedZoneManager is not null)
+            {
+                try
+                {
+                    MethodInfo? getAllZonesMethod = _coreAllowedZoneManager.GetType().GetMethod("GetAllZones");
+                    if (getAllZonesMethod is not null)
+                    {
+                        object? res = getAllZonesMethod.Invoke(_coreAllowedZoneManager, null);
+                        if (res is System.Collections.IEnumerable zoneList)
+                        {
+                            HashSet<string> zones = new(StringComparer.OrdinalIgnoreCase);
+                            foreach (object zoneInfo in zoneList)
+                            {
+                                PropertyInfo? nameProp = zoneInfo.GetType().GetProperty("Name");
+                                string? name = nameProp?.GetValue(zoneInfo) as string;
+                                if (!string.IsNullOrEmpty(name))
+                                    zones.Add(name.TrimEnd('.'));
+                            }
+
+                            if (zones.Count > 0)
+                            {
+                                _coreAllowedZones = zones;
+                                _coreAllowedZonesLastRead = DateTime.UtcNow;
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback to binary file reading
+                }
+            }
+
+            // 2. Binary file reading of allowed.config
             if (string.IsNullOrEmpty(_coreAllowedConfigFilePath) || !File.Exists(_coreAllowedConfigFilePath))
                 return;
 
@@ -109,18 +145,18 @@ namespace AdvancedBlocking
 
                 HashSet<string> zones = new(StringComparer.OrdinalIgnoreCase);
                 using (FileStream fileStream = new FileStream(_coreAllowedConfigFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (BinaryReader binaryReader = new BinaryReader(fileStream))
                 {
-                    char[] header = binaryReader.ReadChars(2);
-                    if (new string(header) == "AZ")
+                    byte[] header = new byte[2];
+                    if (fileStream.Read(header, 0, 2) == 2 && Encoding.ASCII.GetString(header) == "AZ")
                     {
-                        ushort version = binaryReader.ReadUInt16();
+                        BinaryReader binaryReader = new BinaryReader(fileStream);
+                        byte version = binaryReader.ReadByte();
                         if (version == 1)
                         {
                             int count = binaryReader.ReadInt32();
                             for (int i = 0; i < count; i++)
                             {
-                                string zone = binaryReader.ReadString();
+                                string zone = fileStream.ReadShortString();
                                 zones.Add(zone.TrimEnd('.'));
                             }
                         }
@@ -148,7 +184,8 @@ namespace AdvancedBlocking
             {
                 try
                 {
-                    object? res = _coreIsAllowedMethod.Invoke(_coreAllowedZoneManager, new object[] { domain });
+                    DnsDatagram query = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(domain, DnsResourceRecordType.A, DnsClass.IN)]);
+                    object? res = _coreIsAllowedMethod.Invoke(_coreAllowedZoneManager, new object[] { query });
                     if (res is bool isAllowed && isAllowed)
                         return true;
                 }
@@ -714,7 +751,7 @@ namespace AdvancedBlocking
                     _coreAllowedZoneManager = azmProp?.GetValue(coreServer);
                     if (_coreAllowedZoneManager is not null)
                     {
-                        _coreIsAllowedMethod = _coreAllowedZoneManager.GetType().GetMethod("IsAllowed", new Type[] { typeof(string) });
+                        _coreIsAllowedMethod = _coreAllowedZoneManager.GetType().GetMethod("IsAllowed", new Type[] { typeof(DnsDatagram) });
                     }
                 }
             }
@@ -733,9 +770,10 @@ namespace AdvancedBlocking
                     if (File.Exists(allowedConfigPath))
                     {
                         _coreAllowedConfigFilePath = allowedConfigPath;
-                        RefreshCoreAllowedZones();
                     }
                 }
+
+                RefreshCoreAllowedZones();
             }
             catch
             {
