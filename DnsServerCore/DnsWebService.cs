@@ -311,7 +311,7 @@ namespace DnsServerCore
                     {
                         _webServiceTlsCertificatePath = webServiceTlsCertificatePath;
 
-                        string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                        string webServiceTlsCertificateAbsolutePath = _log.ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
                         try
                         {
@@ -559,7 +559,7 @@ namespace DnsServerCore
             }
             else
             {
-                string webServiceTlsCertificateAbsolutePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                string webServiceTlsCertificateAbsolutePath = _log.ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
                 try
                 {
@@ -661,11 +661,11 @@ namespace DnsServerCore
                     //backup web service cert
                     if (!isConfigTransfer && !string.IsNullOrEmpty(_webServiceTlsCertificatePath))
                     {
-                        string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                        string webServiceTlsCertificatePath = _log.ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
-                        if (File.Exists(webServiceTlsCertificatePath) && webServiceTlsCertificatePath.StartsWith(_configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                        if (File.Exists(webServiceTlsCertificatePath) && webServiceTlsCertificatePath.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                         {
-                            string entryName = ConvertToRelativePath(webServiceTlsCertificatePath).Replace('\\', '/');
+                            string entryName = _log.ConvertToRelativePath(webServiceTlsCertificatePath).Replace('\\', '/');
                             backupZip.CreateEntryFromFile(webServiceTlsCertificatePath, entryName);
                         }
                     }
@@ -681,11 +681,11 @@ namespace DnsServerCore
                     //backup optional protocols cert
                     if (!isConfigTransfer && !string.IsNullOrEmpty(_dnsServer.DnsTlsCertificatePath))
                     {
-                        string dnsTlsCertificatePath = ConvertToAbsolutePath(_dnsServer.DnsTlsCertificatePath);
+                        string dnsTlsCertificatePath = _log.ConvertToAbsolutePath(_dnsServer.DnsTlsCertificatePath);
 
-                        if (File.Exists(dnsTlsCertificatePath) && dnsTlsCertificatePath.StartsWith(_configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                        if (File.Exists(dnsTlsCertificatePath) && dnsTlsCertificatePath.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                         {
-                            string entryName = ConvertToRelativePath(dnsTlsCertificatePath).Replace('\\', '/');
+                            string entryName = _log.ConvertToRelativePath(dnsTlsCertificatePath).Replace('\\', '/');
                             backupZip.CreateEntryFromFile(dnsTlsCertificatePath, entryName);
                         }
                     }
@@ -1000,7 +1000,7 @@ namespace DnsServerCore
                                 try
                                 {
                                     string certFile = Path.GetFullPath(Path.Combine(_configFolder, certEntry.FullName));
-                                    if (!certFile.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar))
+                                    if (!certFile.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                                         throw new IOException("Extracting Zip entry would have resulted in a file outside the specified destination directory.");
 
                                     Directory.CreateDirectory(Path.GetDirectoryName(certFile));
@@ -1389,7 +1389,7 @@ namespace DnsServerCore
                                 if (entry.FullName.StartsWith("apps/", StringComparison.Ordinal))
                                 {
                                     string filePath = Path.GetFullPath(Path.Combine(_configFolder, entry.FullName));
-                                    if (!filePath.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar))
+                                    if (!filePath.StartsWith(_configFolder.TrimEnd(['/', '\\']) + Path.DirectorySeparatorChar, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                                         throw new IOException("Extracting Zip entry would have resulted in a file outside the specified destination directory.");
 
                                     if ((entry.Length == 0) && (entry.Name.Length == 0) && entry.FullName.EndsWith('/'))
@@ -1554,25 +1554,6 @@ namespace DnsServerCore
         #endregion
 
         #region private
-
-        private string ConvertToRelativePath(string path)
-        {
-            if (path.StartsWith(_configFolder, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                path = path.Substring(_configFolder.Length).TrimStart(Path.DirectorySeparatorChar);
-
-            return path;
-        }
-
-        private string ConvertToAbsolutePath(string path)
-        {
-            if (path is null)
-                return null;
-
-            if (Path.IsPathRooted(path))
-                return path;
-
-            return Path.GetFullPath(Path.Combine(_configFolder, path));
-        }
 
         private void RestartService(bool restartDnsService, bool restartWebService)
         {
@@ -2668,7 +2649,7 @@ namespace DnsServerCore
                 {
                     if (!string.IsNullOrEmpty(_webServiceTlsCertificatePath))
                     {
-                        string webServiceTlsCertificatePath = ConvertToAbsolutePath(_webServiceTlsCertificatePath);
+                        string webServiceTlsCertificatePath = _log.ConvertToAbsolutePath(_webServiceTlsCertificatePath);
 
                         try
                         {
@@ -2774,11 +2755,11 @@ namespace DnsServerCore
             if (webServiceTlsCertificatePassword?.Length > 255)
                 throw new ArgumentException("Web service TLS certificate password length cannot exceed 255 characters.", nameof(webServiceTlsCertificatePassword));
 
-            webServiceTlsCertificatePath = ConvertToAbsolutePath(webServiceTlsCertificatePath);
+            webServiceTlsCertificatePath = _log.ConvertToAbsolutePath(webServiceTlsCertificatePath);
 
             LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, webServiceTlsCertificatePassword);
 
-            _webServiceTlsCertificatePath = ConvertToRelativePath(webServiceTlsCertificatePath);
+            _webServiceTlsCertificatePath = _log.ConvertToRelativePath(webServiceTlsCertificatePath);
             _webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
 
             StartTlsCertificateUpdateTimer();
@@ -2792,7 +2773,7 @@ namespace DnsServerCore
             {
                 string oldSelfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
 
-                if (!oldSelfSignedCertificateFilePath.Equals(ConvertToAbsolutePath(_webServiceTlsCertificatePath), Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && File.Exists(oldSelfSignedCertificateFilePath) && !File.Exists(selfSignedCertificateFilePath))
+                if (!oldSelfSignedCertificateFilePath.Equals(_log.ConvertToAbsolutePath(_webServiceTlsCertificatePath), Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) && File.Exists(oldSelfSignedCertificateFilePath) && !File.Exists(selfSignedCertificateFilePath))
                     File.Move(oldSelfSignedCertificateFilePath, selfSignedCertificateFilePath);
 
                 if (forceGenerateNew || !File.Exists(selfSignedCertificateFilePath))
