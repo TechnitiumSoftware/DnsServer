@@ -409,7 +409,7 @@ namespace DnsServerCore.Dns.Applications
                     throw new DnsServerException("DNS application already exists: " + applicationName);
 
                 string applicationFolder = Path.GetFullPath(Path.Combine(_appsPath, applicationName));
-                if (!applicationFolder.StartsWith(_appsPath + Path.DirectorySeparatorChar))
+                if (!applicationFolder.StartsWith(_appsPath + Path.DirectorySeparatorChar, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                     throw new DnsServerException("The application name is invalid: " + applicationName);
 
                 if (Directory.Exists(applicationFolder))
@@ -474,7 +474,7 @@ namespace DnsServerCore.Dns.Applications
                         foreach (ZipArchiveEntry entry in appZip.Entries)
                         {
                             string filePath = Path.GetFullPath(Path.Combine(applicationFolder, entry.FullName));
-                            if (!filePath.StartsWith(applicationFolder + Path.DirectorySeparatorChar))
+                            if (!filePath.StartsWith(applicationFolder + Path.DirectorySeparatorChar, Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                                 throw new IOException("Extracting Zip entry would have resulted in a file outside the specified destination directory.");
 
                             if ((entry.Name == "dnsApp.config") && File.Exists(filePath))

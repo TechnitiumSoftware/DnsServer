@@ -426,7 +426,7 @@ namespace AdvancedForwarding
                     {
                         if (forwarding.TryGetForwarderRecords(domain, out IReadOnlyList<DnsForwarderRecordData>? fwdRecords, out string? currentMatchedDomain))
                         {
-                            if ((lastMatchedDomain is null) || (currentMatchedDomain.Length > lastMatchedDomain.Length) || ((currentMatchedDomain.Length == lastMatchedDomain.Length) && lastMatchedDomain.StartsWith("*.")))
+                            if ((lastMatchedDomain is null) || (currentMatchedDomain.Length > lastMatchedDomain.Length) || ((currentMatchedDomain.Length == lastMatchedDomain.Length) && lastMatchedDomain.StartsWith("*.", StringComparison.Ordinal)))
                             {
                                 lastMatchedDomain = currentMatchedDomain;
                                 forwarderRecords = fwdRecords;
