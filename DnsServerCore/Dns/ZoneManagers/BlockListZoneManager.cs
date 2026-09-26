@@ -332,17 +332,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 _dnsServer.LogManager.Write("DNS Server is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
 
-                string listFilePath = GetBlockListFilePath(listUrl);
+                string listFilePath;
 
                 if (listUrl.IsFile)
-                {
-                    if (!File.Exists(listFilePath) || (File.GetLastWriteTimeUtc(listUrl.LocalPath) > File.GetLastWriteTimeUtc(listFilePath)))
-                    {
-                        File.Copy(listUrl.LocalPath, listFilePath, true);
-
-                        _dnsServer.LogManager.Write("DNS Server successfully downloaded " + (isAllowList ? "allow" : "block") + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
-                    }
-                }
+                    listFilePath = listUrl.LocalPath;
+                else
+                    listFilePath = GetBlockListFilePath(listUrl);
 
                 using (FileStream fS = new FileStream(listFilePath, FileMode.Open, FileAccess.Read))
                 {
@@ -570,6 +565,12 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     if (listUrl.IsFile)
                     {
+                        if (!File.Exists(listUrl.LocalPath))
+                        {
+                            _dnsServer.LogManager.Write("DNS Server did not find the " + (isAllowList ? "allow" : "block") + " list: " + listUrl.AbsoluteUri);
+                            return;
+                        }
+
                         if (File.Exists(listFilePath))
                         {
                             if (File.GetLastWriteTimeUtc(listUrl.LocalPath) <= File.GetLastWriteTimeUtc(listFilePath))
@@ -580,10 +581,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                         }
 
-                        File.Copy(listUrl.LocalPath, listFilePath, true);
+                        //create dummy file
+                        await File.Create(listFilePath).DisposeAsync();
 
                         downloaded = true;
-                        _dnsServer.LogManager.Write("DNS Server successfully downloaded " + (isAllowList ? "allow" : "block") + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
+                        _dnsServer.LogManager.Write("DNS Server found new update for the " + (isAllowList ? "allow" : "block") + " list: " + listUrl.AbsoluteUri);
                     }
                     else
                     {
@@ -663,8 +665,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 LoadBlockLists();
 
-                //force GC collection to remove old zone data from memory quickly
-                GC.Collect();
+                GC.Collect(2, GCCollectionMode.Optimized, false); //do GC collection to remove old block list data from memory quickly
             }
 
             return downloaded || notModified;
@@ -867,7 +868,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 for (int i = 0; i < answer.Length; i++)
                     answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _dnsServer.BlockingAnswerTtl, new DnsTXTRecordData("source=block-list-zone; blockListUrl=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
             else
             {
@@ -967,7 +968,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         break;
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, !_dnsServer.AllowTxtBlockingReport, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options);
             }
         }
 
