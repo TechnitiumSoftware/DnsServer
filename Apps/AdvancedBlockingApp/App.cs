@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
@@ -28,6 +28,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -40,7 +41,7 @@ using TechnitiumLibrary.Net.Http.Client;
 
 namespace AdvancedBlocking
 {
-    public sealed class App : IDnsApplication, IDnsRequestBlockingHandler
+    public sealed class App : IDnsApplication, IDnsRequestBlockingHandler, IDnsPostProcessor
     {
         #region variables
 
@@ -72,6 +73,12 @@ namespace AdvancedBlocking
         DateTime _blockListUrlLastUpdatedOn;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 60000;
 
+        object? _coreAllowedZoneManager;
+        MethodInfo? _coreIsAllowedMethod;
+        HashSet<string> _coreAllowedZones = new(StringComparer.OrdinalIgnoreCase);
+        DateTime _coreAllowedZonesLastRead = DateTime.MinValue;
+        string? _coreAllowedConfigFilePath;
+
         #endregion
 
         #region IDisposable
@@ -88,6 +95,143 @@ namespace AdvancedBlocking
         #endregion
 
         #region private
+
+        private void RefreshCoreAllowedZones()
+        {
+            // 1. Try to refresh via live reflection if AllowedZoneManager is available
+            if (_coreAllowedZoneManager is not null)
+            {
+                try
+                {
+                    MethodInfo? getAllZonesMethod = _coreAllowedZoneManager.GetType().GetMethod("GetAllZones");
+                    if (getAllZonesMethod is not null)
+                    {
+                        object? res = getAllZonesMethod.Invoke(_coreAllowedZoneManager, null);
+                        if (res is System.Collections.IEnumerable zoneList)
+                        {
+                            HashSet<string> zones = new(StringComparer.OrdinalIgnoreCase);
+                            foreach (object zoneInfo in zoneList)
+                            {
+                                PropertyInfo? nameProp = zoneInfo.GetType().GetProperty("Name");
+                                string? name = nameProp?.GetValue(zoneInfo) as string;
+                                if (!string.IsNullOrEmpty(name))
+                                    zones.Add(name.TrimEnd('.'));
+                            }
+
+                            if (zones.Count > 0)
+                            {
+                                _coreAllowedZones = zones;
+                                _coreAllowedZonesLastRead = DateTime.UtcNow;
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback to binary file reading
+                }
+            }
+
+            // 2. Binary file reading of allowed.config
+            if (string.IsNullOrEmpty(_coreAllowedConfigFilePath) || !File.Exists(_coreAllowedConfigFilePath))
+                return;
+
+            try
+            {
+                FileInfo fi = new FileInfo(_coreAllowedConfigFilePath);
+                if (fi.LastWriteTimeUtc <= _coreAllowedZonesLastRead && _coreAllowedZones.Count > 0)
+                    return;
+
+                HashSet<string> zones = new(StringComparer.OrdinalIgnoreCase);
+                using (FileStream fileStream = new FileStream(_coreAllowedConfigFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    byte[] header = new byte[2];
+                    if (fileStream.Read(header, 0, 2) == 2 && Encoding.ASCII.GetString(header) == "AZ")
+                    {
+                        BinaryReader binaryReader = new BinaryReader(fileStream);
+                        byte version = binaryReader.ReadByte();
+                        if (version == 1)
+                        {
+                            int count = binaryReader.ReadInt32();
+                            for (int i = 0; i < count; i++)
+                            {
+                                string zone = fileStream.ReadShortString();
+                                zones.Add(zone.TrimEnd('.'));
+                            }
+                        }
+                    }
+                }
+
+                _coreAllowedZones = zones;
+                _coreAllowedZonesLastRead = fi.LastWriteTimeUtc;
+            }
+            catch
+            {
+                // Fallback silently if reading file fails
+            }
+        }
+
+        private bool IsCoreAllowedZone(string domain)
+        {
+            if (string.IsNullOrEmpty(domain))
+                return false;
+
+            domain = domain.TrimEnd('.');
+
+            // 1. Check direct AllowedZoneManager via reflection if available
+            if (_coreAllowedZoneManager is not null && _coreIsAllowedMethod is not null)
+            {
+                try
+                {
+                    DnsDatagram query = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, [new DnsQuestionRecord(domain, DnsResourceRecordType.A, DnsClass.IN)]);
+                    object? res = _coreIsAllowedMethod.Invoke(_coreAllowedZoneManager, new object[] { query });
+                    if (res is bool isAllowed && isAllowed)
+                        return true;
+                }
+                catch
+                {
+                    // Fallback to file-based check
+                }
+            }
+
+            // 2. Check cached file-based allowed zones from /etc/dns/allowed.config
+            RefreshCoreAllowedZones();
+            if (_coreAllowedZones.Count > 0)
+            {
+                if (_coreAllowedZones.Contains(domain))
+                    return true;
+
+                // Check parent domains (e.g. reddit.com allows www.reddit.com)
+                int dotIndex = domain.IndexOf('.');
+                while (dotIndex > 0)
+                {
+                    string parent = domain.Substring(dotIndex + 1);
+                    if (_coreAllowedZones.Contains(parent))
+                        return true;
+
+                    dotIndex = domain.IndexOf('.', dotIndex + 1);
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsDomainAllowed(Group group, string domain, DnsResourceRecordType qType = DnsResourceRecordType.A, IPAddress? clientIp = null)
+        {
+            if (string.IsNullOrEmpty(domain))
+                return false;
+
+            domain = domain.TrimEnd('.');
+
+            if (group.IsZoneAllowed(domain, qType, clientIp))
+                return true;
+
+            if (IsCoreAllowedZone(domain))
+                return true;
+
+            return false;
+        }
 
         private async void BlockListUrlUpdateTimerCallbackAsync(object? state)
         {
@@ -200,11 +344,11 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsZoneAllowed(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, out string? foundZone, out UrlEntry? listUri)
+        private static bool IsZoneAllowed(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? foundZone, out UrlEntry? listUri, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
         {
             foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> listZone in listZones)
             {
-                if (listZone.Value.List.IsZoneAllowed(domain, out foundZone))
+                if (listZone.Value.List.IsZoneAllowed(domain, qType, clientIp, out foundZone, out _, groupCancelKeys))
                 {
                     listUri = listZone.Value.UrlEntry;
                     return true;
@@ -216,11 +360,11 @@ namespace AdvancedBlocking
             return false;
         }
 
-        private static bool IsZoneBlocked(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, out string? foundZone, out UrlEntry? listUri)
+        private static bool IsZoneBlocked(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? foundZone, out UrlEntry? listUri, out AdBlockRule? matchedRule, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
         {
             foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> listZone in listZones)
             {
-                if (listZone.Value.List.IsZoneBlocked(domain, out foundZone))
+                if (listZone.Value.List.IsZoneBlocked(domain, qType, clientIp, out foundZone, out matchedRule, groupCancelKeys))
                 {
                     listUri = listZone.Value.UrlEntry;
                     return true;
@@ -229,6 +373,42 @@ namespace AdvancedBlocking
 
             foundZone = null;
             listUri = null;
+            matchedRule = null;
+            return false;
+        }
+
+        private static bool IsImportantAllowed(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? foundZone, out UrlEntry? listUri, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
+        {
+            foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> listZone in listZones)
+            {
+                if (listZone.Value.List.IsImportantAllowed(domain, qType, clientIp, out AdBlockRule? matchedRule, groupCancelKeys))
+                {
+                    foundZone = matchedRule!.Domain ?? domain;
+                    listUri = listZone.Value.UrlEntry;
+                    return true;
+                }
+            }
+
+            foundZone = null;
+            listUri = null;
+            return false;
+        }
+
+        private static bool IsImportantBlocked(Dictionary<Uri, ListZoneEntry<AdBlockList>> listZones, string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? foundZone, out UrlEntry? listUri, out AdBlockRule? matchedRule, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
+        {
+            foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> listZone in listZones)
+            {
+                if (listZone.Value.List.IsImportantBlocked(domain, qType, clientIp, out matchedRule, groupCancelKeys))
+                {
+                    foundZone = matchedRule!.Domain ?? domain;
+                    listUri = listZone.Value.UrlEntry;
+                    return true;
+                }
+            }
+
+            foundZone = null;
+            listUri = null;
+            matchedRule = null;
             return false;
         }
 
@@ -559,6 +739,46 @@ namespace AdvancedBlocking
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
+
+            // Initialize Core Allowed Zone Manager via reflection or fallback file
+            try
+            {
+                FieldInfo? internalServerField = _dnsServer.GetType().GetField("_dnsServer", BindingFlags.Instance | BindingFlags.NonPublic);
+                object? coreServer = internalServerField?.GetValue(_dnsServer);
+                if (coreServer is not null)
+                {
+                    PropertyInfo? azmProp = coreServer.GetType().GetProperty("AllowedZoneManager", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _coreAllowedZoneManager = azmProp?.GetValue(coreServer);
+                    if (_coreAllowedZoneManager is not null)
+                    {
+                        _coreIsAllowedMethod = _coreAllowedZoneManager.GetType().GetMethod("IsAllowed", new Type[] { typeof(DnsDatagram) });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog($"Advanced Blocking app Core AllowedZoneManager reflection init notice: {ex.Message}");
+            }
+
+            try
+            {
+                DirectoryInfo appDir = new DirectoryInfo(dnsServer.ApplicationFolder);
+                string? dnsFolder = appDir.Parent?.Parent?.FullName;
+                if (!string.IsNullOrEmpty(dnsFolder))
+                {
+                    string allowedConfigPath = Path.Combine(dnsFolder, "allowed.config");
+                    if (File.Exists(allowedConfigPath))
+                    {
+                        _coreAllowedConfigFilePath = allowedConfigPath;
+                    }
+                }
+
+                RefreshCoreAllowedZones();
+            }
+            catch
+            {
+                // Fallback
+            }
         }
 
         public Task<bool> IsAllowedAsync(DnsDatagram request, IPEndPoint remoteEP)
@@ -572,37 +792,194 @@ namespace AdvancedBlocking
 
             DnsQuestionRecord question = request.Question[0];
 
-            return Task.FromResult(group.IsZoneAllowed(question.Name));
+            return Task.FromResult(IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address));
         }
 
-        public Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
+        public async Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             if (!_enableBlocking)
-                return Task.FromResult<DnsDatagram?>(null);
+                return null;
 
             string? groupName = GetGroupName(request, remoteEP);
             if ((groupName is null) || !_groups!.TryGetValue(groupName, out Group? group) || !group.EnableBlocking)
-                return Task.FromResult<DnsDatagram?>(null);
+                return null;
 
             DnsQuestionRecord question = request.Question[0];
 
-            if (!group.IsZoneBlocked(question.Name, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl))
-                return Task.FromResult<DnsDatagram?>(null);
+            if (IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address))
+                return null;
+
+            if (!group.IsZoneBlocked(question.Name, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
+                return null;
+
+            return await CreateBlockedResponseAsync(request, group, question, blockedDomain, blockedRegex, blockListUrl, matchedRule, false);
+        }
+
+        public async Task<DnsDatagram?> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+        {
+            if (!_enableBlocking)
+                return response;
+
+            if ((response is null) || (response.Answer is null) || (response.Answer.Count == 0))
+                return response;
+
+            string? groupName = GetGroupName(request, remoteEP);
+            if ((groupName is null) || !_groups!.TryGetValue(groupName, out Group? group) || !group.EnableBlocking)
+                return response;
+
+            DnsQuestionRecord question = request.Question[0];
+
+            // If the original query was explicitly allowed (in Core or in App Group), bypass post-processing
+            if (IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address))
+                return response;
+
+            // Inspect each CNAME in answer for cloaked tracking
+            for (int i = 0; i < response.Answer.Count; i++)
+            {
+                DnsResourceRecord rr = response.Answer[i];
+                if ((rr.Type == DnsResourceRecordType.CNAME) && (rr.RDATA is DnsCNAMERecordData cnameData))
+                {
+                    string cnameDomain = cnameData.Domain.TrimEnd('.');
+
+                    // If the CNAME target is explicitly allowed (in Core or in App Group), DO NOT BLOCK!
+                    if (IsDomainAllowed(group, cnameDomain, question.Type, remoteEP.Address))
+                        continue;
+
+                    if (group.IsZoneBlocked(cnameDomain, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
+                    {
+                        _dnsServer?.WriteLog($"Advanced Blocking app intercepted CNAME cloaking: query '{question.Name}' aliases to blocked domain '{cnameDomain}'");
+
+                        // Native CNAME Pipeline Harmonization (DnsServer.cs L4817-4828):
+                        // Preserve all preceding and current CNAME records so clients receive a valid delegation chain
+                        List<DnsResourceRecord> answers = new List<DnsResourceRecord>(i + 2);
+                        for (int j = 0; j <= i; j++)
+                            answers.Add(response.Answer[j]);
+
+                        // Generate blocked response for the cloaked target domain
+                        DnsDatagram? blockedResp = await CreateBlockedResponseAsync(request, group, new DnsQuestionRecord(cnameDomain, question.Type, question.Class), blockedDomain ?? cnameDomain, blockedRegex, blockListUrl, matchedRule, true);
+
+                        if ((blockedResp is not null) && (blockedResp.Answer is not null))
+                        {
+                            foreach (DnsResourceRecord bRR in blockedResp.Answer)
+                            {
+                                if (bRR.Type != DnsResourceRecordType.CNAME)
+                                    answers.Add(bRR);
+                            }
+                        }
+
+                        DnsResponseCode rcode = blockedResp?.RCODE ?? DnsResponseCode.NoError;
+                        IReadOnlyList<DnsResourceRecord>? authority = blockedResp?.Authority;
+                        IReadOnlyList<DnsResourceRecord>? additional = blockedResp?.Additional;
+
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, rcode, request.Question, answers, authority, additional);
+                    }
+                }
+            }
+
+            return response;
+        }
+
+        private async Task<DnsDatagram?> CreateBlockedResponseAsync(DnsDatagram request, Group group, DnsQuestionRecord question, string? blockedDomain, string? blockedRegex, UrlEntry? blockListUrl, AdBlockRule? matchedRule, bool isCnameCloaked)
+        {
+            //$dnsrewrite (adblock rule modifier) takes precedence over the group's default blocking response
+            if ((matchedRule is not null) && (matchedRule.DnsRewrite is not null) && matchedRule.DnsRewrite.Recognized)
+            {
+                DnsRewriteAction rewrite = matchedRule.DnsRewrite;
+
+                if (rewrite.ResponseCode.HasValue && (rewrite.ResponseCode.Value != DnsResponseCode.NoError))
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, rewrite.ResponseCode.Value, request.Question);
+
+                // CNAME rewrite (alias / redirection)
+                if (!string.IsNullOrEmpty(rewrite.CnameTarget))
+                {
+                    string cnameTarget = rewrite.CnameTarget;
+                    List<DnsResourceRecord> answers = [new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, _blockingAnswerTtl, new DnsCNAMERecordData(cnameTarget))];
+
+                    // Firestack / mitmproxy Non-Blocking Async Pipeline:
+                    // Return CNAME record directly without blocking worker threads via synchronous DirectQueryAsync
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answers);
+                }
+
+                // TXT rewrite
+                if (rewrite.TxtData is not null)
+                {
+                    if (question.Type == DnsResourceRecordType.TXT)
+                    {
+                        DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _blockingAnswerTtl, new DnsTXTRecordData(rewrite.TxtData))];
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
+                    }
+
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question);
+                }
+
+                // PTR rewrite
+                if (rewrite.PtrTarget is not null)
+                {
+                    if (question.Type == DnsResourceRecordType.PTR)
+                    {
+                        DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.PTR, question.Class, _blockingAnswerTtl, new DnsPTRRecordData(rewrite.PtrTarget))];
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
+                    }
+
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question);
+                }
+
+                // MX rewrite
+                if (rewrite.MxRecord.HasValue)
+                {
+                    if (question.Type == DnsResourceRecordType.MX)
+                    {
+                        DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.MX, question.Class, _blockingAnswerTtl, new DnsMXRecordData(rewrite.MxRecord.Value.preference, rewrite.MxRecord.Value.exchange))];
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
+                    }
+
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question);
+                }
+
+                if ((rewrite.Addresses is not null) && (rewrite.Addresses.Count > 0))
+                {
+                    List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(rewrite.Addresses.Count);
+
+                    foreach (IPAddress address in rewrite.Addresses)
+                    {
+                        switch (address.AddressFamily)
+                        {
+                            case AddressFamily.InterNetwork:
+                                if (question.Type == DnsResourceRecordType.A)
+                                    rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, _blockingAnswerTtl, new DnsARecordData(address)));
+                                break;
+
+                            case AddressFamily.InterNetworkV6:
+                                if (question.Type == DnsResourceRecordType.AAAA)
+                                    rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, _blockingAnswerTtl, new DnsAAAARecordData(address)));
+                                break;
+                        }
+                    }
+
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, rrList.Count > 0 ? rrList : null);
+                }
+
+                // Empty NOERROR response ($empty or unmatched question type for address/rcode)
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question);
+            }
 
             string GetBlockingReport()
             {
                 string blockingReport = "source=advanced-blocking-app; group=" + group.Name;
 
+                if (isCnameCloaked)
+                    blockingReport += "; cnameCloakingBlocked=" + blockedDomain;
+
                 if (blockedRegex is null)
                 {
-                    if (blockListUrl!.Uri is not null)
+                    if (blockListUrl?.Uri is not null)
                         blockingReport += "; blockListUrl=" + blockListUrl.Uri.AbsoluteUri + "; domain=" + blockedDomain;
                     else
                         blockingReport += "; domain=" + blockedDomain;
                 }
                 else
                 {
-                    if (blockListUrl!.Uri is not null)
+                    if (blockListUrl?.Uri is not null)
                         blockingReport += "; regexBlockListUrl=" + blockListUrl.Uri.AbsoluteUri + "; regex=" + blockedRegex;
                     else
                         blockingReport += "; regex=" + blockedRegex;
@@ -618,7 +995,7 @@ namespace AdvancedBlocking
 
                 DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _blockingAnswerTtl, new DnsTXTRecordData(blockingReport))];
 
-                return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer));
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
             else
             {
@@ -635,7 +1012,9 @@ namespace AdvancedBlocking
                 IReadOnlyList<DnsResourceRecord>? answer = null;
                 IReadOnlyList<DnsResourceRecord>? authority = null;
 
-                if (blockListUrl!.BlockAsNxDomain)
+                bool blockAsNxDomain = blockListUrl is not null ? blockListUrl.BlockAsNxDomain : group.BlockAsNxDomain;
+
+                if (blockAsNxDomain)
                 {
                     rcode = DnsResponseCode.NxDomain;
 
@@ -652,13 +1031,16 @@ namespace AdvancedBlocking
                 {
                     rcode = DnsResponseCode.NoError;
 
+                    IReadOnlyList<DnsARecordData> aRecords = blockListUrl is not null ? blockListUrl.ARecords : group.ARecords;
+                    IReadOnlyList<DnsAAAARecordData> aaaaRecords = blockListUrl is not null ? blockListUrl.AAAARecords : group.AAAARecords;
+
                     switch (question.Type)
                     {
                         case DnsResourceRecordType.A:
                             {
-                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(blockListUrl.ARecords.Count);
+                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aRecords.Count);
 
-                                foreach (DnsARecordData record in blockListUrl.ARecords)
+                                foreach (DnsARecordData record in aRecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, _blockingAnswerTtl, record));
 
                                 answer = rrList;
@@ -667,9 +1049,9 @@ namespace AdvancedBlocking
 
                         case DnsResourceRecordType.AAAA:
                             {
-                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(blockListUrl.AAAARecords.Count);
+                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aaaaRecords.Count);
 
-                                foreach (DnsAAAARecordData record in blockListUrl.AAAARecords)
+                                foreach (DnsAAAARecordData record in aaaaRecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, _blockingAnswerTtl, record));
 
                                 answer = rrList;
@@ -703,7 +1085,7 @@ namespace AdvancedBlocking
                     }
                 }
 
-                return Task.FromResult<DnsDatagram?>(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, !group.AllowTxtBlockingReport, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options));
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, !group.AllowTxtBlockingReport, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options);
             }
         }
 
@@ -872,6 +1254,7 @@ namespace AdvancedBlocking
             readonly UrlEntry[] _regexBlockListUrls;
 
             readonly UrlEntry[] _adblockListUrls;
+            readonly string[] _adblockRules;
 
             Dictionary<Uri, BlockList> _allowListZones = [];
             Dictionary<Uri, ListZoneEntry<BlockList>> _blockListZones = [];
@@ -880,6 +1263,8 @@ namespace AdvancedBlocking
             Dictionary<Uri, ListZoneEntry<RegexList>> _regexBlockListZones = [];
 
             Dictionary<Uri, ListZoneEntry<AdBlockList>> _adBlockListZones = [];
+            AdBlockList? _inMemoryAdBlockList;
+            HashSet<(bool isAllow, string key)> _groupCancelKeys = [];
 
             #endregion
 
@@ -938,6 +1323,22 @@ namespace AdvancedBlocking
                 _regexBlockListUrls = jsonGroup.ReadArray("regexBlockListUrls", GetUrlEntry) ?? [];
 
                 _adblockListUrls = jsonGroup.ReadArray("adblockListUrls", GetUrlEntry) ?? [];
+
+                if (jsonGroup.TryGetProperty("adblockRules", out JsonElement jsonAdblockRules) && (jsonAdblockRules.ValueKind == JsonValueKind.Array))
+                {
+                    List<string> rules = new List<string>();
+                    foreach (JsonElement elem in jsonAdblockRules.EnumerateArray())
+                    {
+                        string? ruleStr = elem.GetString();
+                        if (!string.IsNullOrWhiteSpace(ruleStr))
+                            rules.Add(ruleStr);
+                    }
+                    _adblockRules = rules.ToArray();
+                }
+                else
+                {
+                    _adblockRules = [];
+                }
             }
 
             #endregion
@@ -1014,7 +1415,16 @@ namespace AdvancedBlocking
                 }
 
                 {
-                    Dictionary<Uri, ListZoneEntry<AdBlockList>> adBlockListZones = new Dictionary<Uri, ListZoneEntry<AdBlockList>>(_adblockListUrls.Length);
+                    int capacity = _adblockListUrls.Length + (_adblockRules.Length > 0 ? 1 : 0);
+                    Dictionary<Uri, ListZoneEntry<AdBlockList>> adBlockListZones = new Dictionary<Uri, ListZoneEntry<AdBlockList>>(capacity);
+
+                    if (_adblockRules.Length > 0)
+                    {
+                        _inMemoryAdBlockList = new AdBlockList(_app._dnsServer!, _adblockRules, _name);
+                        _inMemoryAdBlockList.LoadListZone();
+                        Uri inMemoryUri = new Uri("app://advanced-blocking/inline-rules/" + Uri.EscapeDataString(_name));
+                        adBlockListZones.Add(inMemoryUri, new ListZoneEntry<AdBlockList>(new UrlEntry(null, this), _inMemoryAdBlockList));
+                    }
 
                     foreach (UrlEntry listUrl in _adblockListUrls)
                     {
@@ -1023,20 +1433,61 @@ namespace AdvancedBlocking
                     }
 
                     _adBlockListZones = adBlockListZones;
+
+                    // Collect group-wide badfilter cancellation keys
+                    HashSet<(bool isAllow, string key)> groupCancelKeys = new HashSet<(bool, string)>();
+                    foreach (KeyValuePair<Uri, ListZoneEntry<AdBlockList>> entry in _adBlockListZones)
+                    {
+                        foreach (AdBlockRule rule in entry.Value.List.RawRules)
+                        {
+                            if (rule.BadFilter && (rule.MatchKey is not null))
+                                groupCancelKeys.Add((rule.IsAllow, rule.MatchKey));
+                        }
+                    }
+
+                    _groupCancelKeys = groupCancelKeys;
                 }
             }
 
-            public bool IsZoneAllowed(string domain)
+            public bool IsZoneAllowed(string domain, DnsResourceRecordType qType, IPAddress? clientIp)
             {
                 domain = domain.ToLowerInvariant();
+
+                //adblock $important block rule takes precedence over any allow rule
+                if (App.IsImportantBlocked(_adBlockListZones, domain, qType, clientIp, out _, out _, out _, _groupCancelKeys))
+                    return false;
+
+                //adblock $important allow rule overrides normal block rules
+                if (App.IsImportantAllowed(_adBlockListZones, domain, qType, clientIp, out _, out _, _groupCancelKeys))
+                    return true;
 
                 //allowed, allow list zone, allowedRegex, regex allow list zone, adblock list zone
-                return IsZoneFound(_allowed, domain, out _) || IsZoneFound(_allowListZones, domain, out _, out _) || IsMatchFound(_allowedRegex, domain, out _) || IsMatchFound(_regexAllowListZones, domain, out _, out _) || App.IsZoneAllowed(_adBlockListZones, domain, out _, out _);
+                return IsZoneFound(_allowed, domain, out _) || IsZoneFound(_allowListZones, domain, out _, out _) || IsMatchFound(_allowedRegex, domain, out _) || IsMatchFound(_regexAllowListZones, domain, out _, out _) || App.IsZoneAllowed(_adBlockListZones, domain, qType, clientIp, out _, out _, _groupCancelKeys);
             }
 
-            public bool IsZoneBlocked(string domain, out string? blockedDomain, out string? blockedRegex, out UrlEntry? listUrl)
+            public bool IsZoneBlocked(string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? blockedDomain, out string? blockedRegex, out UrlEntry? listUrl, out AdBlockRule? matchedRule)
             {
                 domain = domain.ToLowerInvariant();
+
+                //adblock $important block rule - highest priority, overrides any allow rule
+                if (App.IsImportantBlocked(_adBlockListZones, domain, qType, clientIp, out string? foundZoneImp, out UrlEntry? blockListUrlImp, out AdBlockRule? matchedRuleImp, _groupCancelKeys))
+                {
+                    blockedDomain = foundZoneImp;
+                    blockedRegex = null;
+                    listUrl = blockListUrlImp;
+                    matchedRule = matchedRuleImp;
+                    return true;
+                }
+
+                //adblock $important allow rule overrides normal block rules
+                if (App.IsImportantAllowed(_adBlockListZones, domain, qType, clientIp, out _, out _, _groupCancelKeys))
+                {
+                    blockedDomain = null;
+                    blockedRegex = null;
+                    listUrl = null;
+                    matchedRule = null;
+                    return false;
+                }
 
                 //blocked
                 if (IsZoneFound(_blocked, domain, out string? foundZone1))
@@ -1045,6 +1496,7 @@ namespace AdvancedBlocking
                     blockedDomain = foundZone1;
                     blockedRegex = null;
                     listUrl = new UrlEntry(null, this);
+                    matchedRule = null;
                     return true;
                 }
 
@@ -1055,6 +1507,7 @@ namespace AdvancedBlocking
                     blockedDomain = foundZone2;
                     blockedRegex = null;
                     listUrl = blockListUrl1;
+                    matchedRule = null;
                     return true;
                 }
 
@@ -1065,6 +1518,7 @@ namespace AdvancedBlocking
                     blockedDomain = null;
                     blockedRegex = blockedPattern1;
                     listUrl = new UrlEntry(null, this);
+                    matchedRule = null;
                     return true;
                 }
 
@@ -1075,22 +1529,25 @@ namespace AdvancedBlocking
                     blockedDomain = null;
                     blockedRegex = blockedPattern2;
                     listUrl = blockListUrl2;
+                    matchedRule = null;
                     return true;
                 }
 
                 //adblock list zone
-                if (App.IsZoneBlocked(_adBlockListZones, domain, out string? foundZone3, out UrlEntry? blockListUrl3))
+                if (App.IsZoneBlocked(_adBlockListZones, domain, qType, clientIp, out string? foundZone3, out UrlEntry? blockListUrl3, out AdBlockRule? matchedRule3, _groupCancelKeys))
                 {
                     //found zone blocked
                     blockedDomain = foundZone3;
                     blockedRegex = null;
                     listUrl = blockListUrl3;
+                    matchedRule = matchedRule3;
                     return true;
                 }
 
                 blockedDomain = null;
                 blockedRegex = null;
                 listUrl = null;
+                matchedRule = null;
                 return false;
             }
 
@@ -1130,6 +1587,9 @@ namespace AdvancedBlocking
 
             public UrlEntry[] AdblockListUrls
             { get { return _adblockListUrls; } }
+
+            public string[] AdblockRules
+            { get { return _adblockRules; } }
 
             #endregion
         }
@@ -1255,9 +1715,9 @@ namespace AdvancedBlocking
 
             #endregion
 
-            #region protected
+            #region internal
 
-            protected abstract void LoadListZone();
+            internal abstract void LoadListZone();
 
             #endregion
 
@@ -1265,6 +1725,16 @@ namespace AdvancedBlocking
 
             public async Task LoadAsync()
             {
+                if (_listUrl.Scheme.Equals("app", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!_listZoneLoaded)
+                    {
+                        LoadListZone();
+                        _listZoneLoaded = true;
+                    }
+                    return;
+                }
+
                 if (_isLoading)
                     return;
 
@@ -1309,6 +1779,9 @@ namespace AdvancedBlocking
 
             public async Task<bool> UpdateAsync()
             {
+                if (_listUrl.Scheme.Equals("app", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
                 if (await DownloadListFileAsync())
                 {
                     LoadListZone();
@@ -1470,7 +1943,7 @@ namespace AdvancedBlocking
 
             #region protected
 
-            protected override void LoadListZone()
+            internal override void LoadListZone()
             {
                 Queue<string> listQueue = ReadListFile();
                 HashSet<string> listZone = new HashSet<string>(listQueue.Count);
@@ -1558,24 +2031,25 @@ namespace AdvancedBlocking
 
             #region protected
 
-            protected override void LoadListZone()
+            internal override void LoadListZone()
             {
                 Queue<string> regexPatterns = ReadRegexListFile();
-                List<Regex> regexListZone = new List<Regex>(regexPatterns.Count);
+                string[] patterns = regexPatterns.ToArray();
+                System.Collections.Concurrent.ConcurrentBag<Regex> compiledList = new();
 
-                while (regexPatterns.Count > 0)
+                Parallel.ForEach(patterns, pattern =>
                 {
                     try
                     {
-                        regexListZone.Add(new Regex(regexPatterns.Dequeue(), RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
+                        compiledList.Add(new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
                     }
                     catch (RegexParseException ex)
                     {
                         _dnsServer.WriteLog(ex);
                     }
-                }
+                });
 
-                _regexListZone = regexListZone;
+                _regexListZone = compiledList.ToArray();
             }
 
             #endregion
@@ -1590,12 +2064,402 @@ namespace AdvancedBlocking
             #endregion
         }
 
+        //parses and represents the "$dnsrewrite=" adblock modifier value. Supports IP addresses (bare or "A;IP"/"AAAA;IP"),
+        //response-code override keywords ("NOERROR", "NXDOMAIN", "REFUSED", "SERVFAIL"), CNAME aliases ("$dnsrewrite=cname.target"
+        //or "CNAME;target"), TXT records ("TXT;payload"), PTR records ("PTR;target"), MX records ("MX;pref;exchange"), and $empty.
+        class DnsRewriteAction
+        {
+            #region variables
+
+            bool _recognized;
+            DnsResponseCode? _responseCode;
+            List<IPAddress>? _addresses;
+            string? _cnameTarget;
+            string? _txtData;
+            string? _ptrTarget;
+            (ushort preference, string exchange)? _mxRecord;
+
+            #endregion
+
+            #region constructor
+
+            private DnsRewriteAction()
+            { }
+
+            #endregion
+
+            #region static
+
+            public static DnsRewriteAction Empty
+            {
+                get
+                {
+                    return new DnsRewriteAction()
+                    {
+                        _recognized = true,
+                        _responseCode = DnsResponseCode.NoError
+                    };
+                }
+            }
+
+            public static DnsRewriteAction Parse(string rawValue)
+            {
+                DnsRewriteAction action = new DnsRewriteAction();
+
+                string value = rawValue.Trim().Trim(';');
+                if (value.Length == 0)
+                    return action; //not recognized
+
+                int i = value.IndexOf(';');
+                string keyword = i < 0 ? value : value.Substring(0, i);
+                string? payload = i < 0 ? null : value.Substring(i + 1);
+
+                switch (keyword.ToUpperInvariant())
+                {
+                    case "$EMPTY":
+                    case "EMPTY":
+                    case "NOERROR":
+                        action._recognized = true;
+                        action._responseCode = DnsResponseCode.NoError;
+                        break;
+
+                    case "NXDOMAIN":
+                        action._recognized = true;
+                        action._responseCode = DnsResponseCode.NxDomain;
+                        break;
+
+                    case "REFUSED":
+                        action._recognized = true;
+                        action._responseCode = DnsResponseCode.Refused;
+                        break;
+
+                    case "SERVFAIL":
+                        action._recognized = true;
+                        action._responseCode = DnsResponseCode.ServerFailure;
+                        break;
+
+                    case "A":
+                    case "AAAA":
+                        if ((payload is not null) && IPAddress.TryParse(payload, out IPAddress? typedAddress))
+                        {
+                            action._recognized = true;
+                            action._addresses = new List<IPAddress>(1) { typedAddress };
+                        }
+                        break;
+
+                    case "CNAME":
+                        if ((payload is not null) && DnsClient.IsDomainNameValid(payload.Trim()))
+                        {
+                            action._recognized = true;
+                            action._cnameTarget = payload.Trim().Trim('.').ToLowerInvariant();
+                        }
+                        break;
+
+                    case "TXT":
+                        if (payload is not null)
+                        {
+                            action._recognized = true;
+                            action._txtData = payload;
+                        }
+                        break;
+
+                    case "PTR":
+                        if ((payload is not null) && DnsClient.IsDomainNameValid(payload.Trim()))
+                        {
+                            action._recognized = true;
+                            action._ptrTarget = payload.Trim().Trim('.').ToLowerInvariant();
+                        }
+                        break;
+
+                    case "MX":
+                        if (payload is not null)
+                        {
+                            string[] mxParts = payload.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                            if ((mxParts.Length >= 2) && ushort.TryParse(mxParts[0].Trim(), out ushort pref) && DnsClient.IsDomainNameValid(mxParts[1].Trim()))
+                            {
+                                action._recognized = true;
+                                action._mxRecord = (pref, mxParts[1].Trim().Trim('.').ToLowerInvariant());
+                            }
+                            else if ((mxParts.Length == 1) && DnsClient.IsDomainNameValid(mxParts[0].Trim()))
+                            {
+                                action._recognized = true;
+                                action._mxRecord = (10, mxParts[0].Trim().Trim('.').ToLowerInvariant());
+                            }
+                        }
+                        break;
+
+                    default:
+                        if ((i < 0) && IPAddress.TryParse(value, out IPAddress? bareAddress))
+                        {
+                            //bare IP address shorthand, e.g. $dnsrewrite=1.2.3.4 or $dnsrewrite=::1
+                            action._recognized = true;
+                            action._addresses = new List<IPAddress>(1) { bareAddress };
+                        }
+                        else if ((i < 0) && DnsClient.IsDomainNameValid(value))
+                        {
+                            //bare CNAME alias shorthand, e.g. $dnsrewrite=forcesafesearch.google.com
+                            action._recognized = true;
+                            action._cnameTarget = value.Trim().Trim('.').ToLowerInvariant();
+                        }
+                        break;
+                }
+
+                return action;
+            }
+
+            #endregion
+
+            #region properties
+
+            public bool Recognized
+            { get { return _recognized; } }
+
+            public DnsResponseCode? ResponseCode
+            { get { return _responseCode; } }
+
+            public List<IPAddress>? Addresses
+            { get { return _addresses; } }
+
+            public string? CnameTarget
+            { get { return _cnameTarget; } }
+
+            public string? TxtData
+            { get { return _txtData; } }
+
+            public string? PtrTarget
+            { get { return _ptrTarget; } }
+
+            public (ushort preference, string exchange)? MxRecord
+            { get { return _mxRecord; } }
+
+            public bool IsEmpty
+            { get { return _recognized && (_responseCode == DnsResponseCode.NoError) && (_addresses is null) && (_cnameTarget is null) && (_txtData is null) && (_ptrTarget is null) && (!_mxRecord.HasValue); } }
+
+            #endregion
+        }
+
+        //unified rule model produced by the adblock parser. Simple, unmodified "||domain^"/bare-domain/"@@" rules
+        //never reach this object at match time (they are folded into the fast HashSet zone-walk instead); this
+        //type only carries rules that need per-rule evaluation: wildcards, "/regex/" rules, exact-match rules, and rules carrying
+        //$important, $dnstype=, $denyallow=, $dnsrewrite= or $client= modifiers.
+        class AdBlockRule
+        {
+            #region variables
+
+            readonly bool _isAllow;
+            readonly bool _isRegex;
+            readonly bool _hasWildcard;
+            readonly bool _exactMatch;
+            readonly string? _domain;
+            readonly string? _baseDomain;
+            readonly Regex? _regex;
+            readonly bool _important;
+            readonly bool _badFilter;
+            readonly HashSet<DnsResourceRecordType>? _dnsTypes;
+            readonly HashSet<DnsResourceRecordType>? _excludedDnsTypes;
+            readonly HashSet<string>? _denyAllowDomains;
+            readonly DnsRewriteAction? _dnsRewrite;
+            readonly List<IPAddress>? _clientIps;
+            readonly List<NetworkAddress>? _clientNetworks;
+            readonly List<IPAddress>? _excludedClientIps;
+            readonly List<NetworkAddress>? _excludedClientNetworks;
+
+            #endregion
+
+            #region constructor
+
+            public AdBlockRule(bool isAllow, bool isRegex, bool hasWildcard, bool exactMatch, string? domain, Regex? regex, bool important, bool badFilter, HashSet<DnsResourceRecordType>? dnsTypes, HashSet<DnsResourceRecordType>? excludedDnsTypes, HashSet<string>? denyAllowDomains, DnsRewriteAction? dnsRewrite, List<IPAddress>? clientIps, List<NetworkAddress>? clientNetworks, List<IPAddress>? excludedClientIps, List<NetworkAddress>? excludedClientNetworks)
+            {
+                _isAllow = isAllow;
+                _isRegex = isRegex;
+                _hasWildcard = hasWildcard;
+                _exactMatch = exactMatch;
+                _domain = domain;
+                _regex = regex;
+                _important = important;
+                _badFilter = badFilter;
+                _dnsTypes = dnsTypes;
+                _excludedDnsTypes = excludedDnsTypes;
+                _denyAllowDomains = denyAllowDomains;
+                _dnsRewrite = dnsRewrite;
+                _clientIps = clientIps;
+                _clientNetworks = clientNetworks;
+                _excludedClientIps = excludedClientIps;
+                _excludedClientNetworks = excludedClientNetworks;
+
+                // Compute base domain for partitioned indexing
+                if (_domain is not null)
+                {
+                    if (_hasWildcard)
+                    {
+                        int lastStar = _domain.LastIndexOf('*');
+                        if ((lastStar >= 0) && (lastStar < _domain.Length - 1))
+                        {
+                            string suffix = _domain.Substring(lastStar + 1);
+                            if (suffix.StartsWith('.') && (suffix.Length > 1))
+                            {
+                                string candidate = suffix.Substring(1);
+                                if (DnsClient.IsDomainNameValid(candidate))
+                                    _baseDomain = candidate.ToLowerInvariant();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _baseDomain = _domain.ToLowerInvariant();
+                    }
+                }
+            }
+
+            #endregion
+
+            #region public
+
+            public bool IsMatch(string domain, DnsResourceRecordType qType, IPAddress? clientIp)
+            {
+                if ((_dnsTypes is not null) && !_dnsTypes.Contains(qType))
+                    return false;
+
+                if ((_excludedDnsTypes is not null) && _excludedDnsTypes.Contains(qType))
+                    return false;
+
+                if (clientIp is not null)
+                {
+                    if ((_excludedClientIps is not null) && _excludedClientIps.Contains(clientIp))
+                        return false;
+
+                    if (_excludedClientNetworks is not null)
+                    {
+                        foreach (NetworkAddress net in _excludedClientNetworks)
+                        {
+                            if (net.Contains(clientIp))
+                                return false;
+                        }
+                    }
+
+                    if ((_clientIps is not null) || (_clientNetworks is not null))
+                    {
+                        bool clientMatched = false;
+                        if ((_clientIps is not null) && _clientIps.Contains(clientIp))
+                        {
+                            clientMatched = true;
+                        }
+                        else if (_clientNetworks is not null)
+                        {
+                            foreach (NetworkAddress net in _clientNetworks)
+                            {
+                                if (net.Contains(clientIp))
+                                {
+                                    clientMatched = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!clientMatched)
+                            return false;
+                    }
+                }
+
+                bool isMatch;
+
+                if (_isRegex || _hasWildcard)
+                    isMatch = (_regex is not null) && _regex.IsMatch(domain);
+                else if (_exactMatch)
+                    isMatch = (_domain is not null) && domain.Equals(_domain, StringComparison.OrdinalIgnoreCase);
+                else
+                    isMatch = (_domain is not null) && (domain.Equals(_domain, StringComparison.OrdinalIgnoreCase) || domain.EndsWith("." + _domain, StringComparison.OrdinalIgnoreCase));
+
+                if (!isMatch)
+                    return false;
+
+                if ((_denyAllowDomains is not null) && IsZoneFound(_denyAllowDomains, domain, out _))
+                    return false; //excluded via $denyallow=
+
+                return true;
+            }
+
+            #endregion
+
+            #region properties
+
+            public bool IsAllow
+            { get { return _isAllow; } }
+
+            public bool IsRegex
+            { get { return _isRegex; } }
+
+            public bool HasWildcard
+            { get { return _hasWildcard; } }
+
+            public bool ExactMatch
+            { get { return _exactMatch; } }
+
+            public string? Domain
+            { get { return _domain; } }
+
+            public string? BaseDomain
+            { get { return _baseDomain; } }
+
+            public bool Important
+            { get { return _important; } }
+
+            public bool BadFilter
+            { get { return _badFilter; } }
+
+            public HashSet<DnsResourceRecordType>? DnsTypes
+            { get { return _dnsTypes; } }
+
+            public HashSet<DnsResourceRecordType>? ExcludedDnsTypes
+            { get { return _excludedDnsTypes; } }
+
+            public DnsRewriteAction? DnsRewrite
+            { get { return _dnsRewrite; } }
+
+            public List<IPAddress>? ClientIps
+            { get { return _clientIps; } }
+
+            public List<NetworkAddress>? ClientNetworks
+            { get { return _clientNetworks; } }
+
+            public List<IPAddress>? ExcludedClientIps
+            { get { return _excludedClientIps; } }
+
+            public List<NetworkAddress>? ExcludedClientNetworks
+            { get { return _excludedClientNetworks; } }
+
+            public HashSet<string>? DenyAllowDomains
+            { get { return _denyAllowDomains; } }
+
+            public string? MatchKey
+            { get { return _isRegex || _hasWildcard ? _regex?.ToString() : _domain; } }
+
+            #endregion
+        }
+
         class AdBlockList : ListBase
         {
             #region variables
 
+            static readonly Regex _wildcardDomainCharsetRegex = new Regex(@"^[a-zA-Z0-9*._-]+$", RegexOptions.Compiled);
+
+            readonly string[]? _inMemoryRules;
+            List<AdBlockRule> _rawRules = [];
+
             HashSet<string> _allowedListZone = [];
             HashSet<string> _blockedListZone = [];
+
+            Dictionary<string, List<AdBlockRule>> _specialAllowByDomain = new(StringComparer.OrdinalIgnoreCase);
+            List<AdBlockRule> _specialAllowUnconstrained = [];
+
+            Dictionary<string, List<AdBlockRule>> _specialBlockByDomain = new(StringComparer.OrdinalIgnoreCase);
+            List<AdBlockRule> _specialBlockUnconstrained = [];
+
+            Dictionary<string, List<AdBlockRule>> _importantAllowByDomain = new(StringComparer.OrdinalIgnoreCase);
+            List<AdBlockRule> _importantAllowUnconstrained = [];
+
+            Dictionary<string, List<AdBlockRule>> _importantBlockByDomain = new(StringComparer.OrdinalIgnoreCase);
+            List<AdBlockRule> _importantBlockUnconstrained = [];
 
             #endregion
 
@@ -1603,16 +2467,411 @@ namespace AdvancedBlocking
 
             public AdBlockList(IDnsServer dnsServer, Uri listUrl)
                 : base(dnsServer, listUrl, false, false, true)
-            { }
+            {
+                _inMemoryRules = null;
+            }
+
+            public AdBlockList(IDnsServer dnsServer, string[] inMemoryRules, string groupName)
+                : base(dnsServer, new Uri("app://advanced-blocking/inline-rules/" + Uri.EscapeDataString(groupName)), false, false, true)
+            {
+                _inMemoryRules = inMemoryRules;
+            }
 
             #endregion
 
             #region private
 
-            private void ReadAdblockListFile(out Queue<string> allowedDomains, out Queue<string> blockedDomains)
+            private static bool IsCosmeticRule(string line)
             {
-                allowedDomains = new Queue<string>();
-                blockedDomains = new Queue<string>();
+                //element-hiding / HTML-filtering rules are out of scope for DNS-only blocking
+                return line.Contains("##") || line.Contains("#@#") || line.Contains("#$#") || line.Contains("#%#") || line.Contains("#?#") || line.Contains("$$");
+            }
+
+            private static void ParseModifiers(string modifiersStr, out bool important, out bool badFilter, out HashSet<DnsResourceRecordType>? dnsTypes, out HashSet<DnsResourceRecordType>? excludedDnsTypes, out HashSet<string>? denyAllowDomains, out DnsRewriteAction? dnsRewrite, out List<IPAddress>? clientIps, out List<NetworkAddress>? clientNetworks, out List<IPAddress>? excludedClientIps, out List<NetworkAddress>? excludedClientNetworks)
+            {
+                important = false;
+                badFilter = false;
+                dnsTypes = null;
+                excludedDnsTypes = null;
+                denyAllowDomains = null;
+                dnsRewrite = null;
+                clientIps = null;
+                clientNetworks = null;
+                excludedClientIps = null;
+                excludedClientNetworks = null;
+
+                if (string.IsNullOrEmpty(modifiersStr))
+                    return;
+
+                foreach (string rawToken in modifiersStr.Split(','))
+                {
+                    string token = rawToken.Trim();
+                    if (token.Length == 0)
+                        continue;
+
+                    if (token.Equals("important", StringComparison.OrdinalIgnoreCase))
+                    {
+                        important = true;
+                    }
+                    else if (token.Equals("badfilter", StringComparison.OrdinalIgnoreCase))
+                    {
+                        badFilter = true;
+                    }
+                    else if (token.Equals("empty", StringComparison.OrdinalIgnoreCase))
+                    {
+                        dnsRewrite = DnsRewriteAction.Empty;
+                    }
+                    else if (token.StartsWith("dnstype=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        HashSet<DnsResourceRecordType> posTypes = new HashSet<DnsResourceRecordType>();
+                        HashSet<DnsResourceRecordType> negTypes = new HashSet<DnsResourceRecordType>();
+
+                        foreach (string typeToken in token.Substring(8).Split('|'))
+                        {
+                            string t = typeToken.Trim();
+                            bool isNegated = t.StartsWith('~');
+                            if (isNegated)
+                                t = t.Substring(1).Trim();
+
+                            if ((t.Length > 0) && Enum.TryParse(t, true, out DnsResourceRecordType parsedType))
+                            {
+                                if (isNegated)
+                                    negTypes.Add(parsedType);
+                                else
+                                    posTypes.Add(parsedType);
+                            }
+                        }
+
+                        if (posTypes.Count > 0)
+                            dnsTypes = posTypes;
+
+                        if (negTypes.Count > 0)
+                            excludedDnsTypes = negTypes;
+                    }
+                    else if (token.StartsWith("denyallow=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        HashSet<string> domains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                        foreach (string domainToken in token.Substring(10).Split('|'))
+                        {
+                            string d = domainToken.Trim().Trim('.').ToLowerInvariant();
+
+                            if ((d.Length > 0) && DnsClient.IsDomainNameValid(d))
+                                domains.Add(d);
+                        }
+
+                        if (domains.Count > 0)
+                            denyAllowDomains = domains;
+                    }
+                    else if (token.StartsWith("dnsrewrite=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        dnsRewrite = DnsRewriteAction.Parse(token.Substring(11));
+                    }
+                    else if (token.StartsWith("client=", StringComparison.OrdinalIgnoreCase) || token.StartsWith("~client=", StringComparison.OrdinalIgnoreCase) || token.StartsWith("~$client=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bool tokenNegated = token.StartsWith('~');
+                        int eqIdx = token.IndexOf('=');
+                        string clientVal = token.Substring(eqIdx + 1);
+
+                        foreach (string rawClientEntry in clientVal.Split('|'))
+                        {
+                            string entry = rawClientEntry.Trim();
+                            bool entryNegated = tokenNegated || entry.StartsWith('~');
+                            if (entry.StartsWith('~'))
+                                entry = entry.Substring(1).Trim();
+
+                            if (entry.Length == 0)
+                                continue;
+
+                            if (IPAddress.TryParse(entry, out IPAddress? parsedIp))
+                            {
+                                if (entryNegated)
+                                {
+                                    excludedClientIps ??= new List<IPAddress>(1);
+                                    excludedClientIps.Add(parsedIp);
+                                }
+                                else
+                                {
+                                    clientIps ??= new List<IPAddress>(1);
+                                    clientIps.Add(parsedIp);
+                                }
+                            }
+                            else if (NetworkAddress.TryParse(entry, out NetworkAddress? parsedNet))
+                            {
+                                if (entryNegated)
+                                {
+                                    excludedClientNetworks ??= new List<NetworkAddress>(1);
+                                    excludedClientNetworks.Add(parsedNet);
+                                }
+                                else
+                                {
+                                    clientNetworks ??= new List<NetworkAddress>(1);
+                                    clientNetworks.Add(parsedNet);
+                                }
+                            }
+                        }
+                    }
+
+                    //all other modifiers (third-party, domain=, doc, all, match-case, ctag=, app=,
+                    //popup, etc.) are intentionally ignored rather than invalidating the rule
+                }
+            }
+
+            private static string BuildWildcardRegexPattern(string domainPart)
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.Append("^(?:.*\\.)?");
+
+                string[] segments = domainPart.Split('*');
+                for (int i = 0; i < segments.Length; i++)
+                {
+                    if (i > 0)
+                        sb.Append(".*");
+
+                    sb.Append(Regex.Escape(segments[i]));
+                }
+
+                sb.Append('$');
+
+                return sb.ToString();
+            }
+
+            private static AdBlockRule? BuildDomainRule(bool isAllow, string domainPart, string? modifiersStr, bool exactMatch = false)
+            {
+                domainPart = domainPart.Trim();
+                if (domainPart.Length == 0)
+                    return null;
+
+                if (!_wildcardDomainCharsetRegex.IsMatch(domainPart))
+                    return null; //contains characters outside the hostname/wildcard charset (e.g. a URL path) - out of scope
+
+                ParseModifiers(modifiersStr ?? string.Empty, out bool important, out bool badFilter, out HashSet<DnsResourceRecordType>? dnsTypes, out HashSet<DnsResourceRecordType>? excludedDnsTypes, out HashSet<string>? denyAllowDomains, out DnsRewriteAction? dnsRewrite, out List<IPAddress>? clientIps, out List<NetworkAddress>? clientNetworks, out List<IPAddress>? excludedClientIps, out List<NetworkAddress>? excludedClientNetworks);
+
+                bool hasWildcard = domainPart.Contains('*');
+
+                if (hasWildcard && domainPart.StartsWith("*.") && (domainPart.IndexOf('*', 2) < 0) && !exactMatch)
+                {
+                    //a leading "*." with no other wildcard is functionally identical to a plain "||domain^"
+                    //rule (which already matches the domain and all of its subdomains) - normalize it so it
+                    //can use the cheap suffix-match path instead of compiling a regex
+                    domainPart = domainPart.Substring(2);
+                    hasWildcard = false;
+                }
+
+                Regex? regex = null;
+
+                if (hasWildcard)
+                {
+                    regex = new Regex(BuildWildcardRegexPattern(domainPart), RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+                }
+                else
+                {
+                    if (!DnsClient.IsDomainNameValid(domainPart))
+                        return null;
+                }
+
+                return new AdBlockRule(isAllow, false, hasWildcard, exactMatch, domainPart.ToLowerInvariant(), regex, important, badFilter, dnsTypes, excludedDnsTypes, denyAllowDomains, dnsRewrite, clientIps, clientNetworks, excludedClientIps, excludedClientNetworks);
+            }
+
+            private static AdBlockRule? BuildRegexRule(bool isAllow, string pattern, string? modifiersStr)
+            {
+                Regex regex;
+
+                try
+                {
+                    regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
+                }
+                catch (RegexParseException)
+                {
+                    return null;
+                }
+
+                ParseModifiers(modifiersStr ?? string.Empty, out bool important, out bool badFilter, out HashSet<DnsResourceRecordType>? dnsTypes, out HashSet<DnsResourceRecordType>? excludedDnsTypes, out HashSet<string>? denyAllowDomains, out DnsRewriteAction? dnsRewrite, out List<IPAddress>? clientIps, out List<NetworkAddress>? clientNetworks, out List<IPAddress>? excludedClientIps, out List<NetworkAddress>? excludedClientNetworks);
+
+                return new AdBlockRule(isAllow, true, false, false, null, regex, important, badFilter, dnsTypes, excludedDnsTypes, denyAllowDomains, dnsRewrite, clientIps, clientNetworks, excludedClientIps, excludedClientNetworks);
+            }
+
+            private static AdBlockRule? ParseLine(string line, out bool wasCosmetic, out bool wasUnsupported)
+            {
+                wasCosmetic = false;
+                wasUnsupported = false;
+
+                if (IsCosmeticRule(line))
+                {
+                    wasCosmetic = true;
+                    return null;
+                }
+
+                bool isAllow = line.StartsWith("@@");
+                string rule = isAllow ? line.Substring(2) : line;
+
+                if (rule.Length == 0)
+                    return null;
+
+                //"/regex/" or "/regex/$modifiers"
+                if (rule[0] == '/')
+                {
+                    int end = rule.LastIndexOf('/');
+                    if (end > 0)
+                    {
+                        string pattern = rule.Substring(1, end - 1);
+                        string remainder = rule.Substring(end + 1);
+                        string? modifiers = remainder.StartsWith('$') ? remainder.Substring(1) : null;
+
+                        AdBlockRule? regexRule = BuildRegexRule(isAllow, pattern, modifiers);
+                        if (regexRule is null)
+                            wasUnsupported = true;
+
+                        return regexRule;
+                    }
+
+                    wasUnsupported = true;
+                    return null;
+                }
+
+                //"||domain^[$modifiers]" or "||domain" (no anchor char)
+                if (rule.StartsWith("||"))
+                {
+                    string body = rule.Substring(2);
+                    int i = body.IndexOf('^');
+
+                    string domainPart;
+                    string? modifiers;
+
+                    if (i > -1)
+                    {
+                        domainPart = body.Substring(0, i);
+                        string options = body.Substring(i + 1);
+
+                        if (options.Length == 0)
+                        {
+                            modifiers = null;
+                        }
+                        else if (options[0] == '$')
+                        {
+                            modifiers = options.Substring(1);
+                        }
+                        else
+                        {
+                            //content after the domain anchor that isn't a $modifier list is a URL/path
+                            //qualifier (e.g. "||example.com^/path") - out of scope for DNS-only blocking
+                            wasUnsupported = true;
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        domainPart = body;
+                        modifiers = null;
+                    }
+
+                    if (domainPart.Contains('/') || domainPart.Contains('$'))
+                    {
+                        wasUnsupported = true;
+                        return null;
+                    }
+
+                    AdBlockRule? domainRule = BuildDomainRule(isAllow, domainPart, modifiers, exactMatch: false);
+                    if (domainRule is null)
+                        wasUnsupported = true;
+
+                    return domainRule;
+                }
+
+                //exact-domain matching ("|domain|" or "|domain^")
+                if (rule.StartsWith('|') && !rule.StartsWith("||"))
+                {
+                    string body = rule.Substring(1);
+
+                    //single-pipe URL-anchor rules ("|https://..." or "|http://...") are out of scope for DNS-only blocking
+                    if (body.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || body.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || body.Contains('/'))
+                    {
+                        wasUnsupported = true;
+                        return null;
+                    }
+
+                    int endAnchor = body.IndexOfAny(['|', '^']);
+                    string domainPart;
+                    string? modifiers = null;
+
+                    if (endAnchor > -1)
+                    {
+                        domainPart = body.Substring(0, endAnchor);
+                        string remainder = body.Substring(endAnchor + 1);
+
+                        if (remainder.StartsWith('$'))
+                        {
+                            modifiers = remainder.Substring(1);
+                        }
+                        else if (remainder.Length > 0 && remainder != "|")
+                        {
+                            wasUnsupported = true;
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        domainPart = body;
+                    }
+
+                    if (domainPart.Length == 0 || !DnsClient.IsDomainNameValid(domainPart))
+                    {
+                        wasUnsupported = true;
+                        return null;
+                    }
+
+                    AdBlockRule? exactRule = BuildDomainRule(isAllow, domainPart, modifiers, exactMatch: true);
+                    if (exactRule is null)
+                        wasUnsupported = true;
+
+                    return exactRule;
+                }
+
+                //bare-domain fallback (hosts-file-style single domain per line, with optional wildcard and
+                //optional trailing "$modifiers"), e.g. "example.com" or "*.ads.example.com$important"
+                {
+                    int dollar = rule.IndexOf('$');
+                    string domainPart = dollar < 0 ? rule : rule.Substring(0, dollar);
+                    string? modifiers = dollar < 0 ? null : rule.Substring(dollar + 1);
+
+                    if (domainPart.Contains('/'))
+                    {
+                        wasUnsupported = true;
+                        return null;
+                    }
+
+                    AdBlockRule? domainRule = BuildDomainRule(isAllow, domainPart, modifiers, exactMatch: false);
+                    if (domainRule is null)
+                        wasUnsupported = true;
+
+                    return domainRule;
+                }
+            }
+
+            private List<AdBlockRule> ReadAdblockRulesFromMemory(string[] lines)
+            {
+                List<AdBlockRule> rules = new List<AdBlockRule>(lines.Length);
+                char[] trimSeparator = [' ', '\t'];
+
+                foreach (string rawLine in lines)
+                {
+                    string line = rawLine.TrimStart(trimSeparator).TrimEnd();
+                    if (line.Length == 0 || line.StartsWith('!'))
+                        continue;
+
+                    AdBlockRule? parsedRule = ParseLine(line, out _, out _);
+                    if (parsedRule is not null)
+                        rules.Add(parsedRule);
+                }
+
+                return rules;
+            }
+
+            private List<AdBlockRule> ReadAdblockListFile()
+            {
+                List<AdBlockRule> rules = new List<AdBlockRule>();
+                int cosmeticSkipped = 0;
+                int unsupportedSkipped = 0;
 
                 try
                 {
@@ -1620,7 +2879,6 @@ namespace AdvancedBlocking
 
                     using (FileStream fS = new FileStream(_listFilePath, FileMode.Open, FileAccess.Read))
                     {
-                        //parse hosts file and populate block zone
                         StreamReader sR = new StreamReader(fS, true);
                         char[] trimSeperator = new char[] { ' ', '\t' };
                         string? line;
@@ -1631,7 +2889,7 @@ namespace AdvancedBlocking
                             if (line is null)
                                 break; //eof
 
-                            line = line.TrimStart(trimSeperator);
+                            line = line.TrimStart(trimSeperator).TrimEnd();
 
                             if (line.Length == 0)
                                 continue; //skip empty line
@@ -1639,52 +2897,55 @@ namespace AdvancedBlocking
                             if (line.StartsWith('!'))
                                 continue; //skip comment line
 
-                            if (line.StartsWith("||", StringComparison.Ordinal))
-                            {
-                                int i = line.IndexOf('^');
-                                if (i > -1)
-                                {
-                                    string domain = line.Substring(2, i - 2);
-                                    string options = line.Substring(i + 1);
+                            AdBlockRule? parsedRule = ParseLine(line, out bool wasCosmetic, out bool wasUnsupported);
 
-                                    if (((options.Length == 0) || (options.StartsWith('$') && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
-                                        blockedDomains.Enqueue(domain);
-                                }
-                                else
-                                {
-                                    string domain = line.Substring(2);
+                            if (wasCosmetic)
+                                cosmeticSkipped++;
+                            else if (wasUnsupported)
+                                unsupportedSkipped++;
 
-                                    if (DnsClient.IsDomainNameValid(domain))
-                                        blockedDomains.Enqueue(domain);
-                                }
-                            }
-                            else if (line.StartsWith("@@||", StringComparison.Ordinal))
-                            {
-                                int i = line.IndexOf('^');
-                                if (i > -1)
-                                {
-                                    string domain = line.Substring(4, i - 4);
-                                    string options = line.Substring(i + 1);
-
-                                    if (((options.Length == 0) || (options.StartsWith('$') && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
-                                        allowedDomains.Enqueue(domain);
-                                }
-                                else
-                                {
-                                    string domain = line.Substring(4);
-
-                                    if (DnsClient.IsDomainNameValid(domain))
-                                        allowedDomains.Enqueue(domain);
-                                }
-                            }
+                            if (parsedRule is not null)
+                                rules.Add(parsedRule);
                         }
                     }
 
-                    _dnsServer.WriteLog("Advanced Blocking app read adblock list file (" + (allowedDomains.Count + blockedDomains.Count) + " domains) from: " + _listUrl.AbsoluteUri);
+                    _dnsServer.WriteLog("Advanced Blocking app read adblock list file (" + rules.Count + " rules; skipped " + cosmeticSkipped + " cosmetic, " + unsupportedSkipped + " unsupported) from: " + _listUrl.AbsoluteUri);
                 }
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog("Advanced Blocking app failed to read adblock list from: " + _listUrl.AbsoluteUri, ex);
+                }
+
+                return rules;
+            }
+
+            private static void AddPartitionedRule(Dictionary<string, List<AdBlockRule>> dict, List<AdBlockRule> unconstrained, AdBlockRule rule)
+            {
+                if (rule.BaseDomain is not null)
+                {
+                    if (!dict.TryGetValue(rule.BaseDomain, out List<AdBlockRule>? list))
+                    {
+                        list = new List<AdBlockRule>(1);
+                        dict.Add(rule.BaseDomain, list);
+                    }
+                    list.Add(rule);
+                }
+                else
+                {
+                    unconstrained.Add(rule);
+                }
+            }
+
+            private static IEnumerable<string> GetDomainSuffixes(string domain)
+            {
+                yield return domain;
+
+                int dotIndex = 0;
+                while ((dotIndex = domain.IndexOf('.', dotIndex)) >= 0)
+                {
+                    dotIndex++;
+                    if (dotIndex < domain.Length)
+                        yield return domain.Substring(dotIndex);
                 }
             }
 
@@ -1692,35 +2953,269 @@ namespace AdvancedBlocking
 
             #region protected
 
-            protected override void LoadListZone()
+            internal override void LoadListZone()
             {
-                ReadAdblockListFile(out Queue<string> allowedDomains, out Queue<string> blockedDomains);
+                List<AdBlockRule> allRules = _inMemoryRules is not null ? ReadAdblockRulesFromMemory(_inMemoryRules) : ReadAdblockListFile();
+                _rawRules = allRules;
 
-                HashSet<string> allowedListZone = new HashSet<string>(allowedDomains.Count);
-                HashSet<string> blockedListZone = new HashSet<string>(blockedDomains.Count);
+                // $badfilter cancellation: identify and track rule signatures matching identical allow/block
+                // polarity to cancel matching filter entries within this list
+                HashSet<(bool isAllow, string key)> cancelKeys = new HashSet<(bool, string)>();
 
-                while (allowedDomains.Count > 0)
-                    allowedListZone.Add(allowedDomains.Dequeue());
+                foreach (AdBlockRule rule in allRules)
+                {
+                    if (rule.BadFilter && (rule.MatchKey is not null))
+                        cancelKeys.Add((rule.IsAllow, rule.MatchKey!));
+                }
 
-                while (blockedDomains.Count > 0)
-                    blockedListZone.Add(blockedDomains.Dequeue());
+                HashSet<string> allowedListZone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                HashSet<string> blockedListZone = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                Dictionary<string, List<AdBlockRule>> specialAllowByDomain = new(StringComparer.OrdinalIgnoreCase);
+                List<AdBlockRule> specialAllowUnconstrained = [];
+
+                Dictionary<string, List<AdBlockRule>> specialBlockByDomain = new(StringComparer.OrdinalIgnoreCase);
+                List<AdBlockRule> specialBlockUnconstrained = [];
+
+                Dictionary<string, List<AdBlockRule>> importantAllowByDomain = new(StringComparer.OrdinalIgnoreCase);
+                List<AdBlockRule> importantAllowUnconstrained = [];
+
+                Dictionary<string, List<AdBlockRule>> importantBlockByDomain = new(StringComparer.OrdinalIgnoreCase);
+                List<AdBlockRule> importantBlockUnconstrained = [];
+
+                foreach (AdBlockRule rule in allRules)
+                {
+                    if (rule.BadFilter)
+                        continue; //$badfilter rules only cancel other rules; they never match a query themselves
+
+                    if ((rule.MatchKey is not null) && cancelKeys.Contains((rule.IsAllow, rule.MatchKey!)))
+                        continue; //cancelled by a $badfilter rule
+
+                    if (rule.Important)
+                    {
+                        if (rule.IsAllow)
+                            AddPartitionedRule(importantAllowByDomain, importantAllowUnconstrained, rule);
+                        else
+                            AddPartitionedRule(importantBlockByDomain, importantBlockUnconstrained, rule);
+
+                        continue;
+                    }
+
+                    bool isSimple = !rule.IsRegex && !rule.HasWildcard && !rule.ExactMatch && (rule.DnsTypes is null) && (rule.ExcludedDnsTypes is null) && (rule.DnsRewrite is null) && (rule.DenyAllowDomains is null) && (rule.ClientIps is null) && (rule.ClientNetworks is null) && (rule.ExcludedClientIps is null) && (rule.ExcludedClientNetworks is null) && (rule.Domain is not null);
+
+                    if (isSimple)
+                    {
+                        if (rule.IsAllow)
+                            allowedListZone.Add(rule.Domain!);
+                        else
+                            blockedListZone.Add(rule.Domain!);
+                    }
+                    else
+                    {
+                        if (rule.IsAllow)
+                            AddPartitionedRule(specialAllowByDomain, specialAllowUnconstrained, rule);
+                        else
+                            AddPartitionedRule(specialBlockByDomain, specialBlockUnconstrained, rule);
+                    }
+                }
 
                 _allowedListZone = allowedListZone;
                 _blockedListZone = blockedListZone;
+
+                _specialAllowByDomain = specialAllowByDomain;
+                _specialAllowUnconstrained = specialAllowUnconstrained;
+
+                _specialBlockByDomain = specialBlockByDomain;
+                _specialBlockUnconstrained = specialBlockUnconstrained;
+
+                _importantAllowByDomain = importantAllowByDomain;
+                _importantAllowUnconstrained = importantAllowUnconstrained;
+
+                _importantBlockByDomain = importantBlockByDomain;
+                _importantBlockUnconstrained = importantBlockUnconstrained;
             }
 
             #endregion
 
             #region public
 
-            public bool IsZoneAllowed(string domain, out string? foundZone)
+            public IReadOnlyList<AdBlockRule> RawRules
+            { get { return _rawRules; } }
+
+            public bool IsZoneAllowed(string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? foundZone, out AdBlockRule? matchedRule, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
             {
-                return IsZoneFound(_allowedListZone, domain, out foundZone);
+                domain = domain.ToLowerInvariant();
+
+                if (IsZoneFound(_allowedListZone, domain, out foundZone))
+                {
+                    if ((foundZone is not null) && (groupCancelKeys is null || !groupCancelKeys.Contains((true, foundZone))))
+                    {
+                        matchedRule = null;
+                        return true;
+                    }
+                }
+
+                foreach (AdBlockRule rule in _specialAllowUnconstrained)
+                {
+                    if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((true, rule.MatchKey)))
+                        continue;
+
+                    if (rule.IsMatch(domain, qType, clientIp))
+                    {
+                        foundZone = rule.Domain ?? domain;
+                        matchedRule = rule;
+                        return true;
+                    }
+                }
+
+                foreach (string suffix in GetDomainSuffixes(domain))
+                {
+                    if (_specialAllowByDomain.TryGetValue(suffix, out List<AdBlockRule>? rules))
+                    {
+                        foreach (AdBlockRule rule in rules)
+                        {
+                            if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((true, rule.MatchKey)))
+                                continue;
+
+                            if (rule.IsMatch(domain, qType, clientIp))
+                            {
+                                foundZone = rule.Domain ?? domain;
+                                matchedRule = rule;
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                foundZone = null;
+                matchedRule = null;
+                return false;
             }
 
-            public bool IsZoneBlocked(string domain, out string? foundZone)
+            public bool IsZoneBlocked(string domain, DnsResourceRecordType qType, IPAddress? clientIp, out string? foundZone, out AdBlockRule? matchedRule, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
             {
-                return IsZoneFound(_blockedListZone, domain, out foundZone);
+                domain = domain.ToLowerInvariant();
+
+                if (IsZoneFound(_blockedListZone, domain, out foundZone))
+                {
+                    if ((foundZone is not null) && (groupCancelKeys is null || !groupCancelKeys.Contains((false, foundZone))))
+                    {
+                        matchedRule = null;
+                        return true;
+                    }
+                }
+
+                foreach (AdBlockRule rule in _specialBlockUnconstrained)
+                {
+                    if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((false, rule.MatchKey)))
+                        continue;
+
+                    if (rule.IsMatch(domain, qType, clientIp))
+                    {
+                        foundZone = rule.Domain ?? domain;
+                        matchedRule = rule;
+                        return true;
+                    }
+                }
+
+                foreach (string suffix in GetDomainSuffixes(domain))
+                {
+                    if (_specialBlockByDomain.TryGetValue(suffix, out List<AdBlockRule>? rules))
+                    {
+                        foreach (AdBlockRule rule in rules)
+                        {
+                            if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((false, rule.MatchKey)))
+                                continue;
+
+                            if (rule.IsMatch(domain, qType, clientIp))
+                            {
+                                foundZone = rule.Domain ?? domain;
+                                matchedRule = rule;
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                foundZone = null;
+                matchedRule = null;
+                return false;
+            }
+
+            public bool IsImportantAllowed(string domain, DnsResourceRecordType qType, IPAddress? clientIp, out AdBlockRule? matchedRule, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
+            {
+                domain = domain.ToLowerInvariant();
+
+                foreach (AdBlockRule rule in _importantAllowUnconstrained)
+                {
+                    if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((true, rule.MatchKey)))
+                        continue;
+
+                    if (rule.IsMatch(domain, qType, clientIp))
+                    {
+                        matchedRule = rule;
+                        return true;
+                    }
+                }
+
+                foreach (string suffix in GetDomainSuffixes(domain))
+                {
+                    if (_importantAllowByDomain.TryGetValue(suffix, out List<AdBlockRule>? rules))
+                    {
+                        foreach (AdBlockRule rule in rules)
+                        {
+                            if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((true, rule.MatchKey)))
+                                continue;
+
+                            if (rule.IsMatch(domain, qType, clientIp))
+                            {
+                                matchedRule = rule;
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                matchedRule = null;
+                return false;
+            }
+
+            public bool IsImportantBlocked(string domain, DnsResourceRecordType qType, IPAddress? clientIp, out AdBlockRule? matchedRule, HashSet<(bool isAllow, string key)>? groupCancelKeys = null)
+            {
+                domain = domain.ToLowerInvariant();
+
+                foreach (AdBlockRule rule in _importantBlockUnconstrained)
+                {
+                    if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((false, rule.MatchKey)))
+                        continue;
+
+                    if (rule.IsMatch(domain, qType, clientIp))
+                    {
+                        matchedRule = rule;
+                        return true;
+                    }
+                }
+
+                foreach (string suffix in GetDomainSuffixes(domain))
+                {
+                    if (_importantBlockByDomain.TryGetValue(suffix, out List<AdBlockRule>? rules))
+                    {
+                        foreach (AdBlockRule rule in rules)
+                        {
+                            if ((rule.MatchKey is not null) && (groupCancelKeys is not null) && groupCancelKeys.Contains((false, rule.MatchKey)))
+                                continue;
+
+                            if (rule.IsMatch(domain, qType, clientIp))
+                            {
+                                matchedRule = rule;
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                matchedRule = null;
+                return false;
             }
 
             #endregion
