@@ -16,6 +16,10 @@
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 
+	<PropertyGroup>
+		<ServerGarbageCollection>true</ServerGarbageCollection>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
