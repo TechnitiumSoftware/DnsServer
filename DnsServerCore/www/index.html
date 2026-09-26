@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <!--
 Technitium DNS Server
@@ -39,6 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     <link href="css/main.css" rel="stylesheet" />
     <link href="css/dark-mode.css" rel="stylesheet" />
+    <link href="css/dark-grey-mode.css" rel="stylesheet" />
     <link href="css/amber-mode.css" rel="stylesheet" />
 
     <script src="js/common.js"></script>
@@ -53,83 +54,304 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="js/logs.js"></script>
 </head>
 <body>
-    <div id="header">
-        <div id="mnuUser" class="menu dropdown" style="display: none;">
-            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" style="text-decoration: none;">
-                <span class="menu-title">
-                    <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
-                    <span id="mnuUserDisplayName"></span>
-                    <span class="caret"></span>
+    <div id="header" style="display: none;">
+        <div class="header-actions-flex">
+            <div id="btnQuickLayoutToggleLegacy" class="menu layout-toggle" title="Click to Switch Layout (Modern / Classic)" onclick="toggleLayout();" style="cursor: pointer;">
+                <span class="menu-title" style="padding: 4px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; font-size: 13px; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.15);">
+                    <i class="fa fa-columns" aria-hidden="true"></i>
+                    <span id="lblQuickLayoutTextLegacy">Classic</span>
                 </span>
-            </a>
-            <ul class="dropdown-menu">
-                <li><a href="#" onclick="showMyProfileModal(); return false;">My Profile</a></li>
-                <li><a id="mnuUserChangePassword" href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
-                <li><a id="mnuUserConfigure2FA" href="#" onclick="showConfigure2FAModal(); return false;">Configure 2FA</a></li>
-                <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;">Create API Token</a></li>
-                <li role="separator" class="divider"></li>
-                <li><a href="#" onclick="showChangeThemeModal(); return false;">Change Theme</a></li>
-                <li><a id="mnuDisableCheckForUpdateNotification" href="#" onclick="disableUpdateNotification(); return false;" style="display: none;">Disable Update Notification</a></li>
-                <li><a id="mnuEnableCheckForUpdateNotification" href="#" onclick="enableUpdateNotification(); return false;" style="display: none;">Enable Update Notification</a></li>
-                <li><a href="#" onclick="checkForUpdate(true); return false;">Check For Update</a></li>
-                <li role="separator" class="divider"></li>
-                <li><a href="#" onclick="logout(); return false;">Logout</a></li>
-            </ul>
+            </div>
+            <div id="btnQuickThemeToggleLegacy" class="menu theme-toggle" title="Click to Cycle Theme" onclick="toggleQuickTheme();" style="cursor: pointer;">
+                <span class="menu-title" style="padding: 4px 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; font-size: 13px; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.15);">
+                    <i id="iconQuickThemeLegacy" class="fa fa-paint-brush" aria-hidden="true"></i>
+                    <span id="lblQuickThemeTextLegacy">Theme</span>
+                </span>
+            </div>
+            <div id="mnuUser" class="menu dropdown" style="display: none;">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" style="text-decoration: none;">
+                    <span class="menu-title">
+                        <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                        <span id="mnuUserDisplayName"></span>
+                        <span class="caret"></span>
+                    </span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-right" id="mnuUserDropdownList">
+                    <li><a href="#" onclick="showMyProfileModal(); return false;"><i class="fa fa-user fa-fw"></i> My Profile</a></li>
+                    <li><a id="mnuUserChangePassword" href="#" onclick="showChangePasswordModal(); return false;"><i class="fa fa-key fa-fw"></i> Change Password</a></li>
+                    <li><a id="mnuUserConfigure2FA" href="#" onclick="showConfigure2FAModal(); return false;"><i class="fa fa-shield fa-fw"></i> Configure 2FA</a></li>
+                    <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;"><i class="fa fa-code fa-fw"></i> Create API Token</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#" onclick="showChangeThemeModal(); return false;"><i class="fa fa-paint-brush fa-fw"></i> Display Preferences</a></li>
+                    <li><a href="#" onclick="toggleLayout(); return false;"><i class="fa fa-columns fa-fw"></i> Switch Layout (<span id="lblMnuLayoutText">Modern</span>)</a></li>
+                    <li><a id="mnuDisableCheckForUpdateNotification" href="#" onclick="disableUpdateNotification(); return false;" style="display: none;"><i class="fa fa-bell-slash fa-fw"></i> Disable Update Notification</a></li>
+                    <li><a id="mnuEnableCheckForUpdateNotification" href="#" onclick="enableUpdateNotification(); return false;" style="display: none;"><i class="fa fa-bell fa-fw"></i> Enable Update Notification</a></li>
+                    <li><a href="#" onclick="checkForUpdate(true); return false;"><i class="fa fa-refresh fa-fw"></i> Check For Update</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#" onclick="logout(); return false;"><i class="fa fa-sign-out fa-fw"></i> Logout</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <div id="content">
-        <div class="container">
-            <div class="AlertPlaceholder"></div>
-
-            <div id="pageLogin" class="pageLogin">
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                        <h3 class="panel-title">DNS Server</h3>
+    <!-- Modern Glassmorphic Login Experience -->
+    <div id="pageLogin" class="pageLogin">
+        <div class="login-card-wrapper">
+            <div class="login-top-meta">
+                <span class="login-badge"><i class="fa fa-shield"></i> Secure DNS Core</span>
+                <div style="display: flex; gap: 8px;">
+                    <div class="login-layout-pill" onclick="toggleLayout();" title="Click to Cycle Layout (Modern / Classic)">
+                        <i class="fa fa-columns"></i> <span id="lblLoginLayoutPill">Modern</span>
                     </div>
-                    <div class="panel-body">
-                        <form class="form-horizontal">
-                            <div class="form-group">
-                                <label for="txtUser" class="col-sm-3 control-label">Username</label>
-                                <div class="col-sm-8">
-                                    <input type="text" class="form-control" id="txtUser" placeholder="username">
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="txtPass" class="col-sm-3 control-label">Password</label>
-                                <div class="col-sm-8">
-                                    <input type="password" class="form-control" id="txtPass" placeholder="password">
-                                </div>
-                            </div>
-
-                            <div class="form-group" id="div2FAOTP">
-                                <label for="txt2FATOTP" class="col-sm-3 control-label">Enter OTP</label>
-                                <div class="col-sm-8">
-                                    <input id="txt2FATOTP" type="text" class="form-control" style="width: 100px;" placeholder="OTP" maxlength="6" autocomplete="off">
-                                    <div style="padding-top: 5px;">Enter the 6-digit code you see in your authenticator app.</div>
-                                </div>
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 0px;">
-                                <div class="col-sm-offset-3 col-sm-4">
-                                    <button id="btnLogin" type="submit" class="btn btn-primary" style="width: 100px;" data-loading-text="Working..." onclick="login(); return false;">Login</button>
-                                </div>
-                                <div class="col-sm-4" style="padding: 6px; text-align: right;">
-                                    <a href="#" data-toggle="modal" data-target="#modalForgotPassword">Forgot Password?</a>
-                                </div>
-                            </div>
-
-                            <div id="divLoginSso" class="form-group" style="margin-bottom: 0px; display:none;">
-                                <div class="col-sm-offset-3 col-sm-4">
-                                    <div style="margin-top: 10px; margin-bottom: 6px;">or login with</div>
-                                    <button type="button" class="btn btn-default" onclick="window.location='sso/login';"><img width="16" height="16" src="img/oidc.png" /> OpenID Connect</button>
-                                </div>
-                            </div>
-                        </form>
+                    <div class="login-theme-pill" onclick="toggleQuickTheme();" title="Click to Cycle Theme (Dark Blue, Dark Grey, Light)">
+                        <i class="fa fa-paint-brush"></i> <span id="lblLoginThemePill">Theme</span>
                     </div>
                 </div>
             </div>
+
+            <div class="login-brand-header">
+                <div class="login-brand-icon">
+                    <img src="img/logo25x25.png" alt="Technitium Logo" />
+                </div>
+                <h2 class="login-title">Technitium DNS</h2>
+                <p class="login-subtitle">Enterprise DNS Server Administration Portal</p>
+            </div>
+
+            <div class="AlertPlaceholder login-alerts"></div>
+
+            <form class="login-form" onsubmit="login(); return false;">
+                <div class="login-field-wrap">
+                    <label for="txtUser" class="login-label">Username</label>
+                    <div class="login-input-box">
+                        <i class="fa fa-user login-field-icon"></i>
+                        <input type="text" class="form-control login-input" id="txtUser" placeholder="Enter username" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="login-field-wrap">
+                    <div class="login-label-row">
+                        <label for="txtPass" class="login-label">Password</label>
+                        <a href="#" class="login-forgot-link" data-toggle="modal" data-target="#modalForgotPassword">Forgot password?</a>
+                    </div>
+                    <div class="login-input-box">
+                        <i class="fa fa-lock login-field-icon"></i>
+                        <input type="password" class="form-control login-input" id="txtPass" placeholder="Enter password" autocomplete="current-password">
+                    </div>
+                </div>
+
+                <div class="login-field-wrap" id="div2FAOTP" style="display: none;">
+                    <label for="txt2FATOTP" class="login-label">Two-Factor Authentication Code</label>
+                    <div class="login-input-box">
+                        <i class="fa fa-key login-field-icon"></i>
+                        <input id="txt2FATOTP" type="text" class="form-control login-input" placeholder="6-digit OTP code" maxlength="6" autocomplete="one-time-code">
+                    </div>
+                    <div class="login-field-hint">Enter the 6-digit TOTP code shown in your authenticator app.</div>
+                </div>
+
+                <button id="btnLogin" type="submit" class="btn login-submit-btn" data-loading-text="Working..." onclick="login(); return false;">
+                    <span>Sign In</span> <i class="fa fa-arrow-right"></i>
+                </button>
+
+                <div id="divLoginSso" class="login-sso-wrap" style="display: none;">
+                    <div class="login-divider"><span>or sign in with</span></div>
+                    <button type="button" class="btn login-sso-btn" onclick="window.location='sso/login';">
+                        <img width="18" height="18" src="img/oidc.png" alt="OIDC" /> <span>OpenID Connect (SSO)</span>
+                    </button>
+                </div>
+            </form>
+
+            <div class="login-footer-row">
+                <i class="fa fa-lock" style="color: #10b981;"></i> <span>Protected by End-to-End Enterprise Encryption</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Sentinel App Shell -->
+    <div id="appShell">
+        <!-- Collapsible Modern Sidebar -->
+        <div id="appSidebar" style="display: none;">
+            <div>
+                <div class="sidebar-brand">
+                    <a href="#mainPanelTabPaneDashboard" class="brand-wrapper" onclick="switchAppTab('Dashboard'); return false;">
+                        <div class="brand-logo-icon">
+                            <i class="fa fa-cube"></i>
+                        </div>
+                        <span class="brand-text">Technitium</span>
+                    </a>
+                    <button type="button" class="sidebar-collapse-btn" id="btnToggleSidebar" onclick="toggleSidebar();" title="Collapse / Expand Sidebar">
+                        <i id="iconSidebarCollapse" class="fa fa-chevron-left"></i>
+                    </button>
+                </div>
+
+                <div class="sidebar-nav-container">
+                    <ul class="sidebar-nav-list">
+                        <li class="sidebar-nav-item active" id="sidebarNavItemDashboard">
+                            <a href="#mainPanelTabPaneDashboard" onclick="switchAppTab('Dashboard'); return false;" title="Dashboard">
+                                <i class="fa fa-th-large nav-icon"></i>
+                                <span class="nav-label">Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemZones">
+                            <a href="#mainPanelTabPaneZones" onclick="switchAppTab('Zones'); return false;" title="Zones">
+                                <i class="fa fa-globe nav-icon"></i>
+                                <span class="nav-label">Zones</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemDhcp">
+                            <a href="#mainPanelTabPaneDhcp" onclick="switchAppTab('Dhcp'); return false;" title="DHCP">
+                                <i class="fa fa-sitemap nav-icon"></i>
+                                <span class="nav-label">DHCP</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemApps">
+                            <a href="#mainPanelTabPaneApps" onclick="switchAppTab('Apps'); return false;" title="Apps">
+                                <i class="fa fa-cubes nav-icon"></i>
+                                <span class="nav-label">Apps</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemLogs">
+                            <a href="#mainPanelTabPaneLogs" onclick="switchAppTab('Logs'); return false;" title="Logs">
+                                <i class="fa fa-file-text-o nav-icon"></i>
+                                <span class="nav-label">Logs</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemDnsClient">
+                            <a href="#mainPanelTabPaneDnsClient" onclick="switchAppTab('DnsClient'); return false;" title="DNS Client">
+                                <i class="fa fa-terminal nav-icon"></i>
+                                <span class="nav-label">DNS Client</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemCachedZones">
+                            <a href="#mainPanelTabPaneCachedZones" onclick="switchAppTab('CachedZones'); return false;" title="Cache">
+                                <i class="fa fa-bolt nav-icon"></i>
+                                <span class="nav-label">Cache</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemAllowedZones">
+                            <a href="#mainPanelTabPaneAllowedZones" onclick="switchAppTab('AllowedZones'); return false;" title="Allowed">
+                                <i class="fa fa-shield nav-icon"></i>
+                                <span class="nav-label">Allowed</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemBlockedZones">
+                            <a href="#mainPanelTabPaneBlockedZones" onclick="switchAppTab('BlockedZones'); return false;" title="Blocked">
+                                <i class="fa fa-ban nav-icon"></i>
+                                <span class="nav-label">Blocked</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemSettings">
+                            <a href="#mainPanelTabPaneSettings" onclick="switchAppTab('Settings'); return false;" title="Settings">
+                                <i class="fa fa-cog nav-icon"></i>
+                                <span class="nav-label">Settings</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemAdmin">
+                            <a href="#mainPanelTabPaneAdmin" onclick="switchAppTab('Admin'); return false;" title="Administration">
+                                <i class="fa fa-sliders nav-icon"></i>
+                                <span class="nav-label">Administration</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-nav-item" id="sidebarNavItemAbout">
+                            <a href="#mainPanelTabPaneAbout" onclick="switchAppTab('About'); return false;" title="About">
+                                <i class="fa fa-info-circle nav-icon"></i>
+                                <span class="nav-label">About</span>
+                                <span id="sidebarUpdateDot" class="sidebar-update-dot" style="display: none;" title="New Update Available!"></span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Sidebar User Card with Dropup Menu -->
+            <div class="sidebar-user-container dropup" id="sidebarUserContainer">
+                <div class="sidebar-user-card dropdown-toggle" id="sidebarUserCard" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="cursor: pointer;">
+                    <div class="user-card-info">
+                        <div class="user-card-avatar">
+                            <i class="fa fa-user"></i>
+                        </div>
+                        <div class="user-card-details">
+                            <div class="user-card-name" id="lblSidebarUserName">Administrator</div>
+                            <div class="user-card-role" id="lblSidebarUserRole">Administrator</div>
+                        </div>
+                    </div>
+                    <div class="user-card-action">
+                        <i class="fa fa-ellipsis-v" style="color: #64748b; font-size: 13px;"></i>
+                    </div>
+                </div>
+                <ul class="dropdown-menu glass-dropdown-menu" id="sidebarUserDropdownList" style="bottom: 100%; margin-bottom: 8px; left: 0; right: 0; min-width: 220px;">
+                    <li class="dropdown-header"><i class="fa fa-user-circle"></i> Signed in as <b id="lblSidebarUserMenuHeader">Administrator</b></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#" onclick="showMyProfileModal(); return false;"><i class="fa fa-user fa-fw"></i> My Profile</a></li>
+                    <li><a id="mnuSidebarChangePassword" href="#" onclick="showChangePasswordModal(); return false;"><i class="fa fa-key fa-fw"></i> Change Password</a></li>
+                    <li><a id="mnuSidebarConfigure2FA" href="#" onclick="showConfigure2FAModal(); return false;"><i class="fa fa-shield fa-fw"></i> Configure 2FA</a></li>
+                    <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;"><i class="fa fa-code fa-fw"></i> Create API Token</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#" onclick="showChangeThemeModal(); return false;"><i class="fa fa-paint-brush fa-fw"></i> Display & Layout Preferences</a></li>
+                    <li><a href="#" onclick="toggleLayout(); return false;"><i class="fa fa-columns fa-fw"></i> Switch Layout (<span id="lblMnuLayoutTextSidebar">Classic</span>)</a></li>
+                    <li><a id="mnuSidebarDisableCheckForUpdateNotification" href="#" onclick="disableUpdateNotification(); return false;" style="display: none;"><i class="fa fa-bell-slash fa-fw"></i> Disable Update Notification</a></li>
+                    <li><a id="mnuSidebarEnableCheckForUpdateNotification" href="#" onclick="enableUpdateNotification(); return false;" style="display: none;"><i class="fa fa-bell fa-fw"></i> Enable Update Notification</a></li>
+                    <li><a href="#" onclick="checkForUpdate(true); return false;"><i class="fa fa-refresh fa-fw"></i> Check For Update</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#" onclick="logout(); return false;"><i class="fa fa-sign-out fa-fw" style="color: #ef4444;"></i> Logout</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Main Viewport -->
+        <div id="appMainViewport">
+            <!-- Top Action & Breadcrumb Bar -->
+            <div id="appTopBar" style="display: none;">
+                <div class="topbar-left">
+                    <button type="button" class="topbar-menu-btn" onclick="toggleSidebar();" title="Toggle Sidebar">
+                        <i class="fa fa-bars"></i>
+                    </button>
+                    <div class="topbar-breadcrumbs">
+                        <div class="breadcrumb-path">
+                            <span id="lblBreadcrumbSection" style="color: #2563eb; font-weight: 700;">Dashboard</span>
+                            <span class="topbar-server-domain" id="lblDnsServerDomainModern" style="margin-left: 8px; font-weight: 500; font-size: 12px; color: #64748b;"></span>
+                        </div>
+                        <div class="topbar-title-row">
+                            <h1 class="breadcrumb-page-title" id="lblAppPageTitle">Dashboard</h1>
+                            <a href="#" data-toggle="modal" data-target="#modalUpdateAvailable" id="lnkUpdateAvailableModern" class="topbar-update-badge" style="display: none;">
+                                <i class="fa fa-bell"></i> New Update Available!
+                            </a>
+                        </div>
+                        <div class="breadcrumb-page-desc" id="lblAppPageDesc">Real-time overview of your DNS server</div>
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    <div id="btnQuickLayoutToggle" class="topbar-btn layout-toggle" title="Click to Switch Layout (Modern / Classic)" onclick="toggleLayout();">
+                        <i class="fa fa-columns"></i>
+                        <span id="lblQuickLayoutText">Modern</span>
+                    </div>
+                    <div id="btnQuickThemeToggle" class="topbar-btn theme-toggle" title="Click to Cycle Theme (Dark Blue, Dark Grey, Light)" onclick="toggleQuickTheme();">
+                        <i id="iconQuickTheme" class="fa fa-paint-brush"></i>
+                        <span id="lblQuickThemeText">Theme</span>
+                    </div>
+                    <!-- Live Pulse Auto-Refresh Control -->
+                    <div class="dropdown" id="dropdownAutoRefreshWrap">
+                        <button type="button" class="topbar-btn auto-refresh-btn dropdown-toggle" id="btnAutoRefreshPill" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Auto-Refresh Cadence">
+                            <span class="live-pulse-beacon" id="livePulseBeacon"></span>
+                            <span id="lblAutoRefreshStatus">Live (10s)</span>
+                            <span class="caret" style="margin-left: 4px;"></span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-right glass-dropdown-menu" id="menuAutoRefreshList">
+                            <li class="dropdown-header"><i class="fa fa-clock-o"></i> Live Update Cadence</li>
+                            <li id="itemAutoRefresh3s"><a href="#" onclick="setAutoRefreshInterval('3s'); return false;"><i class="fa fa-bolt fa-fw" style="color: #f59e0b;"></i> <b>Live (3s)</b> &mdash; Real-time stream</a></li>
+                            <li id="itemAutoRefresh10s" class="active"><a href="#" onclick="setAutoRefreshInterval('10s'); return false;"><i class="fa fa-refresh fa-fw" style="color: #10b981;"></i> <b>Normal (10s)</b> &mdash; Recommended</a></li>
+                            <li role="separator" class="divider"></li>
+                            <li id="itemAutoRefreshOff"><a href="#" onclick="setAutoRefreshInterval('off'); return false;"><i class="fa fa-pause fa-fw" style="color: #94a3b8;"></i> <b>Manual (Off)</b> &mdash; On demand only</a></li>
+                        </ul>
+                    </div>
+                    <button type="button" class="topbar-refresh-btn" onclick="refreshCurrentAppTab();" title="Refresh Data">
+                        <i id="iconTopbarRefresh" class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="content">
+                <div class="container app-container">
+            <div class="AlertPlaceholder"></div>
 
             <div id="pageMain" class="page">
                 <div class="panel panel-default">
@@ -163,35 +385,68 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <div id="mainPanelTabPaneDashboard" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
                                     <div>
                                         <div class="pull-left">
-                                            <div class="btn-group" data-toggle="buttons">
-                                                <label class="btn btn-default active">
-                                                    <input type="radio" name="rdStatType" value="lastHour" autocomplete="off" checked> Last Hour
+                                            <div class="btn-group modern-range-pills" data-toggle="buttons">
+                                                <label class="btn btn-default active" title="Last 1 Hour">
+                                                    <input type="radio" name="rdStatType" value="lastHour" autocomplete="off" checked> 1h
                                                 </label>
-                                                <label class="btn btn-default">
-                                                    <input type="radio" name="rdStatType" value="lastDay" autocomplete="off"> Last Day
+                                                <label class="btn btn-default" title="Last 24 Hours">
+                                                    <input type="radio" name="rdStatType" value="lastDay" autocomplete="off"> 24h
                                                 </label>
-                                                <label class="btn btn-default">
-                                                    <input type="radio" name="rdStatType" value="lastWeek" autocomplete="off"> Last Week
+                                                <label class="btn btn-default" title="Last 7 Days">
+                                                    <input type="radio" name="rdStatType" value="lastWeek" autocomplete="off"> 1w
                                                 </label>
-                                                <label class="btn btn-default">
-                                                    <input type="radio" name="rdStatType" value="lastMonth" autocomplete="off"> Last Month
+                                                <label class="btn btn-default" title="Last 30 Days">
+                                                    <input type="radio" name="rdStatType" value="lastMonth" autocomplete="off"> 1m
                                                 </label>
-                                                <label class="btn btn-default">
-                                                    <input type="radio" name="rdStatType" value="lastYear" autocomplete="off"> Last Year
+                                                <label class="btn btn-default" title="Last 1 Year">
+                                                    <input type="radio" name="rdStatType" value="lastYear" autocomplete="off"> 1y
                                                 </label>
-                                                <label class="btn btn-default">
+                                                <label class="btn btn-default" title="Custom Range">
                                                     <input type="radio" name="rdStatType" value="custom" autocomplete="off"> Custom
                                                 </label>
                                             </div>
 
-                                            <div id="divCustomDayWise" style="padding: 6px 0px 0px; display: none;">
-                                                <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="datetime-local" id="dpCustomDayWiseStart" size="10"></span>
-                                                <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="datetime-local" id="dpCustomDayWiseEnd" size="10"></span>
-                                                <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
+                                            <div id="divCustomDayWise" class="custom-range-toolbar" style="display: none;">
+                                                <div class="custom-range-inputs">
+                                                    <div class="custom-date-field">
+                                                        <span class="custom-date-label"><i class="fa fa-calendar-o"></i> From</span>
+                                                        <input type="datetime-local" id="dpCustomDayWiseStart" class="form-control modern-date-input">
+                                                    </div>
+                                                    <span class="custom-range-arrow"><i class="fa fa-arrow-right"></i></span>
+                                                    <div class="custom-date-field">
+                                                        <span class="custom-date-label"><i class="fa fa-calendar-check-o"></i> To</span>
+                                                        <input type="datetime-local" id="dpCustomDayWiseEnd" class="form-control modern-date-input">
+                                                    </div>
+                                                    <button id="btnCustomDayWise" class="btn btn-primary custom-range-apply-btn" type="button">
+                                                        <i class="fa fa-filter"></i> Apply
+                                                    </button>
+                                                </div>
+                                                <div class="custom-range-presets">
+                                                    <span class="preset-label"><i class="fa fa-bolt"></i> Presets:</span>
+                                                    <button type="button" class="btn-range-preset" onclick="setCustomRangePreset('today'); return false;">Today</button>
+                                                    <button type="button" class="btn-range-preset" onclick="setCustomRangePreset('yesterday'); return false;">Yesterday</button>
+                                                    <button type="button" class="btn-range-preset" onclick="setCustomRangePreset('3d'); return false;">Last 3 Days</button>
+                                                    <button type="button" class="btn-range-preset" onclick="setCustomRangePreset('14d'); return false;">Last 14 Days</button>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div class="pull-right">
+                                        <div class="pull-right" style="display: flex; gap: 8px; align-items: center;">
+                                            <!-- Classic Layout Auto-Refresh Control -->
+                                            <div class="dropdown" id="dropdownAutoRefreshLegacyWrap">
+                                                <button type="button" class="btn btn-default btn-sm dropdown-toggle auto-refresh-btn" id="btnAutoRefreshPillLegacy" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Auto-Refresh Cadence" style="font-size: 12px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 6px;">
+                                                    <span class="live-pulse-beacon" id="livePulseBeaconLegacy"></span>
+                                                    <span id="lblAutoRefreshStatusLegacy">Live (10s)</span>
+                                                    <span class="caret"></span>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-right" id="menuAutoRefreshListLegacy">
+                                                    <li class="dropdown-header">Live Update Cadence</li>
+                                                    <li id="itemAutoRefresh3sLegacy"><a href="#" onclick="setAutoRefreshInterval('3s'); return false;"><b>Live (3s)</b> &mdash; Real-time</a></li>
+                                                    <li id="itemAutoRefresh10sLegacy" class="active"><a href="#" onclick="setAutoRefreshInterval('10s'); return false;"><b>Normal (10s)</b> &mdash; Recommended</a></li>
+                                                    <li role="separator" class="divider"></li>
+                                                    <li id="itemAutoRefreshOffLegacy"><a href="#" onclick="setAutoRefreshInterval('off'); return false;"><b>Manual (Off)</b> &mdash; Pause</a></li>
+                                                </ul>
+                                            </div>
                                             <select id="optDashboardClusterNode" class="form-control cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDashboard();"></select>
                                         </div>
 
@@ -201,174 +456,309 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <div id="divDashboardLoader" style="margin-top: 10px; height: 400px;"></div>
 
                                     <div id="divDashboard" style="display: none;">
-                                        <div class="stats-panel">
-                                            <div class="stats-item total-queries">
-                                                <div class="number" id="divDashboardStatsTotalQueries">100</div>
-                                                <div class="percentage">100%</div>
-                                                <div class="title">Total Queries</div>
+                                        <!-- Enterprise Hero Telemetry Cards -->
+                                        <div class="enterprise-hero-grid">
+                                            <div class="hero-stat-card total-queries">
+                                                <div class="hero-card-icon"><i class="fa fa-tachometer"></i></div>
+                                                <div class="hero-card-body">
+                                                    <div class="hero-card-title">Total DNS Queries</div>
+                                                    <div class="hero-card-value" id="divDashboardStatsTotalQueries">0</div>
+                                                    <div class="hero-card-footer">
+                                                        <span class="hero-card-pill" id="divDashboardStatsQPS">~0.0 QPS</span>
+                                                        <span class="hero-card-pill"><i class="fa fa-users"></i> <span id="divDashboardStatsTotalClients">0</span>&nbsp;Clients</span>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div class="stats-item no-error">
-                                                <div class="number" id="divDashboardStatsTotalNoError">70</div>
-                                                <div class="percentage" id="divDashboardStatsTotalNoErrorPercentage">0%</div>
-                                                <div class="title">No Error</div>
+                                            <div class="hero-stat-card blocked-queries">
+                                                <div class="hero-card-icon"><i class="fa fa-shield"></i></div>
+                                                <div class="hero-card-body">
+                                                    <div class="hero-card-title">Blocked by Filters</div>
+                                                    <div class="hero-card-value">
+                                                        <span id="divDashboardStatsTotalBlocked">0</span>
+                                                        <span class="hero-card-badge badge-blocked" id="divDashboardStatsTotalBlockedPercentage">0%</span>
+                                                    </div>
+                                                    <div class="hero-card-footer">
+                                                        <span class="hero-card-pill"><i class="fa fa-ban"></i> Ad-Shield Filtering Active</span>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div class="stats-item server-failure">
-                                                <div class="number" id="divDashboardStatsTotalServerFailure">5</div>
-                                                <div class="percentage" id="divDashboardStatsTotalServerFailurePercentage">0%</div>
-                                                <div class="title">Server Failure</div>
+                                            <div class="hero-stat-card errors-card">
+                                                <div class="hero-card-icon"><i class="fa fa-heartbeat"></i></div>
+                                                <div class="hero-card-body">
+                                                    <div class="hero-card-title">Resolver Health & Errors</div>
+                                                    <div class="hero-card-value">
+                                                        <span id="divDashboardStatsTotalErrors">0</span>
+                                                        <span class="hero-card-badge badge-danger" id="divDashboardStatsTotalErrorsPercentage">0%</span>
+                                                    </div>
+                                                    <div class="hero-card-footer">
+                                                        <span class="hero-card-pill">ServFail:&nbsp;<b id="divDashboardStatsTotalServerFailure">0</b> &nbsp;&bull;&nbsp; Refused:&nbsp;<b id="divDashboardStatsTotalRefused">0</b> &nbsp;&bull;&nbsp; Dropped:&nbsp;<b id="divDashboardStatsTotalDropped">0</b></span>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div class="stats-item nxdomain">
-                                                <div class="number" id="divDashboardStatsTotalNxDomain">5</div>
-                                                <div class="percentage" id="divDashboardStatsTotalNxDomainPercentage">0%</div>
-                                                <div class="title">NX Domain</div>
-                                            </div>
-
-                                            <div class="stats-item refused">
-                                                <div class="number" id="divDashboardStatsTotalRefused">10</div>
-                                                <div class="percentage" id="divDashboardStatsTotalRefusedPercentage">0%</div>
-                                                <div class="title">Refused</div>
-                                            </div>
-
-                                            <div class="stats-item auth-hit">
-                                                <div class="number" id="divDashboardStatsTotalAuthHit">10</div>
-                                                <div class="percentage" id="divDashboardStatsTotalAuthHitPercentage">0%</div>
-                                                <div class="title">Authoritative</div>
-                                            </div>
-
-                                            <div class="stats-item recursions">
-                                                <div class="number" id="divDashboardStatsTotalRecursions">10</div>
-                                                <div class="percentage" id="divDashboardStatsTotalRecursionsPercentage">0%</div>
-                                                <div class="title">Recursive</div>
-                                            </div>
-
-                                            <div class="stats-item cache-hit">
-                                                <div class="number" id="divDashboardStatsTotalCacheHit">10</div>
-                                                <div class="percentage" id="divDashboardStatsTotalCacheHitPercentage">0%</div>
-                                                <div class="title">Cached</div>
-                                            </div>
-
-                                            <div class="stats-item blocked">
-                                                <div class="number" id="divDashboardStatsTotalBlocked">10</div>
-                                                <div class="percentage" id="divDashboardStatsTotalBlockedPercentage">0%</div>
-                                                <div class="title">Blocked</div>
-                                            </div>
-
-                                            <div class="stats-item dropped">
-                                                <div class="number" id="divDashboardStatsTotalDropped">5</div>
-                                                <div class="percentage" id="divDashboardStatsTotalDroppedPercentage">0%</div>
-                                                <div class="title">Dropped</div>
-                                            </div>
-
-                                            <div class="stats-item stats-last-item clients">
-                                                <div class="number" id="divDashboardStatsTotalClients">10</div>
-                                                <div class="percentage">&nbsp;</div>
-                                                <div class="title">Clients</div>
+                                            <div class="hero-stat-card cache-card">
+                                                <div class="hero-card-icon"><i class="fa fa-bolt"></i></div>
+                                                <div class="hero-card-body">
+                                                    <div class="hero-card-title">Cache Efficiency</div>
+                                                    <div class="hero-card-value">
+                                                        <span id="divDashboardStatsTotalCacheHit">0</span>
+                                                        <span class="hero-card-badge badge-cache" id="divDashboardStatsTotalCacheHitPercentage">0%</span>
+                                                    </div>
+                                                    <div class="hero-card-footer">
+                                                        <span class="hero-card-pill">Recursive:&nbsp;<b id="divDashboardStatsTotalRecursions">0</b>&nbsp;<span style="opacity: 0.85;">(<span id="divDashboardStatsTotalRecursionsPercentage">0%</span>)</span> &nbsp;&bull;&nbsp; Auth:&nbsp;<b id="divDashboardStatsTotalAuthHit">0</b></span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <canvas id="canvasDashboardMain" style="margin: 10px 0 10px 0;"></canvas>
+                                        <!-- Hidden DOM sinks to maintain 100% backward compatibility with legacy scripts -->
+                                        <div style="display: none;">
+                                            <span id="divDashboardStatsTotalNoError">0</span>
+                                            <span id="divDashboardStatsTotalNoErrorPercentage">0%</span>
+                                            <span id="divDashboardStatsTotalServerFailurePercentage">0%</span>
+                                            <span id="divDashboardStatsTotalNxDomain">0</span>
+                                            <span id="divDashboardStatsTotalNxDomainPercentage">0%</span>
+                                            <span id="divDashboardStatsTotalRefusedPercentage">0%</span>
+                                            <span id="divDashboardStatsTotalAuthHitPercentage">0%</span>
+                                            <span id="divDashboardStatsTotalDroppedPercentage">0%</span>
                                         </div>
 
-                                        <div style="margin-top: 15px;">
-                                            <div style="float: left; width: 50%; padding-right: 7px;">
-                                                <div class="panel panel-default" style="margin-bottom: 15px;">
-                                                    <div class="panel-body">
-                                                        <canvas id="canvasDashboardPie"></canvas>
+                                        <!-- Main Chart Container with Sleek Glass Frame & Sub-View Switcher -->
+                                        <div class="dashboard-chart-card">
+                                            <div class="chart-header" style="display: flex; flex-direction: column; gap: 8px;">
+                                                <!-- Row 1: Title (left) & Controls Toolbar (right) -->
+                                                <div class="chart-header-top-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%;">
+                                                    <div class="chart-title" id="lblDashboardChartTitle"><i class="fa fa-area-chart"></i> DNS Query &amp; Block Traffic Activity</div>
+                                                    <div class="chart-header-right" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                                        <!-- Query Record Types and Protocol Distribution Filters -->
+                                                        <div class="chart-filter-controls" style="display: inline-flex; gap: 6px;">
+                                                            <div class="dropdown chart-filter-dropdown" style="display: inline-block;">
+                                                                <button type="button" class="btn btn-chart-filter dropdown-toggle" id="btnFilterRecordType" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Filter by Query Record Type">
+                                                                    <i class="fa fa-list-alt"></i> <span id="lblFilterRecordType">Record: All</span> <span class="caret"></span>
+                                                                </button>
+                                                                <ul class="dropdown-menu dropdown-menu-right" id="menuFilterRecordType">
+                                                                    <li class="active"><a href="#" onclick="selectChartRecordTypeFilter('All'); return false;"><i class="fa fa-check fa-fw"></i> All Record Types</a></li>
+                                                                    <li role="separator" class="divider"></li>
+                                                                </ul>
+                                                            </div>
+                                                            <div class="dropdown chart-filter-dropdown" style="display: inline-block;">
+                                                                <button type="button" class="btn btn-chart-filter dropdown-toggle" id="btnFilterProtocol" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Filter by Protocol Distribution">
+                                                                    <i class="fa fa-random"></i> <span id="lblFilterProtocol">Protocol: All</span> <span class="caret"></span>
+                                                                </button>
+                                                                <ul class="dropdown-menu dropdown-menu-right" id="menuFilterProtocol">
+                                                                    <li class="active"><a href="#" onclick="selectChartProtocolFilter('All'); return false;"><i class="fa fa-check fa-fw"></i> All Protocols</a></li>
+                                                                    <li role="separator" class="divider"></li>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                        <!-- Sub-View Switcher -->
+                                                        <div class="chart-subview-pills" id="chartSubViewPills">
+                                                            <button type="button" class="btn btn-chart-subview active" id="btnSubViewTraffic" data-subview="traffic" onclick="switchDashboardChartView('traffic');">
+                                                                <i class="fa fa-line-chart"></i> <span>Traffic Activity</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-chart-subview" id="btnSubViewCache" data-subview="cache" onclick="switchDashboardChartView('cache');">
+                                                                <i class="fa fa-bolt"></i> <span>Cache &amp; Resolution</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-chart-subview" id="btnSubViewClients" data-subview="clients" onclick="switchDashboardChartView('clients');">
+                                                                <i class="fa fa-users"></i> <span>Top Clients</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-chart-subview" id="btnSubViewBlocked" data-subview="blocked" onclick="switchDashboardChartView('blocked');">
+                                                                <i class="fa fa-shield"></i> <span>Tracker Blocks</span>
+                                                            </button>
+                                                            <button type="button" class="btn btn-chart-subview" id="btnSubViewHealth" data-subview="health" onclick="switchDashboardChartView('health');">
+                                                                <i class="fa fa-heartbeat"></i> <span>Health &amp; Anomalies</span>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
-
-                                                <div class="panel panel-default" style="margin-bottom: 15px;">
-                                                    <div class="panel-body">
-                                                        <canvas id="canvasDashboardPie2"></canvas>
-                                                    </div>
-                                                </div>
-
-                                                <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-body">
-                                                        <canvas id="canvasDashboardPie3"></canvas>
-                                                    </div>
+                                                <!-- Row 2: Legend (left) & Active Filter Badge (right) -->
+                                                <div class="chart-header-sub-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; width: 100%; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 8px;">
+                                                    <div class="chart-legend-indicator" id="lblDashboardChartLegend" style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;"></div>
+                                                    <div id="divActiveChartFilter" class="chart-active-filter-badge" style="display: none;"></div>
                                                 </div>
                                             </div>
+                                            <div class="chart-body">
+                                                <div id="chartWrapTraffic" class="chart-view-wrap">
+                                                    <canvas id="canvasDashboardMain" style="margin: 5px 0;"></canvas>
+                                                </div>
+                                                <div id="chartWrapCache" class="chart-view-wrap" style="display: none;">
+                                                    <canvas id="canvasDashboardCache" style="margin: 5px 0;"></canvas>
+                                                </div>
+                                                <div id="chartWrapClients" class="chart-view-wrap" style="display: none;">
+                                                    <canvas id="canvasDashboardClients" style="margin: 5px 0;"></canvas>
+                                                </div>
+                                                <div id="chartWrapBlocked" class="chart-view-wrap" style="display: none;">
+                                                    <canvas id="canvasDashboardBlocked" style="margin: 5px 0;"></canvas>
+                                                </div>
+                                                <div id="chartWrapHealth" class="chart-view-wrap" style="display: none;">
+                                                    <canvas id="canvasDashboardHealth" style="margin: 5px 0;"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                            <div style="float: right; width: 50%; padding-left: 7px;">
-                                                <div class="zone-stats-panel">
-                                                    <div class="stats-item">
-                                                        <div class="number" id="divDashboardStatsZones">10</div>
-                                                        <div class="title">Zones</div>
-                                                    </div>
-
-                                                    <div class="stats-item">
-                                                        <div class="number" id="divDashboardStatsCachedEntries">10</div>
-                                                        <div class="title">Cache</div>
-                                                    </div>
-
-                                                    <div class="stats-item">
-                                                        <div class="number" id="divDashboardStatsAllowedZones">10</div>
-                                                        <div class="title">Allowed</div>
-                                                    </div>
-
-                                                    <div class="stats-item">
-                                                        <div class="number" id="divDashboardStatsBlockedZones">10</div>
-                                                        <div class="title">Blocked</div>
-                                                    </div>
-
-                                                    <div class="stats-item">
-                                                        <div class="number" id="divDashboardStatsAllowListZones">10</div>
-                                                        <div class="title">Allow List</div>
-                                                    </div>
-
-                                                    <div class="stats-item stats-last-item">
-                                                        <div class="number" id="divDashboardStatsBlockListZones">10</div>
-                                                        <div class="title">Block List</div>
-                                                    </div>
-
+                                        <!-- Analytical Matrix Grid (Response Codes, Resolution Types, Zone Telemetry) -->
+                                        <div class="analytical-matrix-grid">
+                                            <!-- Card 1: Response Codes (Dynamic Descending Sort & Cross-Filtering) -->
+                                            <div class="matrix-card">
+                                                <div class="matrix-card-header">
+                                                    <div class="pull-left"><i class="fa fa-check-circle" style="color: #10b981;"></i> Response Codes</div>
+                                                    <div class="pull-right matrix-filter-hint" title="Click any metric to cross-filter the main chart"><i class="fa fa-filter"></i> filter</div>
                                                     <div class="clearfix"></div>
                                                 </div>
-
-                                                <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
-                                                        <div class="pull-left" style="padding: 6px 8px;">Top Clients</div>
-                                                        <div class="pull-right">
-                                                            <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopClients', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
+                                                <div id="containerMatrixResponseCodes">
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="No Error" onclick="toggleDashboardFilter('Response Code', 'No Error');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>No Error</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixNoError">0 (0%)</span>
                                                         </div>
-                                                        <div class="clearfix"></div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-emerald" id="barMatrixNoError" style="width: 0%;"></div>
+                                                        </div>
                                                     </div>
-                                                    <table class="table table-hover">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Client</th>
-                                                                <th>Queries</th>
-                                                                <th style="width: 36px;"></th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody id="tableTopClients">
-                                                        </tbody>
-                                                    </table>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="NX Domain" onclick="toggleDashboardFilter('Response Code', 'NX Domain');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>NX Domain</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixNxDomain">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-amber" id="barMatrixNxDomain" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Server Failure" onclick="toggleDashboardFilter('Response Code', 'Server Failure');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Server Failure</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixServFail">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-crimson" id="barMatrixServFail" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Refused" onclick="toggleDashboardFilter('Response Code', 'Refused');" style="margin-bottom: 0;">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Refused</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixRefused">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-purple" id="barMatrixRefused" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div style="clear: both;"></div>
+                                            <!-- Card 2: Resolution Type (Dynamic Descending Sort & Cross-Filtering) -->
+                                            <div class="matrix-card">
+                                                <div class="matrix-card-header">
+                                                    <div class="pull-left"><i class="fa fa-crosshairs" style="color: #3b82f6;"></i> Resolution Type</div>
+                                                    <div class="pull-right matrix-filter-hint" title="Click any metric to cross-filter the main chart"><i class="fa fa-filter"></i> filter</div>
+                                                    <div class="clearfix"></div>
+                                                </div>
+                                                <div id="containerMatrixResolutionTypes">
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Cached" onclick="toggleDashboardFilter('Resolution Type', 'Cached');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Cached</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixCached">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-emerald" id="barMatrixCached" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Recursive" onclick="toggleDashboardFilter('Resolution Type', 'Recursive');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Recursive</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixRecursive">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-blue" id="barMatrixRecursive" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Authoritative" onclick="toggleDashboardFilter('Resolution Type', 'Authoritative');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Authoritative</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixAuth">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-teal" id="barMatrixAuth" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Dropped" onclick="toggleDashboardFilter('Resolution Type', 'Dropped');" style="margin-bottom: 0;">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Dropped</span>
+                                                            <span class="matrix-metric-val" id="lblMatrixDropped">0 (0%)</span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-slate" id="barMatrixDropped" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Card 3: Zone Statistics (Dynamic Descending Sort & Cross-Filtering) -->
+                                            <div class="matrix-card">
+                                                <div class="matrix-card-header">
+                                                    <div class="pull-left"><i class="fa fa-database" style="color: #f59e0b;"></i> Zone &amp; Cache Telemetry</div>
+                                                    <div class="pull-right matrix-filter-hint" title="Click any metric to cross-filter the main chart"><i class="fa fa-filter"></i> filter</div>
+                                                    <div class="clearfix"></div>
+                                                </div>
+                                                <div id="containerMatrixZoneTelemetry">
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Cached Records" onclick="toggleDashboardFilter('Zone Telemetry', 'Cached Records');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Cached Records</span>
+                                                            <span class="matrix-metric-val"><span id="divDashboardStatsTotalCachedEntries">0</span></span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-emerald" id="barZoneCached" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Blocked Zones" onclick="toggleDashboardFilter('Zone Telemetry', 'Blocked Zones');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Blocked Zones</span>
+                                                            <span class="matrix-metric-val"><span id="divDashboardStatsTotalBlockedZones">0</span></span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-amber" id="barZoneBlocked" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Allowed Zones" onclick="toggleDashboardFilter('Zone Telemetry', 'Allowed Zones');">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Allowed Zones</span>
+                                                            <span class="matrix-metric-val"><span id="divDashboardStatsTotalAllowed">0</span></span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-teal" id="barZoneAllowed" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="matrix-metric-row clickable-filter-row" data-filter-name="Authoritative Zones" onclick="toggleDashboardFilter('Zone Telemetry', 'Authoritative Zones');" style="margin-bottom: 0;">
+                                                        <div class="matrix-metric-header">
+                                                            <span>Authoritative Zones</span>
+                                                            <span class="matrix-metric-val"><span id="divDashboardStatsTotalZones">0</span></span>
+                                                        </div>
+                                                        <div class="matrix-bar-track">
+                                                            <div class="matrix-bar-fill bar-blue" id="barZoneAuth" style="width: 0%;"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div style="margin-top: 15px;">
-                                            <div style="float: left; width: 50%; padding-right: 7px;">
-                                                <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
-                                                        <div class="pull-left" style="padding: 6px 8px;">Top Domains</div>
+                                        <!-- Top Lists (Row 1: Top Domains & Top Blocked Domains) -->
+                                        <div class="row dashboard-top-row" style="margin-top: 15px;">
+                                            <div class="col-md-6" style="padding-right: 8px;">
+                                                <div class="panel panel-default glass-panel">
+                                                    <div class="panel-heading glass-heading">
+                                                        <div class="pull-left"><i class="fa fa-globe"></i> Top Queried Domains</div>
                                                         <div class="pull-right">
-                                                            <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopDomains', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
+                                                            <button type="button" class="btn btn-default btn-xs" data-loading-text="More" onclick="showTopStats('TopDomains', 1000);" style="font-size: 12px; padding: 3px 12px;">More</button>
                                                         </div>
                                                         <div class="clearfix"></div>
                                                     </div>
-                                                    <table class="table table-hover">
+                                                    <table class="table table-hover glass-table">
                                                         <thead>
                                                             <tr>
+                                                                <th style="width: 50px;">Rank</th>
                                                                 <th>Domain</th>
-                                                                <th>Hits</th>
+                                                                <th style="width: 140px;">Requests</th>
                                                                 <th style="width: 36px;"></th>
                                                             </tr>
                                                         </thead>
@@ -378,16 +768,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 </div>
                                             </div>
 
-                                            <div style="float: right; width: 50%; padding-left: 7px;">
-                                                <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading" style="height: 41px; padding: 4px 6px;">
-                                                        <div class="pull-left" style="padding: 6px 8px;">Top Blocked Domains</div>
+                                            <div class="col-md-6" style="padding-left: 8px;">
+                                                <div class="panel panel-default glass-panel">
+                                                    <div class="panel-heading glass-heading">
+                                                        <div class="pull-left"><i class="fa fa-shield"></i> Top Blocked Domains</div>
                                                         <div class="pull-right">
                                                             <div class="btn-group">
-                                                                <button id="btnDashboardBlockingOptions" onclick="dashboardBlockingOptionsOnClick();" data-loading-text="Blocking" type="button" class="btn btn-default dropdown-toggle" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                                <button id="btnDashboardBlockingOptions" onclick="dashboardBlockingOptionsOnClick();" data-loading-text="Blocking" type="button" class="btn btn-default btn-xs dropdown-toggle" style="font-size: 12px; padding: 3px 12px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                                     Blocking <span class="caret"></span>
                                                                 </button>
-                                                                <ul class="dropdown-menu">
+                                                                <ul class="dropdown-menu dropdown-menu-right">
                                                                     <li id="mnuDashboardBlockingOptionsEnableBlocking" style="display: none;"><a href="#" onclick="enableBlocking(); return false;">Enable Blocking</a></li>
                                                                     <li id="mnuDashboardBlockingOptionsDisableBlocking" style="display: none;"><a href="#" onclick="disableBlocking(); return false;">Disable Blocking</a></li>
                                                                     <li><a href="#" onclick="temporaryDisableBlockingForMenu(1); return false;">Disable Blocking For 1 Minute</a></li>
@@ -400,16 +790,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                     <li><a href="#" onclick="temporaryDisableBlockingForMenu(180); return false;">Disable Blocking For 3 Hours</a></li>
                                                                 </ul>
                                                             </div>
-
-                                                            <button type="button" class="btn btn-default" data-loading-text="More" onclick="showTopStats('TopBlockedDomains', 1000);" style="font-size: 12px; padding: 4px 14px; margin: 2px 0px;">More</button>
+                                                            <button type="button" class="btn btn-default btn-xs" data-loading-text="More" onclick="showTopStats('TopBlockedDomains', 1000);" style="font-size: 12px; padding: 3px 12px;">More</button>
                                                         </div>
                                                         <div class="clearfix"></div>
                                                     </div>
-                                                    <table class="table table-hover">
+                                                    <table class="table table-hover glass-table">
                                                         <thead>
                                                             <tr>
-                                                                <th>Domain</th>
-                                                                <th>Hits</th>
+                                                                <th style="width: 50px;">Rank</th>
+                                                                <th>Blocked Target</th>
+                                                                <th style="width: 140px;">Blocks</th>
                                                                 <th style="width: 36px;"></th>
                                                             </tr>
                                                         </thead>
@@ -418,8 +808,134 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     </table>
                                                 </div>
                                             </div>
+                                        </div>
 
-                                            <div style="clear: both;"></div>
+                                        <!-- Top Lists (Row 2: Top Clients & Zone Overview) -->
+                                        <div class="row dashboard-top-row" style="margin-top: 15px;">
+                                            <div class="col-md-6" style="padding-right: 8px;">
+                                                <div class="panel panel-default glass-panel">
+                                                    <div class="panel-heading glass-heading">
+                                                        <div class="pull-left"><i class="fa fa-desktop"></i> Top Clients</div>
+                                                        <div class="pull-right">
+                                                            <button type="button" class="btn btn-default btn-xs" data-loading-text="More" onclick="showTopStats('TopClients', 1000);" style="font-size: 12px; padding: 3px 12px;">More</button>
+                                                        </div>
+                                                        <div class="clearfix"></div>
+                                                    </div>
+                                                    <table class="table table-hover glass-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th style="width: 50px;">Rank</th>
+                                                                <th>Client</th>
+                                                                <th style="width: 140px;">Queries</th>
+                                                                <th style="width: 36px;"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="tableTopClients">
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6" style="padding-left: 8px;">
+                                                <div class="panel panel-default glass-panel">
+                                                    <div class="panel-heading glass-heading">
+                                                        <div class="pull-left"><i class="fa fa-sitemap"></i> DNS Infrastructure & Zone Telemetry</div>
+                                                        <div class="clearfix"></div>
+                                                    </div>
+                                                    <div class="panel-body" style="padding: 12px;">
+                                                        <div class="zone-overview-grid">
+                                                            <div class="zone-card">
+                                                                <div class="zone-card-num" id="divDashboardStatsZones">0</div>
+                                                                <div class="zone-card-label">Authoritative Zones</div>
+                                                            </div>
+                                                            <div class="zone-card">
+                                                                <div class="zone-card-num" id="divDashboardStatsCachedEntries">0</div>
+                                                                <div class="zone-card-label">Cached Entries</div>
+                                                            </div>
+                                                            <div class="zone-card">
+                                                                <div class="zone-card-num" id="divDashboardStatsAllowedZones">0</div>
+                                                                <div class="zone-card-label">Allowed Zones</div>
+                                                            </div>
+                                                            <div class="zone-card">
+                                                                <div class="zone-card-num" id="divDashboardStatsBlockedZones">0</div>
+                                                                <div class="zone-card-label">Blocked Zones</div>
+                                                            </div>
+                                                            <div class="zone-card">
+                                                                <div class="zone-card-num" id="divDashboardStatsAllowListZones">0</div>
+                                                                <div class="zone-card-label">Allow Lists</div>
+                                                            </div>
+                                                            <div class="zone-card">
+                                                                <div class="zone-card-num" id="divDashboardStatsBlockListZones">0</div>
+                                                                <div class="zone-card-label">Block Lists</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Modern Distribution Analytics (Row 3: 3 Columns) -->
+                                        <div class="row" style="margin-top: 15px;">
+                                            <div class="col-md-4" style="padding-right: 6px;">
+                                                <div class="panel panel-default glass-panel modern-donut-card">
+                                                    <div class="panel-heading glass-heading modern-donut-heading">
+                                                        <span><i class="fa fa-pie-chart" style="color: #3b82f6; margin-right: 6px;"></i> Query Responses</span>
+                                                        <span class="donut-total-pill" id="lblTotalResponses">-</span>
+                                                    </div>
+                                                    <div class="panel-body modern-donut-body">
+                                                        <div class="donut-visual-wrap">
+                                                            <div class="donut-canvas-holder">
+                                                                <canvas id="canvasDashboardPie"></canvas>
+                                                                <div class="donut-center-stat" id="statCenterResponses">
+                                                                    <div class="donut-center-val" id="lblCenterResponsesVal">-</div>
+                                                                    <div class="donut-center-lbl">TOTAL</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="donut-breakdown-list" id="listBreakdownResponses"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4" style="padding-left: 6px; padding-right: 6px;">
+                                                <div class="panel panel-default glass-panel modern-donut-card">
+                                                    <div class="panel-heading glass-heading modern-donut-heading">
+                                                        <span><i class="fa fa-list-alt" style="color: #10b981; margin-right: 6px;"></i> Query Record Types</span>
+                                                        <span class="donut-total-pill" id="lblTotalRecordTypes">-</span>
+                                                    </div>
+                                                    <div class="panel-body modern-donut-body">
+                                                        <div class="donut-visual-wrap">
+                                                            <div class="donut-canvas-holder">
+                                                                <canvas id="canvasDashboardPie2"></canvas>
+                                                                <div class="donut-center-stat" id="statCenterRecordTypes">
+                                                                    <div class="donut-center-val" id="lblCenterRecordTypesVal">-</div>
+                                                                    <div class="donut-center-lbl">TOTAL</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="donut-breakdown-list" id="listBreakdownRecordTypes"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4" style="padding-left: 6px;">
+                                                <div class="panel panel-default glass-panel modern-donut-card">
+                                                    <div class="panel-heading glass-heading modern-donut-heading">
+                                                        <span><i class="fa fa-exchange" style="color: #8b5cf6; margin-right: 6px;"></i> Protocol Distribution</span>
+                                                        <span class="donut-total-pill" id="lblTotalProtocols">-</span>
+                                                    </div>
+                                                    <div class="panel-body modern-donut-body">
+                                                        <div class="donut-visual-wrap">
+                                                            <div class="donut-canvas-holder">
+                                                                <canvas id="canvasDashboardPie3"></canvas>
+                                                                <div class="donut-center-stat" id="statCenterProtocols">
+                                                                    <div class="donut-center-val" id="lblCenterProtocolsVal">-</div>
+                                                                    <div class="donut-center-lbl">TOTAL</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="donut-breakdown-list" id="listBreakdownProtocols"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -3674,6 +4190,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         </div>
     </div>
+            <!-- Modern Viewport Footer -->
+            <div class="modern-app-footer">
+                <div class="footer-links">
+                    <a href="https://technitium.com/" target="_blank">Technitium</a> •
+                    <a href="https://blog.technitium.com/" target="_blank">Blog</a> •
+                    <a href="https://go.technitium.com/?id=35" target="_blank">Donate</a> •
+                    <a href="https://dnsclient.net/" target="_blank">DNS Client</a> •
+                    <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i> GitHub</a> •
+                    <a href="#" onclick="switchAppTab('About'); return false;">About</a>
+                </div>
+                <div class="footer-copy">
+                    <span>Technitium DNS Server</span> • <span id="lblFooterVersion">v13</span>
+                </div>
+            </div>
+        </div><!-- #appMainViewport -->
+    </div><!-- #appShell -->
 
     <div id="modalMyProfile" class="modal fade" tabindex="-1" role="dialog">
         <form class="form-horizontal">
@@ -3965,39 +4497,68 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <div id="modalChangeTheme" class="modal fade" tabindex="-1" role="dialog">
         <form class="form-horizontal">
             <div class="modal-dialog" role="document">
-                <div class="modal-content">
+                <div class="modal-content glass-modal">
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                        <h4 class="modal-title">Change Theme</h4>
+                        <h4 class="modal-title"><i class="fa fa-paint-brush"></i> Display & Layout Preferences</h4>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
-                            <label class="col-sm-4 control-label">Theme</label>
+                            <label class="col-sm-4 control-label">Layout Style</label>
                             <div class="col-sm-8">
                                 <div class="radio">
                                     <label>
-                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeSystem" onclick="changeTheme('system');">
-                                        Use System Theme (default)
+                                        <input type="radio" name="rdChangeLayout" id="rdChangeLayoutModern" onclick="setLayout('modern');">
+                                        <b>Modern</b> (Collapsible Left Sidebar & Top Action Bar - Default)
                                     </label>
                                 </div>
                                 <div class="radio">
                                     <label>
-                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeLight" onclick="changeTheme('light');">
-                                        Light Theme
+                                        <input type="radio" name="rdChangeLayout" id="rdChangeLayoutClassic" onclick="setLayout('classic');">
+                                        <b>Classic</b> (Horizontal Tab Navigation & Full-Width Canvas)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 15px; border-top: 1px solid rgba(127,127,127,0.2); padding-top: 15px;">
+                            <label class="col-sm-4 control-label">Theme Mode</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeSystem" onclick="changeTheme('system');">
+                                        <b>System Default</b> (Auto-detect from OS)
                                     </label>
                                 </div>
                                 <div class="radio">
                                     <label>
                                         <input type="radio" name="rdChangeTheme" id="rdChangeThemeDark" onclick="changeTheme('dark');">
-                                        Dark Theme
+                                        <b>Dark Blue Theme</b> (Enterprise Slate Glass)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeDarkGrey" onclick="changeTheme('dark-grey');">
+                                        <b>Dark Grey Theme</b> (Charcoal / Graphite Glass)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdChangeTheme" id="rdChangeThemeLight" onclick="changeTheme('light');">
+                                        <b>Light Theme</b> (Clean Frosted Acrylic)
                                     </label>
                                 </div>
                                 <div class="radio">
                                     <label>
                                         <input type="radio" name="rdChangeTheme" id="rdChangeThemeAmber" onclick="changeTheme('amber');">
-                                        Amber Theme
+                                        <b>Amber Theme</b> (High Contrast Retro)
                                     </label>
                                 </div>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 15px; border-top: 1px solid rgba(127,127,127,0.2); padding-top: 10px;">
+                            <div class="col-sm-offset-4 col-sm-8">
+                                <span class="help-block" style="font-size: 12px; margin-bottom: 0;">Selected theme is automatically saved as your persistent default across browser reloads and sessions.</span>
                             </div>
                         </div>
                     </div>
