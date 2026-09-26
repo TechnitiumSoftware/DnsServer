@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
@@ -120,6 +120,10 @@ body.amber-mode {
     border-bottom: 1px solid #ffc107 !important;
 }
 
+    .amber-mode .nav-tabs > li > a {
+        font-weight: 700 !important;
+    }
+
     .amber-mode .nav-tabs > li > a:hover {
         border-color: #4a3322 !important;
         border-bottom-color: #ffc107 !important;
@@ -134,6 +138,7 @@ body.amber-mode {
         border-color: #ffc107 !important;
         color: #ffb000 !important;
         border-bottom-color: transparent !important;
+        font-weight: 700 !important;
     }
 
 .amber-mode .table-hover > tbody > tr:hover {
@@ -217,6 +222,55 @@ body.amber-mode {
     border-right-color: #3d2a1c !important;
 }
 
+.amber-mode .hero-stat-card {
+    background: #231810 !important;
+    border: 1px solid #4a3322 !important;
+    color: #ffb000 !important;
+}
+
+.amber-mode .hero-card-title { color: #cc8d00 !important; }
+.amber-mode .hero-card-value { color: #ffb000 !important; }
+.amber-mode .hero-card-footer { color: #cc8d00 !important; }
+.amber-mode .hero-card-pill { background: #3d2a1c !important; color: #ffb000 !important; border: 1px solid rgba(255, 176, 0, 0.25) !important; }
+
+.amber-mode .dashboard-chart-card {
+    background: #231810 !important;
+    border: 1px solid #4a3322 !important;
+}
+
+.amber-mode .chart-title { color: #ffb000 !important; }
+.amber-mode .chart-legend-indicator { color: #cc8d00 !important; }
+
+.amber-mode .glass-panel {
+    background-color: #231810 !important;
+    border-color: #4a3322 !important;
+}
+
+.amber-mode .glass-heading {
+    background-color: #2c1e14 !important;
+    border-color: #4a3322 !important;
+    color: #ffb000 !important;
+}
+
+.amber-mode .glass-table > thead > tr > th {
+    background-color: #2c1e14 !important;
+    border-bottom: 1px solid #4a3322 !important;
+    color: #cc8d00 !important;
+}
+
+.amber-mode .glass-table > tbody > tr > td {
+    border-top: 1px solid #3d2a1c !important;
+    color: #ffb000 !important;
+}
+
+.amber-mode .zone-card {
+    background: #2c1e14 !important;
+    border: 1px solid #4a3322 !important;
+}
+
+.amber-mode .zone-card-num { color: #ffb000 !important; }
+.amber-mode .zone-card-label { color: #cc8d00 !important; }
+
 .amber-mode .c3-axis-x text,
 .amber-mode .c3-axis-y text,
 .amber-mode .c3-legend-item {
@@ -255,6 +309,16 @@ body.amber-mode {
         background-color: #3d2a1c !important;
     }
 
+.amber-mode,
+.amber-mode input[type="datetime-local"],
+.amber-mode input[type="date"],
+.amber-mode input[type="time"],
+.amber-mode input[type="radio"],
+.amber-mode input[type="checkbox"] {
+    accent-color: #f59e0b !important;
+    color-scheme: dark !important;
+}
+
 .amber-mode #dpCustomDayWiseStart,
 .amber-mode #dpCustomDayWiseEnd,
 .amber-mode #txtQueryLogStart,
@@ -262,12 +326,75 @@ body.amber-mode {
     color: #ffb000 !important;
 }
 
-    .amber-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
-    .amber-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
-    .amber-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
-    .amber-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
-        filter: invert(70%) sepia(90%) saturate(1500%) hue-rotate(30deg);
-    }
+.amber-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator,
+.amber-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator,
+.amber-mode #txtQueryLogStart::-webkit-calendar-picker-indicator,
+.amber-mode #txtQueryLogEnd::-webkit-calendar-picker-indicator {
+    filter: invert(70%) sepia(90%) saturate(1500%) hue-rotate(30deg);
+    cursor: pointer;
+    opacity: 0.85;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.amber-mode #dpCustomDayWiseStart::-webkit-calendar-picker-indicator:hover,
+.amber-mode #dpCustomDayWiseEnd::-webkit-calendar-picker-indicator:hover {
+    transform: scale(1.15);
+    opacity: 1;
+}
+
+.amber-mode .custom-range-toolbar {
+    background: #1c140d !important;
+    border-color: rgba(255, 176, 0, 0.25) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
+.amber-mode .custom-date-field {
+    background: rgba(255, 176, 0, 0.08) !important;
+    border-color: rgba(255, 176, 0, 0.2) !important;
+}
+
+.amber-mode .custom-date-label {
+    color: #cc8d00 !important;
+}
+
+.amber-mode .custom-range-arrow {
+    color: #ffb000 !important;
+}
+
+.amber-mode .custom-range-presets {
+    border-left-color: rgba(255, 176, 0, 0.2) !important;
+}
+
+.amber-mode .preset-label {
+    color: #cc8d00 !important;
+}
+
+.amber-mode .btn-range-preset {
+    background: rgba(255, 176, 0, 0.08) !important;
+    border-color: rgba(255, 176, 0, 0.25) !important;
+    color: #ffb000 !important;
+}
+
+.amber-mode .btn-range-preset:hover {
+    background: rgba(255, 176, 0, 0.2) !important;
+    color: #ffd066 !important;
+    border-color: rgba(255, 176, 0, 0.5) !important;
+}
+
+.amber-mode .chart-active-filter-badge {
+    background: rgba(255, 176, 0, 0.15) !important;
+    border-color: rgba(255, 176, 0, 0.4) !important;
+    color: #ffb000 !important;
+}
+
+.amber-mode .clickable-filter-row:hover {
+    background: rgba(255, 176, 0, 0.08) !important;
+}
+
+.amber-mode .clickable-filter-row.active-filtered-row {
+    background: rgba(255, 176, 0, 0.2) !important;
+    border: 1px solid rgba(255, 176, 0, 0.5) !important;
+}
 
 .amber-mode .modal-header .close {
     color: #ffb000 !important;
