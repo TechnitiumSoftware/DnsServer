@@ -28,6 +28,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -72,6 +73,12 @@ namespace AdvancedBlocking
         DateTime _blockListUrlLastUpdatedOn;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 60000;
 
+        object? _coreAllowedZoneManager;
+        MethodInfo? _coreIsAllowedMethod;
+        HashSet<string> _coreAllowedZones = new(StringComparer.OrdinalIgnoreCase);
+        DateTime _coreAllowedZonesLastRead = DateTime.MinValue;
+        string? _coreAllowedConfigFilePath;
+
         #endregion
 
         #region IDisposable
@@ -88,6 +95,106 @@ namespace AdvancedBlocking
         #endregion
 
         #region private
+
+        private void RefreshCoreAllowedZones()
+        {
+            if (string.IsNullOrEmpty(_coreAllowedConfigFilePath) || !File.Exists(_coreAllowedConfigFilePath))
+                return;
+
+            try
+            {
+                FileInfo fi = new FileInfo(_coreAllowedConfigFilePath);
+                if (fi.LastWriteTimeUtc <= _coreAllowedZonesLastRead && _coreAllowedZones.Count > 0)
+                    return;
+
+                HashSet<string> zones = new(StringComparer.OrdinalIgnoreCase);
+                using (FileStream fileStream = new FileStream(_coreAllowedConfigFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (BinaryReader binaryReader = new BinaryReader(fileStream))
+                {
+                    char[] header = binaryReader.ReadChars(2);
+                    if (new string(header) == "AZ")
+                    {
+                        ushort version = binaryReader.ReadUInt16();
+                        if (version == 1)
+                        {
+                            int count = binaryReader.ReadInt32();
+                            for (int i = 0; i < count; i++)
+                            {
+                                string zone = binaryReader.ReadString();
+                                zones.Add(zone.TrimEnd('.'));
+                            }
+                        }
+                    }
+                }
+
+                _coreAllowedZones = zones;
+                _coreAllowedZonesLastRead = fi.LastWriteTimeUtc;
+            }
+            catch
+            {
+                // Fallback silently if reading file fails
+            }
+        }
+
+        private bool IsCoreAllowedZone(string domain)
+        {
+            if (string.IsNullOrEmpty(domain))
+                return false;
+
+            domain = domain.TrimEnd('.');
+
+            // 1. Check direct AllowedZoneManager via reflection if available
+            if (_coreAllowedZoneManager is not null && _coreIsAllowedMethod is not null)
+            {
+                try
+                {
+                    object? res = _coreIsAllowedMethod.Invoke(_coreAllowedZoneManager, new object[] { domain });
+                    if (res is bool isAllowed && isAllowed)
+                        return true;
+                }
+                catch
+                {
+                    // Fallback to file-based check
+                }
+            }
+
+            // 2. Check cached file-based allowed zones from /etc/dns/allowed.config
+            RefreshCoreAllowedZones();
+            if (_coreAllowedZones.Count > 0)
+            {
+                if (_coreAllowedZones.Contains(domain))
+                    return true;
+
+                // Check parent domains (e.g. reddit.com allows www.reddit.com)
+                int dotIndex = domain.IndexOf('.');
+                while (dotIndex > 0)
+                {
+                    string parent = domain.Substring(dotIndex + 1);
+                    if (_coreAllowedZones.Contains(parent))
+                        return true;
+
+                    dotIndex = domain.IndexOf('.', dotIndex + 1);
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsDomainAllowed(Group group, string domain, DnsResourceRecordType qType = DnsResourceRecordType.A, IPAddress? clientIp = null)
+        {
+            if (string.IsNullOrEmpty(domain))
+                return false;
+
+            domain = domain.TrimEnd('.');
+
+            if (group.IsZoneAllowed(domain, qType, clientIp))
+                return true;
+
+            if (IsCoreAllowedZone(domain))
+                return true;
+
+            return false;
+        }
 
         private async void BlockListUrlUpdateTimerCallbackAsync(object? state)
         {
@@ -595,6 +702,45 @@ namespace AdvancedBlocking
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
+
+            // Initialize Core Allowed Zone Manager via reflection or fallback file
+            try
+            {
+                FieldInfo? internalServerField = _dnsServer.GetType().GetField("_dnsServer", BindingFlags.Instance | BindingFlags.NonPublic);
+                object? coreServer = internalServerField?.GetValue(_dnsServer);
+                if (coreServer is not null)
+                {
+                    PropertyInfo? azmProp = coreServer.GetType().GetProperty("AllowedZoneManager", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _coreAllowedZoneManager = azmProp?.GetValue(coreServer);
+                    if (_coreAllowedZoneManager is not null)
+                    {
+                        _coreIsAllowedMethod = _coreAllowedZoneManager.GetType().GetMethod("IsAllowed", new Type[] { typeof(string) });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _dnsServer?.WriteLog($"Advanced Blocking app Core AllowedZoneManager reflection init notice: {ex.Message}");
+            }
+
+            try
+            {
+                DirectoryInfo appDir = new DirectoryInfo(dnsServer.ApplicationFolder);
+                string? dnsFolder = appDir.Parent?.Parent?.FullName;
+                if (!string.IsNullOrEmpty(dnsFolder))
+                {
+                    string allowedConfigPath = Path.Combine(dnsFolder, "allowed.config");
+                    if (File.Exists(allowedConfigPath))
+                    {
+                        _coreAllowedConfigFilePath = allowedConfigPath;
+                        RefreshCoreAllowedZones();
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback
+            }
         }
 
         public Task<bool> IsAllowedAsync(DnsDatagram request, IPEndPoint remoteEP)
@@ -608,7 +754,7 @@ namespace AdvancedBlocking
 
             DnsQuestionRecord question = request.Question[0];
 
-            return Task.FromResult(group.IsZoneAllowed(question.Name, question.Type, remoteEP.Address));
+            return Task.FromResult(IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address));
         }
 
         public async Task<DnsDatagram?> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP)
@@ -621,6 +767,9 @@ namespace AdvancedBlocking
                 return null;
 
             DnsQuestionRecord question = request.Question[0];
+
+            if (IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address))
+                return null;
 
             if (!group.IsZoneBlocked(question.Name, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
                 return null;
@@ -642,8 +791,8 @@ namespace AdvancedBlocking
 
             DnsQuestionRecord question = request.Question[0];
 
-            // If the original query was explicitly allowed, bypass post-processing
-            if (group.IsZoneAllowed(question.Name, question.Type, remoteEP.Address))
+            // If the original query was explicitly allowed (in Core or in App Group), bypass post-processing
+            if (IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address))
                 return response;
 
             // Inspect each CNAME in answer for cloaked tracking
@@ -652,7 +801,12 @@ namespace AdvancedBlocking
                 DnsResourceRecord rr = response.Answer[i];
                 if ((rr.Type == DnsResourceRecordType.CNAME) && (rr.RDATA is DnsCNAMERecordData cnameData))
                 {
-                    string cnameDomain = cnameData.Domain;
+                    string cnameDomain = cnameData.Domain.TrimEnd('.');
+
+                    // If the CNAME target is explicitly allowed (in Core or in App Group), DO NOT BLOCK!
+                    if (IsDomainAllowed(group, cnameDomain, question.Type, remoteEP.Address))
+                        continue;
+
                     if (group.IsZoneBlocked(cnameDomain, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
                     {
                         _dnsServer?.WriteLog($"Advanced Blocking app intercepted CNAME cloaking: query '{question.Name}' aliases to blocked domain '{cnameDomain}'");
