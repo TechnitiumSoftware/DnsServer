@@ -367,6 +367,22 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
 
+                jsonWriter.WritePropertyName("hostNameOverrides");
+                jsonWriter.WriteStartArray();
+
+                foreach (HostNameOverride hostNameOverride in scope.HostNameOverrides)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteString("hostName", hostNameOverride.HostName);
+                    jsonWriter.WriteString("hardwareAddress", BitConverter.ToString(hostNameOverride.HardwareAddress));
+                    jsonWriter.WriteString("comments", hostNameOverride.Comments);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+
                 jsonWriter.WriteBoolean("allowOnlyReservedLeases", scope.AllowOnlyReservedLeases);
                 jsonWriter.WriteBoolean("blockLocallyAdministeredMacAddresses", scope.BlockLocallyAdministeredMacAddresses);
                 jsonWriter.WriteBoolean("ignoreClientIdentifierOption", scope.IgnoreClientIdentifierOption);
@@ -656,6 +672,25 @@ namespace DnsServerCore
                     }
                 }
 
+                string strHostNameOverrides = request.QueryOrForm("hostNameOverrides");
+                if (strHostNameOverrides is not null)
+                {
+                    if (strHostNameOverrides.Length == 0)
+                    {
+                        scope.HostNameOverrides = null;
+                    }
+                    else
+                    {
+                        string[] strHostNameOverrideParts = strHostNameOverrides.Split('|');
+                        List<HostNameOverride> hostNameOverrides = new List<HostNameOverride>();
+
+                        for (int i = 0; i < strHostNameOverrideParts.Length; i += 3)
+                            hostNameOverrides.Add(new HostNameOverride(strHostNameOverrideParts[i + 0], DhcpMessageHardwareAddressType.Ethernet, strHostNameOverrideParts[i + 1], strHostNameOverrideParts[i + 2]));
+
+                        scope.HostNameOverrides = hostNameOverrides;
+                    }
+                }
+
                 if (request.TryGetQueryOrForm("allowOnlyReservedLeases", bool.Parse, out bool allowOnlyReservedLeases))
                     scope.AllowOnlyReservedLeases = allowOnlyReservedLeases;
 
@@ -739,6 +774,60 @@ namespace DnsServerCore
                 _dnsWebService._dhcpServer.SaveScope(scopeName);
 
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
+            }
+
+            public void AddHostNameOverride(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                HttpRequest request = context.Request;
+
+                string scopeName = request.GetQueryOrForm("name");
+
+                Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
+                if (scope is null)
+                    throw new DnsWebServiceException("No such scope exists: " + scopeName);
+
+                string hostName = request.GetQueryOrForm("hostName");
+                string hardwareAddress = request.GetQueryOrForm("hardwareAddress");
+                string comments = request.QueryOrForm("comments");
+
+                HostNameOverride hostNameOverride = new HostNameOverride(hostName, DhcpMessageHardwareAddressType.Ethernet, hardwareAddress, comments);
+
+                if (!scope.TryAddHostNameOverride(hostNameOverride))
+                    throw new DnsWebServiceException("A host name override with same hardware address already exists in scope: " + scopeName);
+
+                _dnsWebService._dhcpServer.SaveScope(scopeName);
+
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DHCP scope host name override was added successfully: " + scopeName);
+            }
+
+            public void RemoveHostNameOverride(HttpContext context)
+            {
+                User sessionUser = _dnsWebService.GetSessionUser(context);
+
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
+                    throw new DnsWebServiceException("Access was denied.");
+
+                HttpRequest request = context.Request;
+
+                string scopeName = request.GetQueryOrForm("name");
+
+                Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
+                if (scope is null)
+                    throw new DnsWebServiceException("No such scope exists: " + scopeName);
+
+                string hardwareAddress = request.GetQueryOrForm("hardwareAddress");
+
+                if (!scope.TryRemoveHostNameOverride(hardwareAddress))
+                    throw new DnsWebServiceException("No such host name override was found in scope: " + scopeName);
+
+                _dnsWebService._dhcpServer.SaveScope(scopeName);
+
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DHCP scope host name override was removed successfully: " + scopeName);
             }
 
             public async Task EnableDhcpScopeAsync(HttpContext context)
