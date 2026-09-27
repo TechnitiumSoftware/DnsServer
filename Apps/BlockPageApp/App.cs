@@ -192,6 +192,23 @@ namespace BlockPage
             const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
             const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
 
+            //self-contained style for the default block page; no external resources are loaded
+            const string DEFAULT_BLOCK_PAGE_STYLE = @"
+    :root { color-scheme: light dark; --bg: #f4f6fb; --card: #ffffff; --text: #1f2937; --muted: #5b6475; --border: #e3e7ef; --accent: #d9480f; --accent-bg: #fff1e8; --code-bg: #f6f8fb; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #121417; --card: #1c1f24; --text: #e8eaed; --muted: #a3aab5; --border: #2e333b; --accent: #ff8a4c; --accent-bg: #2d1f17; --code-bg: #15171b; } }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    main { width: 100%; max-width: 560px; padding: 40px 32px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.08); text-align: center; }
+    .icon { display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 72px; margin-bottom: 16px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; line-height: 1.25; font-weight: 700; }
+    main > p { margin: 0; color: var(--muted); }
+    .details p { margin: 24px 0 0; padding: 12px 16px; text-align: left; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace; color: var(--muted); background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; }
+    .details b { display: block; margin-bottom: 4px; font: 600 11px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+    .details br:first-of-type { display: none; }
+    @media (max-width: 480px) { main { padding: 32px 20px; } h1 { font-size: 1.35rem; } }
+  ";
+
             string? _cachedIndexPage;
             DateTime? _cachedIndexPageLastModified;
 
@@ -629,10 +646,13 @@ namespace BlockPage
 
                             foreach (EDnsExtendedDnsErrorOptionData option in options)
                             {
+                                //extra text may originate from upstream servers or block lists; encode it to prevent HTML injection
+                                string infoText = WebUtility.HtmlEncode(option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText));
+
                                 if (blockingInfoHtmlContent is null)
-                                    blockingInfoHtmlContent = "  <p><b>Detailed Info</b><br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                    blockingInfoHtmlContent = "  <p class=\"blocking-info\"><b>Detailed Info</b><br>" + infoText;
                                 else
-                                    blockingInfoHtmlContent += "<br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                    blockingInfoHtmlContent += "<br>" + infoText;
                             }
 
                             if (blockingInfoHtmlContent is not null)
@@ -696,14 +716,24 @@ namespace BlockPage
 
                 _includeBlockingInfo = jsonWebServerConfig.GetPropertyValue("includeBlockingInfo", true);
 
-                _blockPageContent = @"<html>
+                _blockPageContent = @"<!DOCTYPE html>
+<html lang=""en"">
 <head>
+  <meta charset=""utf-8"">
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1"">
+  <meta name=""robots"" content=""noindex, nofollow"">
+  <meta name=""referrer"" content=""no-referrer"">
+  <meta http-equiv=""Content-Security-Policy"" content=""default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'"">
   <title>" + (blockPageTitle is null ? "" : blockPageTitle) + @"</title>
+  <style>" + DEFAULT_BLOCK_PAGE_STYLE + @"</style>
 </head>
 <body>
-" + (blockPageHeading is null ? "" : "  <h1>" + blockPageHeading + "</h1>") + @"
-" + (blockPageMessage is null ? "" : "  <p>" + blockPageMessage + "</p>") + @"
-" + (_includeBlockingInfo ? "{BLOCKING-INFO}" : "") + @"
+  <main>
+    <div class=""icon"" aria-hidden=""true""><svg width=""36"" height=""36"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><path d=""M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z""/><line x1=""9"" y1=""9"" x2=""15"" y2=""15""/><line x1=""15"" y1=""9"" x2=""9"" y2=""15""/></svg></div>
+" + (blockPageHeading is null ? "" : "    <h1>" + blockPageHeading + "</h1>") + @"
+" + (blockPageMessage is null ? "" : "    <p>" + blockPageMessage + "</p>") + @"
+" + (_includeBlockingInfo ? "    <div class=\"details\">{BLOCKING-INFO}</div>" : "") + @"
+  </main>
 </body>
 </html>";
 

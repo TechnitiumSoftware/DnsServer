@@ -1,10 +1,38 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
     <title>Website Blocked</title>
+    <style>
+        :root { color-scheme: light dark; --bg: #f4f6fb; --card: #ffffff; --text: #1f2937; --muted: #5b6475; --border: #e3e7ef; --accent: #d9480f; --accent-bg: #fff1e8; --code-bg: #f6f8fb; }
+        @media (prefers-color-scheme: dark) { :root { --bg: #121417; --card: #1c1f24; --text: #e8eaed; --muted: #a3aab5; --border: #2e333b; --accent: #ff8a4c; --accent-bg: #2d1f17; --code-bg: #15171b; } }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { margin: 0; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        main { width: 100%; max-width: 560px; padding: 40px 32px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.08); text-align: center; }
+        .icon { display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 72px; margin-bottom: 16px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); }
+        h1 { margin: 0 0 8px; font-size: 1.6rem; line-height: 1.25; font-weight: 700; }
+        main > p { margin: 0; color: var(--muted); }
+        .details p { margin: 24px 0 0; padding: 12px 16px; text-align: left; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; color: var(--muted); background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; }
+        .details b { display: block; margin-bottom: 4px; font: 600 11px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+        .details br:first-of-type { display: none; }
+        footer { margin-top: 24px; font-size: 13px; color: var(--muted); }
+        @media (max-width: 480px) { main { padding: 32px 20px; } h1 { font-size: 1.35rem; } }
+    </style>
 </head>
 <body>
-    <h1>Website Blocked</h1>
-    <p>This website has been blocked by your network administrator.</p>
-{BLOCKING-INFO}
+    <main>
+        <div class="icon" aria-hidden="true">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+        </div>
+        <h1>Website Blocked</h1>
+        <p>This website has been blocked by your network administrator.</p>
+        <div class="details">{BLOCKING-INFO}</div>
+        <footer>If you believe this is a mistake, please contact your network administrator.</footer>
+    </main>
 </body>
 </html>

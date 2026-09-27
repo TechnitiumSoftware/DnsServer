@@ -62,15 +62,15 @@ body.light-mode {
 }
 
 a {
-    color: #6699ff;
+    color: var(--ui-link, #6699ff);
 }
 
     a:hover {
-        color: #6699ff;
+        color: var(--ui-link, #6699ff);
     }
 
     a:visited {
-        color: #6699ff;
+        color: var(--ui-link, #6699ff);
     }
 
 th a {
@@ -180,12 +180,12 @@ th a {
     }
 
         #footer .content a {
-            color: #6699ff;
+            color: var(--ui-link, #6699ff);
             text-decoration: none;
         }
 
             #footer .content a:hover {
-                color: #6699ff;
+                color: var(--ui-link, #6699ff);
             }
 
 @media (min-width: 992px) {
@@ -391,4 +391,261 @@ th a {
     padding: 2px 8px;
     height: 28px;
     max-width: 250px;
+}
+
+/* ---------- UI refinements ---------- */
+
+body {
+    --ui-link: #2a64d6;
+    --ui-focus: #2a64d6;
+    --ui-focus-ring: rgba(42, 100, 214, 0.25);
+    --ui-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+    --ui-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.10), 0 2px 4px rgba(16, 24, 40, 0.06);
+    --ui-shadow-lg: 0 20px 48px rgba(16, 24, 40, 0.18), 0 4px 12px rgba(16, 24, 40, 0.08);
+    --ui-radius: 8px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not(.light-mode) {
+        --ui-link: #6699ff;
+        --ui-focus: #66a3ff;
+        --ui-focus-ring: rgba(102, 163, 255, 0.35);
+        --ui-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+        --ui-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+        --ui-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
+    }
+}
+
+body.dark-mode {
+    --ui-link: #6699ff;
+    --ui-focus: #66a3ff;
+    --ui-focus-ring: rgba(102, 163, 255, 0.35);
+    --ui-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --ui-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --ui-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
+}
+
+body.amber-mode {
+    --ui-link: #6699ff;
+    --ui-focus: #ffb000;
+    --ui-focus-ring: rgba(255, 176, 0, 0.3);
+    --ui-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+    --ui-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+    --ui-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.65);
+}
+
+#header .title .text,
+#header .menu .menu-title,
+#footer .content {
+    font-family: inherit;
+}
+
+#header .title .text {
+    letter-spacing: -0.01em;
+}
+
+#header .menu a:hover .menu-title,
+#header .menu a:focus .menu-title {
+    opacity: 0.85;
+}
+
+body.light-mode #header {
+    background-image: linear-gradient(90deg, #6699ff 0%, #4f86f7 100%);
+    box-shadow: var(--ui-shadow-md);
+}
+
+body.light-mode #footer {
+    box-shadow: 0 -1px 0 #e6e8ee;
+}
+
+/* keyboard focus: visible for keyboard users, hidden for mouse clicks */
+
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.nav-tabs > li > a:focus-visible,
+.dropdown-menu > li > a:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+    outline: 2px solid var(--ui-focus) !important;
+    outline-offset: 2px;
+}
+
+a:focus:not(:focus-visible),
+.btn:focus:not(:focus-visible),
+.btn:active:focus:not(:focus-visible) {
+    outline: 0;
+}
+
+body .form-control:focus {
+    border-color: var(--ui-focus) !important;
+    box-shadow: 0 0 0 3px var(--ui-focus-ring);
+    outline: 0;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: var(--ui-focus);
+}
+
+/* controls */
+
+.btn,
+.form-control,
+.input-group-addon {
+    border-radius: 6px;
+}
+
+.btn-sm,
+.btn-xs {
+    border-radius: 5px;
+}
+
+.btn,
+.form-control,
+.nav-tabs > li > a,
+.dropdown-menu > li > a,
+.pagination > li > a {
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.label {
+    border-radius: 4px;
+}
+
+code {
+    border-radius: 4px;
+}
+
+/* surfaces */
+
+.panel {
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow-sm);
+}
+
+    .panel > .panel-heading {
+        border-top-left-radius: calc(var(--ui-radius) - 1px);
+        border-top-right-radius: calc(var(--ui-radius) - 1px);
+    }
+
+    .panel > .panel-footer {
+        border-bottom-left-radius: calc(var(--ui-radius) - 1px);
+        border-bottom-right-radius: calc(var(--ui-radius) - 1px);
+    }
+
+.panel-title {
+    font-weight: 600;
+}
+
+.light-mode .panel-default {
+    border-color: #e3e7ef;
+}
+
+    .light-mode .panel-default > .panel-heading {
+        background-color: #f6f8fb;
+        border-color: #e3e7ef;
+    }
+
+.well,
+.alert {
+    border-radius: var(--ui-radius);
+}
+
+.AlertPlaceholder .alert {
+    box-shadow: var(--ui-shadow-md);
+}
+
+.nav-tabs > li > a {
+    border-radius: 6px 6px 0 0;
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover,
+.nav-tabs > li.active > a:focus {
+    box-shadow: inset 0 2px 0 var(--ui-focus);
+}
+
+.light-mode .table-hover > tbody > tr:hover {
+    background-color: #f2f5fb;
+}
+
+.dropdown-menu {
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow-md);
+    padding: 6px 0;
+}
+
+    .dropdown-menu > li > a {
+        padding: 6px 16px;
+    }
+
+.modal-content {
+    border-radius: 12px;
+    box-shadow: var(--ui-shadow-lg);
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+/* dashboard stats: rounded tiles, text shadow improves white-on-color legibility */
+
+.stats-panel .stats-item,
+.zone-stats-panel .stats-item {
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow-sm);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* login */
+
+.pageLogin .panel {
+    border-radius: 12px;
+    box-shadow: var(--ui-shadow-lg);
+}
+
+    .pageLogin .panel > .panel-heading {
+        padding: 14px 20px;
+        border-top-left-radius: 11px;
+        border-top-right-radius: 11px;
+    }
+
+    .pageLogin .panel-body {
+        padding: 24px 20px 20px 20px;
+    }
+
+/* light mode scrollbar, matching dark and amber themes */
+
+.light-mode {
+    scrollbar-width: thin;
+    scrollbar-color: #c3c8d2 #f0f1f4;
+}
+
+    .light-mode ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+    }
+
+    .light-mode ::-webkit-scrollbar-track {
+        background: #f0f1f4;
+    }
+
+    .light-mode ::-webkit-scrollbar-thumb {
+        background-color: #c3c8d2;
+        border-radius: 6px;
+        border: 3px solid #f0f1f4;
+    }
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
