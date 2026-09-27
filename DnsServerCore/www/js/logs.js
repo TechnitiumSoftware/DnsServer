@@ -130,7 +130,7 @@ function refreshLogFilesList(selectedFileName) {
                 for (var i = 0; i < logFiles.length; i++) {
                     var logFile = logFiles[i];
 
-                    list += "<div class=\"log\"><a href=\"#\" onclick=\"viewLog('" + logFile.fileName + "'); return false;\">" + logFile.fileName + " [" + logFile.size + "]</a></div>"
+                    list += "<div class=\"log\"><a href=\"#\" data-log-file-name=\"" + htmlEncode(logFile.fileName) + "\" onclick=\"viewLog($(this).attr('data-log-file-name')); return false;\">" + htmlEncode(logFile.fileName) + " [" + logFile.size + "]</a></div>";
                 }
             }
 

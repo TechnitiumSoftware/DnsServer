@@ -116,6 +116,12 @@
 				"version": "11.2",
 				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v11.2.zip",
 				"size": "61.59 KB"
+			},
+			{
+				"serverVersion": "15.5.1",
+				"version": "11.2.1",
+				"url": "https://download.technitium.com/dns/apps/AdvancedBlockingApp-v11.2.1.zip",
+				"size": "61.57 KB"
 			}
 		]
 	},

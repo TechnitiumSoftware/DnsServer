@@ -61,6 +61,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly Lock _cacheMaintenanceTimerLock = new Lock();
         const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 1 * 60 * 1000;
         const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 1 * 60 * 1000;
+        const int CACHE_MAINTENANCE_GC_COLLECTION_THRESHOLD = 10000;
 
         #endregion
 
@@ -298,10 +299,9 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             try
             {
-                RemoveExpiredRecords();
-
-                //force GC collection to remove old cache data from memory quickly
-                GC.Collect();
+                int totalRemovedEntries = RemoveExpiredRecords();
+                if (totalRemovedEntries > CACHE_MAINTENANCE_GC_COLLECTION_THRESHOLD)
+                    GC.Collect(2, GCCollectionMode.Optimized, false); //do GC collection to remove old cache data from memory quickly
             }
             catch (Exception ex)
             {
@@ -688,38 +688,49 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region public
 
-        public override void RemoveExpiredRecords()
+        public override int RemoveExpiredRecords()
         {
             bool serveStale = _dnsServer.ServeStale;
+            int totalRemovedEntries;
 
             //remove expired records/expired stale records
-            RemoveExpiredRecordsInternal(serveStale, 0);
+            totalRemovedEntries = RemoveExpiredRecordsInternal(serveStale, 0);
 
             if (_maximumEntries < 1)
-                return; //cache limit feature disabled
+                return totalRemovedEntries; //cache limit feature disabled
 
             //find minimum entries to remove
-            long minimumEntriesToRemove = _totalEntries - _maximumEntries;
+            long minimumEntriesToRemove = Volatile.Read(ref _totalEntries) - _maximumEntries;
             if (minimumEntriesToRemove < 1)
-                return; //no need to remove
+                return totalRemovedEntries; //no need to remove
 
             //remove stale records if they exist
             if (serveStale)
-                minimumEntriesToRemove -= RemoveExpiredRecordsInternal(false, minimumEntriesToRemove);
+            {
+                int removedEntries = RemoveExpiredRecordsInternal(false, minimumEntriesToRemove);
+
+                totalRemovedEntries += removedEntries;
+                minimumEntriesToRemove -= removedEntries;
+            }
 
             if (minimumEntriesToRemove < 1)
-                return; //task completed
+                return totalRemovedEntries; //task completed
 
             //remove least recently used records
             for (int seconds = 86400; seconds > 0; seconds /= 2)
             {
                 DateTime cutoff = DateTime.UtcNow.AddSeconds(-seconds);
 
-                minimumEntriesToRemove -= RemoveLeastUsedRecordsInternal(cutoff, minimumEntriesToRemove);
+                int removedEntries = RemoveLeastUsedRecordsInternal(cutoff, minimumEntriesToRemove);
+
+                totalRemovedEntries += removedEntries;
+                minimumEntriesToRemove -= removedEntries;
 
                 if (minimumEntriesToRemove < 1)
                     break; //task completed
             }
+
+            return totalRemovedEntries;
         }
 
         public void DeleteEDnsClientSubnetData()
@@ -746,7 +757,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             _root.Clear();
 
-            long totalEntries = _totalEntries;
+            long totalEntries = Volatile.Read(ref _totalEntries);
             totalEntries = Interlocked.Add(ref _totalEntries, -totalEntries);
             if (totalEntries < 0)
                 Interlocked.Add(ref _totalEntries, -totalEntries);

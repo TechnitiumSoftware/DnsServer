@@ -1038,28 +1038,25 @@ namespace DnsServerCore
                 }
 
                 string strPartialToken = context.Request.GetQueryOrForm("partialToken");
-                if (session.Token.StartsWith(strPartialToken))
+                if (strPartialToken.Length != 16)
+                    throw new DnsWebServiceException("Parameter 'partialToken' must be exactly 16 chars long.");
+
+                if (session.Token.StartsWith(strPartialToken, StringComparison.Ordinal))
                     throw new DnsWebServiceException("Invalid operation: cannot delete current session.");
 
                 UserSession sessionToDelete = null;
 
                 foreach (UserSession activeSession in _dnsWebService._authManager.Sessions)
                 {
-                    if (activeSession.Token.StartsWith(strPartialToken))
+                    if (activeSession.Token.StartsWith(strPartialToken, StringComparison.Ordinal))
                     {
                         sessionToDelete = activeSession;
                         break;
                     }
                 }
 
-                if (sessionToDelete is null)
+                if ((sessionToDelete is null) || (!isAdminContext && (sessionToDelete.User != session.User)))
                     throw new DnsWebServiceException("No such active session was found for partial token: " + strPartialToken);
-
-                if (!isAdminContext)
-                {
-                    if (sessionToDelete.User != session.User)
-                        throw new DnsWebServiceException("Access was denied.");
-                }
 
                 if (_dnsWebService._clusterManager.ClusterInitialized)
                 {

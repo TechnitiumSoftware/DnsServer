@@ -164,13 +164,7 @@ namespace DnsServerCore.Dhcp
             _options = options;
 
             foreach (DhcpOption option in _options)
-            {
-                if (option.Code == DhcpOptionCode.ServerIdentifier)
-                {
-                    _serverIdentifier = option as ServerIdentifierOption;
-                    break;
-                }
-            }
+                SetOptionProperties(option);
         }
 
         public DhcpMessage(Stream s)
@@ -317,48 +311,53 @@ namespace DnsServerCore.Dhcp
                 //add option to list
                 options.Add(option);
 
-                switch (option.Code)
-                {
-                    case DhcpOptionCode.DhcpMessageType:
-                        _dhcpMessageType = option as DhcpMessageTypeOption;
-                        break;
+                SetOptionProperties(option);
+            }
+        }
 
-                    case DhcpOptionCode.VendorClassIdentifier:
-                        _vendorClassIdentifier = option as VendorClassIdentifierOption;
-                        break;
+        private void SetOptionProperties(DhcpOption option)
+        {
+            switch (option.Code)
+            {
+                case DhcpOptionCode.DhcpMessageType:
+                    _dhcpMessageType = option as DhcpMessageTypeOption;
+                    break;
 
-                    case DhcpOptionCode.ClientIdentifier:
-                        _clientIdentifier = option as ClientIdentifierOption;
-                        break;
+                case DhcpOptionCode.VendorClassIdentifier:
+                    _vendorClassIdentifier = option as VendorClassIdentifierOption;
+                    break;
 
-                    case DhcpOptionCode.HostName:
-                        _hostName = option as HostNameOption;
-                        break;
+                case DhcpOptionCode.ClientIdentifier:
+                    _clientIdentifier = option as ClientIdentifierOption;
+                    break;
 
-                    case DhcpOptionCode.ClientFullyQualifiedDomainName:
-                        _clientFullyQualifiedDomainName = option as ClientFullyQualifiedDomainNameOption;
-                        break;
+                case DhcpOptionCode.HostName:
+                    _hostName = option as HostNameOption;
+                    break;
 
-                    case DhcpOptionCode.ParameterRequestList:
-                        _parameterRequestList = option as ParameterRequestListOption;
-                        break;
+                case DhcpOptionCode.ClientFullyQualifiedDomainName:
+                    _clientFullyQualifiedDomainName = option as ClientFullyQualifiedDomainNameOption;
+                    break;
 
-                    case DhcpOptionCode.MaximumDhcpMessageSize:
-                        _maximumDhcpMessageSize = option as MaximumDhcpMessageSizeOption;
-                        break;
+                case DhcpOptionCode.ParameterRequestList:
+                    _parameterRequestList = option as ParameterRequestListOption;
+                    break;
 
-                    case DhcpOptionCode.ServerIdentifier:
-                        _serverIdentifier = option as ServerIdentifierOption;
-                        break;
+                case DhcpOptionCode.MaximumDhcpMessageSize:
+                    _maximumDhcpMessageSize = option as MaximumDhcpMessageSizeOption;
+                    break;
 
-                    case DhcpOptionCode.RequestedIpAddress:
-                        _requestedIpAddress = option as RequestedIpAddressOption;
-                        break;
+                case DhcpOptionCode.ServerIdentifier:
+                    _serverIdentifier = option as ServerIdentifierOption;
+                    break;
 
-                    case DhcpOptionCode.OptionOverload:
-                        _optionOverload = option as OptionOverloadOption;
-                        break;
-                }
+                case DhcpOptionCode.RequestedIpAddress:
+                    _requestedIpAddress = option as RequestedIpAddressOption;
+                    break;
+
+                case DhcpOptionCode.OptionOverload:
+                    _optionOverload = option as OptionOverloadOption;
+                    break;
             }
         }
 

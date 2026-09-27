@@ -545,7 +545,7 @@ namespace DnsServerCore.Dns
                         if (dailyStats.Truncate(STATS_TOP_LIMIT))
                         {
                             SaveDailyStats(dailyDateTime, dailyStats); //save truncated file
-                            GC.Collect();
+                            GC.Collect(2, GCCollectionMode.Optimized, true); //do GC collection to remove truncated data from memory, which can be huge
                         }
                     }
                     catch (Exception ex)
@@ -569,7 +569,7 @@ namespace DnsServerCore.Dns
                     {
                         _ = dailyStats.Truncate(STATS_TOP_LIMIT);
                         SaveDailyStats(dailyDateTime, dailyStats);
-                        GC.Collect();
+                        GC.Collect(2, GCCollectionMode.Optimized, true); //do GC collection to remove hourly data from memory, which can be huge
                     }
                 }
 

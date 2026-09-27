@@ -470,7 +470,7 @@ function showAppConfigModal(objBtn, appName) {
 
             $("#divAppConfigAlert").html("");
 
-            $("#lblAppConfigName").html(appName);
+            $("#lblAppConfigName").text(appName);
             $("#txtAppConfig").val(responseJSON.response.config);
 
             $("#btnAppConfig").button("reset");

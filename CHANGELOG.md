@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 15.5.1
+Release Date: 26 September 2026
+
+- Fixed issues with recursive resolver limits causing issues with resolution for some domain names.
+- Fixed session token prefix oracle vulnerability reported by Elias Hasas from Brickell Technologies LLC, that allowed an low privilege user to recover full session token for any user's active session.
+- Fixed XSS vulnerability in Logs view reported by Yutthavuth Kak from Karpia Cyber that can be triggered by an attacker who can independently create file with arbitrary name on the server and has DNS Administrator privilege.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 15.5
 Release Date: 19 September 2026
 

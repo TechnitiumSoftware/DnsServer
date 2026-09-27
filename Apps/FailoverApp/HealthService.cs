@@ -174,7 +174,7 @@ namespace Failover
         {
             foreach (KeyValuePair<string, HealthMonitor> healthMonitor in _healthMonitors)
             {
-                if (healthMonitor.Key.StartsWith(healthCheck + "|"))
+                if (healthMonitor.Key.StartsWith(healthCheck + "|", StringComparison.Ordinal))
                 {
                     if (_healthMonitors.TryRemove(healthMonitor.Key, out HealthMonitor? removedMonitor))
                         removedMonitor.Dispose();
