@@ -2933,10 +2933,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             DnsResourceRecord firstDeletedSoaRecord = null;
             DnsResourceRecord lastAddedSoaRecord = null;
 
-            List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
-            List<DnsResourceRecord> deletedGlueRecords = new List<DnsResourceRecord>();
-            List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
-            List<DnsResourceRecord> addedGlueRecords = new List<DnsResourceRecord>();
+            //Records are tracked per record identity (name, type, class and RDATA, without the TTL) so that
+            //the net effect of all the difference sequences gets computed for each record. When the sequences
+            //are applied literally, the final state of a record is decided by the LAST operation performed on
+            //it. Hence, a record whose last operation is an add must never be emitted as a deletion (the
+            //receiving secondary would delete the record and never add it back), and surplus duplicate
+            //deletions must collapse into a single deletion.
+            Dictionary<DnsResourceRecord, CondenseRecordState> deletedOrAddedRecords = new Dictionary<DnsResourceRecord, CondenseRecordState>(DnsResourceRecordIdentityComparer.Instance);
+            Dictionary<DnsResourceRecord, CondenseRecordState> deletedOrAddedGlueRecords = new Dictionary<DnsResourceRecord, CondenseRecordState>(DnsResourceRecordIdentityComparer.Instance);
 
             //read and apply difference sequences
             int index = 1;
@@ -2968,14 +2972,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             case DnsResourceRecordType.A:
                             case DnsResourceRecordType.AAAA:
-                                if (!addedGlueRecords.Remove(record))
-                                    deletedGlueRecords.Add(record);
+                                CondenseRecordState.AddDelete(deletedOrAddedGlueRecords, record);
 
                                 break;
 
                             default:
-                                if (!addedRecords.Remove(record))
-                                    deletedRecords.Add(record);
+                                CondenseRecordState.AddDelete(deletedOrAddedRecords, record);
 
                                 break;
                         }
@@ -2984,8 +2986,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (!addedRecords.Remove(record))
-                                deletedRecords.Add(record);
+                            CondenseRecordState.AddDelete(deletedOrAddedRecords, record);
                         }
                         else
                         {
@@ -2993,8 +2994,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             {
                                 case DnsResourceRecordType.A:
                                 case DnsResourceRecordType.AAAA:
-                                    if (!addedGlueRecords.Remove(record))
-                                        deletedGlueRecords.Add(record);
+                                    CondenseRecordState.AddDelete(deletedOrAddedGlueRecords, record);
 
                                     break;
                             }
@@ -3026,14 +3026,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             case DnsResourceRecordType.A:
                             case DnsResourceRecordType.AAAA:
-                                if (!deletedGlueRecords.Remove(record))
-                                    addedGlueRecords.Add(record);
+                                CondenseRecordState.AddAdd(deletedOrAddedGlueRecords, record);
 
                                 break;
 
                             default:
-                                if (!deletedRecords.Remove(record))
-                                    addedRecords.Add(record);
+                                CondenseRecordState.AddAdd(deletedOrAddedRecords, record);
 
                                 break;
                         }
@@ -3042,8 +3040,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
-                            if (!deletedRecords.Remove(record))
-                                addedRecords.Add(record);
+                            CondenseRecordState.AddAdd(deletedOrAddedRecords, record);
                         }
                         else
                         {
@@ -3051,8 +3048,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             {
                                 case DnsResourceRecordType.A:
                                 case DnsResourceRecordType.AAAA:
-                                    if (!deletedGlueRecords.Remove(record))
-                                        addedGlueRecords.Add(record);
+                                    CondenseRecordState.AddAdd(deletedOrAddedGlueRecords, record);
 
                                     break;
                             }
@@ -3073,6 +3069,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             //create condensed records
+            List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> deletedGlueRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> addedGlueRecords = new List<DnsResourceRecord>();
+
+            CondenseRecordState.GetRecords(deletedOrAddedRecords, deletedRecords, addedRecords);
+            CondenseRecordState.GetRecords(deletedOrAddedGlueRecords, deletedGlueRecords, addedGlueRecords);
+
             List<DnsResourceRecord> condensedRecords = new List<DnsResourceRecord>(2 + 2 + deletedRecords.Count + deletedGlueRecords.Count + addedRecords.Count + addedGlueRecords.Count);
 
             condensedRecords.Add(firstSoaRecord);
@@ -3088,6 +3092,113 @@ namespace DnsServerCore.Dns.ZoneManagers
             condensedRecords.Add(lastSoaRecord);
 
             return condensedRecords;
+        }
+
+        /// <summary>
+        /// Tracks the net state of a single resource record while the difference sequences of an incremental
+        /// zone transfer are read. The record identity (see <see cref="DnsResourceRecordIdentityComparer"/>)
+        /// is used as the key so that a record deleted with one TTL and added back with another TTL is
+        /// recognized as the same record.
+        /// </summary>
+        private sealed class CondenseRecordState
+        {
+            public DnsResourceRecord FirstRecord;
+            public DnsResourceRecord LastRecord;
+            public bool LastOperationIsAdd;
+            public bool FirstOperationIsDelete;
+            public DnsResourceRecord LastDeletedRecord;
+
+            public static void AddDelete(Dictionary<DnsResourceRecord, CondenseRecordState> records, DnsResourceRecord record)
+            {
+                if (!records.TryGetValue(record, out CondenseRecordState state))
+                {
+                    state = new CondenseRecordState()
+                    {
+                        FirstRecord = record,
+                        FirstOperationIsDelete = true
+                    };
+
+                    records.Add(record, state);
+                }
+
+                state.LastRecord = record;
+                state.LastOperationIsAdd = false;
+                state.LastDeletedRecord = record;
+            }
+
+            public static void AddAdd(Dictionary<DnsResourceRecord, CondenseRecordState> records, DnsResourceRecord record)
+            {
+                if (!records.TryGetValue(record, out CondenseRecordState state))
+                {
+                    state = new CondenseRecordState()
+                    {
+                        FirstRecord = record
+                    };
+
+                    records.Add(record, state);
+                }
+
+                state.LastRecord = record;
+                state.LastOperationIsAdd = true;
+            }
+
+            public static void GetRecords(Dictionary<DnsResourceRecord, CondenseRecordState> records, List<DnsResourceRecord> deletedRecords, List<DnsResourceRecord> addedRecords)
+            {
+                foreach (CondenseRecordState state in records.Values)
+                {
+                    if (!state.LastOperationIsAdd)
+                    {
+                        //the last operation on the record is a delete, so a single deletion is enough
+                        deletedRecords.Add(state.LastRecord);
+                        continue;
+                    }
+
+                    //the last operation on the record is an add, so the record must exist after the
+                    //transfer. When the record was added back exactly as it was deleted, the operation is a
+                    //no-op and nothing needs to be sent.
+                    if (state.FirstOperationIsDelete)
+                    {
+                        if (state.FirstRecord.Equals(state.LastRecord))
+                            continue;
+
+                        //the record is being added with a different TTL than the one it was deleted with.
+                        //The deletion must be sent as well since AuthZone.SyncRecords() matches additions by
+                        //RDATA only and does not update the TTL of a record that already exists.
+                        deletedRecords.Add(state.LastDeletedRecord);
+                    }
+
+                    addedRecords.Add(state.LastRecord);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Compares resource records by name (case-insensitive), type, class and RDATA, i.e. by the record
+        /// identity only. The TTL is excluded since it is not a part of the RR identity (RFC 2181) and an
+        /// incremental zone transfer may delete a record with a TTL different from the one it adds back.
+        /// </summary>
+        private sealed class DnsResourceRecordIdentityComparer : IEqualityComparer<DnsResourceRecord>
+        {
+            public static readonly DnsResourceRecordIdentityComparer Instance = new DnsResourceRecordIdentityComparer();
+
+            private DnsResourceRecordIdentityComparer()
+            { }
+
+            public bool Equals(DnsResourceRecord x, DnsResourceRecord y)
+            {
+                if (ReferenceEquals(x, y))
+                    return true;
+
+                if ((x is null) || (y is null))
+                    return false;
+
+                return x.Name.Equals(y.Name, StringComparison.OrdinalIgnoreCase) && (x.Type == y.Type) && (x.Class == y.Class) && x.RDATA.Equals(y.RDATA);
+            }
+
+            public int GetHashCode(DnsResourceRecord obj)
+            {
+                return HashCode.Combine(obj.Name.ToLowerInvariant(), obj.Type, obj.Class, obj.RDATA);
+            }
         }
 
         internal void ImportRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records, bool overwriteRecords, bool overwriteZone, bool overwriteSoaSerial)
