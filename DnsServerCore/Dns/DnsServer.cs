@@ -1,4 +1,4 @@
-﻿/*
+/*
 Technitium DNS Server
 Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
@@ -239,7 +239,7 @@ namespace DnsServerCore.Dns
         int _resolverRetries = 2;
         int _resolverTimeout = 1500;
         int _resolverConcurrency = 2;
-        int _resolverMaxStackCount = 16;
+        int _resolverMaxStackCount = 32; //raised from 16: deep CDN delegation chains (Akamai, O365, Cloudflare) require ~20 NS referral hops
 
         bool _saveCacheToDisk = true;
         bool _serveStale = true;
@@ -7744,8 +7744,8 @@ namespace DnsServerCore.Dns
             get { return _resolverMaxStackCount; }
             set
             {
-                if ((value < 10) || (value > 30))
-                    throw new ArgumentOutOfRangeException(nameof(ResolverMaxStackCount), "Valid range is from 10 to 30.");
+                if ((value < 10) || (value > 64))
+                    throw new ArgumentOutOfRangeException(nameof(ResolverMaxStackCount), "Valid range is from 10 to 64.");
 
                 _resolverMaxStackCount = value;
             }
