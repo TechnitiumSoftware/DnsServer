@@ -79,6 +79,30 @@ namespace AdvancedBlocking
         DateTime _coreAllowedZonesLastRead = DateTime.MinValue;
         string? _coreAllowedConfigFilePath;
 
+        // CDN delivery infrastructure suffixes — these are routing hops, never CNAME cloaking alias targets.
+        // A domain whose last label chain matches any of these is never a tracker alias regardless of blocklists.
+        static readonly HashSet<string> _cdnDeliverySuffixes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "akamaiedge.net",       // Akamai edge nodes  (e348826.dsca.akamaiedge.net)
+            "akamai.net",           // Akamai generic
+            "akadns.net",           // Akamai DNS
+            "edgekey.net",          // Akamai routing     (www.flipkart.com.edgekey.net)
+            "edgesuite.net",        // Akamai legacy
+            "akamaized.net",        // Akamai media
+            "cloudfront.net",       // AWS CloudFront
+            "fastly.net",           // Fastly CDN
+            "fastlylb.net",         // Fastly load-balancer
+            "llnwi.net",            // Limelight / Edgio
+            "llnw.net",             // Limelight / Edgio
+            "azureedge.net",        // Azure CDN
+            "trafficmanager.net",   // Azure Traffic Manager
+            "cdn.cloudflare.net",   // Cloudflare CDN
+            "r.cloudflare.com",     // Cloudflare reverse proxy
+            "cdn77.org",            // CDN77
+            "stackpathdns.com",     // StackPath
+            "stackpathcdn.com",     // StackPath
+        };
+
         #endregion
 
         #region IDisposable
@@ -820,7 +844,11 @@ namespace AdvancedBlocking
             if (!_enableBlocking)
                 return response;
 
-            if ((response is null) || (response.Answer is null) || (response.Answer.Count == 0))
+            // FIX 1: Only inspect fully-resolved NoError responses.
+            // SERVFAIL / NxDomain / Refused responses are already failure states — CNAME cloaking
+            // interception on partial chains produces false positives and must be skipped.
+            if ((response is null) || (response.RCODE != DnsResponseCode.NoError) ||
+                (response.Answer is null) || (response.Answer.Count == 0))
                 return response;
 
             string? groupName = GetGroupName(request, remoteEP);
@@ -833,50 +861,104 @@ namespace AdvancedBlocking
             if (IsDomainAllowed(group, question.Name, question.Type, remoteEP.Address))
                 return response;
 
-            // Inspect each CNAME in answer for cloaked tracking
+            // CNAME Cloaking Detection — First Non-CDN Alias Target.
+            //
+            // CNAME cloaking anatomy (what we must block):
+            //   victim.com  →  evil-tracker.evil.com  →  evil-tracker.azureedge.net  →  A
+            //                  ↑ FIRST non-CDN hop: the third-party alias — check this one
+            //
+            // CDN delivery only (what we must NOT block):
+            //   flipkart.com  →  flipkart.com.edgekey.net  →  e348826.dsca.akamaiedge.net  →  A
+            //                    ↑ CDN hop — skip           ↑ CDN hop — skip → no non-CDN alias found
+            //
+            // Scanning for the FIRST non-CDN CNAME is semantically correct:
+            //   - The tracker/alias is always the first third-party domain before CDN delivery takes over.
+            //   - CDN infrastructure hops that follow are routing artefacts, not alias targets.
+            //
+            // Security note — example.com → malicious.azureedge.net (CDN-only chain):
+            //   PostProcessAsync cannot distinguish this from legitimate CDN delivery because there is
+            //   no visible non-CDN alias in the chain. The correct defence is to block example.com itself
+            //   via ProcessRequestAsync (query-time blocking). Blocklist maintainers add the source
+            //   domain, not the CDN endpoint, for this attack vector.
+            DnsResourceRecord? targetCnameRecord = null;
+            int targetCnameIndex = -1;
+
             for (int i = 0; i < response.Answer.Count; i++)
             {
                 DnsResourceRecord rr = response.Answer[i];
-                if ((rr.Type == DnsResourceRecordType.CNAME) && (rr.RDATA is DnsCNAMERecordData cnameData))
+                if ((rr.Type == DnsResourceRecordType.CNAME) && (rr.RDATA is DnsCNAMERecordData cnameRdata))
                 {
-                    string cnameDomain = cnameData.Domain.TrimEnd('.');
+                    string hopDomain = cnameRdata.Domain.TrimEnd('.');
 
-                    // If the CNAME target is explicitly allowed (in Core or in App Group), DO NOT BLOCK!
-                    if (IsDomainAllowed(group, cnameDomain, question.Type, remoteEP.Address))
+                    // Skip CDN routing infrastructure — these are delivery hops, never alias targets.
+                    // Continue scanning deeper in the chain for a non-CDN alias.
+                    if (IsCdnDeliveryDomain(hopDomain))
                         continue;
 
-                    if (group.IsZoneBlocked(cnameDomain, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
-                    {
-                        _dnsServer?.WriteLog($"Advanced Blocking app intercepted CNAME cloaking: query '{question.Name}' aliases to blocked domain '{cnameDomain}'");
-
-                        // Native CNAME Pipeline Harmonization (DnsServer.cs L4817-4828):
-                        // Preserve all preceding and current CNAME records so clients receive a valid delegation chain
-                        List<DnsResourceRecord> answers = new List<DnsResourceRecord>(i + 2);
-                        for (int j = 0; j <= i; j++)
-                            answers.Add(response.Answer[j]);
-
-                        // Generate blocked response for the cloaked target domain
-                        DnsDatagram? blockedResp = await CreateBlockedResponseAsync(request, group, new DnsQuestionRecord(cnameDomain, question.Type, question.Class), blockedDomain ?? cnameDomain, blockedRegex, blockListUrl, matchedRule, true);
-
-                        if ((blockedResp is not null) && (blockedResp.Answer is not null))
-                        {
-                            foreach (DnsResourceRecord bRR in blockedResp.Answer)
-                            {
-                                if (bRR.Type != DnsResourceRecordType.CNAME)
-                                    answers.Add(bRR);
-                            }
-                        }
-
-                        DnsResponseCode rcode = blockedResp?.RCODE ?? DnsResponseCode.NoError;
-                        IReadOnlyList<DnsResourceRecord>? authority = blockedResp?.Authority;
-                        IReadOnlyList<DnsResourceRecord>? additional = blockedResp?.Additional;
-
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, rcode, request.Question, answers, authority, additional);
-                    }
+                    // First non-CDN CNAME found — this is the potential third-party tracker alias.
+                    targetCnameRecord = rr;
+                    targetCnameIndex = i;
+                    break;
                 }
             }
 
+            if (targetCnameRecord is null)
+                return response; // All CNAMEs are CDN routing hops — no alias target to inspect
+
+            DnsCNAMERecordData targetCnameData = (DnsCNAMERecordData)targetCnameRecord.RDATA;
+            string cnameDomain = targetCnameData.Domain.TrimEnd('.');
+
+            // If the alias target is explicitly allowed (in Core or in App Group), DO NOT BLOCK
+            if (IsDomainAllowed(group, cnameDomain, question.Type, remoteEP.Address))
+                return response;
+
+            if (group.IsZoneBlocked(cnameDomain, question.Type, remoteEP.Address, out string? blockedDomain, out string? blockedRegex, out UrlEntry? blockListUrl, out AdBlockRule? matchedRule))
+            {
+                _dnsServer?.WriteLog($"Advanced Blocking app intercepted CNAME cloaking: query '{question.Name}' aliases to blocked domain '{cnameDomain}'");
+
+                // Preserve all CNAME records up to and including the alias so clients receive
+                // a valid delegation chain before the block response is appended.
+                List<DnsResourceRecord> answers = new List<DnsResourceRecord>(targetCnameIndex + 2);
+                for (int j = 0; j <= targetCnameIndex; j++)
+                    answers.Add(response.Answer[j]);
+
+                // Generate blocked response for the cloaked target domain
+                DnsDatagram? blockedResp = await CreateBlockedResponseAsync(request, group, new DnsQuestionRecord(cnameDomain, question.Type, question.Class), blockedDomain ?? cnameDomain, blockedRegex, blockListUrl, matchedRule, true);
+
+                if ((blockedResp is not null) && (blockedResp.Answer is not null))
+                {
+                    foreach (DnsResourceRecord bRR in blockedResp.Answer)
+                    {
+                        if (bRR.Type != DnsResourceRecordType.CNAME)
+                            answers.Add(bRR);
+                    }
+                }
+
+                DnsResponseCode rcode = blockedResp?.RCODE ?? DnsResponseCode.NoError;
+                IReadOnlyList<DnsResourceRecord>? authority = blockedResp?.Authority;
+                IReadOnlyList<DnsResourceRecord>? additional = blockedResp?.Additional;
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, rcode, request.Question, answers, authority, additional);
+            }
+
             return response;
+        }
+
+        /// <summary>
+        /// Returns true if <paramref name="domain"/> is a CDN delivery infrastructure hostname.
+        /// CDN routing hops appear in blocklists (e.g. analytics.*.edgekey.net) but are never
+        /// CNAME cloaking alias targets — they are Akamai/CloudFront/Fastly edge nodes.
+        /// </summary>
+        private static bool IsCdnDeliveryDomain(string domain)
+        {
+            foreach (string suffix in _cdnDeliverySuffixes)
+            {
+                if (domain.Equals(suffix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (domain.EndsWith("." + suffix, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
         }
 
         private async Task<DnsDatagram?> CreateBlockedResponseAsync(DnsDatagram request, Group group, DnsQuestionRecord question, string? blockedDomain, string? blockedRegex, UrlEntry? blockListUrl, AdBlockRule? matchedRule, bool isCnameCloaked)
@@ -995,7 +1077,7 @@ namespace AdvancedBlocking
 
                 DnsResourceRecord[] answer = [new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, _blockingAnswerTtl, new DnsTXTRecordData(blockingReport))];
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
             else
             {
@@ -1009,6 +1091,7 @@ namespace AdvancedBlocking
                 }
 
                 DnsResponseCode rcode;
+                bool ra;
                 IReadOnlyList<DnsResourceRecord>? answer = null;
                 IReadOnlyList<DnsResourceRecord>? authority = null;
 
@@ -1017,6 +1100,7 @@ namespace AdvancedBlocking
                 if (blockAsNxDomain)
                 {
                     rcode = DnsResponseCode.NxDomain;
+                    ra = !group.AllowTxtBlockingReport;
 
                     if (blockedDomain is null)
                         blockedDomain = question.Name;
@@ -1030,6 +1114,7 @@ namespace AdvancedBlocking
                 else
                 {
                     rcode = DnsResponseCode.NoError;
+                    ra = true;
 
                     IReadOnlyList<DnsARecordData> aRecords = blockListUrl is not null ? blockListUrl.ARecords : group.ARecords;
                     IReadOnlyList<DnsAAAARecordData> aaaaRecords = blockListUrl is not null ? blockListUrl.AAAARecords : group.AAAARecords;
@@ -1085,7 +1170,7 @@ namespace AdvancedBlocking
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, !group.AllowTxtBlockingReport, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, ra, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer!.UdpPayloadSize, EDnsHeaderFlags.None, options);
             }
         }
 
