@@ -629,10 +629,13 @@ namespace BlockPage
 
                             foreach (EDnsExtendedDnsErrorOptionData option in options)
                             {
+                                //extra text may originate from upstream servers or block lists; encode it to prevent HTML injection
+                                string infoText = WebUtility.HtmlEncode(option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText));
+
                                 if (blockingInfoHtmlContent is null)
-                                    blockingInfoHtmlContent = "  <p><b>Detailed Info</b><br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                    blockingInfoHtmlContent = "  <p><b>Detailed Info</b><br>" + infoText;
                                 else
-                                    blockingInfoHtmlContent += "<br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                    blockingInfoHtmlContent += "<br>" + infoText;
                             }
 
                             if (blockingInfoHtmlContent is not null)
