@@ -21,10 +21,6 @@ function htmlEncode(value) {
     return $('<div/>').text(value).html().replace(/"/g, "&quot;");
 }
 
-function htmlDecode(value) {
-    return $('<div/>').html(value).text();
-}
-
 function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, twoFactorAuthRequired, objAlertPlaceholder, objLoaderPlaceholder, processData, contentType, dontHideAlert, showInnerError, token) {
     var finalUrl;
 
@@ -316,7 +312,7 @@ function serializeTableData(table, columns, objAlertPlaceholder) {
                 }
             }
 
-            output += htmlDecode(cellValue);
+            output += cellValue;
         }
     }
 

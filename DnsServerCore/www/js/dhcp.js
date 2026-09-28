@@ -159,7 +159,10 @@ function convertToDynamicLease(id, scopeName, clientIdentifier) {
 
 function showRemoveLeaseModal(index, scopeName, clientIdentifier) {
     $("#divDhcpRemoveLeaseAlert").html("");
-    $("#btnRemoveDhcpLease").attr("onclick", "removeLease(this, " + index + ", '" + scopeName + "', '" + clientIdentifier + "');");
+    var btnRemoveDhcpLease = $("#btnRemoveDhcpLease");
+    btnRemoveDhcpLease.attr("data-scope-name", scopeName);
+    btnRemoveDhcpLease.attr("data-client-identifier", clientIdentifier);
+    btnRemoveDhcpLease.attr("onclick", "removeLease(this, " + index + ", $(this).attr('data-scope-name'), $(this).attr('data-client-identifier'));");
     $("#modalDhcpRemoveLease").modal("show");
 }
 
@@ -267,8 +270,8 @@ function addDhcpScopeStaticRouteRow(destination, subnetMask, router) {
 function addDhcpScopeVendorInfoRow(identifier, information) {
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeVendorInfoRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value='" + htmlEncode(identifier) + "' data-optional=\"true\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value='" + htmlEncode(information) + "'></td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeVendorInfoRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(identifier) + "\" data-optional=\"true\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(information) + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeVendorInfoRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeVendorInfo").append(tableHtmlRows);
@@ -277,8 +280,8 @@ function addDhcpScopeVendorInfoRow(identifier, information) {
 function addDhcpScopeGenericOptionsRow(optionCode, hexValue) {
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeGenericOptionsRow" + id + "\"><td><input type=\"number\" min=\"0\" max=\"255\" class=\"form-control\" value='" + htmlEncode(optionCode) + "'></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value='" + htmlEncode(hexValue) + "'></td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeGenericOptionsRow" + id + "\"><td><input type=\"number\" min=\"0\" max=\"255\" class=\"form-control\" value=\"" + htmlEncode(optionCode) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(hexValue) + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeGenericOptionsRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeGenericOptions").append(tableHtmlRows);
