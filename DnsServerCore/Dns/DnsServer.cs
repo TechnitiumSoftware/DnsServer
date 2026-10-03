@@ -244,6 +244,7 @@ namespace DnsServerCore.Dns
         bool _saveCacheToDisk = true;
         bool _serveStale = true;
         int _serveStaleMaxWaitTime = SERVE_STALE_MAX_WAIT_TIME;
+        bool _enableCachePrefetch = true;
         int _cachePrefetchEligibility = 2;
         int _cachePrefetchTrigger = 9;
 
@@ -664,7 +665,7 @@ namespace DnsServerCore.Dns
             BinaryReader bR = new BinaryReader(s);
 
             int version = bR.ReadByte();
-            if ((version < 1) || (version > 6))
+            if ((version < 1) || (version > 7))
                 throw new InvalidDataException("DNS Server config version not supported.");
 
             //general
@@ -1076,13 +1077,33 @@ namespace DnsServerCore.Dns
             if (!isConfigTransfer)
                 _cacheZoneManager.FailureRecordTtl = failureRecordTtl;
 
+            if (version >= 7)
+            {
+                bool enableCachePrefetch = bR.ReadBoolean();
+                if (!isConfigTransfer)
+                    _enableCachePrefetch = enableCachePrefetch;
+            }
+            else
+            {
+                if (!isConfigTransfer)
+                    _enableCachePrefetch = true;
+            }
+
             int cachePrefetchEligibility = bR.ReadInt32();
             if (!isConfigTransfer)
                 _cachePrefetchEligibility = cachePrefetchEligibility;
 
             int cachePrefetchTrigger = bR.ReadInt32();
             if (!isConfigTransfer)
+            {
                 _cachePrefetchTrigger = cachePrefetchTrigger;
+
+                if (version < 7)
+                {
+                    if (_cachePrefetchTrigger < 1)
+                        _enableCachePrefetch = false;
+                }
+            }
 
             if (version < 6)
             {
@@ -1215,7 +1236,7 @@ namespace DnsServerCore.Dns
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("DC")); //format
-            bW.Write((byte)6); //version
+            bW.Write((byte)7); //version
 
             //general
             s.WriteShortString(_serverDomain);
@@ -1420,6 +1441,7 @@ namespace DnsServerCore.Dns
             bW.Write(_cacheZoneManager.NegativeRecordTtl);
             bW.Write(_cacheZoneManager.FailureRecordTtl);
 
+            bW.Write(_enableCachePrefetch);
             bW.Write(_cachePrefetchEligibility);
             bW.Write(_cachePrefetchTrigger);
 
@@ -3783,7 +3805,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram xfrResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords, udpPayloadSize: _udpPayloadSize, options: eDnsOptions) { Tag = DnsServerResponseType.Authoritative };
+            DnsDatagram xfrResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords, udpPayloadSize: request.EDNS is null ? ushort.MinValue : _udpPayloadSize, options: eDnsOptions) { Tag = DnsServerResponseType.Authoritative };
             xfrResponse = xfrResponse.Split();
 
             //update notify failed list
@@ -3946,7 +3968,7 @@ namespace DnsServerCore.Dns
             DnsDatagram appResponse = await AppAuthoritativeQueryAsync(request, protocol, isRecursionAllowed, remoteEP);
             if (appResponse is not null)
             {
-                if ((appResponse.RCODE != DnsResponseCode.NoError) || (appResponse.Answer.Count > 0) || (appResponse.Authority.Count == 0) || appResponse.IsFirstAuthoritySOA())
+                if ((appResponse.RCODE != DnsResponseCode.NoError) || (appResponse.Answer.Count > 0) || (appResponse.Authority.Count == 0) || appResponse.IsFirstAuthoritySOAOrFWD())
                     return appResponse;
             }
 
@@ -4945,7 +4967,7 @@ namespace DnsServerCore.Dns
                 DnsDatagram cacheResponse = QueryCache(request, false, false);
                 if (cacheResponse is not null)
                 {
-                    if (_cachePrefetchTrigger > 0)
+                    if (_enableCachePrefetch)
                     {
                         //inspect response TTL values to decide if prefetch trigger is needed
                         foreach (DnsResourceRecord answer in cacheResponse.Answer)
@@ -4961,7 +4983,11 @@ namespace DnsServerCore.Dns
                                 }
 
                                 //trigger prefetch async for this specific answer record
-                                _ = PrefetchCacheAsync(new DnsQuestionRecord(answer.Name, question.Type, question.Class), remoteEP, conditionalForwarders, dnssecValidation, eDnsClientSubnet, advancedForwardingClientSubnet);
+                                DnsQuestionRecord triggerQuestion = new DnsQuestionRecord(answer.Name, question.Type, question.Class);
+
+                                if (!_resolverTasks.ContainsKey(GetResolverQueryKey(triggerQuestion, eDnsClientSubnet))) //check if prefetch is already triggered
+                                    _ = PrefetchCacheAsync(triggerQuestion, remoteEP, conditionalForwarders, dnssecValidation, eDnsClientSubnet, advancedForwardingClientSubnet);
+
                                 break;
                             }
                         }
@@ -5063,7 +5089,7 @@ namespace DnsServerCore.Dns
 
             //no response available; respond with ServerFailure
             EDnsOption[] options = [new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Other, "Waiting for resolver. Please try again."))];
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, request.CheckingDisabled, DnsResponseCode.ServerFailure, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
         }
 
         private async Task RecursiveResolverBackgroundTaskAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool advancedForwardingClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool skipDnsAppAuthoritativeRequestHandlers, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource, DnsClient.ResolverContext context)
@@ -7790,6 +7816,18 @@ namespace DnsServerCore.Dns
             }
         }
 
+        public bool EnableCachePrefetch
+        {
+            get { return _enableCachePrefetch; }
+            set
+            {
+                _enableCachePrefetch = value;
+
+                if (_enableCachePrefetch && (_cachePrefetchTrigger < 1))
+                    _cachePrefetchTrigger = 9;
+            }
+        }
+
         public int CachePrefetchEligibility
         {
             get { return _cachePrefetchEligibility; }
@@ -7811,6 +7849,9 @@ namespace DnsServerCore.Dns
                     throw new ArgumentOutOfRangeException(nameof(CachePrefetchTrigger), "Valid value is greater that or equal to 0.");
 
                 _cachePrefetchTrigger = value;
+
+                if (_cachePrefetchTrigger < 1)
+                    _enableCachePrefetch = false;
             }
         }
 
