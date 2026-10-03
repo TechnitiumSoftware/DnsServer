@@ -102,7 +102,7 @@ namespace DnsServerApp
                     });
                 }
 
-                Console.WriteLine("Technitium DNS Server was started successfully.\r\nUsing config folder: " + service.ConfigFolder + "\r\n\r\nNote: Open http://" + Environment.MachineName.ToLowerInvariant() + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.\r\n\r\nPress [CTRL + C] to stop...");
+                Console.WriteLine($"Technitium DNS Server v{service.Version} was started successfully.\r\nStarted on: {service.UpTimeStamp.ToLocalTime()} Local Time\r\nUsing config folder: {service.ConfigFolder}\r\n\r\nNote: Open http://{Environment.MachineName.ToLowerInvariant()}:{service.WebServiceHttpPort} in web browser to access web console.\r\n\r\nPress [CTRL + C] to stop...");
 
                 waitHandle.WaitOne();
             }
