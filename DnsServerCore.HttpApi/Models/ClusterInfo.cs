@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ namespace DnsServerCore.HttpApi.Models
             public required string[] IPAddresses { get; set; }
             public required string Type { get; set; }
             public required string State { get; set; }
+            public string? Version { get; set; }
             public DateTime? UpSince { get; set; }
             public DateTime? LastSeen { get; set; }
         }
