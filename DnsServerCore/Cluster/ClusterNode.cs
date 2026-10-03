@@ -61,6 +61,7 @@ namespace DnsServerCore.Cluster
         ClusterNodeType _type;
         ClusterNodeState _state;
 
+        string _version;
         DateTime _upSince;
         DateTime _lastSeen;
         HttpApiClient _apiClient;
@@ -228,11 +229,12 @@ namespace DnsServerCore.Cluster
                 if (_type == ClusterNodeType.Primary)
                     _clusterManager.UpdateClusterFromPrimaryNode(clusterInfo); //update cluster nodes from primary node response
 
-                //update up since time
+                //update version & up since time
                 foreach (ClusterInfo.ClusterNodeInfo clusterNodeInfo in clusterInfo.ClusterNodes)
                 {
                     if (clusterNodeInfo.Name.Equals(Name, StringComparison.OrdinalIgnoreCase))
                     {
+                        _version = clusterNodeInfo.Version;
                         _upSince = clusterNodeInfo.UpSince ?? default;
                         break;
                     }
@@ -733,6 +735,17 @@ namespace DnsServerCore.Cluster
 
         public ClusterNodeState State
         { get { return _state; } }
+
+        public string Version
+        {
+            get
+            {
+                if (_state == ClusterNodeState.Self)
+                    return _clusterManager.DnsWebService.Version;
+
+                return _version;
+            }
+        }
 
         public DateTime UpSince
         {
