@@ -1471,7 +1471,10 @@ namespace DnsServerCore
 
                 if (filterName is not null)
                 {
-                    string pattern = filterName.Trim().Replace(".", "\\.").Replace("*", ".*").Replace("?", ".{1}");
+                    if (filterName.Length > 255)
+                        throw new DnsWebServiceException("Parameter 'filterName' length cannot exceed 255 characters.");
+
+                    string pattern = System.Text.RegularExpressions.Regex.Escape(filterName.Trim()).Replace("\\*", ".*").Replace("\\?", ".{1}");
 
                     if (filterName.Contains('*'))
                     {
@@ -1482,7 +1485,7 @@ namespace DnsServerCore
                             pattern += "$";
                     }
 
-                    filterRegex = new System.Text.RegularExpressions.Regex(pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.Compiled);
+                    filterRegex = new System.Text.RegularExpressions.Regex(pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
                 }
 
                 Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
@@ -1604,6 +1607,8 @@ namespace DnsServerCore
                     if (DnsClient.IsDomainNameUnicode(zoneName))
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
                 }
+
+                DnsClient.IsDomainNameValid(zoneName, true);
 
                 AuthZoneType type = request.GetQueryOrFormEnum("type", AuthZoneType.Primary);
                 string catalogZoneName = request.GetQueryOrForm("catalog", null);
