@@ -49,6 +49,10 @@ $(function () {
     $("#chkQueryLogsLiveUpdate").prop("checked", false);
 });
 
+// holds the entries of the last rendered query logs page so that the row
+// dropdown "View Details" action can render the full record in a modal
+var queryLogEntries = null;
+
 function resetQueryLogsForm() {
     $("#frmQueryLogs").trigger("reset");
 
@@ -455,6 +459,8 @@ function queryLogs(pageNumber, liveUpdate) {
         success: function (responseJSON) {
             var tableHtml = "";
 
+            queryLogEntries = responseJSON.response.entries;
+
             for (var i = 0; i < responseJSON.response.entries.length; i++) {
                 var trbgcolor;
 
@@ -521,6 +527,9 @@ function queryLogs(pageNumber, liveUpdate) {
                     (responseJSON.response.entries[i].qclass == null ? "" : responseJSON.response.entries[i].qclass) + "</td><td style=\"word-break: break-all;\">" +
                     htmlEncode(responseJSON.response.entries[i].answer) +
                     "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnQueryLogsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+
+                if (responseJSON.response.entries[i].extendedErrors != null && responseJSON.response.entries[i].extendedErrors.length > 0)
+                    tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"showQueryLogDetails(" + i + "); return false;\">View Details</a></li>";
 
                 tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"queryDnsServer($(this).attr('data-domain'), '" + responseJSON.response.entries[i].qtype + "', '" + node + "'); return false;\">Query DNS Server</a></li>";
 
@@ -707,4 +716,87 @@ function exportQueryLogsCsv(objBtn) {
             showPageLogin();
         }
     });
+}
+
+function showQueryLogDetails(index) {
+    if (queryLogEntries == null)
+        return false;
+
+    var entry = queryLogEntries[index];
+    if (entry == null)
+        return false;
+
+    var html = "<table class=\"table table-condensed\" style=\"margin-bottom: 10px;\">" +
+        "<tr><td style=\"width: 140px;\"><b>Timestamp</b></td><td>" + moment(entry.timestamp).local().format("YYYY-MM-DD HH:mm:ss.SSS") + "</td></tr>" +
+        "<tr><td><b>Client</b></td><td>" + htmlEncode(entry.clientIpAddress) + "</td></tr>" +
+        "<tr><td><b>Query</b></td><td style=\"word-break: break-all;\">" + htmlEncode(entry.qname == "" ? "." : entry.qname) + " " + (entry.qtype == null ? "" : entry.qtype) + " " + (entry.qclass == null ? "" : entry.qclass) + "</td></tr>" +
+        "<tr><td><b>Response</b></td><td>" + entry.rcode + " / " + entry.responseType + (entry.responseRtt == null ? "" : " (" + entry.responseRtt.toFixed(2) + " ms)") + "</td></tr>" +
+        "<tr><td><b>Answer</b></td><td style=\"word-break: break-all;\">" + htmlEncode(entry.answer) + "</td></tr>" +
+        "</table>";
+
+    if (entry.extendedErrors != null && entry.extendedErrors.length > 0) {
+        html += "<h5 style=\"margin-top: 0;\"><b>Extended DNS Errors</b></h5>";
+
+        for (var i = 0; i < entry.extendedErrors.length; i++) {
+            var ede = entry.extendedErrors[i];
+
+            html += "<div class=\"panel panel-default\" style=\"margin-bottom: 8px;\"><div class=\"panel-heading\" style=\"padding: 6px 10px;\"><b>" +
+                htmlEncode(ede.infoCodeName == null ? "InfoCode " + ede.infoCode : ede.infoCodeName + " (" + ede.infoCode + ")") + "</b></div><div class=\"panel-body\" style=\"padding: 8px 10px; word-break: break-all;\">";
+
+            var pairs = parseEdeExtraText(ede.extraText);
+
+            if (pairs == null) {
+                html += htmlEncode(ede.extraText == null ? "" : ede.extraText);
+            }
+            else {
+                html += "<table class=\"table table-condensed\" style=\"margin-bottom: 0;\">";
+
+                for (var j = 0; j < pairs.length; j++) {
+                    var value = pairs[j][1];
+
+                    if (/^https?:\/\//.test(value))
+                        value = "<a href=\"" + htmlEncode(value) + "\" target=\"_blank\" rel=\"noopener\">" + htmlEncode(value) + "</a>";
+                    else
+                        value = htmlEncode(value);
+
+                    html += "<tr><td style=\"width: 180px; border-top: none;\">" + htmlEncode(pairs[j][0]) + "</td><td style=\"border-top: none;\">" + value + "</td></tr>";
+                }
+
+                html += "</table>";
+            }
+
+            html += "</div></div>";
+        }
+    }
+
+    $("#divQueryLogDetailsBody").html(html);
+    $("#modalQueryLogDetails").modal("show");
+    return false;
+}
+
+// Splits "key=value; key=value" EDE extra-text (the format emitted by the
+// Advanced Blocking app's blocking report) into pairs. Returns null when the
+// text is not in that form so it renders verbatim instead.
+function parseEdeExtraText(text) {
+    if (text == null || text.indexOf("=") < 0)
+        return null;
+
+    var pairs = [];
+    var parts = text.split(";");
+
+    for (var i = 0; i < parts.length; i++) {
+        var part = parts[i].trim();
+
+        if (part == "")
+            continue;
+
+        var eq = part.indexOf("=");
+
+        if (eq < 1)
+            return null;
+
+        pairs.push([part.substring(0, eq).trim(), part.substring(eq + 1).trim()]);
+    }
+
+    return pairs.length > 0 ? pairs : null;
 }
