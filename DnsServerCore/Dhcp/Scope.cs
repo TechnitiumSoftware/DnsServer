@@ -84,6 +84,7 @@ namespace DnsServerCore.Dhcp
         IReadOnlyCollection<DhcpOption> _genericOptions;
         IReadOnlyCollection<Exclusion> _exclusions;
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _reservedLeases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
+        readonly ConcurrentDictionary<ClientIdentifierOption, HostNameOverride> _hostNameOverrides = new ConcurrentDictionary<ClientIdentifierOption, HostNameOverride>();
         bool _allowOnlyReservedLeases;
         bool _blockLocallyAdministeredMacAddresses;
         bool _ignoreClientIdentifierOption;
@@ -144,6 +145,7 @@ namespace DnsServerCore.Dhcp
                 case 8:
                 case 9:
                 case 10:
+                case 11:
                     _name = s.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -396,6 +398,19 @@ namespace DnsServerCore.Dhcp
                                 Lease lease = new Lease(bR);
 
                                 _leases.TryAdd(lease.ClientIdentifier, lease);
+                            }
+                        }
+                    }
+
+                    if (version >= 11)
+                    {
+                        int count = bR.ReadInt32();
+                        if (count > 0)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                HostNameOverride hostNameOverride = new HostNameOverride(bR);
+                                _hostNameOverrides.TryAdd(hostNameOverride.ClientIdentifier, hostNameOverride);
                             }
                         }
                     }
@@ -915,6 +930,16 @@ namespace DnsServerCore.Dhcp
         internal Lease GetReservedLease(DhcpMessage request)
         {
             return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress), request.GetClientIdentifier(_ignoreClientIdentifierOption));
+        }
+
+        internal HostNameOverride GetHostNameOverride(DhcpMessage request)
+        {
+            ClientIdentifierOption hostNameOverridesClientIdentifier = new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress);
+
+            if (_hostNameOverrides.TryGetValue(hostNameOverridesClientIdentifier, out HostNameOverride hostNameOverride))
+                return hostNameOverride;
+
+            return null;
         }
 
         private Lease GetReservedLease(ClientIdentifierOption reservedLeasesClientIdentifier, ClientIdentifierOption clientIdentifier)
@@ -1502,6 +1527,19 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
+        public bool TryAddHostNameOverride(HostNameOverride hostNameOverride)
+        {
+            return _hostNameOverrides.TryAdd(hostNameOverride.ClientIdentifier, hostNameOverride);
+        }
+
+        public bool TryRemoveHostNameOverride(string hardwareAddress)
+        {
+            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
+            ClientIdentifierOption hostNameOverrideClientIdentifier = new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, hardwareAddressBytes);
+
+            return _hostNameOverrides.TryRemove(hostNameOverrideClientIdentifier, out _);
+        }
+
         public Lease RemoveLease(string hardwareAddress)
         {
             byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
@@ -1603,7 +1641,7 @@ namespace DnsServerCore.Dhcp
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)10); //version
+            bW.Write((byte)11); //version
 
             s.WriteShortString(_name);
             bW.Write(_enabled);
@@ -1808,6 +1846,13 @@ namespace DnsServerCore.Dhcp
 
                 foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
                     lease.Value.WriteTo(bW);
+            }
+
+            {
+                bW.Write(_hostNameOverrides.Count);
+
+                foreach (KeyValuePair<ClientIdentifierOption, HostNameOverride> hostNameOverride in _hostNameOverrides)
+                    hostNameOverride.Value.WriteTo(bW);
             }
         }
 
@@ -2205,6 +2250,30 @@ namespace DnsServerCore.Dhcp
                         if (_reservedLeases.TryAdd(reservedLease.ClientIdentifier, reservedLease))
                             _dhcpServer.AddDnsEntries(this, reservedLease); //add DNS entries for new reserved lease
                     }
+                }
+            }
+        }
+
+        public IReadOnlyCollection<HostNameOverride> HostNameOverrides
+        {
+            get
+            {
+                List<HostNameOverride> hostNameOverrides = new List<HostNameOverride>(_hostNameOverrides.Count);
+
+                foreach (KeyValuePair<ClientIdentifierOption, HostNameOverride> entry in _hostNameOverrides)
+                    hostNameOverrides.Add(entry.Value);
+
+                hostNameOverrides.Sort((a, b) => string.Compare(a.HostName, b.HostName, StringComparison.OrdinalIgnoreCase));
+                return hostNameOverrides;
+            }
+            set
+            {
+                _hostNameOverrides.Clear();
+
+                if ((value is not null) && (value.Count > 0))
+                {
+                    foreach (HostNameOverride hostNameOverride in value)
+                        _hostNameOverrides.TryAdd(hostNameOverride.ClientIdentifier, hostNameOverride);
                 }
             }
         }
