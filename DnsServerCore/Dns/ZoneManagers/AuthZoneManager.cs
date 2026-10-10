@@ -2975,13 +2975,19 @@ namespace DnsServerCore.Dns.ZoneManagers
                             case DnsResourceRecordType.A:
                             case DnsResourceRecordType.AAAA:
                                 if (!addedGlueRecords.Remove(record))
-                                    deletedGlueRecords.Add(record);
+                                {
+                                    if (!deletedGlueRecords.Contains(record)) //check to prevent duplicate delete entries
+                                        deletedGlueRecords.Add(record);
+                                }
 
                                 break;
 
                             default:
                                 if (!addedRecords.Remove(record))
-                                    deletedRecords.Add(record);
+                                {
+                                    if (!deletedRecords.Contains(record)) //check to prevent duplicate delete entries
+                                        deletedRecords.Add(record);
+                                }
 
                                 break;
                         }
@@ -2991,7 +2997,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
                             if (!addedRecords.Remove(record))
-                                deletedRecords.Add(record);
+                            {
+                                if (!deletedRecords.Contains(record)) //check to prevent duplicate delete entries which Microsoft DNS Server may emit in IXFR response
+                                    deletedRecords.Add(record);
+                            }
                         }
                         else
                         {
@@ -3000,7 +3009,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 case DnsResourceRecordType.A:
                                 case DnsResourceRecordType.AAAA:
                                     if (!addedGlueRecords.Remove(record))
-                                        deletedGlueRecords.Add(record);
+                                    {
+                                        if (!deletedGlueRecords.Contains(record)) //check to prevent duplicate delete entries
+                                            deletedGlueRecords.Add(record);
+                                    }
 
                                     break;
                             }
@@ -3033,13 +3045,19 @@ namespace DnsServerCore.Dns.ZoneManagers
                             case DnsResourceRecordType.A:
                             case DnsResourceRecordType.AAAA:
                                 if (!deletedGlueRecords.Remove(record))
-                                    addedGlueRecords.Add(record);
+                                {
+                                    if (!addedGlueRecords.Contains(record)) //check to prevent duplicate add entries
+                                        addedGlueRecords.Add(record);
+                                }
 
                                 break;
 
                             default:
                                 if (!deletedRecords.Remove(record))
-                                    addedRecords.Add(record);
+                                {
+                                    if (!addedRecords.Contains(record)) //check to prevent duplicate add entries
+                                        addedRecords.Add(record);
+                                }
 
                                 break;
                         }
@@ -3049,7 +3067,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
                             if (!deletedRecords.Remove(record))
-                                addedRecords.Add(record);
+                            {
+                                if (!addedRecords.Contains(record)) //check to prevent duplicate add entries
+                                    addedRecords.Add(record);
+                            }
                         }
                         else
                         {
@@ -3058,7 +3079,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 case DnsResourceRecordType.A:
                                 case DnsResourceRecordType.AAAA:
                                     if (!deletedGlueRecords.Remove(record))
-                                        addedGlueRecords.Add(record);
+                                    {
+                                        if (!addedGlueRecords.Contains(record)) //check to prevent duplicate add entries
+                                            addedGlueRecords.Add(record);
+                                    }
 
                                     break;
                             }
