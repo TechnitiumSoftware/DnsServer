@@ -133,18 +133,20 @@ namespace DnsServerCore.Auth
             {
                 _saveTimer?.Dispose();
 
-                //always save config here to write user login timestamps details
-                try
+                if (_pendingSave)
                 {
-                    SaveConfigFileInternal();
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(ex);
-                }
-                finally
-                {
-                    _pendingSave = false;
+                    try
+                    {
+                        SaveConfigFileInternal();
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+                    finally
+                    {
+                        _pendingSave = false;
+                    }
                 }
             }
 
@@ -1529,6 +1531,12 @@ namespace DnsServerCore.Auth
 
             user.LoggedInFrom(remoteAddress);
 
+            //lazy save user login timestamps details
+            lock (_saveLock)
+            {
+                _pendingSave = true;
+            }
+
             return session;
         }
 
@@ -1552,6 +1560,12 @@ namespace DnsServerCore.Auth
                 throw new DnsWebServiceException("Error while creating session. Please try again.");
 
             user.LoggedInFrom(remoteAddress);
+
+            //lazy save user login timestamps details
+            lock (_saveLock)
+            {
+                _pendingSave = true;
+            }
 
             return session;
         }
