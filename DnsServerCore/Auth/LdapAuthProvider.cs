@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.DirectoryServices.Protocols;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -51,6 +52,19 @@ namespace DnsServerCore.Auth
         readonly string _searchBase;
         readonly string _userSearchFilter;
         readonly string _groupAttribute;
+
+        #endregion
+
+        #region native
+
+        //libldap (OpenLDAP) does not support the managed certificate callback, so certificate checking is controlled through its global option instead
+        const int LDAP_OPT_X_TLS_REQUIRE_CERT = 0x6006;
+        const int LDAP_OPT_X_TLS_NEWCTX = 0x600f;
+        const int LDAP_OPT_X_TLS_NEVER = 0;
+        const int LDAP_OPT_X_TLS_DEMAND = 2;
+
+        [DllImport("libldap.so.2", EntryPoint = "ldap_set_option")]
+        private static extern int ldap_set_option(IntPtr ld, int option, ref int value);
 
         #endregion
 
@@ -90,29 +104,48 @@ namespace DnsServerCore.Auth
                 ldapDirectoryIdentifier = new LdapDirectoryIdentifier(servers, _port, false, false);
             }
 
+            if (OperatingSystem.IsLinux() && (_sslOption != LdapAuthSslOption.None))
+            {
+                //must be set before the connection is created since libldap copies the global option to each new session
+                int requireCert = _ignoreSslErrors ? LDAP_OPT_X_TLS_NEVER : LDAP_OPT_X_TLS_DEMAND;
+                ldap_set_option(IntPtr.Zero, LDAP_OPT_X_TLS_REQUIRE_CERT, ref requireCert);
+
+                //libldap caches the TLS context after first use so a new one must be created for the option to take effect
+                int isServer = 0;
+                ldap_set_option(IntPtr.Zero, LDAP_OPT_X_TLS_NEWCTX, ref isServer);
+            }
+
             LdapConnection connection = new LdapConnection(ldapDirectoryIdentifier);
             connection.SessionOptions.ProtocolVersion = 3;
             connection.SessionOptions.ReferralChasing = ReferralChasingOptions.None;
             connection.Timeout = TimeSpan.FromSeconds(15);
             connection.AuthType = AuthType.Basic;
 
+            if (_ignoreSslErrors && (_sslOption != LdapAuthSslOption.None) && !OperatingSystem.IsLinux())
+            {
+                connection.SessionOptions.VerifyServerCertificate = static delegate (LdapConnection connection, X509Certificate certificate)
+                {
+                    return true;
+                };
+            }
+
             switch (_sslOption)
             {
                 case LdapAuthSslOption.StartTLS:
+                    if (OperatingSystem.IsLinux())
+                    {
+                        //libldap connects lazily so StartTLS fails on a handle that has not connected yet; anonymous bind opens the connection without sending credentials
+                        connection.AuthType = AuthType.Anonymous;
+                        connection.Bind();
+                        connection.AuthType = AuthType.Basic;
+                    }
+
                     connection.SessionOptions.StartTransportLayerSecurity(null);
                     break;
 
                 case LdapAuthSslOption.LDAPS:
                     connection.SessionOptions.SecureSocketLayer = true;
                     break;
-            }
-
-            if (_ignoreSslErrors && (_sslOption != LdapAuthSslOption.None))
-            {
-                connection.SessionOptions.VerifyServerCertificate = static delegate (LdapConnection connection, X509Certificate certificate)
-                {
-                    return true;
-                };
             }
 
             connection.Credential = new NetworkCredential(bindUsername, bindPassword);
