@@ -655,7 +655,11 @@ namespace DnsServerCore
 
         public string[] ListLogFiles()
         {
-            return Directory.GetFiles(ConvertToAbsolutePath(_logFolder), "*.log", SearchOption.TopDirectoryOnly);
+            string logFolder = ConvertToAbsolutePath(_logFolder);
+            if (Directory.Exists(logFolder))
+                return Directory.GetFiles(ConvertToAbsolutePath(_logFolder), "*.log", SearchOption.TopDirectoryOnly);
+
+            return [];
         }
 
         public async Task DownloadLogFileAsync(HttpContext context, string logName, long limit)
