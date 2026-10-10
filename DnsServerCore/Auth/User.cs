@@ -48,7 +48,9 @@ namespace DnsServerCore.Auth
     {
         #region variables
 
-        public const int DEFAULT_ITERATIONS = 100000;
+        const int MIN_ITERATIONS = 100000;
+        const int MAX_ITERATIONS = 1000000;
+        public const int DEFAULT_ITERATIONS = MIN_ITERATIONS;
 
         string _displayName;
         string _username;
@@ -306,6 +308,9 @@ namespace DnsServerCore.Auth
                 case UserType.RemoteLDAP:
                     throw new InvalidOperationException("Cannot change password for LDAP users.");
             }
+
+            if ((iterations < MIN_ITERATIONS) || (iterations > MAX_ITERATIONS))
+                throw new ArgumentOutOfRangeException(nameof(iterations), $"The valid range for 'iterations' is {MIN_ITERATIONS}-{MAX_ITERATIONS}.");
 
             _passwordHashType = UserPasswordHashType.PBKDF2_SHA256;
             _iterations = iterations;

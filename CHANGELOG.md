@@ -1,5 +1,17 @@
 # Technitium DNS Server Change Log
 
+## Version 15.6
+Release Date: 3rd October 2026
+
+- Added a new explicit option in Settings to enable/disable Cache Prefetch feature.
+- Fixed recursive resolution issues when using Prefer IPv6 mode that caused resolution failures due to hitting Max Outbound Requests limit.
+- Fixed bug in DNS Cache that caused a failure record entry to shadow CNAME record in cache causing cache misses and resolution errors in certain scenarios.
+- Fixed session token prefix oracle vulnerability reported by Elias Hasas from Brickell Technologies LLC. This allowed an authenticated user to recover full session token for all active sessions on the DNS server using delete sessions API.
+- Fixed DoS issue with change password iterations count reported by Robert Cronin. This allowed an authenticated user to set arbitrary iterations value to cause high CPU usage on the server.
+- Fixed DoS issue with zone name filtering feature reported by Robert Cronin. This allowed an authenticated user to abuse the filter to inject regex pattern that could cause high CPU usage on the server.
+- Fixed log injection vulnerability in login API call reported by Phillip Hernandez, independent researcher. This allowed an unauthenticated attacker to inject text in log file by abusing username parameter in the login API call.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 15.5.1
 Release Date: 26 September 2026
 

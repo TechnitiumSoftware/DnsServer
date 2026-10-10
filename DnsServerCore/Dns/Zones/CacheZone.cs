@@ -439,8 +439,9 @@ namespace DnsServerCore.Dns.Zones
                         //since some zones have CNAME at apex so no CNAME lookup for DS queries!
                         if (entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                             return ValidateRRSet(existingRecords, serveStale, skipSpecialCacheRecord);
+
+                        return [];
                     }
-                    break;
 
                 case DnsResourceRecordType.ANY:
                     List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>(entries.Count * 2);
@@ -472,33 +473,40 @@ namespace DnsServerCore.Dns.Zones
                                 break;
                         }
 
-                        if (entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-                            return ValidateRRSet(existingRecords, serveStale, skipSpecialCacheRecord);
+                        IReadOnlyList<DnsResourceRecord> records = [];
 
-                        if (type == DnsResourceRecordType.CHILD_NS)
+                        if (entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+                        {
+                            IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(existingRecords, serveStale, skipSpecialCacheRecord);
+                            if (rrset.Count > 0)
+                            {
+                                if (rrset[0].RDATA is DnsCache.DnsSpecialCacheRecordData splRecord && (splRecord.Type == DnsCache.DnsSpecialCacheRecordType.FailureCache))
+                                    records = rrset; //hold failure rrset so that CNAME can be checked before answering since any resolution failure gets stored as a Failure Cache entry
+                                else
+                                    return rrset;
+                            }
+                        }
+
+                        if (!skipSpecialCacheRecord && (type == DnsResourceRecordType.CHILD_NS))
                         {
                             //child NS does not exist so check for parent side NS if that too does not exist
                             if (entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> existingParentNSRecords))
                             {
                                 if ((existingParentNSRecords.Count > 0) && (existingParentNSRecords[0].RDATA is DnsCache.DnsSpecialCacheRecordData))
-                                    return ValidateRRSet(existingParentNSRecords, serveStale, skipSpecialCacheRecord); //parent side NS record does not exist so use this to answer for child NS queries
+                                    return ValidateRRSet(existingParentNSRecords, serveStale, false); //parent side NS record does not exist so use this to answer for child NS queries
                             }
                         }
 
-                        if (entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
+                        if ((type != DnsResourceRecordType.CNAME) && entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
                         {
                             IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(existingCNAMERecords, serveStale, skipSpecialCacheRecord);
                             if (rrset.Count > 0)
-                            {
-                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecordData))
-                                    return rrset;
-                            }
+                                return rrset;
                         }
-                    }
-                    break;
-            }
 
-            return [];
+                        return records;
+                    }
+            }
         }
 
         public override void ListAllRecords(List<DnsResourceRecord> records)

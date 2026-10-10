@@ -779,6 +779,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo GetAuthZoneInfo(string zoneName, bool loadHistory = false)
         {
+            if (!DnsClient.IsDomainNameValid(zoneName))
+                throw new ArgumentException("Invalid domain name was specified.", nameof(zoneName));
+
             if (_root.TryGet(zoneName, out AuthZoneNode authZoneNode) && (authZoneNode.ApexZone is not null))
                 return new AuthZoneInfo(authZoneNode.ApexZone, loadHistory);
 
@@ -787,6 +790,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo FindAuthZoneInfo(string domain, bool loadHistory = false)
         {
+            if (!DnsClient.IsDomainNameValid(domain))
+                throw new ArgumentException("Invalid domain name was specified.", nameof(domain));
+
             _ = _root.FindZone(domain, out _, out _, out ApexZone apexZone, out _);
             if (apexZone is null)
                 return null;

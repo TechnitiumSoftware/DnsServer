@@ -1459,6 +1459,8 @@ namespace DnsServerCore.Dhcp
 
         public Scope GetScope(string name)
         {
+            Scope.ValidateScopeName(name);
+
             if (_scopes.TryGetValue(name, out Scope scope))
                 return scope;
 

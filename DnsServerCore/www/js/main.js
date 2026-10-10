@@ -1435,6 +1435,7 @@ function loadDnsSettings(responseJSON) {
     $("#txtCacheNegativeRecordTtl").val(responseJSON.response.cacheNegativeRecordTtl);
     $("#txtCacheFailureRecordTtl").val(responseJSON.response.cacheFailureRecordTtl);
 
+    $("#chkEnableCachePrefetch").prop("checked", responseJSON.response.enableCachePrefetch);
     $("#txtCachePrefetchEligibility").val(responseJSON.response.cachePrefetchEligibility);
     $("#txtCachePrefetchTrigger").val(responseJSON.response.cachePrefetchTrigger);
 
@@ -2057,6 +2058,8 @@ function saveDnsSettings(objBtn) {
             return;
         }
 
+        var enableCachePrefetch = $("#chkEnableCachePrefetch").prop("checked");
+
         var cachePrefetchEligibility = $("#txtCachePrefetchEligibility").val();
         if ((cachePrefetchEligibility === null) || (cachePrefetchEligibility === "")) {
             showAlert("warning", "Missing!", "Please enter cache prefetch eligibility value.");
@@ -2071,7 +2074,7 @@ function saveDnsSettings(objBtn) {
             return;
         }
 
-        formData += "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&serveStaleAnswerTtl=" + serveStaleAnswerTtl + "&serveStaleResetTtl=" + serveStaleResetTtl + "&serveStaleMaxWaitTime=" + serveStaleMaxWaitTime + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger;
+        formData += "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&serveStaleAnswerTtl=" + serveStaleAnswerTtl + "&serveStaleResetTtl=" + serveStaleResetTtl + "&serveStaleMaxWaitTime=" + serveStaleMaxWaitTime + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&enableCachePrefetch=" + enableCachePrefetch + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger;
     }
 
     //blocking

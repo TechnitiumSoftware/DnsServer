@@ -1227,6 +1227,8 @@ namespace DnsServerCore.Auth
 
         public User GetUser(string username)
         {
+            User.IsUsernameValid(username, true);
+
             if (_users.TryGetValue(username.ToLowerInvariant(), out User user))
                 return user;
 
@@ -1372,6 +1374,9 @@ namespace DnsServerCore.Auth
 
         public Group GetGroup(string name)
         {
+            if (name.Length > 255)
+                throw new ArgumentException("Group name length cannot exceed 255 characters.", nameof(name));
+
             if (_groups.TryGetValue(name.ToLowerInvariant(), out Group group))
                 return group;
 

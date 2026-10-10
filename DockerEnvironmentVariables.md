@@ -30,7 +30,7 @@ The environment variables are described below:
 | DNS_SERVER_ALLOW_TXT_BLOCKING_REPORT              | Boolean | Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.                    |
 | DNS_SERVER_BLOCK_LIST_URLS                        | String  | A comma separated list of block list URLs.                                                                                               |
 | DNS_SERVER_FORWARDERS                             | String  | A comma separated list of forwarder addresses.                                                                                           |
-| DNS_SERVER_FORWARDER_PROTOCOL                     | String  | Forwarder protocol options: `Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`.                                                                   |
+| DNS_SERVER_FORWARDER_PROTOCOL                     | String  | Forwarder protocol options: `Udp`, `Tcp`, `Tls`, `Https`, `Quic`.                                                                   |
 | DNS_SERVER_LOG_USING_LOCAL_TIME                   | Boolean | Enable this option to use local time instead of UTC for logging.                                                                         |
 | DNS_SERVER_LOG_FOLDER_PATH                        | String  | The folder path on the server where the log files should be saved. The path can be relative to the DNS server's config folder.
 | DNS_SERVER_LOG_MAX_LOG_FILE_DAYS                  | Integer | Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
