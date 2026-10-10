@@ -430,6 +430,8 @@ namespace DnsServerCore
             if (permission is null)
                 throw new DnsWebServiceException("Failed to read 'Zones' permissions: auth.config file is probably corrupt.");
 
+            bool saveConfig = false;
+
             IReadOnlyDictionary<string, Permission> subItemPermissions = permission.SubItemPermissions;
 
             //remove ghost permissions
@@ -438,7 +440,10 @@ namespace DnsServerCore
                 string zoneName = subItemPermission.Key;
 
                 if (_dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName) is null)
+                {
                     permission.RemoveAllSubItemPermissions(zoneName); //no such zone exists; remove permissions
+                    saveConfig = true;
+                }
             }
 
             //add missing admin permissions
@@ -453,11 +458,23 @@ namespace DnsServerCore
 
             foreach (AuthZoneInfo zone in zones)
             {
-                _authManager.SetPermission(PermissionSection.Zones, zone.Name, admins, PermissionFlag.ViewModifyDelete);
-                _authManager.SetPermission(PermissionSection.Zones, zone.Name, dnsAdmins, PermissionFlag.ViewModifyDelete);
+                Permission zonePermission = _authManager.GetPermission(PermissionSection.Zones, zone.Name);
+
+                if (!zonePermission.GroupPermissions.TryGetValue(admins, out PermissionFlag adminsPermission) || (adminsPermission != PermissionFlag.ViewModifyDelete))
+                {
+                    _authManager.SetPermission(PermissionSection.Zones, zone.Name, admins, PermissionFlag.ViewModifyDelete);
+                    saveConfig = true;
+                }
+
+                if (!zonePermission.GroupPermissions.TryGetValue(dnsAdmins, out PermissionFlag dnsAdminsPermission) || (dnsAdminsPermission != PermissionFlag.ViewModifyDelete))
+                {
+                    _authManager.SetPermission(PermissionSection.Zones, zone.Name, admins, PermissionFlag.ViewModifyDelete);
+                    saveConfig = true;
+                }
             }
 
-            _authManager.SaveConfigFile();
+            if (saveConfig)
+                _authManager.SaveConfigFile();
         }
 
         private void ReadConfigFrom(Stream s)
@@ -3018,7 +3035,7 @@ namespace DnsServerCore
         public int WebServiceTlsPort
         { get { return _webServiceTlsPort; } }
 
-        internal bool IsWebServiceTlsEnabled
+        public bool IsWebServiceTlsEnabled
         {
             get
             {
