@@ -18,6 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 $(function () {
+    $(".stats-panel").on("click", "a", function () {
+        showQueryLogs(null, null, null, $(this).attr("data-rcode"), $(this).attr("data-response-type"));
+        return false;
+    });
+
     $("#optQueryLogsAppName").on("change", reloadClassPath);
 
     $("#optQueryLogsEntriesPerPage").on("change", function () {
@@ -621,7 +626,7 @@ function queryLogs(pageNumber, liveUpdate) {
     });
 }
 
-function showQueryLogs(domain, clientIp, node) {
+function showQueryLogs(domain, clientIp, node, rcode, responseType) {
     $("#frmQueryLogs").trigger("reset");
     resetQueryLogsForm();
 
@@ -633,6 +638,12 @@ function showQueryLogs(domain, clientIp, node) {
 
     if ((node != null) && (node != "cluster"))
         $("#optLogsClusterNode").val(node);
+
+    if (rcode != null)
+        $("#optQueryLogsResponseCode").val(rcode);
+
+    if (responseType != null)
+        $("#optQueryLogsResponseType").val(responseType);
 
     $("#mainPanelTabListDashboard").removeClass("active");
     $("#mainPanelTabPaneDashboard").removeClass("active");
