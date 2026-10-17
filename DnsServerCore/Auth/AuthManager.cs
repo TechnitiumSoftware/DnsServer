@@ -80,6 +80,7 @@ namespace DnsServerCore.Auth
 
         readonly Lock _saveLock = new Lock();
         bool _pendingSave;
+        bool _pendingLazySave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
@@ -103,13 +104,11 @@ namespace DnsServerCore.Auth
                         {
                             SaveConfigFileInternal();
                             _pendingSave = false;
+                            _pendingLazySave = false;
                         }
                         catch (Exception ex)
                         {
                             _log.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -133,7 +132,7 @@ namespace DnsServerCore.Auth
             {
                 _saveTimer?.Dispose();
 
-                if (_pendingSave)
+                if (_pendingSave || _pendingLazySave)
                 {
                     try
                     {
@@ -146,6 +145,7 @@ namespace DnsServerCore.Auth
                     finally
                     {
                         _pendingSave = false;
+                        _pendingLazySave = false;
                     }
                 }
             }
@@ -465,12 +465,8 @@ namespace DnsServerCore.Auth
 
                 //save config file
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
+                _pendingLazySave = false;
             }
         }
 
@@ -497,6 +493,7 @@ namespace DnsServerCore.Auth
                 {
                     SaveConfigFileInternal();
                     _pendingSave = false;
+                    _pendingLazySave = false;
                     return;
                 }
 
@@ -505,6 +502,14 @@ namespace DnsServerCore.Auth
 
                 _pendingSave = true;
                 _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            }
+        }
+
+        public void LazySaveConfigFile()
+        {
+            lock (_saveLock)
+            {
+                _pendingLazySave = true;
             }
         }
 
@@ -1033,7 +1038,6 @@ namespace DnsServerCore.Auth
                         }
 
                         _log.Write(new IPEndPoint(remoteAddress, 0), "LDAP user account was created successfully with username: " + user.Username + " (displayName: " + user.DisplayName + ")");
-                        SaveConfigFile();
 
                         ResetFailedLoginAttempts(network);
 
@@ -1531,12 +1535,6 @@ namespace DnsServerCore.Auth
 
             user.LoggedInFrom(remoteAddress);
 
-            //lazy save user login timestamps details
-            lock (_saveLock)
-            {
-                _pendingSave = true;
-            }
-
             return session;
         }
 
@@ -1560,12 +1558,6 @@ namespace DnsServerCore.Auth
                 throw new DnsWebServiceException("Error while creating session. Please try again.");
 
             user.LoggedInFrom(remoteAddress);
-
-            //lazy save user login timestamps details
-            lock (_saveLock)
-            {
-                _pendingSave = true;
-            }
 
             return session;
         }
