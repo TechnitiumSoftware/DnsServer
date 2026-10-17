@@ -73,9 +73,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                         catch (Exception ex)
                         {
                             _dnsServer.LogManager.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -167,12 +164,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 ReadConfigFrom(s);
 
                 SaveZoneFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 

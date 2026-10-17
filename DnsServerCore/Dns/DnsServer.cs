@@ -374,9 +374,6 @@ namespace DnsServerCore.Dns
                         catch (Exception ex)
                         {
                             _log.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -614,12 +611,7 @@ namespace DnsServerCore.Dns
 
                 //save config file
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 
