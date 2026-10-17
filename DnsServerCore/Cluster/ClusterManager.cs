@@ -69,7 +69,7 @@ namespace DnsServerCore.Cluster
         const int CONFIG_REFRESH_TIMER_INTERVAL = 5000;
 
         readonly Timer _notifyAllSecondaryNodesTimer;
-        bool _notifyAllSecondaryNodesTimerTriggered;
+        volatile bool _notifyAllSecondaryNodesTimerTriggered;
         const int NOTIFY_ALL_SECONDARY_NODES_TIMER_INTERVAL = 5000;
 
         readonly Timer _clusterUpdateForSecondaryNodeChangesTimer;
@@ -109,9 +109,6 @@ namespace DnsServerCore.Cluster
                         catch (Exception ex)
                         {
                             _dnsWebService.LogManager.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -237,12 +234,7 @@ namespace DnsServerCore.Cluster
 
                 //save config file
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 
@@ -295,13 +287,20 @@ namespace DnsServerCore.Cluster
             _dnsWebService.LogManager.Write("DNS Server Cluster config file was saved: " + configFile);
         }
 
-        public void SaveConfigFile()
+        private void SaveConfigFile(bool immediately = false)
         {
             if (!ClusterInitialized)
                 throw new InvalidOperationException();
 
             lock (_saveLock)
             {
+                if (immediately)
+                {
+                    SaveConfigFileInternal();
+                    _pendingSave = false;
+                    return;
+                }
+
                 if (_pendingSave)
                     return;
 
@@ -340,11 +339,7 @@ namespace DnsServerCore.Cluster
                     _dnsWebService.LogManager.Write("DNS Server encountered an error while deleting the Cluster config file: " + configFile, ex);
                 }
 
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 
@@ -1271,6 +1266,8 @@ namespace DnsServerCore.Cluster
 
         private async void NotifyAllSecondaryNodesTimerCallbackAsync(object state)
         {
+            _notifyAllSecondaryNodesTimerTriggered = false; //reset immediately to allow triggerring notify again since the current notify task may take longer to complete due to one or more nodes being down or not responding fast enough causing lost notify for working nodes
+
             try
             {
                 IReadOnlyDictionary<int, ClusterNode> clusterNodes = _clusterNodes;
@@ -1306,10 +1303,6 @@ namespace DnsServerCore.Cluster
             catch (Exception ex)
             {
                 _dnsWebService.LogManager.Write(ex);
-            }
-            finally
-            {
-                _notifyAllSecondaryNodesTimerTriggered = false;
             }
         }
 
@@ -1608,7 +1601,7 @@ namespace DnsServerCore.Cluster
             SaveConfigFile();
 
             //trigger config and zone refresh
-            TriggerRefreshForConfig(CONFIG_REFRESH_TIMER_INTERVAL);
+            _ = InitializeConfigRefreshAsync(CONFIG_REFRESH_TIMER_INTERVAL);
 
             return primaryNode;
         }
@@ -1624,7 +1617,7 @@ namespace DnsServerCore.Cluster
             if (primaryNode.State == ClusterNodeState.Self)
                 throw new DnsServerException("Failed to refresh configuration: only Secondary nodes can sync configuration from Primary nodes.");
 
-            TriggerRefreshForConfig(CONFIG_REFRESH_TIMER_INTERVAL, configRefreshIncludeZones);
+            _ = InitializeConfigRefreshAsync(CONFIG_REFRESH_TIMER_INTERVAL, configRefreshIncludeZones);
         }
 
         public void TriggerResyncForConfig()
@@ -1641,12 +1634,12 @@ namespace DnsServerCore.Cluster
             _configLastSynced = DateTime.UnixEpoch; //to ensure complete config resync
 
             //trigger immediate config refresh
-            TriggerRefreshForConfig(0);
+            _ = InitializeConfigRefreshAsync(0);
         }
 
-        private void TriggerRefreshForConfig(int refreshInterval, IReadOnlyCollection<string> configRefreshIncludeZones = null)
+        private async Task InitializeConfigRefreshAsync(int refreshInterval, IReadOnlyCollection<string> configRefreshIncludeZones = null)
         {
-            _configRefreshLock.Wait();
+            await _configRefreshLock.WaitAsync();
             try
             {
                 if (configRefreshIncludeZones is not null)
@@ -2035,8 +2028,8 @@ namespace DnsServerCore.Cluster
             //update cluster catalog zone ACLs, TSIG key name and save zone file
             UpdateClusterCatalogZoneOptions(clusterCatalogZoneInfo);
 
-            //save all changes
-            SaveConfigFile();
+            //save all changes immediately before sending notify
+            SaveConfigFile(true);
 
             //notify all secondary nodes as a primary node immediately
             TriggerNotifyAllSecondaryNodes(0);
@@ -2126,8 +2119,8 @@ namespace DnsServerCore.Cluster
                     //update cluster catalog zone ACLs and save zone file
                     UpdateClusterCatalogZoneOptions();
 
-                    //save all changes
-                    SaveConfigFile();
+                    //save all changes immediately before sending notify
+                    SaveConfigFile(true);
 
                     //notify all secondary nodes immediately
                     TriggerNotifyAllSecondaryNodes(0);
