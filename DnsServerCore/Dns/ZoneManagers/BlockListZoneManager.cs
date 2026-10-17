@@ -68,6 +68,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         readonly Lock _saveLock = new Lock();
         bool _pendingSave;
+        bool _pendingLazySave;
         readonly Timer _saveTimer;
         const int SAVE_TIMER_INITIAL_INTERVAL = 5000;
 
@@ -96,13 +97,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             SaveConfigFileInternal();
                             _pendingSave = false;
+                            _pendingLazySave = false;
                         }
                         catch (Exception ex)
                         {
                             _dnsServer.LogManager.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -127,7 +126,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 _saveTimer?.Dispose();
 
-                if (_pendingSave)
+                if (_pendingSave || _pendingLazySave)
                 {
                     try
                     {
@@ -140,6 +139,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     finally
                     {
                         _pendingSave = false;
+                        _pendingLazySave = false;
                     }
                 }
             }
@@ -184,12 +184,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                 ReadConfigFrom(s, isConfigTransfer);
 
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
+                _pendingLazySave = false;
             }
         }
 
@@ -217,6 +213,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 _pendingSave = true;
                 _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+            }
+        }
+
+        private void LazySaveConfigFile()
+        {
+            lock (_saveLock)
+            {
+                _pendingLazySave = true;
             }
         }
 
@@ -686,10 +690,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         _blockListLastUpdatedOn = DateTime.UtcNow;
 
                         //lazy save last updated on time
-                        lock (_saveLock)
-                        {
-                            _pendingSave = true;
-                        }
+                        LazySaveConfigFile();
                     }
                 }
                 catch (Exception ex)
@@ -718,10 +719,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 _blockListLastUpdatedOn = DateTime.UtcNow;
 
                                 //lazy save last updated on time
-                                lock (_saveLock)
-                                {
-                                    _pendingSave = true;
-                                }
+                                LazySaveConfigFile();
                             }
                         }
                     }
