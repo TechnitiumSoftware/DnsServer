@@ -91,6 +91,13 @@ body.dark-mode {
     color: #f0f0f0 !important;
 }
 
+.dark-mode .about table {
+    color: #a0a0a0 !important;
+    text-align: left;
+    width: 400px;
+    margin: 20px auto;
+}
+
 .dark-mode .panel,
 .dark-mode .panel-default {
     background-color: #2c2c2e !important;
