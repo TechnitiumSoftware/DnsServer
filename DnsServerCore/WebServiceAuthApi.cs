@@ -22,9 +22,9 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -90,28 +90,60 @@ namespace DnsServerCore
 
                 if (includeInfo)
                 {
+                    List<IPAddress> ipv4Addresses = new List<IPAddress>();
+                    List<IPAddress> ipv6Addresses = new List<IPAddress>();
+
+                    foreach (NetworkInterface networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+                    {
+                        if (networkInterface.OperationalStatus != OperationalStatus.Up)
+                            continue;
+
+                        foreach (UnicastIPAddressInformation ip in networkInterface.GetIPProperties().UnicastAddresses)
+                        {
+                            if (IPAddress.IsLoopback(ip.Address))
+                                continue;
+
+                            switch (ip.Address.AddressFamily)
+                            {
+                                case AddressFamily.InterNetwork:
+                                    ipv4Addresses.Add(ip.Address);
+                                    break;
+
+                                case AddressFamily.InterNetworkV6:
+                                    if (ip.Address.IsIPv6LinkLocal || ip.Address.IsIPv6Teredo)
+                                        continue;
+
+                                    ipv6Addresses.Add(ip.Address);
+                                    break;
+                            }
+                        }
+                    }
+
                     jsonWriter.WriteStartObject("info");
 
                     jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
                     jsonWriter.WriteString("uptimestamp", _dnsWebService._uptimestamp);
+
+                    jsonWriter.WriteStartArray("ipv4Addresses");
+
+                    foreach (IPAddress ipv4Address in ipv4Addresses)
+                        jsonWriter.WriteStringValue(ipv4Address.ToString());
+
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WriteStartArray("ipv6Addresses");
+
+                    foreach (IPAddress ipv6Address in ipv6Addresses)
+                        jsonWriter.WriteStringValue(ipv6Address.ToString());
+
+                    jsonWriter.WriteEndArray();
+
                     jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
                     jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultRecordTtl);
                     jsonWriter.WriteNumber("defaultNsRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultNsRecordTtl);
                     jsonWriter.WriteNumber("defaultSoaRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultSoaRecordTtl);
                     jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
                     jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService._dnsServer.DnssecValidation);
-
-                    var ipAddrList = NetworkInterface.GetAllNetworkInterfaces()
-                        .SelectMany(ni => ni.GetIPProperties().UnicastAddresses)
-                        .Select(ua => ua.Address)
-                        .Where(ip => !IPAddress.IsLoopback(ip))
-                        .OrderBy(ip=>ip.AddressFamily)
-                        .Select(ip => ip.ToString());
-                    jsonWriter.WritePropertyName("ipAddresses");
-                    jsonWriter.WriteStartArray();
-                    foreach ( var ipAddr in ipAddrList )
-                        jsonWriter.WriteStringValue(ipAddr);
-                    jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
 
