@@ -214,7 +214,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (request.EDNS is null)
                     return response;
 
-                EDnsOption option = new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Synthesized, "source=locally-served-DNS-zones"));
+                EDnsOption option = new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Synthesized, "source=locally-served-dns-zones"));
 
                 if (response.EDNS is null)
                     return response.CloneWithEDnsOptions(_dnsServer.UdpPayloadSize, response.RCODE, 0, EDnsHeaderFlags.None, [option]);
@@ -247,7 +247,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (request.EDNS is null)
                             return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord]);
 
-                        EDnsOption option = new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Synthesized, "source=locally-served-DNS-zones; domain=" + nonExistentZone));
+                        EDnsOption option = new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Synthesized, "source=locally-served-dns-zones; domain=" + nonExistentZone));
 
                         return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord], udpPayloadSize: _dnsServer.UdpPayloadSize, options: [option]);
                     }
