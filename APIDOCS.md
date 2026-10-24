@@ -113,15 +113,27 @@ RESPONSE:
 {
 	"displayName": "Administrator",
 	"username": "admin",
+	"type": "Local",
 	"isSsoUser": false,
 	"totpEnabled": false,
-	"token": "932b2a3495852c15af01598f62563ae534460388b6a370bfbbb8bb6094b698e9",
+	"token": "eb6596ce9665bdab86498a9fd21ac1d4bdbdf573b26f8b6b523608897ca91e17",
 	"info": {
-		"version": "15.0",
+		"version": "15.7",
+		"uptimestamp": "2026-10-24T11:57:10.7788056Z",
+		"ipv4Addresses": [
+			"192.168.10.5",
+			"192.168.110.1",
+			"192.168.180.1",
+			"192.168.120.1"
+		],
+		"ipv6Addresses": [],
 		"dnsServerDomain": "server1",
 		"defaultRecordTtl": 3600,
 		"defaultNsRecordTtl": 14400,
 		"defaultSoaRecordTtl": 900,
+		"useSoaSerialDateScheme": false,
+		"dnssecValidation": true,
+		"clusterInitialized": false,
 		"permissions": {
 			"Dashboard": {
 				"canView": true,
@@ -180,6 +192,7 @@ RESPONSE:
 			}
 		}
 	},
+	"server": "server1",
 	"status": "ok"
 }
 ```
@@ -294,18 +307,27 @@ RESPONSE:
 {
 	"displayName": "Administrator",
 	"username": "admin",
+	"type": "Local",
 	"isSsoUser": false,
 	"totpEnabled": false,
-	"token": "932b2a3495852c15af01598f62563ae534460388b6a370bfbbb8bb6094b698e9",
+	"token": "eb6596ce9665bdab86498a9fd21ac1d4bdbdf573b26f8b6b523608897ca91e17",
 	"info": {
-		"version": "15.0",
-		"uptimestamp": "2023-07-29T08:01:31.1117463Z",
-		"dnsServerDomain": "server1.example.com",
-		"clusterInitialized": true,
-		"clusterDomain": "example.com"
+		"version": "15.7",
+		"uptimestamp": "2026-10-24T11:57:10.7788056Z",
+		"ipv4Addresses": [
+			"192.168.10.5",
+			"192.168.110.1",
+			"192.168.180.1",
+			"192.168.120.1"
+		],
+		"ipv6Addresses": [],
+		"dnsServerDomain": "server1",
 		"defaultRecordTtl": 3600,
+		"defaultNsRecordTtl": 14400,
+		"defaultSoaRecordTtl": 900,
 		"useSoaSerialDateScheme": false,
 		"dnssecValidation": true,
+		"clusterInitialized": false,
 		"permissions": {
 			"Dashboard": {
 				"canView": true,
@@ -364,6 +386,7 @@ RESPONSE:
 			}
 		}
 	},
+	"server": "server1",
 	"status": "ok"
 }
 ```
