@@ -500,11 +500,10 @@ namespace DnsServerCore.Dns
                     EnableDnsOverHttp = bool.Parse(strDnsOverHttp);
 
                 EnableDnsOverHttpHelpRedirect = true;
+
                 string strDnsReverseProxyNetworkACL = Environment.GetEnvironmentVariable("DNS_SERVER_REVERSE_PROXY_NETWORK_ACL");
                 if (!string.IsNullOrEmpty(strDnsReverseProxyNetworkACL))
-                {
                     DnsReverseProxyNetworkACL = strDnsReverseProxyNetworkACL.Split(NetworkAccessControl.Parse, ',');
-                }
 
                 //recursion
                 string strRecursion = Environment.GetEnvironmentVariable("DNS_SERVER_RECURSION");
