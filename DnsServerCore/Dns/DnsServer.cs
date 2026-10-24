@@ -1067,7 +1067,7 @@ namespace DnsServerCore.Dns
 
             uint failureRecordTtl = bR.ReadUInt32();
             if (!isConfigTransfer)
-                _cacheZoneManager.FailureRecordTtl = failureRecordTtl;
+                _cacheZoneManager.FailureRecordTtl = Math.Clamp(failureRecordTtl, TechnitiumLibrary.Net.Dns.DnsCache.FAILURE_RECORD_TTL_MIN, TechnitiumLibrary.Net.Dns.DnsCache.FAILURE_RECORD_TTL_MAX);
 
             if (version >= 7)
             {

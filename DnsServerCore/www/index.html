@@ -2018,7 +2018,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 10)</span>
+                                                                <span>seconds (valid range 1-300; recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code> or failing to respond.</div>
                                                         </div>
