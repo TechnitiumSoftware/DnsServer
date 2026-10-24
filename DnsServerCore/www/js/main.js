@@ -1163,11 +1163,6 @@ function updateDnsSettingsDataAndGui(responseJSON) {
     $("#lblAboutVersion").text(responseJSON.response.version);
     $("#lblAboutUptime").text(moment(responseJSON.response.uptimestamp).local().format("lll") + " (" + moment(responseJSON.response.uptimestamp).fromNow() + ")");
     $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
-    for (let i = 0; i < sessionData.info.ipAddresses.length; ++i) {
-        if (i != 0)
-            $("#lblIpAddresses").append("<br />");
-        $("#lblIpAddresses").append(sessionData.info.ipAddresses[i]);
-    }
 }
 
 function loadDnsSettings(responseJSON) {
