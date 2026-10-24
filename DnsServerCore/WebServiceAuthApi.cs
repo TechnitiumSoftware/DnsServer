@@ -22,7 +22,9 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -98,6 +100,18 @@ namespace DnsServerCore
                     jsonWriter.WriteNumber("defaultSoaRecordTtl", _dnsWebService._dnsServer.AuthZoneManager.DefaultSoaRecordTtl);
                     jsonWriter.WriteBoolean("useSoaSerialDateScheme", _dnsWebService._dnsServer.AuthZoneManager.UseSoaSerialDateScheme);
                     jsonWriter.WriteBoolean("dnssecValidation", _dnsWebService._dnsServer.DnssecValidation);
+
+                    var ipAddrList = NetworkInterface.GetAllNetworkInterfaces()
+                        .SelectMany(ni => ni.GetIPProperties().UnicastAddresses)
+                        .Select(ua => ua.Address)
+                        .Where(ip => !IPAddress.IsLoopback(ip))
+                        .OrderBy(ip=>ip.AddressFamily)
+                        .Select(ip => ip.ToString());
+                    jsonWriter.WritePropertyName("ipAddresses");
+                    jsonWriter.WriteStartArray();
+                    foreach ( var ipAddr in ipAddrList )
+                        jsonWriter.WriteStringValue(ipAddr);
+                    jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteBoolean("clusterInitialized", _dnsWebService._clusterManager.ClusterInitialized);
 
