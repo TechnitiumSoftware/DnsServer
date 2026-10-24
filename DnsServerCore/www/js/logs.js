@@ -432,7 +432,7 @@ function queryLogs(pageNumber, liveUpdate) {
 
     var end = $("#txtQueryLogEnd").val();
     if (end != "")
-        end = moment(end).toISOString();
+        end = moment(end).add(59, "s").toISOString(); //add 59 sec to allow selecting all entries for the minute
 
     var clientIpAddress = $("#txtQueryLogClientIpAddress").val();
     var protocol = $("#optQueryLogsProtocol").val();
