@@ -576,6 +576,12 @@ namespace DnsServerCore
 
             public async Task SsoLoginAsync(HttpContext context)
             {
+                if (!_dnsWebService._ssoEnabled)
+                {
+                    context.Response.Redirect("/");
+                    return;
+                }
+
                 try
                 {
                     await context.ChallengeAsync();
