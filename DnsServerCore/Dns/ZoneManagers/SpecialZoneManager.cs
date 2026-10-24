@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
@@ -209,7 +210,24 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsDatagram response = _zoneManager.Query(request, true);
             if (response is not null)
-                return response;
+            {
+                if (request.EDNS is null)
+                    return response;
+
+                EDnsOption option = new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Synthesized, "source=locally-served-DNS-zones"));
+
+                if (response.EDNS is null)
+                    return response.CloneWithEDnsOptions(_dnsServer.UdpPayloadSize, response.RCODE, 0, EDnsHeaderFlags.None, [option]);
+
+                List<EDnsOption> options;
+
+                if (response.EDNS.Options.Count == 0)
+                    options = [option];
+                else
+                    options = [.. response.EDNS.Options, option];
+
+                return response.CloneWithEDnsOptions(options);
+            }
 
             if (request.Question.Count > 0)
             {
@@ -226,7 +244,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                         string parentZone = AuthZoneManager.GetParentZone(nonExistentZone) ?? "";
                         DnsResourceRecord soaRecord = new DnsResourceRecord(parentZone, DnsResourceRecordType.SOA, DnsClass.IN, _dnsServer.AuthZoneManager.DefaultSoaRecordTtl, new DnsSOARecordData(parentZone, _dnsServer.DefaultResponsiblePerson?.Address ?? "nobody.invalid", 1, 3600, 1200, 604800, _dnsServer.AuthZoneManager.DefaultSoaRecordTtl));
 
-                        return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord]);
+                        if (request.EDNS is null)
+                            return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord]);
+
+                        EDnsOption option = new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Synthesized, "source=locally-served-DNS-zones; domain=" + nonExistentZone));
+
+                        return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, true, true, false, false, DnsResponseCode.NxDomain, request.Question, authority: [soaRecord], udpPayloadSize: _dnsServer.UdpPayloadSize, options: [option]);
                     }
                 }
             }
