@@ -356,6 +356,18 @@
 				"version": "8.1",
 				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v8.1.zip",
 				"size": "34.58 KB"
+			},
+			{
+				"serverVersion": "15.6",
+				"version": "8.1.1",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v8.1.1.zip",
+				"size": "34.6 KB"
+			},
+			{
+				"serverVersion": "15.6.1",
+				"version": "8.2",
+				"url": "https://download.technitium.com/dns/apps/BlockPageApp-v8.2.zip",
+				"size": "34.7 KB"
 			}
 		]
 	},
@@ -1112,6 +1124,12 @@
 				"version": "3.1",
 				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v3.1.zip",
 				"size": "213.76 KB"
+			},
+			{
+				"serverVersion": "15.6.2",
+				"version": "3.1.1",
+				"url": "https://download.technitium.com/dns/apps/LogExporterApp-v3.1.1.zip",
+				"size": "213.78 KB"
 			}
 		]
 	},
@@ -1496,6 +1514,12 @@
 				"version": "9.1.2",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v9.1.2.zip",
 				"size": "16.66 MB"
+			},
+			{
+				"serverVersion": "15.6.2",
+				"version": "9.1.3",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqliteApp-v9.1.3.zip",
+				"size": "16.66 MB"
 			}
 		]
 	},
@@ -1561,6 +1585,12 @@
 				"serverVersion": "15.5",
 				"version": "3.2",
 				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v3.2.zip",
+				"size": "3.42 MB"
+			},
+			{
+				"serverVersion": "15.6",
+				"version": "3.2.1",
+				"url": "https://download.technitium.com/dns/apps/QueryLogsSqlServerApp-v3.2.1.zip",
 				"size": "3.42 MB"
 			}
 		]

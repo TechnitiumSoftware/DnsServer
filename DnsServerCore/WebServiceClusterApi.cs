@@ -135,6 +135,7 @@ namespace DnsServerCore
 
                     if (clusterNode.State == ClusterNodeState.Self)
                     {
+                        jsonWriter.WriteString("version", clusterNode.Version);
                         jsonWriter.WriteString("upSince", clusterNode.UpSince);
 
                         if (clusterNode.Type == ClusterNodeType.Secondary)
@@ -145,6 +146,9 @@ namespace DnsServerCore
                     }
                     else
                     {
+                        if (clusterNode.Version is not null)
+                            jsonWriter.WriteString("version", clusterNode.Version);
+
                         if (clusterNode.UpSince != default)
                             jsonWriter.WriteString("upSince", clusterNode.UpSince);
 

@@ -202,59 +202,59 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                     <div id="divDashboard" style="display: none;">
                                         <div class="stats-panel">
-                                            <div class="stats-item total-queries">
+                                            <a href="#" class="stats-item total-queries">
                                                 <div class="number" id="divDashboardStatsTotalQueries">100</div>
                                                 <div class="percentage">100%</div>
                                                 <div class="title">Total Queries</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item no-error">
+                                            <a href="#" class="stats-item no-error" data-rcode="NoError">
                                                 <div class="number" id="divDashboardStatsTotalNoError">70</div>
                                                 <div class="percentage" id="divDashboardStatsTotalNoErrorPercentage">0%</div>
                                                 <div class="title">No Error</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item server-failure">
+                                            <a href="#" class="stats-item server-failure" data-rcode="ServerFailure">
                                                 <div class="number" id="divDashboardStatsTotalServerFailure">5</div>
                                                 <div class="percentage" id="divDashboardStatsTotalServerFailurePercentage">0%</div>
                                                 <div class="title">Server Failure</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item nxdomain">
+                                            <a href="#" class="stats-item nxdomain" data-rcode="NxDomain">
                                                 <div class="number" id="divDashboardStatsTotalNxDomain">5</div>
                                                 <div class="percentage" id="divDashboardStatsTotalNxDomainPercentage">0%</div>
                                                 <div class="title">NX Domain</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item refused">
+                                            <a href="#" class="stats-item refused" data-rcode="Refused">
                                                 <div class="number" id="divDashboardStatsTotalRefused">10</div>
                                                 <div class="percentage" id="divDashboardStatsTotalRefusedPercentage">0%</div>
                                                 <div class="title">Refused</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item auth-hit">
+                                            <a href="#" class="stats-item auth-hit" data-response-type="Authoritative">
                                                 <div class="number" id="divDashboardStatsTotalAuthHit">10</div>
                                                 <div class="percentage" id="divDashboardStatsTotalAuthHitPercentage">0%</div>
                                                 <div class="title">Authoritative</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item recursions">
+                                            <a href="#" class="stats-item recursions" data-response-type="Recursive">
                                                 <div class="number" id="divDashboardStatsTotalRecursions">10</div>
                                                 <div class="percentage" id="divDashboardStatsTotalRecursionsPercentage">0%</div>
                                                 <div class="title">Recursive</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item cache-hit">
+                                            <a href="#" class="stats-item cache-hit" data-response-type="Cached">
                                                 <div class="number" id="divDashboardStatsTotalCacheHit">10</div>
                                                 <div class="percentage" id="divDashboardStatsTotalCacheHitPercentage">0%</div>
                                                 <div class="title">Cached</div>
-                                            </div>
+                                            </a>
 
-                                            <div class="stats-item blocked">
+                                            <a href="#" class="stats-item blocked" data-response-type="Blocked">
                                                 <div class="number" id="divDashboardStatsTotalBlocked">10</div>
                                                 <div class="percentage" id="divDashboardStatsTotalBlockedPercentage">0%</div>
                                                 <div class="title">Blocked</div>
-                                            </div>
+                                            </a>
 
                                             <div class="stats-item dropped">
                                                 <div class="number" id="divDashboardStatsTotalDropped">5</div>
@@ -2026,6 +2026,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Cache Prefetch</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableCachePrefetch" type="checkbox"> Enable Cache Prefetch
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to refresh records that are about to expire in cache. A prefetch background task for a cached record is triggered when it is queried for and the DNS server finds the record's TTL value to be less than the Prefetch Trigger value.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
                                                             <label for="txtCachePrefetchEligibility" class="col-sm-3 control-label">Prefetch Eligibility</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCachePrefetchEligibility" placeholder="eligibility" style="width: 100px; display: inline;">
@@ -2038,9 +2050,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
                                                             <div class="col-sm-8">
                                                                 <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 9; set 0 to disable prefetching)</span>
+                                                                <span>seconds (recommended 9)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself when queried.</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -3322,7 +3334,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <p><b>Note!</b> LDAP users can enable Two-Factor Authentication (2FA) such that credentials are validated by the directory service while 2FA is validated by the DNS Server on each login.</p>
                                                         <p><b>Note!</b> The LDAP user's Display Name is managed via the directory service and it is automatically synced each time a user logs in.</p>
                                                         <p><b>Note!</b> When Group Map is configured, the LDAP user's group membership cannot be managed locally and any group membership changes must be configured at the directory service itself. LDAP users need to relogin so that any group membership changes made at the directory service are applied to their user accounts. The Group Map thus allows managing user access centrally via the directory service. Keep the Group Map empty if group membership management for LDAP users is required to be managed via the DNS Server itself.</p>
-                                                        <p><b>Note!</b> The domain name used for LDAP Server above will be resolved by the DNS Server internally only. Thus, make sure that the DNS Server is able to resolve the configured domain name. Adding hosts file entries in the host OS will not work.</p>
+                                                        <p><b>Note!</b> On Windows, the domain name used for LDAP Server above will be resolved by the DNS Server internally only. Thus, make sure that the DNS Server is able to resolve the configured domain name. Adding hosts file entries in the host OS will not work.</p>
+                                                        <p><b>Note!</b> On Linux, the domain name used for LDAP Server above will be resolved using the system's DNS server. Thus, make sure that <code>/etc/resolv.conf</code> is configured with <code>127.0.0.1</code> loopback address to ensure that the resolution is done using this DNS Server.</p>
                                                         <p><b>Warning!</b> The Ignore SSL Certificate Errors option is not secure and should be used only for testing purposes.</p>
                                                         <p><b>Warning!</b> Any DNS related failure may cause LDAP authentication to fail to work making it impossible for LDAP users to log in to fix the DNS issue due to circular dependency. Thus, it is recommended to maintain a local administrator user account for such scenarios.</p>
                                                     </div>
@@ -5095,7 +5108,7 @@ MII...
                     <div id="divEditZoneFile">
                         <div class="form-group">
                             <label for="txtEditZoneFileText" class="control-label">Zone File Editor</label>
-                            <textarea id="txtEditZoneFileText" class="form-control" rows="15" spellcheck="false" style="white-space: nowrap;"></textarea>
+                            <textarea id="txtEditZoneFileText" class="form-control" rows="15" spellcheck="false" style="white-space: nowrap; font-family: monospace; font-size: 12px; "></textarea>
                         </div>
 
                         <div class="form-group">
@@ -5108,7 +5121,7 @@ MII...
                         </div>
 
                         <p><b>Note!</b> The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
-                        <p><b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
+                        <p><b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync and require a manual resync.</p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -5183,13 +5196,13 @@ MII...
                     <div id="divImportZoneTextEditor">
                         <div class="form-group">
                             <label for="txtImportZoneText" class="control-label">Text Editor</label>
-                            <textarea id="txtImportZoneText" class="form-control" rows="15" spellcheck="false" style="white-space: nowrap;"></textarea>
+                            <textarea id="txtImportZoneText" class="form-control" rows="15" spellcheck="false" style="white-space: nowrap; font-family: monospace; font-size: 12px;"></textarea>
                             <div style="padding-top: 5px;">Enter the records to be imported above in standard zone file format.</div>
                         </div>
                     </div>
 
                     <p><b>Note!</b> The <code>$ORIGIN</code> and <code>$TTL</code> values will be automatically set if not specified.</p>
-                    <p><b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync.</p>
+                    <p><b>Warning!</b> Overwrite SOA serial option when used to set a lower SOA serial value than the current SOA serial will cause secondary zones to fail to sync and require a manual resync.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnImportZone" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="importZone(); return false;">Import</button>

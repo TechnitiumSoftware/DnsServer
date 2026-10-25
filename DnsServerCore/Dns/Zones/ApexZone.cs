@@ -98,12 +98,12 @@ namespace DnsServerCore.Dns.Zones
         protected AuthZoneDnssecStatus _dnssecStatus;
 
         Timer _notifyTimer;
-        bool _notifyTimerTriggered;
+        volatile bool _notifyTimerTriggered;
         const int NOTIFY_TIMER_INTERVAL = 5000;
         List<string> _notifyList;
         List<string> _notifyFailed;
         const int NOTIFY_TIMEOUT = 10000;
-        const int NOTIFY_RETRIES = 5;
+        const int NOTIFY_RETRIES = 3;
 
         protected bool _syncFailed;
 
@@ -216,6 +216,9 @@ namespace DnsServerCore.Dns.Zones
 
         private void NotifyTimerCallback(object state)
         {
+            bool onlyFailedNameServers = !_notifyTimerTriggered; //trigger is only for failed name servers if timer was explicitly set for retry and not triggered
+            _notifyTimerTriggered = false; //reset immediately to allow triggerring notify again since the current notify task may take longer to complete due to one or more name servers being down or not responding fast enough causing lost notify for working name servers
+
             ApexZone apexZone = this;
 
             if ((apexZone.CatalogZone is not null) && !apexZone.OverrideCatalogNotify)
@@ -223,7 +226,7 @@ namespace DnsServerCore.Dns.Zones
 
             List<string> notifiedNameServers = new List<string>();
 
-            async Task NotifyZoneNameServersAsync(bool onlyFailedNameServers)
+            async Task NotifyZoneNameServersAsync()
             {
                 string primaryNameServer = (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).PrimaryNameServer;
                 IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
@@ -274,25 +277,25 @@ namespace DnsServerCore.Dns.Zones
                 await Task.WhenAll(tasks);
             }
 
-            Task NotifySpecifiedNameServersAsync(bool onlyFailedNameServers)
+            Task NotifySpecifiedNameServersAsync()
             {
                 IReadOnlyCollection<IPAddress> specifiedNameServers = apexZone._notifyNameServers;
                 if (specifiedNameServers is not null)
-                    return NotifyNameServersAsync(specifiedNameServers, onlyFailedNameServers);
+                    return NotifyNameServersAsync(specifiedNameServers);
 
                 return Task.CompletedTask;
             }
 
-            Task NotifySecondaryCatalogNameServersAsync(bool onlyFailedNameServers)
+            Task NotifySecondaryCatalogNameServersAsync()
             {
                 IReadOnlyCollection<IPAddress> secondaryCatalogNameServers = apexZone._notifySecondaryCatalogNameServers;
                 if (secondaryCatalogNameServers is not null)
-                    return NotifyNameServersAsync(secondaryCatalogNameServers, onlyFailedNameServers);
+                    return NotifyNameServersAsync(secondaryCatalogNameServers);
 
                 return Task.CompletedTask;
             }
 
-            async Task NotifyNameServersAsync(IReadOnlyCollection<IPAddress> nameServerIpAddresses, bool onlyFailedNameServers)
+            async Task NotifyNameServersAsync(IReadOnlyCollection<IPAddress> nameServerIpAddresses)
             {
                 List<Task> tasks = new List<Task>();
 
@@ -325,25 +328,25 @@ namespace DnsServerCore.Dns.Zones
                         switch (apexZone._notify)
                         {
                             case AuthZoneNotify.ZoneNameServers:
-                                await NotifyZoneNameServersAsync(!_notifyTimerTriggered);
+                                await NotifyZoneNameServersAsync();
                                 break;
 
                             case AuthZoneNotify.SpecifiedNameServers:
-                                await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+                                await NotifySpecifiedNameServersAsync();
                                 break;
 
                             case AuthZoneNotify.BothZoneAndSpecifiedNameServers:
-                                Task t1 = NotifyZoneNameServersAsync(!_notifyTimerTriggered);
-                                Task t2 = NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+                                Task t1 = NotifyZoneNameServersAsync();
+                                Task t2 = NotifySpecifiedNameServersAsync();
 
                                 await Task.WhenAll(t1, t2);
                                 break;
 
                             case AuthZoneNotify.SeparateNameServersForCatalogAndMemberZones:
                                 if (this is CatalogZone)
-                                    await NotifySecondaryCatalogNameServersAsync(!_notifyTimerTriggered);
+                                    await NotifySecondaryCatalogNameServersAsync();
                                 else
-                                    await NotifySpecifiedNameServersAsync(!_notifyTimerTriggered);
+                                    await NotifySpecifiedNameServersAsync();
 
                                 break;
                         }
@@ -364,11 +367,9 @@ namespace DnsServerCore.Dns.Zones
                                 foreach (string failedNameServer in toRemove)
                                     _notifyFailed.Remove(failedNameServer);
 
-                                if (_notifyFailed.Count > 0)
-                                {
-                                    //set timer to notify failed name servers again
+                                //set timer to notify failed name servers (if any) again if not already triggered
+                                if (!_notifyTimerTriggered && (_notifyFailed.Count > 0))
                                     _notifyTimer?.Change(Math.Max(GetZoneSoaRetry(), _dnsServer.AuthZoneManager.MinSoaRetry) * 1000, Timeout.Infinite);
-                                }
                             }
                         }
                     }
@@ -377,10 +378,6 @@ namespace DnsServerCore.Dns.Zones
                     catch (Exception ex)
                     {
                         _dnsServer.LogManager.Write(ex);
-                    }
-                    finally
-                    {
-                        _notifyTimerTriggered = false;
                     }
                 })
             )

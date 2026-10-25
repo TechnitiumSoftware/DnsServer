@@ -177,6 +177,11 @@ function reloadAdminClusterView(responseJSON) {
                     break;
             }
 
+            var version = "";
+
+            if (responseJSON.response.clusterNodes[i].version != null)
+                version = "<br /><span style=\"font-size: 12px\">(v" + htmlEncode(responseJSON.response.clusterNodes[i].version) + ")</span>";
+
             var upSince = "";
 
             if (responseJSON.response.clusterNodes[i].upSince != null)
@@ -200,7 +205,7 @@ function reloadAdminClusterView(responseJSON) {
                     break;
             }
 
-            tableHtmlRows += "<tr id=\"trAdminClusterNode" + i + "\"><td>" + htmlEncode(responseJSON.response.clusterNodes[i].name) + "</td><td>" +
+            tableHtmlRows += "<tr id=\"trAdminClusterNode" + i + "\"><td>" + htmlEncode(responseJSON.response.clusterNodes[i].name) + version + "</td><td>" +
                 ipAddresses + "</td><td>" +
                 htmlEncode(responseJSON.response.clusterNodes[i].url) + "</td><td>" +
                 nodeType + "</td><td>" +

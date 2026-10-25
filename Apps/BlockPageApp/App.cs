@@ -325,6 +325,7 @@ namespace BlockPage
 
                                                     req.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
                                                     req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
+                                                    req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection() { new Oid("1.3.6.1.5.5.7.3.1") }, false)); //Server Authentication
                                                     req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
 
                                                     SubjectAlternativeNameBuilder san = new SubjectAlternativeNameBuilder();
@@ -630,9 +631,9 @@ namespace BlockPage
                             foreach (EDnsExtendedDnsErrorOptionData option in options)
                             {
                                 if (blockingInfoHtmlContent is null)
-                                    blockingInfoHtmlContent = "  <p><b>Detailed Info</b><br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                    blockingInfoHtmlContent = "  <p><b>Detailed Info</b><br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + WebUtility.HtmlEncode(option.ExtraText));
                                 else
-                                    blockingInfoHtmlContent += "<br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + option.ExtraText);
+                                    blockingInfoHtmlContent += "<br>" + option.InfoCode.ToString() + (option.ExtraText is null ? "" : ": " + WebUtility.HtmlEncode(option.ExtraText));
                             }
 
                             if (blockingInfoHtmlContent is not null)
@@ -727,6 +728,7 @@ namespace BlockPage
 
                             req.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
                             req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
+                            req.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection() { new Oid("1.3.6.1.5.5.7.3.1") }, false)); //Server Authentication
                             req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(req.PublicKey, false));
 
                             X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(10));
