@@ -917,11 +917,15 @@ function refreshDnsSettings() {
             loadDnsSettings(responseJSON);
             checkForReverseProxy(responseJSON);
 
-            if (sessionData.info.permissions.Settings.canModify) {
+            if (sessionData.info.permissions.Settings.canModify && !$("#settingsTabListAcme").hasClass("active")) {
                 $("#btnSaveSettings").show();
             } else {
                 $("#btnSaveSettings").hide();
             }
+
+            //the ACME tab is per node; reload it for the newly selected node
+            if ($("#settingsTabListAcme").hasClass("active"))
+                refreshAcme();
 
             if (sessionData.info.permissions.Cache.canDelete) {
                 $("#btnSettingsFlushCache").show();

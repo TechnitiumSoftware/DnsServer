@@ -50,6 +50,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="js/apps.js"></script>
     <script src="js/dnsclient.js"></script>
     <script src="js/dhcp.js"></script>
+    <script src="js/acme.js"></script>
     <script src="js/logs.js"></script>
 </head>
 <body>
@@ -965,6 +966,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <li id="settingsTabListWebService" role="presentation"><a href="#settingsTabPaneWebService" aria-controls="settingsTabPaneWebService" role="tab" data-toggle="tab">Web Service</a></li>
                                                 <li id="settingsTabListOptionalProtocols" role="presentation"><a href="#settingsTabPaneOptionalProtocols" aria-controls="settingsTabPaneOptionalProtocols" role="tab" data-toggle="tab">Optional Protocols</a></li>
                                                 <li id="settingsTabListTsig" role="presentation"><a href="#settingsTabPaneTsig" aria-controls="settingsTabPaneTsig" role="tab" data-toggle="tab">TSIG</a></li>
+                                                <li id="settingsTabListAcme" role="presentation"><a href="#settingsTabPaneAcme" aria-controls="settingsTabPaneAcme" role="tab" data-toggle="tab">Certificates (ACME)</a></li>
                                                 <li id="settingsTabListRecursion" role="presentation"><a href="#settingsTabPaneRecursion" aria-controls="settingsTabPaneRecursion" role="tab" data-toggle="tab">Recursion</a></li>
                                                 <li id="settingsTabListCache" role="presentation"><a href="#settingsTabPaneCache" aria-controls="settingsTabPaneCache" role="tab" data-toggle="tab">Cache</a></li>
                                                 <li id="settingsTabListBlocking" role="presentation"><a href="#settingsTabPaneBlocking" aria-controls="settingsTabPaneBlocking" role="tab" data-toggle="tab">Blocking</a></li>
@@ -1790,6 +1792,215 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div><b>Note!</b> You will need to configure these TSIG keys names for zone transfer in the zone options and in the secondary zone SOA record options separately.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneAcme" role="tabpanel" class="tab-pane">
+                                                    <div id="divAcmeLoader" style="height: 300px;"></div>
+
+                                                    <div id="divAcme" style="display: none;">
+                                                        <div class="well well-sm form-horizontal">
+                                                            <div class="form-group">
+                                                                <label class="col-sm-3 control-label">Status</label>
+                                                                <div class="col-sm-8">
+                                                                    <div class="form-control-static" id="divAcmeStatus"></div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group" style="margin-bottom: 0px;">
+                                                                <div class="col-sm-offset-3 col-sm-8">
+                                                                    <button type="button" class="btn btn-primary" id="btnAcmeRequest" data-loading-text="Starting..." onclick="requestAcmeCertificate(this);">Request Certificate Now</button>
+                                                                    <button type="button" class="btn btn-default" id="btnAcmeTest" data-loading-text="Testing..." onclick="testAcmeDns01(this);">Test DNS-01</button>
+                                                                    <button type="button" class="btn btn-default" onclick="refreshAcme();">Refresh</button>
+                                                                    <div style="padding-top: 5px;">Test DNS-01 publishes a test TXT record with the selected provider, checks it is visible on the domain's public name servers, and removes it. It does not contact the certificate authority. Save settings before testing or requesting.</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="well well-sm form-horizontal">
+                                                            <div class="form-group">
+                                                                <div class="col-sm-offset-3 col-sm-8">
+                                                                    <div class="checkbox">
+                                                                        <label>
+                                                                            <input type="checkbox" id="chkAcmeEnabled"> Enable ACME (automatic certificates)
+                                                                        </label>
+                                                                    </div>
+                                                                    <div style="padding-top: 5px;">Obtains a TLS certificate for this DNS server from an ACME certificate authority using DNS-01 validation, installs it, and renews it automatically. In a Cluster, configure each node separately.</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="optAcmeDirectory" class="col-sm-3 control-label">Certificate Authority</label>
+                                                                <div class="col-sm-6">
+                                                                    <select class="form-control" id="optAcmeDirectory" onchange="onAcmeDirectoryChanged();">
+                                                                        <option value="https://acme-staging-v02.api.letsencrypt.org/directory">Let's Encrypt (staging, for testing)</option>
+                                                                        <option value="https://acme-v02.api.letsencrypt.org/directory">Let's Encrypt</option>
+                                                                        <option value="https://acme.zerossl.com/v2/DV90">ZeroSSL (requires EAB)</option>
+                                                                        <option value="https://dv.acme-v02.api.pki.goog/directory">Google Trust Services (requires EAB)</option>
+                                                                        <option value="custom">Custom ACME directory URL</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Start with Let's Encrypt staging: its certificates aren't trusted by browsers, but it has much higher rate limits, so you can get the setup right first. Switch to Let's Encrypt once a staging certificate is issued.</div>
+                                                            </div>
+
+                                                            <div class="form-group" id="divAcmeCustomDirectory" style="display: none;">
+                                                                <label for="txtAcmeCustomDirectory" class="col-sm-3 control-label">Directory URL</label>
+                                                                <div class="col-sm-6">
+                                                                    <input type="text" class="form-control" id="txtAcmeCustomDirectory" placeholder="https://ca.example.lan/acme/acme/directory">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Any RFC 8555 ACME server, for example an internal step-ca.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <div class="col-sm-offset-3 col-sm-8">
+                                                                    <div class="checkbox">
+                                                                        <label>
+                                                                            <input type="checkbox" id="chkAcmeTermsAgreed"> I agree to the certificate authority's terms of service
+                                                                        </label>
+                                                                    </div>
+                                                                    <div style="padding-top: 5px;" id="divAcmeTermsLink">&nbsp;</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtAcmeEmail" class="col-sm-3 control-label">Contact Email</label>
+                                                                <div class="col-sm-5">
+                                                                    <input type="email" class="form-control" id="txtAcmeEmail" placeholder="optional">
+                                                                </div>
+                                                            </div>
+
+                                                            <div id="divAcmeEab">
+                                                                <div class="form-group">
+                                                                    <label for="txtAcmeEabKeyId" class="col-sm-3 control-label">EAB Key ID</label>
+                                                                    <div class="col-sm-5">
+                                                                        <input type="text" class="form-control" id="txtAcmeEabKeyId">
+                                                                    </div>
+                                                                </div>
+
+                                                                <div class="form-group">
+                                                                    <label for="txtAcmeEabHmacKey" class="col-sm-3 control-label">EAB HMAC Key</label>
+                                                                    <div class="col-sm-5">
+                                                                        <input type="password" class="form-control" id="txtAcmeEabHmacKey" autocomplete="new-password">
+                                                                    </div>
+                                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">External Account Binding credentials from your certificate authority account. Leave the HMAC key empty to keep the saved one.</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="well well-sm form-horizontal">
+                                                            <div class="form-group">
+                                                                <label for="txtAcmeDomains" class="col-sm-3 control-label">Domain Names</label>
+                                                                <div class="col-sm-5">
+                                                                    <textarea class="form-control" id="txtAcmeDomains" rows="4" placeholder="one per line"></textarea>
+                                                                </div>
+                                                                <div class="col-sm-3">
+                                                                    <button type="button" class="btn btn-default" onclick="addAcmeServerDomain();">Add Server Domain</button>
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Names the certificate covers, one per line. The first is the certificate's subject. Wildcards such as *.example.com are allowed. Include the name you use to open the web console and the name DNS-over-TLS/HTTPS clients connect to.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label class="col-sm-3 control-label">Use Certificate For</label>
+                                                                <div class="col-sm-8">
+                                                                    <div class="checkbox">
+                                                                        <label><input type="checkbox" id="chkAcmeUseForWebService"> Web Service (HTTPS)</label>
+                                                                    </div>
+                                                                    <div class="checkbox">
+                                                                        <label><input type="checkbox" id="chkAcmeUseForDnsTls"> DNS-over-TLS, DNS-over-HTTPS and DNS-over-QUIC</label>
+                                                                    </div>
+                                                                    <div style="padding-top: 5px;">The certificate is installed in place of the certificate file in the Web Service and Optional Protocols settings. HTTPS and the encrypted DNS protocols still need to be enabled on those tabs.</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="optAcmeKeyType" class="col-sm-3 control-label">Key Type</label>
+                                                                <div class="col-sm-3">
+                                                                    <select class="form-control" id="optAcmeKeyType">
+                                                                        <option value="EcdsaP256">ECDSA P-256</option>
+                                                                        <option value="Rsa2048">RSA 2048</option>
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="well well-sm form-horizontal">
+                                                            <div class="form-group">
+                                                                <label for="optAcmeDns01Provider" class="col-sm-3 control-label">DNS-01 Provider</label>
+                                                                <div class="col-sm-5">
+                                                                    <select class="form-control" id="optAcmeDns01Provider" onchange="onAcmeProviderChanged();">
+                                                                        <option value="LocalZone">Zone on this DNS server</option>
+                                                                        <option value="Rfc2136">RFC 2136 dynamic update (TSIG)</option>
+                                                                        <option value="Cloudflare">Cloudflare</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Where the _acme-challenge TXT record is published. It must be visible to the certificate authority on the domain's public name servers. If _acme-challenge.&lt;name&gt; is a CNAME, the record is published at the CNAME's target instead, so you can delegate challenges to a zone on this server while the domain itself is hosted elsewhere.</div>
+                                                            </div>
+
+                                                            <div class="form-group acme-provider acme-provider-LocalZone">
+                                                                <div class="col-sm-offset-3 col-sm-8">This server must host the zone as a Primary zone, and be (or feed via zone transfer) the zone's public name servers. On a Cluster secondary node, use RFC 2136 pointed at the Primary node instead.</div>
+                                                            </div>
+
+                                                            <div class="form-group acme-provider acme-provider-Rfc2136">
+                                                                <label for="txtAcmeRfc2136Server" class="col-sm-3 control-label">Update Server</label>
+                                                                <div class="col-sm-4">
+                                                                    <input type="text" class="form-control" id="txtAcmeRfc2136Server" placeholder="192.168.1.2 or ns1.example.com:53">
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="form-group acme-provider acme-provider-Rfc2136">
+                                                                <label for="optAcmeRfc2136TsigKey" class="col-sm-3 control-label">TSIG Key</label>
+                                                                <div class="col-sm-4">
+                                                                    <select class="form-control" id="optAcmeRfc2136TsigKey"></select>
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Keys are defined in the TSIG tab. The update server must allow this key to update the zone.</div>
+                                                            </div>
+
+                                                            <div class="form-group acme-provider acme-provider-Cloudflare">
+                                                                <label for="txtAcmeCloudflareToken" class="col-sm-3 control-label">API Token</label>
+                                                                <div class="col-sm-5">
+                                                                    <input type="password" class="form-control" id="txtAcmeCloudflareToken" autocomplete="new-password">
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A Cloudflare API token with Zone &gt; DNS &gt; Edit permission for the zone. Leave empty to keep the saved token.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="well well-sm form-horizontal">
+                                                            <div class="form-group">
+                                                                <label for="txtAcmeRenewDays" class="col-sm-3 control-label">Renew Before Expiry</label>
+                                                                <div class="col-sm-2">
+                                                                    <input type="number" class="form-control" id="txtAcmeRenewDays">
+                                                                </div>
+                                                                <div class="col-sm-1 form-control-static">days</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtAcmePropagationTimeout" class="col-sm-3 control-label">Propagation Timeout</label>
+                                                                <div class="col-sm-2">
+                                                                    <input type="number" class="form-control" id="txtAcmePropagationTimeout">
+                                                                </div>
+                                                                <div class="col-sm-1 form-control-static">seconds</div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">How long to wait for the TXT record to appear on the public name servers before asking the certificate authority to validate.</div>
+                                                            </div>
+
+                                                            <div class="form-group">
+                                                                <label for="txtAcmePublicResolvers" class="col-sm-3 control-label">Public Resolvers</label>
+                                                                <div class="col-sm-4">
+                                                                    <textarea class="form-control" id="txtAcmePublicResolvers" rows="3"></textarea>
+                                                                </div>
+                                                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Used to see the domain the way the internet does (CNAMEs and name servers), so a local copy of the zone on this server doesn't hide the public view.</div>
+                                                            </div>
+
+                                                            <div class="form-group" style="margin-bottom: 0px;">
+                                                                <div class="col-sm-offset-3 col-sm-8">
+                                                                    <button type="button" class="btn btn-primary" id="btnAcmeSave" data-loading-text="Saving..." onclick="saveAcme(this);">Save ACME Settings</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="well well-sm">
+                                                            <b>Log</b>
+                                                            <pre id="preAcmeLog" style="max-height: 300px; overflow-y: auto; margin: 5px 0px 0px 0px; font-size: 12px;"></pre>
+                                                        </div>
                                                     </div>
                                                 </div>
 

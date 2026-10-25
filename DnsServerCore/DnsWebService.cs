@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Acme;
 using DnsServerCore.Auth;
 using DnsServerCore.Cluster;
 using DnsServerCore.Dhcp;
@@ -88,6 +89,7 @@ namespace DnsServerCore
         readonly WebServiceOtherZonesApi _otherZonesApi;
         readonly WebServiceAppsApi _appsApi;
         readonly WebServiceSettingsApi _settingsApi;
+        readonly WebServiceAcmeApi _acmeApi;
         readonly WebServiceDhcpApi _dhcpApi;
         readonly WebServiceAuthApi _authApi;
         readonly WebServiceClusterApi _clusterApi;
@@ -98,6 +100,7 @@ namespace DnsServerCore
         HttpClient _ssoHttpClient;
 
         ClusterManager _clusterManager;
+        AcmeManager _acmeManager;
         DnsServer _dnsServer;
         DhcpServer _dhcpServer;
 
@@ -182,6 +185,7 @@ namespace DnsServerCore
             _otherZonesApi = new WebServiceOtherZonesApi(this);
             _appsApi = new WebServiceAppsApi(this);
             _settingsApi = new WebServiceSettingsApi(this);
+            _acmeApi = new WebServiceAcmeApi(this);
             _dhcpApi = new WebServiceDhcpApi(this);
             _authApi = new WebServiceAuthApi(this);
             _clusterApi = new WebServiceClusterApi(this);
@@ -2192,6 +2196,11 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
             _webService.MapGetAndPost("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
             _webService.MapGetAndPost("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
+            _webService.MapGetAndPost("/api/settings/acme/get", _acmeApi.GetAcme);
+            _webService.MapGetAndPost("/api/settings/acme/set", _acmeApi.SetAcme);
+            _webService.MapGetAndPost("/api/settings/acme/directoryInfo", _acmeApi.GetDirectoryInfoAsync);
+            _webService.MapGetAndPost("/api/settings/acme/request", _acmeApi.RequestCertificate);
+            _webService.MapGetAndPost("/api/settings/acme/testDns01", _acmeApi.TestDns01Async);
             _webService.MapGetAndPost("/api/settings/backup", _settingsApi.BackupSettingsAsync);
             _webService.MapPost("/api/settings/restore", _settingsApi.RestoreSettingsAsync);
 
@@ -2778,6 +2787,31 @@ namespace DnsServerCore
             StartTlsCertificateUpdateTimer();
         }
 
+        //used by ACME to apply an issued or renewed certificate the same way the settings API does
+        internal void InstallWebServiceTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
+        {
+            SetWebServiceTlsCertificate(tlsCertificatePath, tlsCertificatePassword);
+
+            if (_clusterManager.ClusterInitialized)
+                _clusterManager.UpdateSelfNodeUrlAndCertificate();
+
+            SaveConfigFile();
+        }
+
+        internal void InstallDnsTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
+        {
+            //renewals keep the same path and are picked up in place; a new path (first install, or replacing a
+            //certificate that may never have loaded) restarts the encrypted listeners so they start with it
+            string currentPath = string.IsNullOrEmpty(_dnsServer.DnsTlsCertificatePath) ? null : _log.ConvertToAbsolutePath(_dnsServer.DnsTlsCertificatePath);
+            bool pathChanged = !string.Equals(currentPath, _log.ConvertToAbsolutePath(tlsCertificatePath), Environment.OSVersion.Platform == PlatformID.Win32NT ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+            _dnsServer.SetDnsTlsCertificate(tlsCertificatePath, tlsCertificatePassword, true);
+            _dnsServer.SaveConfigFile();
+
+            if (pathChanged && (_dnsServer.EnableDnsOverTls || _dnsServer.EnableDnsOverHttps || _dnsServer.EnableDnsOverQuic))
+                RestartService(true, false);
+        }
+
         private void CheckAndLoadSelfSignedCertificate(bool forceGenerateNew, bool throwException)
         {
             string selfSignedCertificateFilePath = Path.Combine(_configFolder, "self-signed-cert.pfx");
@@ -2946,6 +2980,9 @@ namespace DnsServerCore
                 //init cluster manager and load config file
                 _clusterManager = new ClusterManager(this);
 
+                //init ACME certificate manager
+                _acmeManager = new AcmeManager(this);
+
                 //cert may have changed so update cluster certs when loading
                 if (_clusterManager.ClusterInitialized)
                 {
@@ -2988,6 +3025,9 @@ namespace DnsServerCore
             {
                 //stop cluster manager
                 _clusterManager?.Dispose();
+
+                //stop ACME certificate manager
+                _acmeManager?.Dispose();
 
                 //stop web service
                 await StopWebServiceAsync();
