@@ -619,6 +619,8 @@ namespace DnsServerCore.Dhcp
 
             //update DNS
             _dhcpServer.AddDnsEntries(this, lease);
+
+            _dhcpServer.OnLeaseChanged(this, lease, false);
         }
 
         private void ConvertToDynamicLease(Lease lease)
@@ -632,6 +634,8 @@ namespace DnsServerCore.Dhcp
 
             //update DNS
             _dhcpServer.AddDnsEntries(this, lease);
+
+            _dhcpServer.OnLeaseChanged(this, lease, false);
 
             //remove any old single address exclusion entry
             if (_exclusions != null)
@@ -870,7 +874,14 @@ namespace DnsServerCore.Dhcp
 
         internal uint GetLeaseTime()
         {
-            return Convert.ToUInt32((_leaseTimeDays * 24 * 60 * 60) + (_leaseTimeHours * 60 * 60) + (_leaseTimeMinutes * 60));
+            uint leaseTime = Convert.ToUInt32((_leaseTimeDays * 24 * 60 * 60) + (_leaseTimeHours * 60 * 60) + (_leaseTimeMinutes * 60));
+
+            //limit lease time when failover partner is down to reduce conflict window
+            uint leaseTimeLimit = _dhcpServer.LeaseTimeLimit;
+            if ((leaseTimeLimit > 0) && (leaseTime > leaseTimeLimit))
+                return leaseTimeLimit;
+
+            return leaseTime;
         }
 
         internal bool IsAddressInRange(IPAddress address)
@@ -1365,15 +1376,112 @@ namespace DnsServerCore.Dhcp
             _dhcpServer.AddDnsEntries(this, lease);
 
             _lastModified = DateTime.UtcNow;
+
+            _dhcpServer.OnLeaseChanged(this, lease, false);
         }
 
         internal void ReleaseLease(Lease lease)
         {
-            _leases.TryRemove(lease.ClientIdentifier, out _);
+            if (_leases.TryRemove(lease.ClientIdentifier, out _))
+                _dhcpServer.OnLeaseChanged(this, lease, true);
 
             _dhcpServer.RemoveDnsEntries(this, lease);
 
             _lastModified = DateTime.UtcNow;
+        }
+
+        internal void ApplyReplicatedLease(Lease lease)
+        {
+            if (!IsAddressInRange(lease.Address) && (lease.Type == LeaseType.Dynamic))
+                return; //scope network changed; ignore stale lease
+
+            //remove any other lease holding the same address; latest expiry wins
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
+            {
+                Lease existingLease = entry.Value;
+
+                if (existingLease.Address.Equals(lease.Address) && !entry.Key.Equals(lease.ClientIdentifier))
+                {
+                    if (existingLease.LeaseExpires > lease.LeaseExpires)
+                    {
+                        _log.Write("DHCP Server ignored replicated lease for " + lease.GetClientInfo() + " in scope '" + _name + "': address " + lease.Address.ToString() + " is already leased to " + existingLease.GetClientInfo() + ".");
+                        return;
+                    }
+
+                    if (_leases.TryRemove(entry.Key, out Lease removedLease))
+                    {
+                        _dhcpServer.RemoveDnsEntries(this, removedLease);
+                        _log.Write("DHCP Server resolved lease conflict in scope '" + _name + "': address " + lease.Address.ToString() + " moved from " + removedLease.GetClientInfo() + " to " + lease.GetClientInfo() + ".");
+                    }
+                }
+            }
+
+            if (_leases.TryGetValue(lease.ClientIdentifier, out Lease oldLease) && !oldLease.Address.Equals(lease.Address))
+                _dhcpServer.RemoveDnsEntries(this, oldLease);
+
+            _leases[lease.ClientIdentifier] = lease;
+            _offers.TryRemove(lease.ClientIdentifier, out _);
+
+            if (DateTime.UtcNow < lease.LeaseExpires)
+                _dhcpServer.AddDnsEntries(this, lease);
+
+            _lastModified = DateTime.UtcNow;
+        }
+
+        internal void RemoveReplicatedLease(ClientIdentifierOption clientIdentifier)
+        {
+            if (_leases.TryRemove(clientIdentifier, out Lease removedLease))
+            {
+                _dhcpServer.RemoveDnsEntries(this, removedLease);
+                _lastModified = DateTime.UtcNow;
+            }
+        }
+
+        internal int SyncLeasesFrom(Scope source, bool mirror)
+        {
+            //mirror: make local leases same as source (standby following primary)
+            //merge: keep lease with later expiry for each client (primary recovering from partner)
+            int changes = 0;
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in source._leases)
+            {
+                Lease sourceLease = entry.Value;
+
+                if (_leases.TryGetValue(entry.Key, out Lease localLease))
+                {
+                    if (localLease.Address.Equals(sourceLease.Address) && (localLease.Type == sourceLease.Type) && (localLease.HostName == sourceLease.HostName) && (localLease.LeaseExpires == sourceLease.LeaseExpires))
+                        continue; //same lease
+
+                    if (!mirror && (localLease.LeaseExpires >= sourceLease.LeaseExpires))
+                        continue; //local lease is newer
+                }
+
+                ApplyReplicatedLease(sourceLease);
+                changes++;
+            }
+
+            if (mirror)
+            {
+                foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
+                {
+                    if (!source._leases.ContainsKey(entry.Key))
+                    {
+                        RemoveReplicatedLease(entry.Key);
+                        changes++;
+                    }
+                }
+            }
+
+            return changes;
+        }
+
+        internal byte[] GetSettingsBytes()
+        {
+            using (MemoryStream mS = new MemoryStream())
+            {
+                WriteTo(mS, false);
+                return mS.ToArray();
+            }
         }
 
         internal void SetEnabled(bool enabled)
@@ -1520,6 +1628,8 @@ namespace DnsServerCore.Dhcp
             if (!_leases.TryRemove(clientIdentifier, out Lease removedLease))
                 throw new DhcpServerException("No lease was found for client identifier: " + clientIdentifier.ToString());
 
+            _dhcpServer.OnLeaseChanged(this, removedLease, true);
+
             if (removedLease.Type == LeaseType.Reserved)
             {
                 //remove reserved lease
@@ -1598,7 +1708,7 @@ namespace DnsServerCore.Dhcp
             ConvertToDynamicLease(lease);
         }
 
-        public void WriteTo(Stream s)
+        public void WriteTo(Stream s, bool includeLeases = true)
         {
             BinaryWriter bW = new BinaryWriter(s);
 
@@ -1803,11 +1913,19 @@ namespace DnsServerCore.Dhcp
             bW.Write(_blockLocallyAdministeredMacAddresses);
             bW.Write(_ignoreClientIdentifierOption);
 
+            if (includeLeases)
             {
-                bW.Write(_leases.Count);
+                //snapshot to keep count consistent with leases written
+                KeyValuePair<ClientIdentifierOption, Lease>[] leases = _leases.ToArray();
 
-                foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
+                bW.Write(leases.Length);
+
+                foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in leases)
                     lease.Value.WriteTo(bW);
+            }
+            else
+            {
+                bW.Write(0);
             }
         }
 

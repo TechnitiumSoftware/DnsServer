@@ -89,6 +89,7 @@ namespace DnsServerCore
         readonly WebServiceAppsApi _appsApi;
         readonly WebServiceSettingsApi _settingsApi;
         readonly WebServiceDhcpApi _dhcpApi;
+        readonly WebServiceDhcpFailoverApi _dhcpFailoverApi;
         readonly WebServiceAuthApi _authApi;
         readonly WebServiceClusterApi _clusterApi;
         readonly WebServiceLogsApi _logsApi;
@@ -100,6 +101,7 @@ namespace DnsServerCore
         ClusterManager _clusterManager;
         DnsServer _dnsServer;
         DhcpServer _dhcpServer;
+        DhcpFailoverManager _dhcpFailoverManager;
 
         //web service
         int _webServiceHttpPort = 5380;
@@ -183,6 +185,7 @@ namespace DnsServerCore
             _appsApi = new WebServiceAppsApi(this);
             _settingsApi = new WebServiceSettingsApi(this);
             _dhcpApi = new WebServiceDhcpApi(this);
+            _dhcpFailoverApi = new WebServiceDhcpFailoverApi(this);
             _authApi = new WebServiceAuthApi(this);
             _clusterApi = new WebServiceClusterApi(this);
             _logsApi = new WebServiceLogsApi(this);
@@ -2208,6 +2211,11 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/dhcp/scopes/enable", _dhcpApi.EnableDhcpScopeAsync);
             _webService.MapGetAndPost("/api/dhcp/scopes/disable", _dhcpApi.DisableDhcpScope);
             _webService.MapGetAndPost("/api/dhcp/scopes/delete", _dhcpApi.DeleteDhcpScope);
+            _webService.MapGetAndPost("/api/dhcp/failover/get", _dhcpFailoverApi.GetFailover);
+            _webService.MapGetAndPost("/api/dhcp/failover/set", _dhcpFailoverApi.SetFailover);
+            _webService.MapGetAndPost("/api/admin/cluster/dhcp/status", _dhcpFailoverApi.GetPartnerStatus);
+            _webService.MapGetAndPost("/api/admin/cluster/dhcp/snapshot", _dhcpFailoverApi.GetSnapshotAsync);
+            _webService.MapPost("/api/admin/cluster/dhcp/leaseUpdates", _dhcpFailoverApi.ApplyLeaseUpdatesAsync);
 
             //administration
             _webService.MapGetAndPost("/api/admin/sessions/list", _authApi.ListSessions);
@@ -2415,6 +2423,7 @@ namespace DnsServerCore
                 case "/api/logs/download":
                 case "/api/logs/export":
                 case "/api/admin/cluster/primary/transferConfig":
+                case "/api/admin/cluster/dhcp/snapshot":
                     {
                         if (!TryValidateSession(context, out UserSession _))
                             throw new InvalidTokenWebServiceException("Invalid token or session expired.");
@@ -2959,6 +2968,10 @@ namespace DnsServerCore
                     }
                 }
 
+                //init dhcp failover before dhcp server starts so that a standby node stays passive
+                _dhcpFailoverManager = new DhcpFailoverManager(this, _dhcpServer);
+                _dhcpServer.FailoverHandler = _dhcpFailoverManager;
+
                 //start web service
                 if (throwIfBindFails)
                     await StartWebServiceAsync(false);
@@ -2968,6 +2981,7 @@ namespace DnsServerCore
                 //start dns and dhcp
                 await _dnsServer.StartAsync(throwIfBindFails);
                 _dhcpServer.Start();
+                _dhcpFailoverManager.Start();
 
                 _log.Write("DNS Server (v" + _currentVersion.ToString() + ") was started successfully.");
                 _isRunning = true;
@@ -2986,6 +3000,9 @@ namespace DnsServerCore
 
             try
             {
+                //stop dhcp failover
+                _dhcpFailoverManager?.Dispose();
+
                 //stop cluster manager
                 _clusterManager?.Dispose();
 
@@ -3055,6 +3072,12 @@ namespace DnsServerCore
 
         internal LogManager LogManager
         { get { return _log; } }
+
+        internal ClusterManager ClusterManager
+        { get { return _clusterManager; } }
+
+        internal DhcpFailoverManager DhcpFailoverManager
+        { get { return _dhcpFailoverManager; } }
 
         #endregion
     }

@@ -28,9 +28,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -73,6 +75,7 @@ namespace DnsServerCore.Dhcp
 
         DnsServer _dnsServer;
         AuthManager _authManager;
+        IDhcpFailoverHandler _failoverHandler;
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -321,6 +324,9 @@ namespace DnsServerCore.Dhcp
         {
             if (request.OpCode != DhcpMessageOpCode.BootRequest)
                 return null;
+
+            if ((_failoverHandler is not null) && !_failoverHandler.IsServing)
+                return null; //failover standby is passive
 
             switch (request.DhcpMessageType?.Type)
             {
@@ -1547,6 +1553,205 @@ namespace DnsServerCore.Dhcp
             return map;
         }
 
+        internal void OnLeaseChanged(Scope scope, Lease lease, bool removed)
+        {
+            _failoverHandler?.OnLeaseChanged(scope.Name, lease, removed);
+        }
+
+        internal string GetSettingsHash()
+        {
+            List<Scope> scopes = new List<Scope>(_scopes.Values);
+            scopes.Sort();
+
+            using (IncrementalHash hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+            {
+                foreach (Scope scope in scopes)
+                    hash.AppendData(scope.GetSettingsBytes());
+
+                return Convert.ToHexString(hash.GetHashAndReset());
+            }
+        }
+
+        internal void WriteSnapshotTo(Stream s)
+        {
+            BinaryWriter bW = new BinaryWriter(s);
+
+            bW.Write(Encoding.ASCII.GetBytes("DS"));
+            bW.Write((byte)1); //version
+
+            Scope[] scopes = [.. _scopes.Values];
+
+            bW.Write(scopes.Length);
+
+            foreach (Scope scope in scopes)
+            {
+                using (MemoryStream mS = new MemoryStream())
+                {
+                    scope.WriteTo(mS);
+
+                    bW.Write(Convert.ToInt32(mS.Length));
+                    mS.Position = 0;
+                    mS.CopyTo(s);
+                }
+            }
+
+            bW.Flush();
+        }
+
+        internal async Task ApplySnapshotAsync(Stream s, bool configAuthority, IDictionary<string, string> appliedSettingsHashes)
+        {
+            //configAuthority: snapshot is from failover primary; scope settings are replaced and leases mirrored
+            //otherwise: snapshot is from failover standby; only leases are merged into existing scopes
+
+            BinaryReader bR = new BinaryReader(s);
+
+            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS")
+                throw new InvalidDataException("DHCP failover snapshot format is invalid.");
+
+            byte version = bR.ReadByte();
+            if (version != 1)
+                throw new InvalidDataException("DHCP failover snapshot version not supported.");
+
+            int count = bR.ReadInt32();
+            List<(Scope, string)> remoteScopes = new List<(Scope, string)>(count);
+
+            for (int i = 0; i < count; i++)
+            {
+                byte[] scopeBytes = bR.ReadBytes(bR.ReadInt32());
+
+                Scope remoteScope = new Scope(new MemoryStream(scopeBytes, false), _log, this);
+                string remoteSettingsHash = Convert.ToHexString(SHA256.HashData(remoteScope.GetSettingsBytes()));
+
+                remoteScopes.Add((remoteScope, remoteSettingsHash));
+            }
+
+            if (!configAuthority)
+            {
+                foreach ((Scope remoteScope, string _) in remoteScopes)
+                {
+                    if (_scopes.TryGetValue(remoteScope.Name, out Scope localScope))
+                    {
+                        int changes = localScope.SyncLeasesFrom(remoteScope, false);
+                        if (changes > 0)
+                            _log.Write("DHCP Server merged " + changes + " lease(s) from failover partner into scope: " + localScope.Name);
+                    }
+
+                    remoteScope.Dispose();
+                }
+
+                return;
+            }
+
+            //remove local scopes that no longer exist on primary
+            foreach (KeyValuePair<string, Scope> entry in _scopes)
+            {
+                bool found = false;
+
+                foreach ((Scope remoteScope, string _) in remoteScopes)
+                {
+                    if (remoteScope.Name == entry.Key)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    DeleteScope(entry.Key);
+                    appliedSettingsHashes.Remove(entry.Key);
+                }
+            }
+
+            //add or update scopes
+            foreach ((Scope remoteScope, string remoteSettingsHash) in remoteScopes)
+            {
+                if (_scopes.TryGetValue(remoteScope.Name, out Scope localScope))
+                {
+                    if (appliedSettingsHashes.TryGetValue(remoteScope.Name, out string appliedSettingsHash) && (appliedSettingsHash == remoteSettingsHash))
+                    {
+                        //settings unchanged; mirror leases only
+                        localScope.SyncLeasesFrom(remoteScope, true);
+                        remoteScope.Dispose();
+                        continue;
+                    }
+
+                    //settings changed; remove stale DNS entries then replace scope
+                    localScope.SyncLeasesFrom(remoteScope, true);
+                    UnloadScope(localScope, false);
+                }
+
+                try
+                {
+                    await LoadScopeAsync(remoteScope, false);
+                    SaveScopeFile(remoteScope);
+
+                    appliedSettingsHashes[remoteScope.Name] = remoteSettingsHash;
+                }
+                catch (Exception ex)
+                {
+                    _log.Write("DHCP Server failed to apply scope from failover partner: " + remoteScope.Name, ex);
+                    remoteScope.Dispose();
+                }
+            }
+        }
+
+        internal static void WriteLeaseUpdatesTo(Stream s, IReadOnlyCollection<(string, Lease, bool)> leaseUpdates)
+        {
+            BinaryWriter bW = new BinaryWriter(s);
+
+            bW.Write(Encoding.ASCII.GetBytes("DL"));
+            bW.Write((byte)1); //version
+
+            bW.Write(leaseUpdates.Count);
+
+            foreach ((string scopeName, Lease lease, bool removed) in leaseUpdates)
+            {
+                s.WriteShortString(scopeName);
+                bW.Write(removed);
+                lease.WriteTo(bW);
+            }
+
+            bW.Flush();
+        }
+
+        internal int ApplyLeaseUpdates(Stream s)
+        {
+            BinaryReader bR = new BinaryReader(s);
+
+            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DL")
+                throw new InvalidDataException("DHCP failover lease update format is invalid.");
+
+            byte version = bR.ReadByte();
+            if (version != 1)
+                throw new InvalidDataException("DHCP failover lease update version not supported.");
+
+            int count = bR.ReadInt32();
+            int applied = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                string scopeName = s.ReadShortString();
+                bool removed = bR.ReadBoolean();
+                Lease lease = new Lease(bR);
+
+                if (!_scopes.TryGetValue(scopeName, out Scope scope))
+                    continue; //scope not synced yet; full sync will fix it
+
+                if (scope.Leases.TryGetValue(lease.ClientIdentifier, out Lease existingLease) && (existingLease.LeaseExpires > lease.LeaseExpires))
+                    continue; //local lease is newer
+
+                if (removed)
+                    scope.RemoveReplicatedLease(lease.ClientIdentifier);
+                else
+                    scope.ApplyReplicatedLease(lease);
+
+                applied++;
+            }
+
+            return applied;
+        }
+
         #endregion
 
         #region properties
@@ -1565,6 +1770,15 @@ namespace DnsServerCore.Dhcp
             get { return _authManager; }
             set { _authManager = value; }
         }
+
+        internal IDhcpFailoverHandler FailoverHandler
+        {
+            get { return _failoverHandler; }
+            set { _failoverHandler = value; }
+        }
+
+        internal uint LeaseTimeLimit
+        { get { return _failoverHandler?.LeaseTimeLimit ?? 0; } }
 
         #endregion
 

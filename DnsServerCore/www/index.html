@@ -2489,6 +2489,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <ul class="nav nav-tabs" role="tablist">
                                         <li id="dhcpTabListLeases" role="presentation" class="active"><a href="#dhcpTabPaneLeases" aria-controls="dhcpTabPaneLeases" role="tab" data-toggle="tab" onclick="refreshDhcpLeases();">Leases</a></li>
                                         <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes(true);">Scopes</a></li>
+                                        <li id="dhcpTabListFailover" role="presentation"><a href="#dhcpTabPaneFailover" aria-controls="dhcpTabPaneFailover" role="tab" data-toggle="tab" onclick="refreshDhcpFailover();">Failover</a></li>
 
                                         <li class="pull-right">
                                             <select id="optDhcpClusterNode" class="form-control pull-right cluster-node-dropdown" style="margin-left: 0px;" onchange="refreshDhcpTab();"></select>
@@ -2922,6 +2923,122 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         <button type="button" class="btn btn-default" style="width: 100px;" onclick="refreshDhcpScopes();">Cancel</button>
                                                     </div>
                                                 </form>
+                                            </div>
+                                        </div>
+                                        <div id="dhcpTabPaneFailover" class="tab-pane">
+                                            <div id="divDhcpFailoverLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divDhcpFailover" style="margin-top: 10px; display: none;">
+                                                <div class="well well-sm form-horizontal">
+                                                    <div class="form-group">
+                                                        <label class="col-sm-3 control-label">Status</label>
+                                                        <div class="col-sm-8">
+                                                            <div class="form-control-static" id="divDhcpFailoverStatus"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="well well-sm form-horizontal">
+                                                    <div class="form-group">
+                                                        <div class="col-sm-offset-3 col-sm-8">
+                                                            <div class="checkbox">
+                                                                <label>
+                                                                    <input type="checkbox" id="chkDhcpFailoverEnabled"> Enable DHCP Failover
+                                                                </label>
+                                                            </div>
+                                                            <div style="padding-top: 5px;">Runs DHCP in hot-standby mode with a partner DNS Server. The Primary serves clients and replicates leases to the Standby, which takes over when the Primary is unreachable. Configure this on both servers.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="optDhcpFailoverRole" class="col-sm-3 control-label">Role</label>
+                                                        <div class="col-sm-3">
+                                                            <select class="form-control" id="optDhcpFailoverRole">
+                                                                <option value="Primary">Primary</option>
+                                                                <option value="Standby">Standby</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Configure one node as Primary and its partner as Standby. Make scope changes on the Primary; they are synced to the Standby automatically.</div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="optDhcpFailoverPartnerMode" class="col-sm-3 control-label">Connect To Partner</label>
+                                                        <div class="col-sm-5">
+                                                            <select class="form-control" id="optDhcpFailoverPartnerMode" onchange="updateDhcpFailoverPartnerModeView();">
+                                                                <option value="Direct">Directly (URL and API token)</option>
+                                                                <option value="Cluster">Using the Cluster</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Direct mode works without setting up a Cluster. Use the Cluster option only if both nodes are already members of the same Cluster.</div>
+                                                    </div>
+
+                                                    <div class="form-group" id="divDhcpFailoverPartnerNode">
+                                                        <label for="optDhcpFailoverPartnerNode" class="col-sm-3 control-label">Partner Node</label>
+                                                        <div class="col-sm-5">
+                                                            <select class="form-control" id="optDhcpFailoverPartnerNode"></select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div id="divDhcpFailoverPartnerDirect">
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpFailoverPartnerUrl" class="col-sm-3 control-label">Partner URL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDhcpFailoverPartnerUrl" placeholder="https://dns2.home.lan:53443/">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The partner's web console address. HTTPS is strongly recommended because the API token is sent with every request; plain HTTP (e.g. http://192.168.1.3:5380/) works but exposes the token on your network.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpFailoverPartnerApiToken" class="col-sm-3 control-label">Partner API Token</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="password" class="form-control" id="txtDhcpFailoverPartnerApiToken" autocomplete="new-password">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;" id="divDhcpFailoverPartnerApiTokenHelp">Create it on the partner node under Administration &gt; Sessions &gt; Create Token, for a user in the Administrators group.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <div class="col-sm-offset-3 col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input type="checkbox" id="chkDhcpFailoverPartnerIgnoreCertificateErrors"> Ignore Partner Certificate Errors
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px;">Enable if the partner uses the default self-signed certificate.</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpFailoverHeartbeatInterval" class="col-sm-3 control-label">Heartbeat Interval</label>
+                                                        <div class="col-sm-2">
+                                                            <input type="number" class="form-control" id="txtDhcpFailoverHeartbeatInterval" placeholder="5">
+                                                        </div>
+                                                        <div class="col-sm-1 form-control-static">seconds</div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpFailoverPartnerDownDelay" class="col-sm-3 control-label">Partner Down Delay</label>
+                                                        <div class="col-sm-2">
+                                                            <input type="number" class="form-control" id="txtDhcpFailoverPartnerDownDelay" placeholder="30">
+                                                        </div>
+                                                        <div class="col-sm-1 form-control-static">seconds</div>
+                                                        <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">How long the Standby waits after losing contact with the Primary before it starts serving clients.</div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpFailoverMaxClientLeadTime" class="col-sm-3 control-label">Max Client Lead Time</label>
+                                                        <div class="col-sm-2">
+                                                            <input type="number" class="form-control" id="txtDhcpFailoverMaxClientLeadTime" placeholder="1800">
+                                                        </div>
+                                                        <div class="col-sm-1 form-control-static">seconds</div>
+                                                        <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Maximum lease time the Standby hands out while the Primary is down. Short leases limit address conflicts if both nodes end up serving.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group" style="margin-bottom: 0px;">
+                                                    <button type="button" class="btn btn-primary" style="width: 100px;" id="btnSaveDhcpFailover" data-loading-text="Saving..." onclick="saveDhcpFailover(); return false;">Save</button>
+                                                    <button type="button" class="btn btn-default" style="width: 100px;" onclick="refreshDhcpFailover();">Refresh</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

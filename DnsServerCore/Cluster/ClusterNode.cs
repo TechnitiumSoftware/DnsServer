@@ -49,7 +49,7 @@ namespace DnsServerCore.Cluster
         Unreachable = 3
     }
 
-    class ClusterNode : IComparable<ClusterNode>, IDisposable
+    class ClusterNode : IComparable<ClusterNode>, IDisposable, IDhcpFailoverPartner
     {
         #region variables
 
@@ -663,6 +663,64 @@ namespace DnsServerCore.Cluster
                 _state = ClusterNodeState.Connected;
 
                 return clusterInfo;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task<DhcpFailoverStatus> GetDhcpFailoverStatusAsync(string selfNodeName, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                DhcpFailoverStatus status = await apiClient.GetDhcpFailoverStatusAsync(selfNodeName, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+
+                return status;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task<Stream> GetDhcpFailoverSnapshotAsync(CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                Stream stream = await apiClient.GetDhcpFailoverSnapshotAsync(cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
+
+                return stream;
+            }
+            catch
+            {
+                _state = ClusterNodeState.Unreachable;
+                throw;
+            }
+        }
+
+        public async Task SendDhcpFailoverLeaseUpdatesAsync(byte[] leaseUpdates, CancellationToken cancellationToken = default)
+        {
+            HttpApiClient apiClient = GetApiClient();
+
+            try
+            {
+                await apiClient.SendDhcpFailoverLeaseUpdatesAsync(leaseUpdates, cancellationToken);
+
+                _lastSeen = DateTime.UtcNow;
+                _state = ClusterNodeState.Connected;
             }
             catch
             {

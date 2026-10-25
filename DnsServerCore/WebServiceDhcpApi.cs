@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
+using DnsServerCore.Cluster;
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dhcp.Options;
 using Microsoft.AspNetCore.Http;
@@ -48,6 +49,17 @@ namespace DnsServerCore
             public WebServiceDhcpApi(DnsWebService dnsWebService)
             {
                 _dnsWebService = dnsWebService;
+            }
+
+            #endregion
+
+            #region private
+
+            private void CheckNotFailoverStandby()
+            {
+                DhcpFailoverManager failover = _dnsWebService._dhcpFailoverManager;
+                if ((failover is not null) && failover.Enabled && (failover.Role == DhcpFailoverRole.Standby))
+                    throw new DnsWebServiceException("This node is a DHCP failover standby and its scopes are synced from the failover primary node '" + failover.PartnerNodeName + "'. Make DHCP changes on the primary node.");
             }
 
             #endregion
@@ -379,6 +391,8 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
+                CheckNotFailoverStandby();
+
                 HttpRequest request = context.Request;
 
                 string scopeName = request.GetQueryOrForm("name");
@@ -693,6 +707,8 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
+                CheckNotFailoverStandby();
+
                 HttpRequest request = context.Request;
 
                 string scopeName = request.GetQueryOrForm("name");
@@ -723,6 +739,8 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
+                CheckNotFailoverStandby();
+
                 HttpRequest request = context.Request;
 
                 string scopeName = request.GetQueryOrForm("name");
@@ -748,6 +766,8 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
+                CheckNotFailoverStandby();
+
                 string scopeName = context.Request.GetQueryOrForm("name");
 
                 await _dnsWebService._dhcpServer.EnableScopeAsync(scopeName, true);
@@ -761,6 +781,8 @@ namespace DnsServerCore
 
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
+
+                CheckNotFailoverStandby();
 
                 string scopeName = context.Request.GetQueryOrForm("name");
 
@@ -776,6 +798,8 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
 
+                CheckNotFailoverStandby();
+
                 string scopeName = context.Request.GetQueryOrForm("name");
 
                 _dnsWebService._dhcpServer.DeleteScope(scopeName);
@@ -789,6 +813,8 @@ namespace DnsServerCore
 
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
+
+                CheckNotFailoverStandby();
 
                 HttpRequest request = context.Request;
 
@@ -820,6 +846,8 @@ namespace DnsServerCore
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
 
+                CheckNotFailoverStandby();
+
                 HttpRequest request = context.Request;
 
                 string scopeName = request.GetQueryOrForm("name");
@@ -849,6 +877,8 @@ namespace DnsServerCore
 
                 if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
                     throw new DnsWebServiceException("Access was denied.");
+
+                CheckNotFailoverStandby();
 
                 HttpRequest request = context.Request;
 

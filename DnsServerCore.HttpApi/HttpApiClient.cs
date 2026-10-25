@@ -530,6 +530,60 @@ namespace DnsServerCore.HttpApi
             CheckResponseStatus(rootElement);
         }
 
+        public async Task<DhcpFailoverStatus> GetDhcpFailoverStatusAsync(string selfNodeName, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            Stream stream = await _httpClient.GetStreamAsync($"api/admin/cluster/dhcp/status?partnerNodeName={Uri.EscapeDataString(selfNodeName)}", cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+
+            DhcpFailoverStatus? status = rootElement.GetProperty("response").Deserialize<DhcpFailoverStatus>(_serializerOptions);
+            if (status is null)
+                throw new HttpApiClientException("Invalid JSON response was received.");
+
+            return status;
+        }
+
+        public async Task<Stream> GetDhcpFailoverSnapshotAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, "api/admin/cluster/dhcp/snapshot");
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            httpResponse.EnsureSuccessStatusCode();
+
+            return httpResponse.Content.ReadAsStream(cancellationToken);
+        }
+
+        public async Task SendDhcpFailoverLeaseUpdatesAsync(byte[] leaseUpdates, CancellationToken cancellationToken = default)
+        {
+            if (!_loggedIn)
+                throw new HttpApiClientException("No active session exists. Please login and try again.");
+
+            HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Post, "api/admin/cluster/dhcp/leaseUpdates");
+            httpRequest.Content = new ByteArrayContent(leaseUpdates);
+            httpRequest.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+
+            HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            httpResponse.EnsureSuccessStatusCode();
+
+            Stream stream = await httpResponse.Content.ReadAsStreamAsync(cancellationToken);
+
+            using JsonDocument jsonDoc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            JsonElement rootElement = jsonDoc.RootElement;
+
+            CheckResponseStatus(rootElement);
+        }
+
         public async Task ProxyRequest(HttpContext context, string actingUsername, CancellationToken cancellationToken = default)
         {
             if (!_loggedIn)

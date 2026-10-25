@@ -30,6 +30,8 @@ function refreshDhcpTab() {
         refreshDhcpLeases();
     else if ($("#dhcpTabListScopes").hasClass("active"))
         refreshDhcpScopes(true);
+    else if ($("#dhcpTabListFailover").hasClass("active"))
+        refreshDhcpFailover();
     else
         refreshDhcpLeases();
 }
@@ -686,5 +688,198 @@ function deleteDhcpScope(index, scopeName) {
             showPageLogin();
         },
         objLoaderPlaceholder: divDhcpViewScopesLoader
+    });
+}
+
+function getDhcpFailoverStateLabel(state, serving) {
+    var labelClass;
+
+    switch (state) {
+        case "Normal":
+            labelClass = "success";
+            break;
+
+        case "PartnerDown":
+        case "CommunicationsInterrupted":
+            labelClass = "warning";
+            break;
+
+        case "Startup":
+        case "Recovering":
+            labelClass = "info";
+            break;
+
+        default:
+            labelClass = "default";
+            break;
+    }
+
+    return "<span class=\"label label-" + labelClass + "\">" + htmlEncode(state) + "</span> " + (serving ? "<span class=\"label label-primary\">Serving</span>" : "<span class=\"label label-default\">Passive</span>");
+}
+
+function loadDhcpFailoverData(failover) {
+    var status;
+
+    if (failover.enabled) {
+        status = "<b>This node:</b> " + htmlEncode(failover.role) + " " + getDhcpFailoverStateLabel(failover.state, failover.serving) + " since " + moment(failover.stateChangedOn).local().format("YYYY-MM-DD HH:mm:ss");
+
+        status += "<br /><b>Partner:</b> " + htmlEncode(failover.partnerNodeName) + " ";
+
+        if (failover.partnerState == null)
+            status += "<span class=\"label label-danger\">Unknown</span>";
+        else if (failover.partnerReachable)
+            status += getDhcpFailoverStateLabel(failover.partnerState, failover.partnerServing);
+        else
+            status += "<span class=\"label label-danger\">Unreachable</span>";
+
+        if (failover.lastPartnerContact != null)
+            status += " (last contact " + moment(failover.lastPartnerContact).local().format("YYYY-MM-DD HH:mm:ss") + ")";
+
+        if (failover.role === "Standby")
+            status += "<br /><b>Last full sync:</b> " + (failover.lastFullSync == null ? "never" : moment(failover.lastFullSync).local().format("YYYY-MM-DD HH:mm:ss"));
+    }
+    else {
+        status = "<span class=\"label label-default\">Disabled</span> This node runs the DHCP server independently.";
+    }
+
+    $("#divDhcpFailoverStatus").html(status);
+
+    $("#chkDhcpFailoverEnabled").prop("checked", failover.enabled);
+    $("#optDhcpFailoverRole").val(failover.role);
+
+    //default to direct mode unless already configured for the cluster
+    var partnerMode = failover.partnerMode;
+    if (!failover.enabled && (failover.partnerUrl == null) && !failover.clusterInitialized)
+        partnerMode = "Direct";
+
+    $("#optDhcpFailoverPartnerMode").val(partnerMode);
+    $("#txtDhcpFailoverPartnerUrl").val(failover.partnerUrl == null ? "" : failover.partnerUrl);
+    $("#txtDhcpFailoverPartnerApiToken").val("");
+    $("#txtDhcpFailoverPartnerApiToken").attr("placeholder", failover.partnerApiTokenSet ? "(saved; leave empty to keep)" : "");
+    $("#chkDhcpFailoverPartnerIgnoreCertificateErrors").prop("checked", failover.partnerIgnoreCertificateErrors);
+    updateDhcpFailoverPartnerModeView();
+
+    var partnerOptions = "";
+
+    for (var i = 0; i < failover.availablePartnerNodes.length; i++)
+        partnerOptions += "<option>" + htmlEncode(failover.availablePartnerNodes[i]) + "</option>";
+
+    if ((failover.partnerNodeName != null) && (failover.availablePartnerNodes.indexOf(failover.partnerNodeName) < 0))
+        partnerOptions += "<option>" + htmlEncode(failover.partnerNodeName) + "</option>";
+
+    $("#optDhcpFailoverPartnerNode").html(partnerOptions);
+
+    if (failover.partnerNodeName != null)
+        $("#optDhcpFailoverPartnerNode").val(failover.partnerNodeName);
+
+    $("#txtDhcpFailoverHeartbeatInterval").val(failover.heartbeatIntervalSeconds);
+    $("#txtDhcpFailoverPartnerDownDelay").val(failover.partnerDownDelaySeconds);
+    $("#txtDhcpFailoverMaxClientLeadTime").val(failover.maxClientLeadTimeSeconds);
+}
+
+function updateDhcpFailoverPartnerModeView() {
+    if ($("#optDhcpFailoverPartnerMode").val() === "Cluster") {
+        $("#divDhcpFailoverPartnerNode").show();
+        $("#divDhcpFailoverPartnerDirect").hide();
+    }
+    else {
+        $("#divDhcpFailoverPartnerNode").hide();
+        $("#divDhcpFailoverPartnerDirect").show();
+    }
+}
+
+function refreshDhcpFailover() {
+    var node = $("#optDhcpClusterNode").val();
+
+    var divDhcpFailoverLoader = $("#divDhcpFailoverLoader");
+    var divDhcpFailover = $("#divDhcpFailover");
+
+    divDhcpFailover.hide();
+    divDhcpFailoverLoader.show();
+
+    HTTPRequest({
+        url: "api/dhcp/failover/get?node=" + encodeURIComponent(node),
+        token: sessionData.token,
+        success: function (responseJSON) {
+            loadDhcpFailoverData(responseJSON.response);
+
+            divDhcpFailoverLoader.hide();
+            divDhcpFailover.show();
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objLoaderPlaceholder: divDhcpFailoverLoader
+    });
+}
+
+function saveDhcpFailover() {
+    var enabled = $("#chkDhcpFailoverEnabled").prop("checked");
+    var role = $("#optDhcpFailoverRole").val();
+    var partnerNodeName = $("#optDhcpFailoverPartnerNode").val();
+    var heartbeatIntervalSeconds = $("#txtDhcpFailoverHeartbeatInterval").val();
+    var partnerDownDelaySeconds = $("#txtDhcpFailoverPartnerDownDelay").val();
+    var maxClientLeadTimeSeconds = $("#txtDhcpFailoverMaxClientLeadTime").val();
+
+    var partnerMode = $("#optDhcpFailoverPartnerMode").val();
+    var partnerUrl = $("#txtDhcpFailoverPartnerUrl").val().trim();
+    var partnerApiToken = $("#txtDhcpFailoverPartnerApiToken").val().trim();
+    var partnerIgnoreCertificateErrors = $("#chkDhcpFailoverPartnerIgnoreCertificateErrors").prop("checked");
+    var partnerTokenSaved = $("#txtDhcpFailoverPartnerApiToken").attr("placeholder") !== "";
+
+    if (partnerMode === "Cluster") {
+        if (enabled && ((partnerNodeName == null) || (partnerNodeName === ""))) {
+            showAlert("warning", "Missing!", "Please select a partner node. To use the Cluster option both servers must be members of the same Cluster; otherwise choose to connect directly.");
+            $("#optDhcpFailoverPartnerNode").trigger("focus");
+            return;
+        }
+    }
+    else {
+        if (enabled && (partnerUrl === "")) {
+            showAlert("warning", "Missing!", "Please enter the partner's web console URL.");
+            $("#txtDhcpFailoverPartnerUrl").trigger("focus");
+            return;
+        }
+
+        if (enabled && (partnerApiToken === "") && !partnerTokenSaved) {
+            showAlert("warning", "Missing!", "Please enter an API token created on the partner node.");
+            $("#txtDhcpFailoverPartnerApiToken").trigger("focus");
+            return;
+        }
+
+        if (enabled && /^http:/i.test(partnerUrl) && !confirm("The partner URL uses plain HTTP, so the API token will be sent unencrypted on your network. Continue anyway?"))
+            return;
+    }
+
+    var partnerDisplayName = (partnerMode === "Cluster") ? partnerNodeName : partnerUrl;
+
+    if (enabled && (role === "Standby") && !confirm("This node will become a DHCP failover Standby. Its DHCP scopes will be replaced by the scopes from the Primary '" + partnerDisplayName + "'. Do you want to continue?"))
+        return;
+
+    var node = $("#optDhcpClusterNode").val();
+
+    var btn = $("#btnSaveDhcpFailover");
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/dhcp/failover/set?node=" + encodeURIComponent(node),
+        token: sessionData.token,
+        method: "POST",
+        data: "enabled=" + enabled + "&role=" + encodeURIComponent(role) + "&partnerMode=" + encodeURIComponent(partnerMode) + "&partnerNodeName=" + encodeURIComponent(partnerNodeName == null ? "" : partnerNodeName) +
+            "&partnerUrl=" + encodeURIComponent(partnerUrl) + "&partnerApiToken=" + encodeURIComponent(partnerApiToken) + "&partnerIgnoreCertificateErrors=" + partnerIgnoreCertificateErrors +
+            "&heartbeatIntervalSeconds=" + encodeURIComponent(heartbeatIntervalSeconds) + "&partnerDownDelaySeconds=" + encodeURIComponent(partnerDownDelaySeconds) + "&maxClientLeadTimeSeconds=" + encodeURIComponent(maxClientLeadTimeSeconds),
+        processData: false,
+        success: function (responseJSON) {
+            loadDhcpFailoverData(responseJSON.response);
+            btn.button("reset");
+            showAlert("success", "Saved!", "DHCP failover settings were saved successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
     });
 }
