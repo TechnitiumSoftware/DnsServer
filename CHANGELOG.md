@@ -1,7 +1,25 @@
 # Technitium DNS Server Change Log
 
+## Version 15.6.2
+Release Date: 17 October 2026
+
+- Fixed multiple issues with config sync in a Cluster deployment.
+- Fixed issue with missing boundary check for zones reported by Adam Korczynski from ADA Logics, and Anthropic. This allowed a user with write access to a zone to be able to manipulate records on a subdomain zone for the same domain name on the same DNS server.
+- Fixed issue with UDP socket receive packet implementation reported by TaoFei Guo from Peking University, Yang Luo and JianJun Chen from Tsinghua University. This allowed an attacker to keep the receive call looping by sending a stream of empty UDP packets, causing resource exhaustion.
+- Dashboard stats items are now clickable and shows Query Logs with a relevant filter when clicked.
+- Multiple other minor bug fixes and improvements.
+
+## Version 15.6.1
+Release Date: 11 October 2026
+
+- Fixed issues with StartTLS and LDAPS options for LDAP authentication implementation on both Windows and Linux deployments. Thanks to Roy Hagland (@Hemsby) for the PR #2171.
+- Fixed bug in DNS Cache that caused negative answer for CNAME to be returned when it was present in cache.
+- Fixed issue with IXFR that caused inconsistent records in secondary zone due to cases where Microsoft DNS Server would include duplicate delete entries in IXFR response.
+- Fixed issue with NOTIFY implementation that prevents case of missed NOTIFY to secondary name servers when one of them is down or not responding.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 15.6
-Release Date: 3rd October 2026
+Release Date: 3 October 2026
 
 - Added a new explicit option in Settings to enable/disable Cache Prefetch feature.
 - Fixed recursive resolution issues when using Prefer IPv6 mode that caused resolution failures due to hitting Max Outbound Requests limit.

@@ -374,9 +374,6 @@ namespace DnsServerCore.Dns
                         catch (Exception ex)
                         {
                             _log.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -614,12 +611,7 @@ namespace DnsServerCore.Dns
 
                 //save config file
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 
@@ -2043,7 +2035,7 @@ namespace DnsServerCore.Dns
                 //send response
                 int sendBufferSize;
 
-                if (request.EDNS is null)
+                if ((request.EDNS is null) || (request.EDNS.UdpPayloadSize < 512))
                     sendBufferSize = 512;
                 else if (request.EDNS.UdpPayloadSize > _udpPayloadSize)
                     sendBufferSize = _udpPayloadSize;
@@ -2715,13 +2707,21 @@ namespace DnsServerCore.Dns
                     response.ContentType = "application/dns-message";
                     response.ContentLength = mS.Length;
 
-                    await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
+                    try
                     {
-                        await using (Stream s = response.Body)
+                        await TechnitiumLibrary.TaskExtensions.TimeoutAsync(async delegate (CancellationToken cancellationToken1)
                         {
-                            await mS.CopyToAsync(s, 512, cancellationToken1);
-                        }
-                    }, _tcpSendTimeout, cancellationToken);
+                            await using (Stream s = response.Body)
+                            {
+                                await mS.CopyToAsync(s, 512, cancellationToken1);
+                            }
+                        }, _tcpSendTimeout, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        //do not log send timeout exception
+                        return;
+                    }
                 }
 
                 _queryLog?.Write(remoteEP, DnsTransportProtocol.Https, dnsRequest, dnsResponse);

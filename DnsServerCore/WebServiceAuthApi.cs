@@ -806,6 +806,14 @@ namespace DnsServerCore
 
                     UserSession createdSession = _dnsWebService._authManager.CreateSession(UserSessionType.ApiToken, tokenName, sessionUser, remoteEP.Address, context.Request.Headers.UserAgent);
 
+                    _dnsWebService._log.Write(remoteEP, "[" + sessionUser.Username + "] API token [" + tokenName + "] was created successfully for user: " + sessionUser.Username);
+
+                    _dnsWebService._authManager.SaveConfigFile();
+
+                    //trigger cluster update
+                    if (_dnsWebService._clusterManager.ClusterInitialized)
+                        _dnsWebService._clusterManager.TriggerNotifyAllSecondaryNodesIfPrimarySelfNode();
+
                     Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
                     WriteCurrentSessionDetails(jsonWriter, createdSession, false);
 

@@ -3812,9 +3812,9 @@ namespace DnsServerCore
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
                 }
 
-                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(zoneName ?? domain);
                 if (zoneInfo is null)
-                    throw new DnsWebServiceException("No such zone was found: " + domain);
+                    throw new DnsWebServiceException("No such zone was found for: " + domain);
 
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 
@@ -4273,9 +4273,9 @@ namespace DnsServerCore
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
                 }
 
-                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(zoneName ?? domain);
                 if (zoneInfo is null)
-                    throw new DnsWebServiceException("No such zone was found: " + domain);
+                    throw new DnsWebServiceException("No such zone was found for: " + domain);
 
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 
@@ -4317,9 +4317,9 @@ namespace DnsServerCore
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
                 }
 
-                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(zoneName ?? domain);
                 if (zoneInfo is null)
-                    throw new DnsWebServiceException("No such zone was found: " + domain);
+                    throw new DnsWebServiceException("No such zone was found for: " + domain);
 
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 
@@ -4628,9 +4628,9 @@ namespace DnsServerCore
                         zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
                 }
 
-                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+                AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(zoneName ?? domain);
                 if (zoneInfo is null)
-                    throw new DnsWebServiceException("No such zone was found: " + domain);
+                    throw new DnsWebServiceException("No such zone was found for: " + domain);
 
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 

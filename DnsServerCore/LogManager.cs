@@ -164,9 +164,6 @@ namespace DnsServerCore
                         catch (Exception ex)
                         {
                             Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -309,12 +306,7 @@ namespace DnsServerCore
 
                 //save config file
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 
@@ -655,7 +647,11 @@ namespace DnsServerCore
 
         public string[] ListLogFiles()
         {
-            return Directory.GetFiles(ConvertToAbsolutePath(_logFolder), "*.log", SearchOption.TopDirectoryOnly);
+            string logFolder = ConvertToAbsolutePath(_logFolder);
+            if (Directory.Exists(logFolder))
+                return Directory.GetFiles(ConvertToAbsolutePath(_logFolder), "*.log", SearchOption.TopDirectoryOnly);
+
+            return [];
         }
 
         public async Task DownloadLogFileAsync(HttpContext context, string logName, long limit)

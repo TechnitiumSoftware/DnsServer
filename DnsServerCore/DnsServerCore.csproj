@@ -12,7 +12,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>15.6</Version>
+		<Version>15.6.2</Version>
 		<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	</PropertyGroup>
 
@@ -49,9 +49,9 @@
 
 	<ItemGroup>
 		<PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
-		<PackageReference Include="QRCoder" Version="1.8.0" />
-		<PackageReference Include="System.DirectoryServices.Protocols" Version="10.0.12" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
+		<PackageReference Include="QRCoder" Version="1.8.1" />
+		<PackageReference Include="System.DirectoryServices.Protocols" Version="10.0.13" />
 	</ItemGroup>
 
 	<ItemGroup>

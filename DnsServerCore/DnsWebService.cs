@@ -167,7 +167,7 @@ namespace DnsServerCore
             if (configFolder is null)
                 _configFolder = Path.Combine(_appFolder, "config");
             else
-                _configFolder = configFolder;
+                _configFolder = Path.GetFullPath(configFolder);
 
             Directory.CreateDirectory(_configFolder);
             Directory.CreateDirectory(Path.Combine(_configFolder, "blocklists"));
@@ -201,9 +201,6 @@ namespace DnsServerCore
                         catch (Exception ex)
                         {
                             _log.Write(ex);
-
-                            //set timer to retry again
-                            _saveTimer.Change(SAVE_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
                         }
                     }
                 }
@@ -370,12 +367,7 @@ namespace DnsServerCore
                 ReadConfigFrom(s);
 
                 SaveConfigFileInternal();
-
-                if (_pendingSave)
-                {
-                    _pendingSave = false;
-                    _saveTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                }
+                _pendingSave = false;
             }
         }
 
@@ -430,6 +422,8 @@ namespace DnsServerCore
             if (permission is null)
                 throw new DnsWebServiceException("Failed to read 'Zones' permissions: auth.config file is probably corrupt.");
 
+            bool saveConfig = false;
+
             IReadOnlyDictionary<string, Permission> subItemPermissions = permission.SubItemPermissions;
 
             //remove ghost permissions
@@ -438,7 +432,10 @@ namespace DnsServerCore
                 string zoneName = subItemPermission.Key;
 
                 if (_dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName) is null)
+                {
                     permission.RemoveAllSubItemPermissions(zoneName); //no such zone exists; remove permissions
+                    saveConfig = true;
+                }
             }
 
             //add missing admin permissions
@@ -453,11 +450,23 @@ namespace DnsServerCore
 
             foreach (AuthZoneInfo zone in zones)
             {
-                _authManager.SetPermission(PermissionSection.Zones, zone.Name, admins, PermissionFlag.ViewModifyDelete);
-                _authManager.SetPermission(PermissionSection.Zones, zone.Name, dnsAdmins, PermissionFlag.ViewModifyDelete);
+                Permission zonePermission = _authManager.GetPermission(PermissionSection.Zones, zone.Name);
+
+                if ((zonePermission is null) || !zonePermission.GroupPermissions.TryGetValue(admins, out PermissionFlag adminsPermission) || (adminsPermission != PermissionFlag.ViewModifyDelete))
+                {
+                    _authManager.SetPermission(PermissionSection.Zones, zone.Name, admins, PermissionFlag.ViewModifyDelete);
+                    saveConfig = true;
+                }
+
+                if ((zonePermission is null) || !zonePermission.GroupPermissions.TryGetValue(dnsAdmins, out PermissionFlag dnsAdminsPermission) || (dnsAdminsPermission != PermissionFlag.ViewModifyDelete))
+                {
+                    _authManager.SetPermission(PermissionSection.Zones, zone.Name, dnsAdmins, PermissionFlag.ViewModifyDelete);
+                    saveConfig = true;
+                }
             }
 
-            _authManager.SaveConfigFile();
+            if (saveConfig)
+                _authManager.SaveConfigFile();
         }
 
         private void ReadConfigFrom(Stream s)
@@ -795,10 +804,10 @@ namespace DnsServerCore
                     if (File.Exists(blockListConfigFile) && (File.GetLastWriteTimeUtc(blockListConfigFile) > ifModifiedSince))
                         backupZip.CreateEntryFromFile(blockListConfigFile, "blocklist.config");
 
-                    string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
-                    foreach (string blockListFile in blockListFiles)
+                    if (!isConfigTransfer)
                     {
-                        if (File.GetLastWriteTimeUtc(blockListFile) > ifModifiedSince)
+                        string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
+                        foreach (string blockListFile in blockListFiles)
                         {
                             string entryName = "blocklists/" + Path.GetFileName(blockListFile);
                             backupZip.CreateEntryFromFile(blockListFile, entryName);
@@ -1209,40 +1218,43 @@ namespace DnsServerCore
 
                     if (blockLists)
                     {
-                        if (deleteExistingFiles)
+                        if (!isConfigTransfer)
                         {
-                            //delete existing block list files
-                            string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
-
-                            foreach (string blockListFile in blockListFiles)
+                            if (deleteExistingFiles)
                             {
-                                try
+                                //delete existing block list files
+                                string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
+
+                                foreach (string blockListFile in blockListFiles)
                                 {
-                                    File.Delete(blockListFile);
-                                }
-                                catch (Exception ex)
-                                {
-                                    _log.Write(ex);
+                                    try
+                                    {
+                                        File.Delete(blockListFile);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _log.Write(ex);
+                                    }
                                 }
                             }
-                        }
 
-                        //extract block list files from backup
-                        foreach (ZipArchiveEntry entry in backupZip.Entries)
-                        {
-                            if (entry.FullName.StartsWith("blocklists/", StringComparison.Ordinal))
+                            //extract block list files from backup
+                            foreach (ZipArchiveEntry entry in backupZip.Entries)
                             {
-                                try
+                                if (entry.FullName.StartsWith("blocklists/", StringComparison.Ordinal))
                                 {
-                                    await entry.ExtractToFileAsync(Path.Combine(_configFolder, "blocklists", entry.Name), true);
-                                }
-                                catch (IOException)
-                                {
-                                    //ignore since file may be loading in another thread
-                                }
-                                catch (Exception ex)
-                                {
-                                    _log.Write(ex);
+                                    try
+                                    {
+                                        await entry.ExtractToFileAsync(Path.Combine(_configFolder, "blocklists", entry.Name), true);
+                                    }
+                                    catch (IOException)
+                                    {
+                                        //ignore since file may be loading in another thread
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _log.Write(ex);
+                                    }
                                 }
                             }
                         }
@@ -2604,6 +2616,7 @@ namespace DnsServerCore
                 IPEndPoint remoteEP = GetRemoteEndPoint(context);
 
                 session.UpdateLastSeen(remoteEP.Address, request.Headers.UserAgent);
+                _authManager.LazySaveConfigFile(); //lazy save last seen info
             }
 
             context.Items["session"] = session;
@@ -3018,7 +3031,7 @@ namespace DnsServerCore
         public int WebServiceTlsPort
         { get { return _webServiceTlsPort; } }
 
-        internal bool IsWebServiceTlsEnabled
+        public bool IsWebServiceTlsEnabled
         {
             get
             {

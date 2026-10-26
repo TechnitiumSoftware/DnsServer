@@ -501,7 +501,10 @@ namespace DnsServerCore.Dns.Zones
                         {
                             IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(existingCNAMERecords, serveStale, skipSpecialCacheRecord);
                             if (rrset.Count > 0)
-                                return rrset;
+                            {
+                                if (rrset[0].RDATA is DnsCNAMERecordData) //ensure that the rrset has CNAME record since the query is not for CNAME and thus cannot return Negative/Failure Cache entry
+                                    return rrset;
+                            }
                         }
 
                         return records;
