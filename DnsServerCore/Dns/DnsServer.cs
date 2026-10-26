@@ -585,6 +585,10 @@ namespace DnsServerCore.Dns
                 if (!string.IsNullOrEmpty(strEnableInMemoryStats))
                     _statsManager.EnableInMemoryStats = bool.Parse(strEnableInMemoryStats);
 
+                string strInMemoryStatsMaxHour = Environment.GetEnvironmentVariable("DNS_SERVER_STATS_IN_MEMORY_STATS_MAX_HOUR");
+                if (!string.IsNullOrEmpty(strInMemoryStatsMaxHour))
+                    _statsManager.InMemoryStatsMaxHour = int.Parse(strInMemoryStatsMaxHour);
+
                 string strMaxStatFileDays = Environment.GetEnvironmentVariable("DNS_SERVER_STATS_MAX_STAT_FILE_DAYS");
                 if (!string.IsNullOrEmpty(strMaxStatFileDays))
                     _statsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
@@ -657,7 +661,7 @@ namespace DnsServerCore.Dns
             BinaryReader bR = new BinaryReader(s);
 
             int version = bR.ReadByte();
-            if ((version < 1) || (version > 7))
+            if ((version < 1) || (version > 8))
                 throw new InvalidDataException("DNS Server config version not supported.");
 
             //general
@@ -1221,6 +1225,13 @@ namespace DnsServerCore.Dns
             int maxStatFileDays = bR.ReadInt32();
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
+
+            if (version >= 8)
+            {
+                int inMemoryStatsMaxHour = bR.ReadInt32();
+                if (!isConfigTransfer)
+                    _statsManager.InMemoryStatsMaxHour = inMemoryStatsMaxHour;
+            }
         }
 
         private void WriteConfigTo(Stream s)
@@ -1228,7 +1239,7 @@ namespace DnsServerCore.Dns
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("DC")); //format
-            bW.Write((byte)7); //version
+            bW.Write((byte)8); //version
 
             //general
             s.WriteShortString(_serverDomain);
@@ -1512,6 +1523,7 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
+            bW.Write(_statsManager.InMemoryStatsMaxHour);
         }
 
         #endregion

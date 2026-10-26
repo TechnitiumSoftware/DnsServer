@@ -459,6 +459,7 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("maxLogFileDays", _dnsWebService._log.MaxLogFileDays);
 
                 jsonWriter.WriteBoolean("enableInMemoryStats", _dnsWebService._dnsServer.StatsManager.EnableInMemoryStats);
+                jsonWriter.WriteNumber("inMemoryStatsMaxHour", _dnsWebService._dnsServer.StatsManager.InMemoryStatsMaxHour);
                 jsonWriter.WriteNumber("maxStatFileDays", _dnsWebService._dnsServer.StatsManager.MaxStatFileDays);
             }
 
@@ -1713,6 +1714,9 @@ namespace DnsServerCore
 
                         if (request.TryGetQueryOrForm("enableInMemoryStats", bool.Parse, out bool enableInMemoryStats))
                             _dnsWebService._dnsServer.StatsManager.EnableInMemoryStats = enableInMemoryStats;
+
+                        if (request.TryGetQueryOrForm("inMemoryStatsMaxHour", int.Parse, out int inMemoryStatsMaxHour))
+                            _dnsWebService._dnsServer.StatsManager.InMemoryStatsMaxHour = inMemoryStatsMaxHour;
 
                         if (request.TryGetQueryOrForm("maxStatFileDays", int.Parse, out int maxStatFileDays))
                             _dnsWebService._dnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;

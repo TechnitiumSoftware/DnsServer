@@ -35,6 +35,7 @@ The environment variables are described below:
 | DNS_SERVER_LOG_FOLDER_PATH                        | String  | The folder path on the server where the log files should be saved. The path can be relative to the DNS server's config folder.
 | DNS_SERVER_LOG_MAX_LOG_FILE_DAYS                  | Integer | Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
 | DNS_SERVER_STATS_ENABLE_IN_MEMORY_STATS           | Boolean | This option will enable in-memory stats and only Last Hour data will be available on Dashboard. No stats data will be stored on disk.
+| DNS_SERVER_STATS_IN_MEMORY_STATS_MAX_HOUR         | Integer | The number of hours to keep the dashboard stats in memory when in-memory stats is enabled. Valid range is 1 to 168. Default value is 1.
 | DNS_SERVER_STATS_MAX_STAT_FILE_DAYS               | Integer | Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
 | DNS_SERVER_SSO_ENABLED                            | Boolean | Enable to allow Single Sign-On (SSO) with OpenID Connect (OIDC).
 | DNS_SERVER_SSO_AUTHORITY                          | String  | The OpenID Connect (OIDC) Authority URL (Issuer).

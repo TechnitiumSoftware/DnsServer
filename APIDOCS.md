@@ -5284,6 +5284,7 @@ RESPONSE:
 		"logFolder": "logs",
 		"maxLogFileDays": 30,
 		"enableInMemoryStats": false,
+		"inMemoryStatsMaxHour": 1,
 		"maxStatFileDays": 365
 	},
 	"server": "server1",
@@ -5439,7 +5440,8 @@ WHERE:
 - `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Initial value is `false`.
 - `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Initial value is `logs`.
 - `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
-- `enableInMemoryStats` (optional): Set this option to `true` to enable in-memory stats. When enabled, only Last Hour data will be available on Dashboard and no stats data will be stored on disk.
+- `enableInMemoryStats` (optional): Set this option to `true` to enable in-memory stats. When enabled, only the data for the last `inMemoryStatsMaxHour` hours will be available on Dashboard and no stats data will be stored on disk.
+- `inMemoryStatsMaxHour` (optional): The number of hours to keep the dashboard stats in memory when `enableInMemoryStats` is enabled. Valid range is `1` to `168`. Default value is `1`. A higher value will use more memory.
 - `maxStatFileDays` (optional): Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 
 NOTE! The parameters marked as a "cluster parameter" are synced automatically across all the Cluster nodes when Clustering is initialized.

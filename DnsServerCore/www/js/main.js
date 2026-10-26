@@ -1633,6 +1633,7 @@ function loadDnsSettings(responseJSON) {
     $("#txtMaxLogFileDays").val(responseJSON.response.maxLogFileDays);
 
     $("#chkEnableInMemoryStats").prop("checked", responseJSON.response.enableInMemoryStats);
+    $("#txtInMemoryStatsMaxHour").val(responseJSON.response.inMemoryStatsMaxHour);
     $("#txtMaxStatFileDays").val(responseJSON.response.maxStatFileDays);
 }
 
@@ -2191,9 +2192,15 @@ function saveDnsSettings(objBtn) {
         var maxLogFileDays = $("#txtMaxLogFileDays").val();
 
         var enableInMemoryStats = $("#chkEnableInMemoryStats").prop("checked");
+        var inMemoryStatsMaxHour = $("#txtInMemoryStatsMaxHour").val();
+        if ((inMemoryStatsMaxHour === null) || (inMemoryStatsMaxHour === "") || (inMemoryStatsMaxHour < 1) || (inMemoryStatsMaxHour > 168)) {
+            showAlert("warning", "Missing!", "Please enter a valid in-memory stats max hours value between 1 and 168.");
+            $("#txtInMemoryStatsMaxHour").trigger("focus");
+            return;
+        }
         var maxStatFileDays = $("#txtMaxStatFileDays").val();
 
-        formData += "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&noStackTrace=" + noStackTrace + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&maxStatFileDays=" + maxStatFileDays;
+        formData += "&loggingType=" + loggingType + "&ignoreResolverLogs=" + ignoreResolverLogs + "&noStackTrace=" + noStackTrace + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&enableInMemoryStats=" + enableInMemoryStats + "&inMemoryStatsMaxHour=" + inMemoryStatsMaxHour + "&maxStatFileDays=" + maxStatFileDays;
     }
 
     //send request

@@ -44,6 +44,7 @@ services:
       - DNS_SERVER_LOG_FOLDER_PATH=/var/log/technitium/dns #The folder path on the server where the log files should be saved.
       # - DNS_SERVER_LOG_MAX_LOG_FILE_DAYS=365 #Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
       # - DNS_SERVER_STATS_ENABLE_IN_MEMORY_STATS=false #This option will enable in-memory stats and only Last Hour data will be available on Dashboard. No stats data will be stored on disk.
+      # - DNS_SERVER_STATS_IN_MEMORY_STATS_MAX_HOUR=1 #The number of hours to keep the dashboard stats in memory when in-memory stats is enabled. Valid range is 1 to 168. Default value is 1.
       # - DNS_SERVER_STATS_MAX_STAT_FILE_DAYS=365 #Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Set 0 to disable auto delete.
     volumes:
       - config:/etc/dns

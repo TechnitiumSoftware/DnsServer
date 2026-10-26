@@ -2450,8 +2450,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                         <input id="chkEnableInMemoryStats" type="checkbox"> Enable In-Memory Stats
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">This option will enable in-memory stats and only Last Hour data will be available on Dashboard. No stats data will be stored on disk.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">This option will enable in-memory stats and only the data for the configured In-Memory Stats Max Hours will be available on Dashboard. No stats data will be stored on disk.</div>
                                                             </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtInMemoryStatsMaxHour" class="col-sm-3 control-label">In-Memory Stats Max Hours</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtInMemoryStatsMaxHour" min="1" max="168" value="1" style="width: 100px; display: inline;">
+                                                                <span>hours (default 1, valid range 1 to 168)</span>
+                                                            </div>
+
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of hours to keep the dashboard stats in memory. Used only when In-Memory Stats is enabled. A higher value will use more memory.</div>
                                                         </div>
 
                                                         <div class="form-group">

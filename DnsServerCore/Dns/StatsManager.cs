@@ -79,6 +79,7 @@ namespace DnsServerCore.Dns
         const int STATS_CLEANUP_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
         bool _enableInMemoryStats;
+        int _inMemoryStatsMaxHour = 1;
         int _maxStatFileDays;
 
         #endregion
@@ -404,7 +405,19 @@ namespace DnsServerCore.Dns
                 {
                     lastStatCounter.Lock();
 
-                    if (!_enableInMemoryStats)
+                    if (_enableInMemoryStats)
+                    {
+                        //keep hourly stats in memory only
+                        DateTime hourlyDateTime = new DateTime(lastDateTime.Year, lastDateTime.Month, lastDateTime.Day, lastDateTime.Hour, 0, 0, 0, DateTimeKind.Utc);
+
+                        HourlyStats hourlyStats = _hourlyStatsCache.GetOrAdd(hourlyDateTime, delegate (DateTime key)
+                        {
+                            return new HourlyStats();
+                        });
+
+                        hourlyStats.UpdateStat(lastDateTime, lastStatCounter);
+                    }
+                    else
                     {
                         //load hourly stats data
                         HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, truncate: false);
@@ -426,7 +439,7 @@ namespace DnsServerCore.Dns
 
             //remove old data from hourly stats cache
             {
-                DateTime threshold = currentDateTime.AddHours(-24);
+                DateTime threshold = currentDateTime.AddHours(_enableInMemoryStats ? -_inMemoryStatsMaxHour : -24);
                 threshold = new DateTime(threshold.Year, threshold.Month, threshold.Day, threshold.Hour, 0, 0, DateTimeKind.Utc);
 
                 List<DateTime> _keysToRemove = new List<DateTime>();
@@ -450,7 +463,9 @@ namespace DnsServerCore.Dns
                 {
                     if (item.Key < lastHourThreshold)
                     {
-                        item.Value.UnloadMinuteStats();
+                        if (!_enableInMemoryStats)
+                            item.Value.UnloadMinuteStats(); //minute stats cannot be reloaded from disk when using in-memory stats
+
                         item.Value.Truncate(STATS_TOP_LIMIT);
                     }
                 }
@@ -477,7 +492,12 @@ namespace DnsServerCore.Dns
         private HourlyStats LoadHourlyStats(DateTime dateTime, bool forceReload = false, bool ifNotExistsReturnEmptyHourlyStats = false, bool truncate = true)
         {
             if (_enableInMemoryStats)
+            {
+                if (_hourlyStatsCache.TryGetValue(new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, 0, DateTimeKind.Utc), out HourlyStats inMemoryHourlyStats))
+                    return inMemoryHourlyStats;
+
                 return HourlyStats.Empty;
+            }
 
             DateTime hourlyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, 0, DateTimeKind.Utc);
 
@@ -1680,7 +1700,23 @@ namespace DnsServerCore.Dns
                         _hourlyStatsCache = new ConcurrentDictionary<DateTime, HourlyStats>(1, 1);
                         _dailyStatsCache = new ConcurrentDictionary<DateTime, StatCounter>(1, 1);
                     }
+                    else
+                    {
+                        _hourlyStatsCache = new ConcurrentDictionary<DateTime, HourlyStats>(1, 24); //remove in-memory only hourly stats
+                    }
                 }
+            }
+        }
+
+        public int InMemoryStatsMaxHour
+        {
+            get { return _inMemoryStatsMaxHour; }
+            set
+            {
+                if ((value < 1) || (value > 168))
+                    throw new ArgumentOutOfRangeException(nameof(InMemoryStatsMaxHour), "Valid range is from 1 to 168.");
+
+                _inMemoryStatsMaxHour = value;
             }
         }
 
