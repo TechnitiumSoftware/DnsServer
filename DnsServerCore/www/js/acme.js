@@ -156,6 +156,10 @@ function loadAcmeData(acme) {
     if (acme.lastError != null)
         status += "<br /><span class=\"label label-danger\">Last error</span> " + htmlEncode(acme.lastError);
 
+    //HTTPS can be switched on before the first certificate; a temporary self signed one is used until then
+    if (acme.enabled && acme.useForWebService && !acme.webServiceTlsEnabled)
+        status += "<br /><span class=\"label label-warning\">HTTPS is off</span> The web console isn't using this certificate yet. <button type=\"button\" class=\"btn btn-default btn-xs\" id=\"btnAcmeEnableHttps\" data-loading-text=\"Enabling...\" onclick=\"enableAcmeHttps(this);\">Enable HTTPS now</button>";
+
     $("#divAcmeStatus").html(status);
 
     //settings
@@ -385,6 +389,31 @@ function requestAcmeCertificate(objBtn) {
             btn.button("reset");
             loadAcmeData(responseJSON.response);
             showAlert("info", "Started!", "The certificate request is running. Progress appears in the log below.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            showPageLogin();
+        }
+    });
+}
+
+function enableAcmeHttps(objBtn) {
+    var btn = $(objBtn);
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "api/settings/acme/enableHttps?node=" + encodeURIComponent(getAcmeNode()),
+        token: sessionData.token,
+        method: "POST",
+        success: function (responseJSON) {
+            btn.button("reset");
+            loadAcmeData(responseJSON.response);
+
+            var httpsUrl = "https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort + "/";
+            showAlert("success", "HTTPS Enabled!", "The web console is restarting with HTTPS on port " + responseJSON.response.webServiceTlsPort + " (" + httpsUrl + "). It uses a temporary self signed certificate until ACME installs the real one.");
         },
         error: function () {
             btn.button("reset");

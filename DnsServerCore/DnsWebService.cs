@@ -2201,6 +2201,7 @@ namespace DnsServerCore
             _webService.MapGetAndPost("/api/settings/acme/directoryInfo", _acmeApi.GetDirectoryInfoAsync);
             _webService.MapGetAndPost("/api/settings/acme/request", _acmeApi.RequestCertificate);
             _webService.MapGetAndPost("/api/settings/acme/testDns01", _acmeApi.TestDns01Async);
+            _webService.MapGetAndPost("/api/settings/acme/enableHttps", _acmeApi.EnableHttps);
             _webService.MapGetAndPost("/api/settings/backup", _settingsApi.BackupSettingsAsync);
             _webService.MapPost("/api/settings/restore", _settingsApi.RestoreSettingsAsync);
 
@@ -2787,6 +2788,35 @@ namespace DnsServerCore
             StartTlsCertificateUpdateTimer();
         }
 
+        internal bool AcmeManagesWebServiceTlsCertificate
+        { get { return (_acmeManager is not null) && _acmeManager.Enabled && _acmeManager.UseForWebService; } }
+
+        internal bool AcmeManagesDnsTlsCertificate
+        { get { return (_acmeManager is not null) && _acmeManager.Enabled && _acmeManager.UseForDnsTls; } }
+
+        internal bool WebServiceTlsEnabled
+        { get { return _webServiceEnableTls; } }
+
+        //called when ACME settings change: loads the temporary self signed certificate if ACME now manages HTTPS
+        internal void RefreshWebServiceTlsCertificateFallback()
+        {
+            CheckAndLoadSelfSignedCertificate(false, false);
+        }
+
+        //turns on HTTPS for the web console from the ACME tab; works before the first certificate is issued
+        internal void EnableWebServiceTlsForAcme()
+        {
+            if (_webServiceEnableTls)
+                return;
+
+            CheckAndLoadSelfSignedCertificate(false, true);
+
+            _webServiceEnableTls = true;
+            SaveConfigFile();
+
+            RestartService(false, true);
+        }
+
         //used by ACME to apply an issued or renewed certificate the same way the settings API does
         internal void InstallWebServiceTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
         {
@@ -2816,7 +2846,8 @@ namespace DnsServerCore
         {
             string selfSignedCertificateFilePath = Path.Combine(_configFolder, "self-signed-cert.pfx");
 
-            if (_webServiceUseSelfSignedTlsCertificate)
+            //while ACME manages the certificate but hasn't issued one yet, a self signed certificate lets HTTPS start
+            if (_webServiceUseSelfSignedTlsCertificate || AcmeManagesWebServiceTlsCertificate)
             {
                 string oldSelfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
 
@@ -2938,6 +2969,10 @@ namespace DnsServerCore
                 //init dns server
                 _dnsServer = new DnsServer(_configFolder, Path.Combine(_appFolder, "dohwww"), _log);
 
+                //init ACME certificate manager before the web service config loads, so HTTPS can start with a
+                //temporary self signed certificate while ACME hasn't issued its first certificate
+                _acmeManager = new AcmeManager(this);
+
                 //init dhcp server
                 _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"), _log);
                 _dhcpServer.DnsServer = _dnsServer;
@@ -2979,9 +3014,6 @@ namespace DnsServerCore
 
                 //init cluster manager and load config file
                 _clusterManager = new ClusterManager(this);
-
-                //init ACME certificate manager
-                _acmeManager = new AcmeManager(this);
 
                 //cert may have changed so update cluster certs when loading
                 if (_clusterManager.ClusterInitialized)

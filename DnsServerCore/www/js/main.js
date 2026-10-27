@@ -21,6 +21,8 @@ var refreshTimerHandle;
 var reverseProxyDetected = false;
 var quickBlockLists = null;
 var quickForwardersList = null;
+var webServiceTlsCertificateManagedByAcme = false;
+var dnsTlsCertificateManagedByAcme = false;
 
 function showPageLogin(autoLogin) {
     hideAlert();
@@ -1314,6 +1316,12 @@ function loadDnsSettings(responseJSON) {
 
     $("#txtWebServiceTlsCertificatePath").val(responseJSON.response.webServiceTlsCertificatePath);
 
+    //certificate managed by ACME: fields are read-only and HTTPS can be enabled before the first certificate
+    webServiceTlsCertificateManagedByAcme = responseJSON.response.webServiceTlsCertificateManagedByAcme == true;
+    $("#txtWebServiceTlsCertificatePath").prop("readonly", webServiceTlsCertificateManagedByAcme);
+    $("#txtWebServiceTlsCertificatePassword").prop("readonly", webServiceTlsCertificateManagedByAcme);
+    $("#divWebServiceTlsCertificateAcmeNote").toggle(webServiceTlsCertificateManagedByAcme);
+
     if (responseJSON.response.webServiceTlsCertificatePath == null)
         $("#txtWebServiceTlsCertificatePassword").val("");
     else
@@ -1364,6 +1372,11 @@ function loadDnsSettings(responseJSON) {
     $("#txtDnsTlsCertificatePassword").prop("disabled", !responseJSON.response.enableDnsOverTls && !responseJSON.response.enableDnsOverHttps && !responseJSON.response.enableDnsOverQuic && !responseJSON.response.enableDnsOverHttpsUnixSocket);
 
     $("#txtDnsTlsCertificatePath").val(responseJSON.response.dnsTlsCertificatePath);
+
+    dnsTlsCertificateManagedByAcme = responseJSON.response.dnsTlsCertificateManagedByAcme == true;
+    $("#txtDnsTlsCertificatePath").prop("readonly", dnsTlsCertificateManagedByAcme);
+    $("#txtDnsTlsCertificatePassword").prop("readonly", dnsTlsCertificateManagedByAcme);
+    $("#divDnsTlsCertificateAcmeNote").toggle(dnsTlsCertificateManagedByAcme);
 
     if (responseJSON.response.dnsTlsCertificatePath == null)
         $("#txtDnsTlsCertificatePassword").val("");
@@ -1880,6 +1893,13 @@ function saveDnsSettings(objBtn) {
 
         var webServiceTlsCertificatePath = $("#txtWebServiceTlsCertificatePath").val();
         var webServiceTlsCertificatePassword = $("#txtWebServiceTlsCertificatePassword").val();
+
+        //the server would otherwise turn HTTPS back off without a word
+        if (webServiceEnableTls && (webServiceTlsCertificatePath.trim() === "") && !webServiceUseSelfSignedTlsCertificate && !webServiceTlsCertificateManagedByAcme) {
+            showAlert("warning", "Certificate Needed!", "HTTPS needs a certificate. Enter a TLS certificate file path, tick 'Use A Self Signed TLS Certificate', or set up automatic certificates in the Certificates (ACME) tab.");
+            $("#txtWebServiceTlsCertificatePath").trigger("focus");
+            return;
+        }
 
         formData += "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableHttpUnixSocket=" + webServiceEnableHttpUnixSocket + "&webServiceHttpUnixSocket=" + encodeURIComponent(webServiceHttpUnixSocket) + "&webServiceEnableTlsUnixSocket=" + webServiceEnableTlsUnixSocket + "&webServiceTlsUnixSocket=" + encodeURIComponent(webServiceTlsUnixSocket) + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceEnableHttp3=" + webServiceEnableHttp3 + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceReverseProxyAddresses=" + encodeURIComponent(webServiceReverseProxyAddresses) + "&webServiceRealIpHeader=" + encodeURIComponent(webServiceRealIpHeader) + "&webServiceCspFrameAncestorsHeader=" + encodeURIComponent(webServiceCspFrameAncestorsHeader) + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword);
     }

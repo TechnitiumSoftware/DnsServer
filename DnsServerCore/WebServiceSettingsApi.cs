@@ -224,6 +224,7 @@ namespace DnsServerCore
                 jsonWriter.WriteString("webServiceCspFrameAncestorsHeader", _dnsWebService._webServiceCspFrameAncestorsHeader);
                 jsonWriter.WriteString("webServiceTlsCertificatePath", _dnsWebService._webServiceTlsCertificatePath);
                 jsonWriter.WriteString("webServiceTlsCertificatePassword", string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath) ? null : "************");
+                jsonWriter.WriteBoolean("webServiceTlsCertificateManagedByAcme", _dnsWebService.AcmeManagesWebServiceTlsCertificate);
 
                 //optional protocols
                 jsonWriter.WriteBoolean("enableEDnsClientSubnetSourceAddress", _dnsWebService._dnsServer.EnableEDnsClientSubnetSourceAddress);
@@ -264,6 +265,7 @@ namespace DnsServerCore
                 jsonWriter.WriteString("dnsOverHttpRealIpHeader", _dnsWebService._dnsServer.DnsOverHttpRealIpHeader);
                 jsonWriter.WriteString("dnsTlsCertificatePath", _dnsWebService._dnsServer.DnsTlsCertificatePath);
                 jsonWriter.WriteString("dnsTlsCertificatePassword", string.IsNullOrEmpty(_dnsWebService._dnsServer.DnsTlsCertificatePath) ? null : "************");
+                jsonWriter.WriteBoolean("dnsTlsCertificateManagedByAcme", _dnsWebService.AcmeManagesDnsTlsCertificate);
 
                 //tsig
                 jsonWriter.WritePropertyName("tsigKeys");
@@ -1737,7 +1739,7 @@ namespace DnsServerCore
                         //TLS actions
                         _dnsWebService.CheckAndLoadSelfSignedCertificate(serverDomainChanged || webServiceLocalAddressesChanged, true);
 
-                        if (_dnsWebService._webServiceEnableTls && string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath) && !_dnsWebService._webServiceUseSelfSignedTlsCertificate)
+                        if (_dnsWebService._webServiceEnableTls && string.IsNullOrEmpty(_dnsWebService._webServiceTlsCertificatePath) && !_dnsWebService._webServiceUseSelfSignedTlsCertificate && !_dnsWebService.AcmeManagesWebServiceTlsCertificate)
                         {
                             //disable TLS
                             _dnsWebService._webServiceEnableTls = false;

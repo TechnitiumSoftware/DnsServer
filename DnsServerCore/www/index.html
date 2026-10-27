@@ -1538,6 +1538,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS Server's config folder. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" id="divWebServiceTlsCertificateAcmeNote" style="padding-top: 5px; display: none;"><span class="label label-info">Managed by ACME</span> This certificate is obtained and renewed automatically, configured in the Certificates (ACME) tab. HTTPS can be enabled now; until the first certificate is issued, a temporary self signed certificate is used.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1744,6 +1745,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server" maxlength="255">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx or .p12) file path on the server. The path can be relative to the DNS Server's config folder. The certificate must contain private key.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" id="divDnsTlsCertificateAcmeNote" style="padding-top: 5px; display: none;"><span class="label label-info">Managed by ACME</span> This certificate is obtained and renewed automatically, configured in the Certificates (ACME) tab. The encrypted protocols start as soon as the first certificate is installed.</div>
                                                         </div>
 
                                                         <div class="form-group">

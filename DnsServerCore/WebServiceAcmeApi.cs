@@ -103,6 +103,8 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
 
                 jsonWriter.WriteString("serverDomain", _dnsWebService._dnsServer.ServerDomain);
+                jsonWriter.WriteBoolean("webServiceTlsEnabled", _dnsWebService.WebServiceTlsEnabled);
+                jsonWriter.WriteNumber("webServiceTlsPort", _dnsWebService._webServiceTlsPort);
 
                 //status
                 jsonWriter.WriteBoolean("running", acme.Running);
@@ -216,6 +218,9 @@ namespace DnsServerCore
                     throw new DnsWebServiceException(ex.Message);
                 }
 
+                //HTTPS may now rely on ACME; start it with a temporary self signed certificate until one is issued
+                _dnsWebService.RefreshWebServiceTlsCertificateFallback();
+
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + _dnsWebService.GetSessionUser(context).Username + "] ACME settings were updated (enabled: " + enabled + ", directory: " + directoryUrl + ", provider: " + providerType + ").");
 
                 WriteAcme(context.GetCurrentJsonWriter());
@@ -266,6 +271,20 @@ namespace DnsServerCore
                 _ = acme.RunAsync(); //progress is reported through get (status and log)
 
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + _dnsWebService.GetSessionUser(context).Username + "] ACME certificate request was started.");
+
+                WriteAcme(context.GetCurrentJsonWriter());
+            }
+
+            public void EnableHttps(HttpContext context)
+            {
+                CheckPermission(context, PermissionFlag.Modify);
+
+                if (!_dnsWebService.AcmeManagesWebServiceTlsCertificate)
+                    throw new DnsWebServiceException("Enable ACME for the web service and save the ACME settings first.");
+
+                _dnsWebService.EnableWebServiceTlsForAcme();
+
+                _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + _dnsWebService.GetSessionUser(context).Username + "] HTTPS was enabled for the web service from the ACME settings.");
 
                 WriteAcme(context.GetCurrentJsonWriter());
             }
