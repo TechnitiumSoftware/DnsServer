@@ -96,6 +96,7 @@
 		<None Remove="www\json\quick-block-lists-builtin.json" />
 		<None Remove="www\json\quick-forwarders-list-builtin.json" />
 		<None Remove="www\json\readme.txt" />
+		<None Remove="www\js\acme.js" />
 		<None Remove="www\js\apps.js" />
 		<None Remove="www\js\auth.js" />
 		<None Remove="www\js\bootstrap.min.js" />
@@ -232,6 +233,9 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\json\dnsclient-server-list-builtin.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\acme.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\apps.js">
