@@ -30,21 +30,23 @@ Clients don't need anything special. A client renewing at T1 unicasts to the ser
    - **Enable DHCP Failover**: on
    - **Role**: Primary
    - **Connect To Partner**: Directly
-   - **Partner URL**: the other server's web console, for example `https://dns2.home.lan:53443/`
+   - **Partner URL**: the other server's HTTPS web console address, for example `https://dns2.home.lan:53443/`
    - **Partner API Token**: the token you created on the other server
-   - **Ignore Partner Certificate Errors**: on, if the other server uses the default self-signed certificate
+   - **Partner Certificate SHA-256**: leave empty if the other server has a trusted certificate (for example from ACME). If it uses a self-signed certificate, save once without it: the page then shows the fingerprint of the certificate the partner presented. Check it against the partner's certificate and click **Use this fingerprint**, then save again. Only that exact certificate is then accepted.
 4. On the other server, do the same with **Role: Standby**, pointing back at the first server.
 5. The status at the top of the tab should show both servers in **Normal** within a few seconds: Primary serving, Standby passive.
 
-Plain `http://…:5380/` URLs work for servers without HTTPS enabled, but then the API token crosses your network unencrypted. Use HTTPS if you can.
+The partner URL must use HTTPS, because the API token is sent with every request. Enable HTTPS in the partner's Web Service settings first. A setup saved by an older version with a plain `http://` URL keeps working, with a warning, until the settings are saved again.
+
+Older versions had an **Ignore Partner Certificate Errors** option. When upgrading, a setup that used it pins the certificate the partner presents at the next connection, and from then on accepts only that certificate (or a trusted one).
 
 The same settings are available through the API:
 
 ```
-/api/dhcp/failover/set?token=...&enabled=true&role=Primary&partnerMode=Direct&partnerUrl=https://dns2.home.lan:53443/&partnerApiToken=<token from dns2>&partnerIgnoreCertificateErrors=true
+/api/dhcp/failover/set?token=...&enabled=true&role=Primary&partnerMode=Direct&partnerUrl=https://dns2.home.lan:53443/&partnerApiToken=<token from dns2>&partnerCertificateFingerprint=<SHA-256, only for a self-signed certificate>
 ```
 
-If you leave `partnerApiToken` empty, the saved token is kept. `/api/dhcp/failover/get` never returns the token itself, only whether one is saved (`partnerApiTokenSet`).
+If you leave `partnerApiToken` empty, the saved token is kept, but only while the partner URL's scheme, host and port stay the same; changing them requires entering the token again. `/api/dhcp/failover/get` never returns the token itself, only whether one is saved (`partnerApiTokenSet`).
 
 ## Setup (using an existing Cluster)
 
@@ -67,7 +69,7 @@ Make all scope and lease changes on the **primary**. The standby rejects DHCP sc
 | Endpoint | Permission | Purpose |
 |---|---|---|
 | `/api/dhcp/failover/get` | DhcpServer: View | Settings, local state, partner state |
-| `/api/dhcp/failover/set` | DhcpServer: Modify | Update settings |
+| `/api/dhcp/failover/set` | DhcpServer: Modify **and** Administration: Delete | Update settings. The settings hold an administrator token for the partner, so DHCP permissions alone aren't enough. |
 | `/api/admin/cluster/dhcp/status` | Administration: Delete | Server-to-server heartbeat |
 | `/api/admin/cluster/dhcp/snapshot` | Administration: Delete | Binary scope + lease snapshot |
 | `/api/admin/cluster/dhcp/leaseUpdates` (POST) | Administration: Delete | Binary incremental lease updates |

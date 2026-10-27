@@ -756,7 +756,22 @@ function loadDhcpFailoverData(failover) {
     $("#txtDhcpFailoverPartnerUrl").val(failover.partnerUrl == null ? "" : failover.partnerUrl);
     $("#txtDhcpFailoverPartnerApiToken").val("");
     $("#txtDhcpFailoverPartnerApiToken").attr("placeholder", failover.partnerApiTokenSet ? "(saved; leave empty to keep)" : "");
-    $("#chkDhcpFailoverPartnerIgnoreCertificateErrors").prop("checked", failover.partnerIgnoreCertificateErrors);
+    $("#txtDhcpFailoverPartnerCertificateFingerprint").val(failover.partnerCertificateFingerprint == null ? "" : failover.partnerCertificateFingerprint);
+
+    //the partner presented a certificate this node doesn't trust; offer its fingerprint so the admin can check and pin it
+    if ((failover.partnerUntrustedCertificateFingerprint != null) && (failover.partnerUntrustedCertificateFingerprint !== failover.partnerCertificateFingerprint)) {
+        $("#lblDhcpFailoverPartnerUntrustedCertificateFingerprint").text(failover.partnerUntrustedCertificateFingerprint);
+        $("#divDhcpFailoverPartnerUntrustedCertificate").show();
+    }
+    else {
+        $("#divDhcpFailoverPartnerUntrustedCertificate").hide();
+    }
+
+    if (failover.partnerUrlInsecure)
+        $("#divDhcpFailoverPartnerUrlInsecure").show();
+    else
+        $("#divDhcpFailoverPartnerUrlInsecure").hide();
+
     updateDhcpFailoverPartnerModeView();
 
     var partnerOptions = "";
@@ -824,7 +839,7 @@ function saveDhcpFailover() {
     var partnerMode = $("#optDhcpFailoverPartnerMode").val();
     var partnerUrl = $("#txtDhcpFailoverPartnerUrl").val().trim();
     var partnerApiToken = $("#txtDhcpFailoverPartnerApiToken").val().trim();
-    var partnerIgnoreCertificateErrors = $("#chkDhcpFailoverPartnerIgnoreCertificateErrors").prop("checked");
+    var partnerCertificateFingerprint = $("#txtDhcpFailoverPartnerCertificateFingerprint").val().trim();
     var partnerTokenSaved = $("#txtDhcpFailoverPartnerApiToken").attr("placeholder") !== "";
 
     if (partnerMode === "Cluster") {
@@ -847,8 +862,11 @@ function saveDhcpFailover() {
             return;
         }
 
-        if (enabled && /^http:/i.test(partnerUrl) && !confirm("The partner URL uses plain HTTP, so the API token will be sent unencrypted on your network. Continue anyway?"))
+        if (/^http:/i.test(partnerUrl)) {
+            showAlert("warning", "HTTPS Required!", "The partner URL must use HTTPS, so the API token isn't sent unencrypted on your network. Enable HTTPS in the partner's Web Service settings and use its https:// address.");
+            $("#txtDhcpFailoverPartnerUrl").trigger("focus");
             return;
+        }
     }
 
     var partnerDisplayName = (partnerMode === "Cluster") ? partnerNodeName : partnerUrl;
@@ -866,7 +884,7 @@ function saveDhcpFailover() {
         token: sessionData.token,
         method: "POST",
         data: "enabled=" + enabled + "&role=" + encodeURIComponent(role) + "&partnerMode=" + encodeURIComponent(partnerMode) + "&partnerNodeName=" + encodeURIComponent(partnerNodeName == null ? "" : partnerNodeName) +
-            "&partnerUrl=" + encodeURIComponent(partnerUrl) + "&partnerApiToken=" + encodeURIComponent(partnerApiToken) + "&partnerIgnoreCertificateErrors=" + partnerIgnoreCertificateErrors +
+            "&partnerUrl=" + encodeURIComponent(partnerUrl) + "&partnerApiToken=" + encodeURIComponent(partnerApiToken) + "&partnerCertificateFingerprint=" + encodeURIComponent(partnerCertificateFingerprint) +
             "&heartbeatIntervalSeconds=" + encodeURIComponent(heartbeatIntervalSeconds) + "&partnerDownDelaySeconds=" + encodeURIComponent(partnerDownDelaySeconds) + "&maxClientLeadTimeSeconds=" + encodeURIComponent(maxClientLeadTimeSeconds),
         processData: false,
         success: function (responseJSON) {
@@ -882,4 +900,9 @@ function saveDhcpFailover() {
             showPageLogin();
         }
     });
+}
+
+function useDhcpFailoverPartnerCertificateFingerprint() {
+    $("#txtDhcpFailoverPartnerCertificateFingerprint").val($("#lblDhcpFailoverPartnerUntrustedCertificateFingerprint").text());
+    $("#txtDhcpFailoverPartnerCertificateFingerprint").trigger("focus");
 }

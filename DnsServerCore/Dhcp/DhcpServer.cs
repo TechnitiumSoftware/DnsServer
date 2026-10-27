@@ -1598,6 +1598,8 @@ namespace DnsServerCore.Dhcp
             bW.Flush();
         }
 
+        const int MAX_SNAPSHOT_SCOPES = 1000;
+
         internal async Task ApplySnapshotAsync(Stream s, bool configAuthority, IDictionary<string, string> appliedSettingsHashes)
         {
             //configAuthority: snapshot is from failover primary; scope settings are replaced and leases mirrored
@@ -1613,13 +1615,30 @@ namespace DnsServerCore.Dhcp
                 throw new InvalidDataException("DHCP failover snapshot version not supported.");
 
             int count = bR.ReadInt32();
+            if ((count < 0) || (count > MAX_SNAPSHOT_SCOPES))
+                throw new InvalidDataException("DHCP failover snapshot has an invalid scope count: " + count);
+
             List<(Scope, string)> remoteScopes = new List<(Scope, string)>(count);
 
             for (int i = 0; i < count; i++)
             {
-                byte[] scopeBytes = bR.ReadBytes(bR.ReadInt32());
+                int length = bR.ReadInt32();
+                if ((length < 0) || (length > (s.Length - s.Position)))
+                    throw new InvalidDataException("DHCP failover snapshot has an invalid scope length: " + length);
+
+                byte[] scopeBytes = bR.ReadBytes(length);
 
                 Scope remoteScope = new Scope(new MemoryStream(scopeBytes, false), _log, this);
+
+                //the name becomes a file name in the scopes folder; never trust it from the network
+                if (string.IsNullOrWhiteSpace(remoteScope.Name))
+                    throw new InvalidDataException("DHCP failover snapshot contains a scope with an empty name.");
+
+                if (remoteScope.Name.Contains('/') || remoteScope.Name.Contains('\\') || (remoteScope.Name.Trim('.').Length == 0))
+                    throw new InvalidDataException("DHCP failover snapshot contains an invalid scope name: " + remoteScope.Name);
+
+                Scope.ValidateScopeName(remoteScope.Name);
+
                 string remoteSettingsHash = Convert.ToHexString(SHA256.HashData(remoteScope.GetSettingsBytes()));
 
                 remoteScopes.Add((remoteScope, remoteSettingsHash));

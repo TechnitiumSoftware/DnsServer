@@ -2984,8 +2984,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="txtDhcpFailoverPartnerUrl" class="col-sm-3 control-label">Partner URL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDhcpFailoverPartnerUrl" placeholder="https://dns2.home.lan:53443/">
+                                                                <div class="alert alert-warning" style="margin: 5px 0 0 0; display: none;" id="divDhcpFailoverPartnerUrlInsecure">This partner URL uses plain HTTP, so the API token crosses your network unencrypted. Change it to the partner's https:// address.</div>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The partner's web console address. HTTPS is strongly recommended because the API token is sent with every request; plain HTTP (e.g. http://192.168.1.3:5380/) works but exposes the token on your network.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The partner's web console HTTPS address. HTTPS is required because the API token is sent with every request.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -2997,13 +2998,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <div class="col-sm-offset-3 col-sm-8">
-                                                                <div class="checkbox">
-                                                                    <label>
-                                                                        <input type="checkbox" id="chkDhcpFailoverPartnerIgnoreCertificateErrors"> Ignore Partner Certificate Errors
-                                                                    </label>
-                                                                </div>
-                                                                <div style="padding-top: 5px;">Enable if the partner uses the default self-signed certificate.</div>
+                                                            <label for="txtDhcpFailoverPartnerCertificateFingerprint" class="col-sm-3 control-label">Partner Certificate SHA-256</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDhcpFailoverPartnerCertificateFingerprint" placeholder="only for a self-signed certificate">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Leave empty when the partner has a trusted certificate, for example one from Settings &gt; Certificates (ACME). If it uses a self-signed certificate, enter that certificate's SHA-256 fingerprint so only that certificate is accepted.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px; display: none;" id="divDhcpFailoverPartnerUntrustedCertificate">
+                                                                <div class="alert alert-warning" style="margin-bottom: 0;">The partner presented a certificate this node doesn't trust, with SHA-256 fingerprint <code id="lblDhcpFailoverPartnerUntrustedCertificateFingerprint"></code>. Check it matches the partner's certificate before trusting it. <a href="#" onclick="useDhcpFailoverPartnerCertificateFingerprint(); return false;">Use this fingerprint</a></div>
                                                             </div>
                                                         </div>
                                                     </div>

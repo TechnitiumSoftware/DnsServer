@@ -66,6 +66,7 @@ namespace DnsServerCore.Cluster
         const int MAX_LEASE_UPDATES_PER_REQUEST = 1000;
         const int MAX_PENDING_LEASE_UPDATES = 10000;
         const int FULL_SYNC_INTERVAL_SECONDS = 300;
+        const int MAX_SNAPSHOT_SIZE = 64 * 1024 * 1024;
 
         readonly DnsWebService _dnsWebService;
         readonly DhcpServer _dhcpServer;
@@ -77,7 +78,8 @@ namespace DnsServerCore.Cluster
         //direct mode: partner reached by URL and API token without a Cluster
         Uri _partnerUrl;
         string _partnerApiToken;
-        bool _partnerIgnoreCertificateErrors;
+        string _partnerCertificateFingerprint; //SHA-256 of a self-signed partner certificate to trust
+        bool _partnerPinOnFirstUse; //set only when upgrading a v2 config that ignored certificate errors
         DirectDhcpFailoverPartner _directPartner;
 
         ushort _heartbeatIntervalSeconds = DEFAULT_HEARTBEAT_INTERVAL_SECONDS;
@@ -89,6 +91,7 @@ namespace DnsServerCore.Cluster
         DateTime _lastPartnerContact;
         DhcpFailoverStatus _lastPartnerStatus;
         bool _partnerReachable;
+        bool _leasesOwedToPartner; //this Standby served while the partner was down; push its leases before mirroring again
 
         //standby sync tracking
         string _syncedPrimarySettingsHash;
@@ -164,6 +167,7 @@ namespace DnsServerCore.Cluster
                     {
                         case 1:
                         case 2:
+                        case 3:
                             _enabled = bR.ReadBoolean();
                             _role = (DhcpFailoverRole)bR.ReadByte();
 
@@ -184,7 +188,19 @@ namespace DnsServerCore.Cluster
                                 if (_partnerApiToken.Length == 0)
                                     _partnerApiToken = null;
 
-                                _partnerIgnoreCertificateErrors = bR.ReadBoolean();
+                                if (version >= 3)
+                                {
+                                    _partnerCertificateFingerprint = bR.ReadString();
+                                    if (_partnerCertificateFingerprint.Length == 0)
+                                        _partnerCertificateFingerprint = null;
+
+                                    _partnerPinOnFirstUse = bR.ReadBoolean();
+                                }
+                                else
+                                {
+                                    //v2 could ignore certificate errors; pin the certificate the partner presents next instead
+                                    _partnerPinOnFirstUse = bR.ReadBoolean();
+                                }
                             }
 
                             break;
@@ -195,6 +211,9 @@ namespace DnsServerCore.Cluster
                 }
 
                 _dnsWebService.LogManager.Write("DHCP failover config file was loaded: " + ConfigFile);
+
+                if ((_partnerUrl is not null) && (_partnerUrl.Scheme == Uri.UriSchemeHttp))
+                    Log("WARNING: the partner URL uses plain HTTP, so the partner API token crosses the network unencrypted. Change it to the partner's HTTPS address; plain HTTP can no longer be saved.");
             }
             catch (Exception ex)
             {
@@ -212,7 +231,7 @@ namespace DnsServerCore.Cluster
                 BinaryWriter bW = new BinaryWriter(fS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DF"));
-                bW.Write((byte)2); //version
+                bW.Write((byte)3); //version
 
                 bW.Write(_enabled);
                 bW.Write((byte)_role);
@@ -228,7 +247,8 @@ namespace DnsServerCore.Cluster
 
                 bW.Write(_partnerUrl is null ? "" : _partnerUrl.AbsoluteUri);
                 bW.Write(_partnerApiToken ?? "");
-                bW.Write(_partnerIgnoreCertificateErrors);
+                bW.Write(_partnerCertificateFingerprint ?? "");
+                bW.Write(_partnerPinOnFirstUse);
 
                 bW.Flush();
             }
@@ -269,7 +289,7 @@ namespace DnsServerCore.Cluster
                     return null;
 
                 if (_directPartner is null)
-                    _directPartner = new DirectDhcpFailoverPartner(_dnsWebService, _partnerUrl, _partnerApiToken, _partnerIgnoreCertificateErrors);
+                    _directPartner = new DirectDhcpFailoverPartner(_dnsWebService, _partnerUrl, _partnerApiToken, _partnerCertificateFingerprint, _partnerPinOnFirstUse, OnPartnerCertificatePinned);
 
                 return _directPartner;
             }
@@ -286,6 +306,23 @@ namespace DnsServerCore.Cluster
                 return null;
 
             return partnerNode;
+        }
+
+        private void OnPartnerCertificatePinned(string fingerprint)
+        {
+            _partnerCertificateFingerprint = fingerprint;
+            _partnerPinOnFirstUse = false;
+
+            try
+            {
+                SaveConfigFile();
+            }
+            catch (Exception ex)
+            {
+                _dnsWebService.LogManager.Write(ex);
+            }
+
+            Log("certificate errors are no longer ignored for partner '" + _partnerNodeName + "'; its current certificate was pinned (SHA-256 " + fingerprint + ").");
         }
 
         private string GetSelfNodeName()
@@ -307,6 +344,7 @@ namespace DnsServerCore.Cluster
 
                 IDhcpFailoverPartner partnerNode = GetPartner();
                 DhcpFailoverStatus partnerStatus = null;
+                bool partnerAnswerServing = false; //partner sent a valid status saying it serves DHCP, but not as this node's partner
 
                 if (partnerNode is not null)
                 {
@@ -326,6 +364,7 @@ namespace DnsServerCore.Cluster
                                 Log("partner node '" + _partnerNodeName + "' is reachable but is not configured as the failover partner of this node (enabled: " + partnerStatus.Enabled + ", role: " + partnerStatus.Role + ", partner: " + partnerStatus.PartnerNodeName + ").");
 
                             _lastPartnerStatus = partnerStatus;
+                            partnerAnswerServing = partnerStatus.Serving;
                             partnerStatus = null;
 
                             //partner is alive and may be serving on its own; never escalate to partner down for a reachable node
@@ -350,7 +389,17 @@ namespace DnsServerCore.Cluster
                 if (partnerStatus is null)
                 {
                     _partnerReachable = false;
-                    OnPartnerUnreachable();
+
+                    if (partnerAnswerServing && (_role == DhcpFailoverRole.Standby) && (_state == DhcpFailoverState.PartnerDown))
+                    {
+                        //the partner says it is serving DHCP, but not as this node's partner; two servers handing out the same pool would cause address conflicts
+                        Log("WARNING: partner node '" + _partnerNodeName + "' is serving DHCP again but is not configured as this node's failover partner (check its failover settings). Stopping DHCP service on this node to avoid address conflicts; its leases are handed back once the partner is configured again.");
+                        SetState(DhcpFailoverState.CommunicationsInterrupted);
+                    }
+                    else
+                    {
+                        OnPartnerUnreachable();
+                    }
                 }
                 else
                 {
@@ -417,6 +466,7 @@ namespace DnsServerCore.Cluster
                             if (DateTime.UtcNow >= _lastPartnerContact.AddSeconds(_partnerDownDelaySeconds))
                             {
                                 Log("partner node '" + _partnerNodeName + "' was unreachable for " + _partnerDownDelaySeconds + " seconds; taking over DHCP service.");
+                                _leasesOwedToPartner = true;
                                 SetState(DhcpFailoverState.PartnerDown);
                             }
 
@@ -471,7 +521,7 @@ namespace DnsServerCore.Cluster
                     if (!partnerStatus.Serving)
                         return; //unexpected; wait for primary to serve
 
-                    if (_state == DhcpFailoverState.PartnerDown)
+                    if ((_state == DhcpFailoverState.PartnerDown) || _leasesOwedToPartner)
                     {
                         //hand back control: push all our leases to primary first so none are lost
                         try
@@ -480,11 +530,16 @@ namespace DnsServerCore.Cluster
                         }
                         catch (Exception ex)
                         {
-                            _dnsWebService.LogManager.Write("DHCP failover: failed to send leases to partner node '" + _partnerNodeName + "'; continuing to serve.", ex);
+                            _dnsWebService.LogManager.Write("DHCP failover: failed to send leases to partner node '" + _partnerNodeName + "'; will retry before syncing from it.", ex);
                             return;
                         }
 
-                        Log("partner node '" + _partnerNodeName + "' is serving again; handing back DHCP service.");
+                        _leasesOwedToPartner = false;
+
+                        if (_state == DhcpFailoverState.PartnerDown)
+                            Log("partner node '" + _partnerNodeName + "' is serving again; handing back DHCP service.");
+                        else
+                            Log("leases issued while partner node '" + _partnerNodeName + "' was down were handed back to it.");
                     }
 
                     bool forceFullSync = _state != DhcpFailoverState.Normal;
@@ -518,7 +573,16 @@ namespace DnsServerCore.Cluster
                 {
                     await using (Stream stream = await partnerNode.GetDhcpFailoverSnapshotAsync(cts.Token))
                     {
-                        await stream.CopyToAsync(mS, cts.Token);
+                        byte[] buffer = new byte[64 * 1024];
+                        int bytesRead;
+
+                        while ((bytesRead = await stream.ReadAsync(buffer, cts.Token)) > 0)
+                        {
+                            if (mS.Length + bytesRead > MAX_SNAPSHOT_SIZE)
+                                throw new InvalidDataException("DHCP failover snapshot from partner node '" + _partnerNodeName + "' is larger than the limit of " + (MAX_SNAPSHOT_SIZE / 1024 / 1024) + " MB.");
+
+                            mS.Write(buffer, 0, bytesRead);
+                        }
                     }
                 }
 
@@ -688,16 +752,24 @@ namespace DnsServerCore.Cluster
                 _heartbeatTimer.Change(0, Timeout.Infinite);
         }
 
-        public void SetConfig(bool enabled, DhcpFailoverRole role, string partnerNodeName, Uri partnerUrl, string partnerApiToken, bool partnerIgnoreCertificateErrors, ushort heartbeatIntervalSeconds, ushort partnerDownDelaySeconds, uint maxClientLeadTimeSeconds)
+        public void SetConfig(bool enabled, DhcpFailoverRole role, string partnerNodeName, Uri partnerUrl, string partnerApiToken, string partnerCertificateFingerprint, ushort heartbeatIntervalSeconds, ushort partnerDownDelaySeconds, uint maxClientLeadTimeSeconds)
         {
-            //partnerUrl set: direct mode without a Cluster; partnerApiToken null keeps the saved token
+            //partnerUrl set: direct mode without a Cluster; partnerApiToken null keeps the saved token for the same partner
             if (partnerUrl is not null)
             {
-                if (!partnerUrl.IsAbsoluteUri || ((partnerUrl.Scheme != Uri.UriSchemeHttps) && (partnerUrl.Scheme != Uri.UriSchemeHttp)))
-                    throw new DnsWebServiceException("The partner URL must be an absolute http:// or https:// URL of the partner's web console, for example https://dns2.home.lan:53443/");
+                if (!partnerUrl.IsAbsoluteUri || (partnerUrl.Scheme != Uri.UriSchemeHttps))
+                    throw new DnsWebServiceException("The partner URL must be an absolute https:// URL of the partner's web console, for example https://dns2.home.lan:53443/ (enable HTTPS in the partner's Web Service settings first). Plain HTTP would send the partner API token unencrypted.");
+
+                partnerCertificateFingerprint = DirectDhcpFailoverPartner.NormalizeFingerprint(partnerCertificateFingerprint);
 
                 if (string.IsNullOrWhiteSpace(partnerApiToken))
+                {
+                    //never send the saved token to a different server
+                    if ((_partnerApiToken is not null) && ((_partnerUrl is null) || (Uri.Compare(_partnerUrl, partnerUrl, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) != 0)))
+                        throw new DnsWebServiceException("The partner URL changed, so the saved API token can't be reused. Enter the API token created on the partner node again.");
+
                     partnerApiToken = _partnerApiToken;
+                }
 
                 if (enabled && string.IsNullOrWhiteSpace(partnerApiToken))
                     throw new DnsWebServiceException("An API token created on the partner node is required for direct mode.");
@@ -733,9 +805,12 @@ namespace DnsServerCore.Cluster
                 throw new ArgumentOutOfRangeException(nameof(maxClientLeadTimeSeconds), "Max client lead time must be at least 60 seconds.");
 
             if (partnerUrl is null)
+            {
                 partnerApiToken = null; //cluster mode uses the Cluster API token
+                partnerCertificateFingerprint = null;
+            }
 
-            bool partnerConnectionChanged = !Equals(_partnerUrl, partnerUrl) || (_partnerApiToken != partnerApiToken) || (_partnerIgnoreCertificateErrors != partnerIgnoreCertificateErrors);
+            bool partnerConnectionChanged = !Equals(_partnerUrl, partnerUrl) || (_partnerApiToken != partnerApiToken) || (_partnerCertificateFingerprint != partnerCertificateFingerprint) || _partnerPinOnFirstUse;
             bool restart = (_enabled != enabled) || (_role != role) || !string.Equals(_partnerNodeName, partnerNodeName, StringComparison.OrdinalIgnoreCase) || partnerConnectionChanged;
 
             if (partnerConnectionChanged)
@@ -752,7 +827,8 @@ namespace DnsServerCore.Cluster
 
             _partnerUrl = partnerUrl;
             _partnerApiToken = string.IsNullOrWhiteSpace(partnerApiToken) ? null : partnerApiToken;
-            _partnerIgnoreCertificateErrors = partnerIgnoreCertificateErrors;
+            _partnerCertificateFingerprint = partnerCertificateFingerprint;
+            _partnerPinOnFirstUse = false; //settings saved by an admin: trust only what they entered
 
             _enabled = enabled;
             _role = role;
@@ -767,6 +843,7 @@ namespace DnsServerCore.Cluster
             {
                 _pendingLeaseUpdates.Clear();
                 _partnerReachable = false;
+                _leasesOwedToPartner = false;
                 _lastPartnerStatus = null;
                 _syncedPrimarySettingsHash = null;
                 _lastFullSync = default;
@@ -816,8 +893,11 @@ namespace DnsServerCore.Cluster
         public bool PartnerApiTokenSet
         { get { return _partnerApiToken is not null; } }
 
-        public bool PartnerIgnoreCertificateErrors
-        { get { return _partnerIgnoreCertificateErrors; } }
+        public string PartnerCertificateFingerprint
+        { get { return _partnerCertificateFingerprint; } }
+
+        public string PartnerUntrustedCertificateFingerprint
+        { get { return _directPartner?.LastUntrustedCertificateFingerprint; } }
 
         public bool PartnerReachable
         { get { return _partnerReachable; } }

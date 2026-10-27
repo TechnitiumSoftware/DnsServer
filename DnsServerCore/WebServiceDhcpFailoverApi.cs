@@ -59,7 +59,9 @@ namespace DnsServerCore
                 jsonWriter.WriteString("partnerMode", failover.PartnerUrl is null ? "Cluster" : "Direct");
                 jsonWriter.WriteString("partnerUrl", failover.PartnerUrl?.AbsoluteUri);
                 jsonWriter.WriteBoolean("partnerApiTokenSet", failover.PartnerApiTokenSet); //token itself is never returned
-                jsonWriter.WriteBoolean("partnerIgnoreCertificateErrors", failover.PartnerIgnoreCertificateErrors);
+                jsonWriter.WriteString("partnerCertificateFingerprint", failover.PartnerCertificateFingerprint);
+                jsonWriter.WriteString("partnerUntrustedCertificateFingerprint", failover.PartnerUntrustedCertificateFingerprint);
+                jsonWriter.WriteBoolean("partnerUrlInsecure", (failover.PartnerUrl is not null) && (failover.PartnerUrl.Scheme == Uri.UriSchemeHttp));
 
                 ClusterManager clusterManagerForMode = _dnsWebService._clusterManager;
                 jsonWriter.WriteBoolean("clusterInitialized", (clusterManagerForMode is not null) && clusterManagerForMode.ClusterInitialized);
@@ -127,8 +129,10 @@ namespace DnsServerCore
             {
                 User sessionUser = _dnsWebService.GetSessionUser(context);
 
-                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify))
-                    throw new DnsWebServiceException("Access was denied.");
+                //failover settings hold a partner API token with administrator rights on the partner and decide which server hands out
+                //addresses, so they need the same permission as the partner endpoints, not just DHCP Modify
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, sessionUser, PermissionFlag.Modify) || !_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, sessionUser, PermissionFlag.Delete))
+                    throw new DnsWebServiceException("Access was denied. Changing DHCP failover settings requires DHCP Server Modify and Administration Delete permissions.");
 
                 HttpRequest request = context.Request;
                 DhcpFailoverManager failover = _dnsWebService._dhcpFailoverManager;
@@ -145,7 +149,7 @@ namespace DnsServerCore
 
                 Uri partnerUrl = null;
                 string partnerApiToken = null;
-                bool partnerIgnoreCertificateErrors = false;
+                string partnerCertificateFingerprint = null;
 
                 if (partnerMode.Equals("Direct", StringComparison.OrdinalIgnoreCase))
                 {
@@ -157,10 +161,10 @@ namespace DnsServerCore
                         throw new DnsWebServiceException("Invalid partner URL: " + partnerUrlValue);
 
                     partnerApiToken = request.QueryOrForm("partnerApiToken"); //empty keeps saved token
-                    partnerIgnoreCertificateErrors = request.GetQueryOrForm("partnerIgnoreCertificateErrors", bool.Parse, failover.PartnerIgnoreCertificateErrors);
+                    partnerCertificateFingerprint = request.GetQueryOrForm("partnerCertificateFingerprint", failover.PartnerCertificateFingerprint ?? "");
                 }
 
-                failover.SetConfig(enabled, role, partnerNodeName, partnerUrl, partnerApiToken, partnerIgnoreCertificateErrors, heartbeatIntervalSeconds, partnerDownDelaySeconds, maxClientLeadTimeSeconds);
+                failover.SetConfig(enabled, role, partnerNodeName, partnerUrl, partnerApiToken, partnerCertificateFingerprint, heartbeatIntervalSeconds, partnerDownDelaySeconds, maxClientLeadTimeSeconds);
 
                 _dnsWebService._log.Write(_dnsWebService.GetRemoteEndPoint(context), "[" + sessionUser.Username + "] DHCP failover settings were updated (enabled: " + enabled + ", role: " + role.ToString() + ", partner: " + (partnerUrl is null ? partnerNodeName : partnerUrl.AbsoluteUri) + ").");
 

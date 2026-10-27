@@ -60,11 +60,11 @@ namespace DnsServerCore.HttpApi
             _serializerOptions.PropertyNameCaseInsensitive = true;
         }
 
-        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, IPv6Mode ipv6Mode = IPv6Mode.Disabled, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null, TimeSpan? timeout = null)
-            : this(serverUrl, proxy, HttpClientNetworkHandler.GetNetworkType(ipv6Mode), ignoreCertificateErrors, dnsClient, timeout)
+        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, IPv6Mode ipv6Mode = IPv6Mode.Disabled, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null, TimeSpan? timeout = null, RemoteCertificateValidationCallback? certificateValidationCallback = null)
+            : this(serverUrl, proxy, HttpClientNetworkHandler.GetNetworkType(ipv6Mode), ignoreCertificateErrors, dnsClient, timeout, certificateValidationCallback)
         { }
 
-        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, HttpClientNetworkType networkType = HttpClientNetworkType.Default, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null, TimeSpan? timeout = null)
+        public HttpApiClient(Uri serverUrl, NetProxy? proxy = null, HttpClientNetworkType networkType = HttpClientNetworkType.Default, bool ignoreCertificateErrors = false, IDnsClient? dnsClient = null, TimeSpan? timeout = null, RemoteCertificateValidationCallback? certificateValidationCallback = null)
         {
             _serverUrl = serverUrl;
 
@@ -73,7 +73,12 @@ namespace DnsServerCore.HttpApi
             handler.NetworkType = networkType;
             handler.DnsClient = dnsClient;
 
-            if (ignoreCertificateErrors)
+            if (certificateValidationCallback is not null)
+            {
+                //caller decides, e.g. normal validation or a pinned certificate
+                handler.InnerHandler.SslOptions.RemoteCertificateValidationCallback = certificateValidationCallback;
+            }
+            else if (ignoreCertificateErrors)
             {
                 handler.InnerHandler.SslOptions.RemoteCertificateValidationCallback = delegate (object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
                 {
