@@ -117,6 +117,7 @@ Protect the config folder as you would the rest of the server's configuration.
 | `/api/settings/acme/directoryInfo?directoryUrl=` | Settings: View | The CA's terms of service URL, and whether EAB is required |
 | `/api/settings/acme/request` | Settings: Modify | Start issuing or renewing now (runs in the background; poll `get`) |
 | `/api/settings/acme/testDns01` | Settings: Modify | Publish, verify and remove a test TXT record |
+| `/api/settings/acme/enableHttps` | Settings: Modify | Enable HTTPS on the web service while ACME manages its certificate, using a temporary self-signed certificate until the first one is issued |
 
 All endpoints accept `node=` to target a specific Cluster node.
 
