@@ -32,7 +32,9 @@ If a renewal fails, it's retried at the next check, and the error is shown on th
 1. Choose a **Certificate Authority**. Start with **Let's Encrypt (staging)**. Its certificates aren't trusted by browsers, but it has much higher rate limits, so you can get the setup right first.
 2. Read the CA's terms of service (linked on the page) and tick **I agree**. The server never agrees on your behalf.
 3. Enter the **Domain Names**, one per line, for example `dns1.example.com`. Wildcards (`*.example.com`) are allowed. **Add Server Domain** inserts this server's own name.
-4. Choose where the certificate is used: the web service, DNS-over-TLS/HTTPS/QUIC, or both. HTTPS and the encrypted DNS protocols still have to be enabled on their own Settings tabs.
+4. Choose where the certificate is used: the web service, DNS-over-TLS/HTTPS/QUIC, or both.
+   - **Enabling HTTPS:** when ACME manages the web certificate, you can enable HTTPS straight away, with **Enable HTTPS now** on this tab or on the Web Service tab. The certificate fields there show "Managed by ACME". Until the first certificate is issued, a temporary self-signed certificate is used, and the real one replaces it automatically.
+   - **Encrypted DNS protocols:** enable DNS-over-TLS/HTTPS/QUIC on the Optional Protocols tab. They start as soon as the certificate is installed.
 5. Choose and configure a **DNS-01 provider** (see below), then **Save ACME Settings**.
 6. Click **Test DNS-01**. It publishes a test record, checks the public name servers can see it, and removes it, without contacting the CA.
 7. Click **Request Certificate Now** and watch the log.
