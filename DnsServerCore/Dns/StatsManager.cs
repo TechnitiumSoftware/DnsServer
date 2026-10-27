@@ -435,7 +435,8 @@ namespace DnsServerCore.Dns
             }
 
             //load previous day stats to auto create daily stats file
-            LoadDailyStats(currentDateTime.AddDays(-1));
+            if (!_enableInMemoryStats)
+                LoadDailyStats(currentDateTime.AddDays(-1));
 
             //remove old data from hourly stats cache
             {
@@ -473,8 +474,18 @@ namespace DnsServerCore.Dns
 
             //remove old data from daily stats cache
             {
-                DateTime threshold = currentDateTime.AddMonths(-12);
-                threshold = new DateTime(threshold.Year, threshold.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+                DateTime threshold;
+
+                if (_enableInMemoryStats)
+                {
+                    threshold = currentDateTime.AddHours(-_inMemoryStatsMaxHour);
+                    threshold = new DateTime(threshold.Year, threshold.Month, threshold.Day, 0, 0, 0, DateTimeKind.Utc);
+                }
+                else
+                {
+                    threshold = currentDateTime.AddMonths(-12);
+                    threshold = new DateTime(threshold.Year, threshold.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+                }
 
                 List<DateTime> _keysToRemove = new List<DateTime>();
 
@@ -543,10 +554,54 @@ namespace DnsServerCore.Dns
 
         private StatCounter LoadDailyStats(DateTime dateTime)
         {
-            if (_enableInMemoryStats)
-                return StatCounter.Empty;
-
             DateTime dailyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, 0, 0, 0, 0, DateTimeKind.Utc);
+
+            if (_enableInMemoryStats)
+            {
+                if (_dailyStatsCache.TryGetValue(dailyDateTime, out StatCounter inMemoryDailyStats))
+                    return inMemoryDailyStats;
+
+                //build daily stats from the hourly stats available in memory
+                HourlyStats[] hourlyStatsList = new HourlyStats[24];
+                int hoursFound = 0;
+
+                for (int hour = 0; hour < 24; hour++) //hours
+                {
+                    if (_hourlyStatsCache.TryGetValue(dailyDateTime.AddHours(hour), out HourlyStats hourlyStats))
+                    {
+                        hourlyStatsList[hour] = hourlyStats;
+                        hoursFound++;
+                    }
+                }
+
+                if (hoursFound == 0)
+                    return StatCounter.Empty; //no data in memory for this day
+
+                inMemoryDailyStats = new StatCounter();
+                inMemoryDailyStats.Lock();
+
+                foreach (HourlyStats hourlyStats in hourlyStatsList)
+                {
+                    if (hourlyStats is not null)
+                        inMemoryDailyStats.Merge(hourlyStats.HourStat);
+                }
+
+                bool allHoursFound = hoursFound == 24;
+
+                //cache only a complete day that has ended since its hourly stats are not going to change; partial day is rebuilt on every call
+                if (allHoursFound && (DateTime.UtcNow >= dailyDateTime.AddDays(1).AddMinutes(5)))
+                {
+                    _ = inMemoryDailyStats.Truncate(STATS_TOP_LIMIT);
+
+                    if (!_dailyStatsCache.TryAdd(dailyDateTime, inMemoryDailyStats))
+                    {
+                        if (!_dailyStatsCache.TryGetValue(dailyDateTime, out inMemoryDailyStats))
+                            throw new DnsServerException("Unable to load daily stats.");
+                    }
+                }
+
+                return inMemoryDailyStats;
+            }
 
             if (!_dailyStatsCache.TryGetValue(dailyDateTime, out StatCounter dailyStats))
             {
@@ -1703,6 +1758,7 @@ namespace DnsServerCore.Dns
                     else
                     {
                         _hourlyStatsCache = new ConcurrentDictionary<DateTime, HourlyStats>(1, 24); //remove in-memory only hourly stats
+                        _dailyStatsCache = new ConcurrentDictionary<DateTime, StatCounter>(1, 7); //remove in-memory only daily stats
                     }
                 }
             }
