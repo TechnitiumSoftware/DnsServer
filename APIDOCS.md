@@ -5281,6 +5281,7 @@ RESPONSE:
 		"logQueries": false,
 		"noStackTrace": false,
 		"useLocalTime": false,
+		"logQueryMetadata": false,
 		"logFolder": "logs",
 		"maxLogFileDays": 30,
 		"enableInMemoryStats": false,
@@ -5437,6 +5438,7 @@ WHERE:
 - `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Initial value is `false`.
 - `noStackTrace` (optional): Enable to log only short error messages instead of full exception stack trace.
 - `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Initial value is `false`.
+- `logQueryMetadata` (optional, node-local): When enabled, the DNS server supplies structured blocking provenance to DNS Apps implementing `IDnsQueryLoggerEx`. The built-in blocked-zone evaluator emits `source=blocked-zone` and `domain=<matched-domain>`. The built-in block-list evaluator emits `source=block-list-zone`, `domain=<matched-domain>`, `blockListUrl=<first-matching-list-url>`, and `blockListCount=<number-of-matching-lists>`. All values are strings; URL user-info, query string, and fragment are omitted from logged URLs. `blockListUrl` denotes only the first matched list; individual additional URLs are not logged. Metadata is available without client EDNS and does not change the DNS response or its EDE/TXT report. Default: `false`. The node-local setting is stored in the final optional byte of the version 7 `dns.config` layout and is not applied during config transfer. This byte must remain last; a versioned layout is proposed in a separate commit.
 - `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Initial value is `logs`.
 - `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 - `enableInMemoryStats` (optional): Set this option to `true` to enable in-memory stats. When enabled, only Last Hour data will be available on Dashboard and no stats data will be stored on disk.
