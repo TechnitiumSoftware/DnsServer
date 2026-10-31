@@ -164,6 +164,15 @@ namespace LogExporter.Strategy
                 }
             }
 
+            // Add blocking metadata
+            if ((log.BlockingMetadata is not null) && (log.BlockingMetadata.Count > 0))
+            {
+                foreach (KeyValuePair<string, string> item in log.BlockingMetadata)
+                    properties.Add(new LogEventProperty("blocking_" + item.Key, new ScalarValue(item.Value)));
+
+                properties.Add(new LogEventProperty("blockingMetadataSummary", new ScalarValue(string.Join(", ", log.BlockingMetadata.Select(kv => kv.Key + "=" + kv.Value)))));
+            }
+
             // Define the message template to match the original summary format
             const string templateText = "{questionsSummary}; RCODE: {rCode}; ANSWER: [{answersSummary}]";
 

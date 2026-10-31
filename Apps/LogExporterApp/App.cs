@@ -31,7 +31,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace LogExporter
 {
-    public sealed class App : IDnsApplication, IDnsQueryLogger
+    public sealed class App : IDnsApplication, IDnsQueryLoggerEx
     {
         #region variables
 
@@ -143,10 +143,15 @@ namespace LogExporter
 
         public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
+            return InsertLogAsync(timestamp, request, remoteEP, protocol, response, null);
+        }
+
+        public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response, DnsQueryLogMetadata? metadata)
+        {
             if (_enableLogging)
             {
                 if (_queuedLogs.Count < _config!.MaxQueueSize)
-                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response, _config.EnableEdnsLogging));
+                    _queuedLogs.Enqueue(new LogEntry(timestamp, remoteEP, protocol, request, response, _config.EnableEdnsLogging, metadata));
             }
 
             return Task.CompletedTask;
