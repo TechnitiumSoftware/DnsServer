@@ -658,7 +658,7 @@ namespace DnsServerCore.Dns
             BinaryReader bR = new BinaryReader(s);
 
             int version = bR.ReadByte();
-            if ((version < 1) || (version > 7))
+            if ((version < 1) || (version > 8))
                 throw new InvalidDataException("DNS Server config version not supported.");
 
             //general
@@ -1223,12 +1223,11 @@ namespace DnsServerCore.Dns
             if (!isConfigTransfer)
                 _statsManager.MaxStatFileDays = maxStatFileDays;
 
-            //Optional metadata flag is appended after the existing version 7 fields.
-            //Keep it last: older v7 configs omit this byte, and ReadByte returns -1.
-            //This setting is node-local and must not be overwritten during config transfer.
-            int logQueryMetadata = s.ReadByte();
+            //Extended query metadata is node-local and must not be overwritten during config transfer.
+            //Version 7 and earlier do not contain this field.
+            bool logQueryMetadata = version >= 8 && bR.ReadBoolean();
             if (!isConfigTransfer)
-                _logQueryMetadata = logQueryMetadata == 1;
+                _logQueryMetadata = logQueryMetadata;
         }
 
         private void WriteConfigTo(Stream s)
@@ -1236,7 +1235,7 @@ namespace DnsServerCore.Dns
             BinaryWriter bW = new BinaryWriter(s);
 
             bW.Write(Encoding.ASCII.GetBytes("DC")); //format
-            bW.Write((byte)7); //version
+            bW.Write((byte)8); //version
 
             //general
             s.WriteShortString(_serverDomain);
@@ -1520,7 +1519,7 @@ namespace DnsServerCore.Dns
             bW.Write(_queryLog is not null); //log all queries
             bW.Write(_statsManager.EnableInMemoryStats);
             bW.Write(_statsManager.MaxStatFileDays);
-            bW.Write(_logQueryMetadata); //optional trailing v7 field; must stay last
+            bW.Write(_logQueryMetadata); //extended query metadata; version 8, node-local
         }
 
         #endregion
