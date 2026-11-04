@@ -48,6 +48,7 @@ Release Date: 19 September 2026
 - Added new `DNS_SERVER_WEB_SERVICE_WWW_FOLDER_PATH` environment variable that allows changing the web service www root folder to allow using custom web service GUI. Thanks to Adrián García (@byGarcia) for PR #2138.
 - Updated docker compose to add health check option that uses the Health Check API call.
 - Updated Health Check API to be allowed to be called from loopback addresses without requiring authentication to support Docker health check.
+- Fixed TCP resource exhaustion vulnerability reported by Jonathan Horovitz, Yehuda Afek, and Anat Bremler-Barr from the Deepness Lab at Tel Aviv University. This allowed an attacker to cause Denial of Service (DoS) for TCP transport.
 - Fixed multi-hop amplification vulnerability reported by Qifan Zhang from Palo Alto Networks, that used multiple CNAME and delegation hops achieving a 4,096:1 packet amplification factor.
 - Fixed cache poisoning vulnerability reported by Qifan Zhang from Palo Alto Networks, that allowed caching out-of-bailiwick DNAME record received from an attacker controlled zone targeting any domain name.
 - Fixed DNSSEC validation bypass vulnerability reported by Qifan Zhang from Palo Alto Networks, that allowed an attacker controlled zone to inject out-of-bailiwick DS (Delegation Signer) records in referral responses to poison the resolver cache and disable DNSSEC validation for arbitrary signed zones.
