@@ -385,6 +385,15 @@ $(function () {
                 $("#divDnssecSignZoneRsaKskKeySize").hide();
                 $("#divDnssecSignZoneRsaZskKeySize").hide();
                 break;
+
+            case "MLDSA":
+                $("#divDnssecSignZoneRsaParameters").hide();
+                $("#divDnssecSignZoneEcdsaParameters").hide();
+                $("#divDnssecSignZoneEddsaParameters").hide();
+
+                $("#divDnssecSignZoneRsaKskKeySize").hide();
+                $("#divDnssecSignZoneRsaZskKeySize").hide();
+                break;
         }
     });
 
@@ -492,6 +501,14 @@ $(function () {
                 $("#divDnssecPropertiesAddKeyRsaParameters").hide();
                 $("#divDnssecPropertiesAddKeyEcdsaParameters").hide();
                 $("#divDnssecPropertiesAddKeyEddsaParameters").show();
+
+                $("#divDnssecPropertiesAddKeyRsaKeySize").hide();
+                break;
+
+            case "MLDSA":
+                $("#divDnssecPropertiesAddKeyRsaParameters").hide();
+                $("#divDnssecPropertiesAddKeyEcdsaParameters").hide();
+                $("#divDnssecPropertiesAddKeyEddsaParameters").hide();
 
                 $("#divDnssecPropertiesAddKeyRsaKeySize").hide();
                 break;
