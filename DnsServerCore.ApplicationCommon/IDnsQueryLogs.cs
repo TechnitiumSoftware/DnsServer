@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.ApplicationCommon
@@ -109,6 +110,71 @@ namespace DnsServerCore.ApplicationCommon
         #endregion
     }
 
+    /// <summary>
+    /// An Extended DNS Error (RFC 8914) carried by a DNS response. Apps that record
+    /// responses can persist the code and text so the reason a response was
+    /// generated, such as why a query was blocked, is available in query logs.
+    /// </summary>
+    public class DnsLogExtendedError
+    {
+        #region variables
+
+        readonly EDnsExtendedDnsErrorCode _infoCode;
+        readonly string? _extraText;
+
+        #endregion
+
+        #region constructor
+
+        /// <summary>
+        /// Creates a new object initialized with the given EDE info code and extra text.
+        /// </summary>
+        /// <param name="infoCode">The EDE info code.</param>
+        /// <param name="extraText">The EDE extra text.</param>
+        public DnsLogExtendedError(EDnsExtendedDnsErrorCode infoCode, string? extraText)
+        {
+            _infoCode = infoCode;
+            _extraText = extraText;
+        }
+
+        /// <summary>
+        /// Creates a new object initialized from the given EDE option data.
+        /// </summary>
+        /// <param name="ede">The EDE option data found in a DNS response.</param>
+        public DnsLogExtendedError(EDnsExtendedDnsErrorOptionData ede)
+        {
+            _infoCode = ede.InfoCode;
+            _extraText = ede.ExtraText;
+        }
+
+        #endregion
+
+        #region public
+
+        public override string ToString()
+        {
+            return _infoCode.ToString() + (_extraText is null ? "" : ": " + _extraText);
+        }
+
+        #endregion
+
+        #region properties
+
+        /// <summary>
+        /// The EDE info code.
+        /// </summary>
+        public EDnsExtendedDnsErrorCode InfoCode
+        { get { return _infoCode; } }
+
+        /// <summary>
+        /// The EDE extra text.
+        /// </summary>
+        public string? ExtraText
+        { get { return _extraText; } }
+
+        #endregion
+    }
+
     public class DnsLogEntry
     {
         #region variables
@@ -122,6 +188,7 @@ namespace DnsServerCore.ApplicationCommon
         readonly DnsResponseCode _rcode;
         readonly DnsQuestionRecord? _question;
         readonly string? _answer;
+        readonly IReadOnlyList<DnsLogExtendedError>? _extendedErrors;
 
         #endregion
 
@@ -139,7 +206,8 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="rcode">The response code sent by the DNS server.</param>
         /// <param name="question">The question section in the request.</param>
         /// <param name="answer">The answer in text format sent by the DNS server.</param>
-        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, double? responseRtt, DnsResponseCode rcode, DnsQuestionRecord? question, string? answer)
+        /// <param name="extendedErrors">The Extended DNS Error options found in the response.</param>
+        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, double? responseRtt, DnsResponseCode rcode, DnsQuestionRecord? question, string? answer, IReadOnlyList<DnsLogExtendedError>? extendedErrors = null)
         {
             _rowNumber = rowNumber;
             _timestamp = timestamp;
@@ -150,6 +218,7 @@ namespace DnsServerCore.ApplicationCommon
             _rcode = rcode;
             _question = question;
             _answer = answer;
+            _extendedErrors = extendedErrors;
 
             switch (_timestamp.Kind)
             {
@@ -174,7 +243,8 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="rcode">The response code sent by the DNS server.</param>
         /// <param name="question">The question section in the request.</param>
         /// <param name="answer">The answer in text format sent by the DNS server.</param>
-        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, DnsResponseCode rcode, DnsQuestionRecord question, string answer)
+        /// <param name="extendedErrors">The Extended DNS Error options found in the response.</param>
+        public DnsLogEntry(long rowNumber, DateTime timestamp, IPAddress clientIpAddress, DnsTransportProtocol protocol, DnsServerResponseType responseType, DnsResponseCode rcode, DnsQuestionRecord question, string answer, IReadOnlyList<DnsLogExtendedError>? extendedErrors = null)
         {
             _rowNumber = rowNumber;
             _timestamp = timestamp;
@@ -184,6 +254,7 @@ namespace DnsServerCore.ApplicationCommon
             _rcode = rcode;
             _question = question;
             _answer = answer;
+            _extendedErrors = extendedErrors;
 
             switch (_timestamp.Kind)
             {
@@ -254,6 +325,12 @@ namespace DnsServerCore.ApplicationCommon
         /// </summary>
         public string? Answer
         { get { return _answer; } }
+
+        /// <summary>
+        /// The Extended DNS Error options found in the response, if any were recorded.
+        /// </summary>
+        public IReadOnlyList<DnsLogExtendedError>? ExtendedErrors
+        { get { return _extendedErrors; } }
 
         #endregion
     }
