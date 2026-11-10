@@ -608,6 +608,9 @@ namespace DnsServerCore.HttpApi
                 if (inHeader.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
                     continue; //skip client header
 
+                if (inHeader.Key.Equals("Host", StringComparison.OrdinalIgnoreCase))
+                    continue; //skip host header since it belongs to this node; HttpClient will set it from the target node url which is also used as TLS target host
+
                 if (!httpRequest.Headers.TryAddWithoutValidation(inHeader.Key, inHeader.Value.ToString()))
                 {
                     if (!inHttpRequest.HasFormContentType)
