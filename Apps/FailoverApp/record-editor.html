@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        :root { color-scheme: light; --text: #333; --muted: #666; --surface: #fff; --border: #ccc; --focus: #337ab7; }
+        :root[data-theme=dark] { color-scheme: dark; --text: #eee; --muted: #bbb; --surface: #292929; --border: #666; --focus: #78b9ee; }
+        :root[data-theme=amber] { color-scheme: dark; --text: #ffbf00; --muted: #d4a740; --surface: #201800; --border: #806000; --focus: #ffbf00; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 3px; font: 14px/1.45 Arial, sans-serif; color: var(--text); }
+        fieldset { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
+        legend { padding: 0; margin-bottom: 6px; font-weight: bold; }
+        p { margin: 4px 0 10px; color: var(--muted); }
+        .row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        input[type=text], input[type=url] { width: 100%; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; }
+        .row input[type=text] { flex: 1; }
+        .enabled { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; font-weight: normal; }
+        button { padding: 5px 9px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+        button:hover { border-color: var(--focus); }
+        :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+        .field { display: block; margin: 12px 0 4px; font-weight: bold; }
+        #error { color: #b52b27; margin-top: 10px; }
+        [data-theme=dark] #error, [data-theme=amber] #error { color: #ff9895; }
+        @media (max-width: 390px) { .row { flex-wrap: wrap; } .row input[type=text] { flex-basis: 100%; } }
+    </style>
+</head>
+<body>
+    <p>Add each backend IP separately. Disabled IPs stay saved but are excluded from responses after saving.</p>
+    <fieldset>
+        <legend>Primary addresses</legend>
+        <div id="primary"></div>
+        <button type="button" data-add="primary">Add primary IP</button>
+        <p>Healthy primary addresses are used first.</p>
+    </fieldset>
+    <fieldset>
+        <legend>Secondary addresses</legend>
+        <div id="secondary"></div>
+        <button type="button" data-add="secondary">Add secondary IP</button>
+        <p>Used when no primary address is available.</p>
+    </fieldset>
+    <fieldset>
+        <legend>Server down addresses</legend>
+        <div id="serverDown"></div>
+        <button type="button" data-add="serverDown">Add server down IP</button>
+        <p>Used when no primary or secondary address is available. These IPs are not health checked.</p>
+    </fieldset>
+    <label class="field" for="healthCheck">Health check</label>
+    <input id="healthCheck" type="text" placeholder="https" spellcheck="false" required>
+    <p>Name of a health check configured in the Failover app.</p>
+    <label class="field" for="healthCheckUrl">Health check URL</label>
+    <input id="healthCheckUrl" type="url" placeholder="Optional" spellcheck="false">
+    <p>For HTTP/HTTPS checks. A URL set in the app configuration takes precedence.</p>
+    <label class="enabled"><input id="allowTxtStatus" type="checkbox"> Allow health status in TXT queries</label>
+    <p id="error" role="alert"></p>
+    <script>
+        var recordData;
+        var editorPort;
+        var groups = ["primary", "secondary", "serverDown"];
+
+        function readFailoverRecordData(text) {
+            var data = JSON.parse(text);
+            if ((data === null) || (typeof data !== "object") || Array.isArray(data))
+                throw new Error("Record data must be a JSON object.");
+            groups.forEach(function (group) {
+                if (!(group in data))
+                    return;
+                if (!Array.isArray(data[group]))
+                    throw new Error(group + " must be an array of IP addresses.");
+                data[group].forEach(function (entry) {
+                    if (typeof entry === "string")
+                        return;
+                    if ((entry === null) || (typeof entry !== "object") || Array.isArray(entry) ||
+                        (typeof entry.address !== "string") || (("enabled" in entry) && (typeof entry.enabled !== "boolean")))
+                        throw new Error("Each backend must be an IP address or an object with address and optional enabled fields.");
+                });
+            });
+            if ((("healthCheck" in data) && (typeof data.healthCheck !== "string")) ||
+                (("healthCheckUrl" in data) && (data.healthCheckUrl !== null) && (typeof data.healthCheckUrl !== "string")) ||
+                (("allowTxtStatus" in data) && (typeof data.allowTxtStatus !== "boolean")))
+                throw new Error("Health check settings have unsupported value types.");
+            return data;
+        }
+
+        function createFailoverAddressData(original, address, enabled) {
+            address = address.trim();
+            var valid = /^(\d{1,3}\.){3}\d{1,3}$/.test(address) && address.split(".").every(function (part) {
+                return (Number(part) <= 255) && ((part.length === 1) || (part[0] !== "0"));
+            });
+            if (address.indexOf(":") >= 0) {
+                try { valid = /^[0-9a-f:.]+$/i.test(address) && new URL("http://[" + address + "]/").hostname.startsWith("["); }
+                catch (e) { valid = false; }
+            }
+            if (!valid)
+                throw new Error("Enter a valid IPv4 or IPv6 IP address for every backend, or remove the empty row.");
+            if ((typeof original === "string") && enabled)
+                return address;
+            var entry = (typeof original === "object") && (original !== null) ? JSON.parse(JSON.stringify(original)) : {};
+            entry.address = address;
+            entry.enabled = enabled;
+            return entry;
+        }
+
+        function addAddress(group, entry) {
+            var row = document.createElement("div");
+            row.className = "row";
+            row.innerHTML = '<input type="text" aria-label="Backend IP address" placeholder="IPv4 or IPv6 address" spellcheck="false">' +
+                '<label class="enabled"><input type="checkbox"> Enabled</label><button type="button" aria-label="Remove backend IP">Remove</button>';
+            row.original = entry;
+            row.querySelector("input[type=text]").value = typeof entry === "string" ? entry : entry.address;
+            row.querySelector("input[type=checkbox]").checked = typeof entry === "string" || entry.enabled !== false;
+            row.querySelector("button").onclick = function () { row.remove(); };
+            document.getElementById(group).appendChild(row);
+            return row;
+        }
+
+        function saveRecord() {
+            var data = JSON.parse(JSON.stringify(recordData));
+            groups.forEach(function (group) {
+                var entries = [];
+                document.getElementById(group).querySelectorAll(".row").forEach(function (row) {
+                    var input = row.querySelector("input[type=text]");
+                    try { entries.push(createFailoverAddressData(row.original, input.value, row.querySelector("input[type=checkbox]").checked)); }
+                    catch (e) { input.focus(); throw e; }
+                });
+                if (entries.length || (group in data))
+                    data[group] = entries;
+            });
+            var healthCheck = document.getElementById("healthCheck");
+            data.healthCheck = healthCheck.value.trim();
+            if (!data.healthCheck) {
+                healthCheck.focus();
+                throw new Error("Enter the name of a health check configured in the Failover app.");
+            }
+            var urlInput = document.getElementById("healthCheckUrl");
+            var url = urlInput.value.trim();
+            if (url) {
+                try {
+                    var protocol = new URL(url).protocol;
+                    if (protocol !== "http:" && protocol !== "https:")
+                        throw new Error();
+                }
+                catch (e) {
+                    urlInput.focus();
+                    throw new Error("Enter an absolute HTTP or HTTPS health check URL, or leave it empty.");
+                }
+            }
+            if (url || ("healthCheckUrl" in data))
+                data.healthCheckUrl = url || null;
+            data.allowTxtStatus = document.getElementById("allowTxtStatus").checked;
+            return JSON.stringify(data, null, 2);
+        }
+
+        window.addEventListener("message", function (event) {
+            if (event.source !== parent || event.data?.type !== "dns-app-record-editor:init" || event.data.version !== 1 || !event.ports[0])
+                return;
+            if (editorPort)
+                editorPort.close();
+            editorPort = event.ports[0];
+            document.documentElement.dataset.theme = event.data.theme;
+            try {
+                recordData = readFailoverRecordData(event.data.data);
+                groups.forEach(function (group) {
+                    document.getElementById(group).replaceChildren();
+                    (recordData[group] || []).forEach(function (entry) { addAddress(group, entry); });
+                });
+                document.getElementById("healthCheck").value = recordData.healthCheck || "";
+                document.getElementById("healthCheckUrl").value = recordData.healthCheckUrl || "";
+                document.getElementById("allowTxtStatus").checked = recordData.allowTxtStatus === true;
+            }
+            catch (e) {
+                editorPort.postMessage({ type: "unsupported", error: e.message });
+                return;
+            }
+            editorPort.onmessage = function (event) {
+                if (event.data?.type !== "save")
+                    return;
+                var message = { type: "save", requestId: event.data.requestId };
+                try {
+                    message.data = saveRecord();
+                    document.getElementById("error").textContent = "";
+                }
+                catch (e) {
+                    message.error = e.message;
+                    document.getElementById("error").textContent = e.message;
+                }
+                editorPort.postMessage(message);
+            };
+            editorPort.postMessage({ type: "ready" });
+            editorPort.postMessage({ type: "resize", height: document.body.scrollHeight + 6 });
+        });
+
+        document.querySelectorAll("[data-add]").forEach(function (button) {
+            button.onclick = function () { addAddress(button.dataset.add, "").querySelector("input").focus(); };
+        });
+        new ResizeObserver(function () {
+            if (editorPort)
+                editorPort.postMessage({ type: "resize", height: document.body.scrollHeight + 6 });
+        }).observe(document.body);
+    </script>
+</body>
+</html>

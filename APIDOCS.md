@@ -4560,6 +4560,8 @@ These API calls allows managing DNS Apps.
 
 Lists all installed apps on the DNS server. If the DNS server has Internet access and is able to retrieve data from DNS App Store, the API call will also return if a store App has updates available.
 
+APP record handlers implementing `IDnsAppRecordEditor` can also return an optional `recordDataEditor` HTML document alongside `recordDataTemplate`. The web console loads this app-owned component in a sandboxed iframe. See [App-owned record editors](Apps/RECORD-EDITORS.md) for the component protocol. The field is omitted for handlers without editor support.
+
 URL:\
 `http://localhost:5380/api/apps/list`
 
