@@ -115,6 +115,8 @@ namespace DnsServerCore
                         {
                             jsonWriter.WriteBoolean("isAppRecordRequestHandler", true);
                             jsonWriter.WriteString("recordDataTemplate", appRecordHandler.ApplicationRecordDataTemplate);
+                            if (dnsApp.Value is IDnsAppRecordEditor recordEditor)
+                                jsonWriter.WriteString("recordDataEditor", recordEditor.ApplicationRecordDataEditor);
                         }
                         else
                         {
