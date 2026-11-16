@@ -21,8 +21,15 @@ var zoneOptionsAvailableTsigKeyNames;
 var editZoneInfo;
 var editZoneRecords;
 var editZoneFilteredRecords;
+var appRecordEditorPort;
+var appRecordEditorPending;
+var appRecordEditorGeneration = 0;
+var appRecordEditorRequestId = 0;
+var appRecordEditorReady = false;
 
 $(function () {
+    $("#modalAddEditRecord").on("hidden.bs.modal", resetAppRecordEditor);
+
     $("input[type=radio][name=rdAddZoneType]").on("change", function () {
         $("#txtAddZone").prop("disabled", false);
         $("#divAddZoneCatalogZone").hide();
@@ -578,6 +585,7 @@ $(function () {
 
         $("#optAddEditRecordDataClassPath").html(optClassPaths);
         $("#txtAddEditRecordDataData").val("");
+        loadAppRecordEditor();
     });
 
     $("#optAddEditRecordDataClassPath").on("change", function () {
@@ -592,6 +600,7 @@ $(function () {
                 for (var j = 0; j < appsList[i].dnsApps.length; j++) {
                     if (appsList[i].dnsApps[j].classPath == classPath) {
                         $("#txtAddEditRecordDataData").val(appsList[i].dnsApps[j].recordDataTemplate);
+                        loadAppRecordEditor();
                         return;
                     }
                 }
@@ -599,6 +608,7 @@ $(function () {
         }
 
         $("#txtAddEditRecordDataData").val("");
+        loadAppRecordEditor();
     });
 
     $("#optZoneOptionsQuickTsigKeyNames").on("change", function () {
@@ -4344,6 +4354,168 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
     return tableHtmlRow;
 }
 
+function resetAppRecordEditor() {
+    appRecordEditorGeneration++;
+    appRecordEditorReady = false;
+    if (appRecordEditorPort) {
+        appRecordEditorPort.close();
+        appRecordEditorPort = null;
+    }
+    if (appRecordEditorPending)
+        appRecordEditorPending.finish(null);
+
+    $("#frameAppRecordEditor").off("load").removeAttr("srcdoc");
+    $("#divAppRecordEditor, #divAppRecordEditorOptions").hide();
+    $("#divAppRecordRawData").show();
+    $("#chkAppRecordRawData").prop("checked", true);
+    $("#divAppRecordEditorStatus").text("");
+}
+
+function loadAppRecordEditor(refreshApps) {
+    resetAppRecordEditor();
+    var generation = appRecordEditorGeneration;
+    var appName = $("#optAddEditRecordDataAppName").val();
+    var classPath = $("#optAddEditRecordDataClassPath").val();
+    if (!appName || !classPath)
+        return;
+
+    function loadEditor(apps) {
+        if (generation !== appRecordEditorGeneration)
+            return;
+
+        var editor;
+        for (var i = 0; i < apps.length; i++) {
+            if (apps[i].name !== appName)
+                continue;
+            for (var j = 0; j < apps[i].dnsApps.length; j++) {
+                if (apps[i].dnsApps[j].classPath === classPath)
+                    editor = apps[i].dnsApps[j].recordDataEditor;
+            }
+        }
+        if (typeof editor !== "string" || editor === "")
+            return;
+
+        $("#divAppRecordEditor, #divAppRecordEditorOptions").show();
+        $("#divAppRecordRawData").hide();
+        $("#chkAppRecordRawData").prop("checked", false);
+        $("#divAppRecordEditorStatus").text("Loading app editor...");
+
+        var previousFrame = $("#frameAppRecordEditor");
+        var frame = previousFrame.clone();
+        frame.one("load", function () {
+            if (generation !== appRecordEditorGeneration)
+                return;
+
+            var channel = new MessageChannel();
+            appRecordEditorPort = channel.port1;
+            channel.port1.onmessage = function (event) {
+                if (generation !== appRecordEditorGeneration || !event.data)
+                    return;
+
+                var message = event.data;
+                switch (message.type) {
+                    case "ready":
+                        appRecordEditorReady = true;
+                        $("#divAppRecordEditorStatus").text("");
+                        break;
+                    case "unsupported":
+                        $("#divAppRecordEditor").hide();
+                        $("#divAppRecordRawData").show();
+                        $("#chkAppRecordRawData").prop("checked", true);
+                        $("#divAppRecordEditorStatus").text("Use the raw editor for this record. " + (typeof message.error === "string" ? message.error : ""));
+                        break;
+                    case "resize":
+                        if (typeof message.height === "number" && Number.isFinite(message.height))
+                            frame.height(Math.max(120, Math.min(1000, message.height)));
+                        break;
+                    case "save":
+                        if (appRecordEditorPending && message.requestId === appRecordEditorPending.id) {
+                            if (typeof message.error === "string") {
+                                showAlert("warning", "Invalid Record Data!", htmlEncode(message.error), $("#divAddEditRecordAlert"));
+                                appRecordEditorPending.finish(null);
+                            }
+                            else if (typeof message.data === "string") {
+                                $("#txtAddEditRecordDataData").val(message.data);
+                                appRecordEditorPending.finish(message.data);
+                            }
+                        }
+                        break;
+                }
+            };
+            this.contentWindow.postMessage({
+                type: "dns-app-record-editor:init", version: 1,
+                data: $("#txtAddEditRecordDataData").val(),
+                theme: document.body.classList.contains("dark-mode") ? "dark" : document.body.classList.contains("amber-mode") ? "amber" : "light"
+            }, "*", [channel.port2]);
+        });
+        // Keep app scripts isolated from the console, session token, and network.
+        frame.attr("srcdoc", "<!DOCTYPE html><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'\">" + editor);
+        previousFrame.replaceWith(frame);
+    }
+
+    if (appsList != null && !refreshApps) {
+        loadEditor(appsList);
+        return;
+    }
+
+    HTTPRequest({
+        url: "api/apps/list?node=" + encodeURIComponent($("#optZonesClusterNode").val()),
+        token: sessionData.token,
+        success: function (responseJSON) {
+            if (generation !== appRecordEditorGeneration)
+                return;
+            appsList = responseJSON.response.apps;
+            loadEditor(appsList);
+        },
+        error: function () { }, // Raw editing remains available if app metadata cannot be loaded.
+        invalidToken: function () { showPageLogin(); }
+    });
+}
+
+async function toggleAppRecordRawData() {
+    if ($("#chkAppRecordRawData").prop("checked")) {
+        // Read the component before switching modes so unsaved edits are preserved.
+        $("#chkAppRecordRawData").prop("checked", false);
+        if (appRecordEditorReady && await getAppRecordData() === null)
+            return;
+        $("#chkAppRecordRawData").prop("checked", true);
+        $("#divAppRecordEditor").hide();
+        $("#divAppRecordRawData").show();
+        $("#divAppRecordEditorStatus").text("");
+    }
+    else {
+        loadAppRecordEditor();
+    }
+}
+
+async function getAppRecordData() {
+    if ($("#chkAppRecordRawData").prop("checked"))
+        return $("#txtAddEditRecordDataData").val();
+
+    if (!appRecordEditorReady || !appRecordEditorPort) {
+        showAlert("warning", "Editor Loading!", "Wait for the app editor to load, or reopen the record to edit its raw data.", $("#divAddEditRecordAlert"));
+        return null;
+    }
+    if (appRecordEditorPending)
+        return null;
+
+    return new Promise(function (resolve) {
+        var timeout = setTimeout(function () {
+            showAlert("warning", "Editor Not Responding!", "The app editor did not return record data. Your record has not been saved.", $("#divAddEditRecordAlert"));
+            appRecordEditorPending.finish(null);
+        }, 5000);
+        appRecordEditorPending = {
+            id: ++appRecordEditorRequestId,
+            finish: function (data) {
+                clearTimeout(timeout);
+                appRecordEditorPending = null;
+                resolve(data);
+            }
+        };
+        appRecordEditorPort.postMessage({ type: "save", requestId: appRecordEditorPending.id });
+    });
+}
+
 function clearAddEditRecordForm() {
     $("#divAddEditRecordAlert").html("");
 
@@ -4474,6 +4646,8 @@ function clearAddEditRecordForm() {
     $("#optAddEditRecordDataClassPath").prop("disabled", false);
     $("#txtAddEditRecordDataData").val("");
 
+    loadAppRecordEditor();
+
     $("#divAddEditRecordOverwrite").show();
     $("#chkAddEditRecordOverwrite").prop("checked", false);
 
@@ -4565,6 +4739,7 @@ function loadAddRecordModalAppNames() {
 }
 
 function modifyAddRecordFormByType(addMode) {
+    resetAppRecordEditor();
     $("#divAddEditRecordAlert").html("");
 
     $("#txtAddEditRecordName").prop("placeholder", "@");
@@ -4761,6 +4936,7 @@ function modifyAddRecordFormByType(addMode) {
             $("#optAddEditRecordDataAppName").val("");
             $("#optAddEditRecordDataClassPath").val("");
             $("#txtAddEditRecordDataData").val("");
+            loadAppRecordEditor();
             $("#divAddEditRecordDataApplication").show();
 
             if (addMode)
@@ -4798,7 +4974,7 @@ function zoneHasSvcbAutoHint(ipv4, ipv6) {
     return false;
 }
 
-function addRecord() {
+async function addRecord() {
     var btn = $("#btnAddEditRecord");
     var divAddEditRecordAlert = $("#divAddEditRecordAlert");
 
@@ -5239,7 +5415,9 @@ function addRecord() {
                 return;
             }
 
-            var recordData = $("#txtAddEditRecordDataData").val();
+            var recordData = await getAppRecordData();
+            if (recordData === null)
+                return;
 
             formData += "&appName=" + encodeURIComponent(appName) + "&classPath=" + encodeURIComponent(classPath) + "&recordData=" + encodeURIComponent(recordData);
             break;
@@ -5645,6 +5823,7 @@ function showEditRecordModal(objBtn) {
             $("#optAddEditRecordDataClassPath").val(divData.attr("data-record-classpath"))
 
             $("#txtAddEditRecordDataData").val(divData.attr("data-record-data"))
+            loadAppRecordEditor(true);
             break;
 
         default:
@@ -5675,7 +5854,7 @@ function showEditRecordModal(objBtn) {
     }, 1000);
 }
 
-function updateRecord() {
+async function updateRecord() {
     var btn = $("#btnAddEditRecord");
     var divAddEditRecordAlert = $("#divAddEditRecordAlert");
 
@@ -6250,7 +6429,11 @@ function updateRecord() {
             break;
 
         case "APP":
-            formData += "&appName=" + encodeURIComponent(divData.attr("data-record-app-name")) + "&classPath=" + encodeURIComponent(divData.attr("data-record-classpath")) + "&recordData=" + encodeURIComponent($("#txtAddEditRecordDataData").val());
+            var recordData = await getAppRecordData();
+            if (recordData === null)
+                return;
+
+            formData += "&appName=" + encodeURIComponent(divData.attr("data-record-app-name")) + "&classPath=" + encodeURIComponent(divData.attr("data-record-classpath")) + "&recordData=" + encodeURIComponent(recordData);
             break;
 
         default:

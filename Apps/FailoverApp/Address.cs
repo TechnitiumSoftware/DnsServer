@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -37,7 +38,7 @@ namespace Failover
         Secondary = 2
     }
 
-    public sealed class Address : IDnsApplication, IDnsAppRecordRequestHandler
+    public sealed class Address : IDnsApplication, IDnsAppRecordRequestHandler, IDnsAppRecordEditor
     {
         #region variables
 
@@ -65,6 +66,22 @@ namespace Failover
 
         #region private
 
+        private static IPAddress? GetEnabledAddress(JsonElement jsonAddress)
+        {
+            if (jsonAddress.ValueKind == JsonValueKind.Object)
+            {
+                if (jsonAddress.TryGetProperty("enabled", out JsonElement jsonEnabled) && !jsonEnabled.GetBoolean())
+                    return null;
+
+                jsonAddress = jsonAddress.GetProperty("address");
+            }
+
+            if (jsonAddress.ValueKind != JsonValueKind.String)
+                return null;
+
+            return IPAddress.Parse(jsonAddress.GetString()!);
+        }
+
         private void GetAnswers(JsonElement jsonAddresses, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, Uri? healthCheckUrl, List<DnsResourceRecord> answers)
         {
             switch (question.Type)
@@ -72,10 +89,9 @@ namespace Failover
                 case DnsResourceRecordType.A:
                     foreach (JsonElement jsonAddress in jsonAddresses.EnumerateArray())
                     {
-                        if (jsonAddress.ValueKind != JsonValueKind.String)
+                        IPAddress? address = GetEnabledAddress(jsonAddress);
+                        if (address is null)
                             continue;
-
-                        IPAddress address = IPAddress.Parse(jsonAddress.GetString()!);
 
                         if (address.AddressFamily == AddressFamily.InterNetwork)
                         {
@@ -97,10 +113,9 @@ namespace Failover
                 case DnsResourceRecordType.AAAA:
                     foreach (JsonElement jsonAddress in jsonAddresses.EnumerateArray())
                     {
-                        if (jsonAddress.ValueKind != JsonValueKind.String)
+                        IPAddress? address = GetEnabledAddress(jsonAddress);
+                        if (address is null)
                             continue;
-
-                        IPAddress address = IPAddress.Parse(jsonAddress.GetString()!);
 
                         if (address.AddressFamily == AddressFamily.InterNetworkV6)
                         {
@@ -125,10 +140,9 @@ namespace Failover
         {
             foreach (JsonElement jsonAddress in jsonAddresses.EnumerateArray())
             {
-                if (jsonAddress.ValueKind != JsonValueKind.String)
+                IPAddress? address = GetEnabledAddress(jsonAddress);
+                if (address is null)
                     continue;
-
-                IPAddress address = IPAddress.Parse(jsonAddress.GetString()!);
                 HealthCheckResponse response = _healthService!.QueryStatus(address, healthCheck, healthCheckUrl, false);
 
                 string text = "app=failover; addressType=" + type.ToString() + "; address=" + address.ToString() + "; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri) + "; healthStatus=" + response.Status.ToString() + ";";
@@ -212,10 +226,9 @@ namespace Failover
                                     {
                                         foreach (JsonElement jsonAddress in jsonServerDown.EnumerateArray())
                                         {
-                                            if (jsonAddress.ValueKind != JsonValueKind.String)
+                                            IPAddress? address = GetEnabledAddress(jsonAddress);
+                                            if (address is null)
                                                 continue;
-
-                                            IPAddress address = IPAddress.Parse(jsonAddress.GetString()!);
 
                                             if (address.AddressFamily == AddressFamily.InterNetwork)
                                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecordData(address)));
@@ -225,10 +238,9 @@ namespace Failover
                                     {
                                         foreach (JsonElement jsonAddress in jsonServerDown.EnumerateArray())
                                         {
-                                            if (jsonAddress.ValueKind != JsonValueKind.String)
+                                            IPAddress? address = GetEnabledAddress(jsonAddress);
+                                            if (address is null)
                                                 continue;
-
-                                            IPAddress address = IPAddress.Parse(jsonAddress.GetString()!);
 
                                             if (address.AddressFamily == AddressFamily.InterNetworkV6)
                                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecordData(address)));
@@ -297,6 +309,15 @@ namespace Failover
         #endregion
 
         #region properties
+
+        public string ApplicationRecordDataEditor
+        {
+            get
+            {
+                using StreamReader reader = new StreamReader(typeof(Address).Assembly.GetManifestResourceStream("Failover.RecordEditor.html")!);
+                return reader.ReadToEnd();
+            }
+        }
 
         public string Description
         { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses. When none of the primary and secondary addresses are healthy, the app returns all addresses from the server down set of addresses. The server down feature is expected to be used for showing a service status page and not to serve the actual content.\n\nIf an URL is provided for the health check in the app's config then it will override the 'healthCheckUrl' parameter. When an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }

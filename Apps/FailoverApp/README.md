@@ -231,16 +231,22 @@ APP records are created in DNS zones and reference health check profiles. The ap
 
 Returns IP addresses based on health status with primary/secondary failover logic.
 
+The zone's **Add/Edit Record** dialog shows the editor supplied by the Failover app when you select `Failover.Address`. Add individual IPs under **Primary**, **Secondary**, or **Server down**, and use each row's **Enabled** checkbox to take that backend out of service without deleting it. Changes take effect when you save the record. Cached DNS answers remain valid until their TTL expires.
+
+Disabled addresses are excluded from DNS answers and TXT status output. Primary and secondary selection continues with the remaining enabled addresses; if none are available, only enabled server-down addresses are used. Existing health monitors may remain until their normal expiry, or continue if another record uses the same IP.
+
+Use **Edit raw record data** for direct JSON access. The form preserves extra JSON properties. Records with comments or unsupported structures stay in raw mode to avoid losing data. The editor is packaged inside the app; the console uses the shared [app editor extension](../RECORD-EDITORS.md).
+
 **JSON Structure:**
 
 ```json
 {
-  "primary": {
-    "addresses": ["192.0.2.1", "192.0.2.2"]
-  },
-  "secondary": {
-    "addresses": ["198.51.100.1", "198.51.100.2"]
-  },
+  "primary": [
+    "192.0.2.1",
+    { "address": "192.0.2.2", "enabled": false }
+  ],
+  "secondary": ["198.51.100.1", "198.51.100.2"],
+  "serverDown": ["203.0.113.1"],
   "healthCheck": "https",
   "healthCheckUrl": "https://app.example.com/health"
 }
@@ -250,10 +256,13 @@ Returns IP addresses based on health status with primary/secondary failover logi
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `primary.addresses` | Array of Strings | Primary IP addresses (IPv4/IPv6) to return when healthy |
-| `secondary.addresses` | Array of Strings | Fallback IP addresses returned when all primary addresses fail |
+| `primary` | Array of strings or address objects | Primary IP addresses (IPv4/IPv6) to return when healthy |
+| `secondary` | Array of strings or address objects | Fallback IP addresses returned when no primary address is available |
+| `serverDown` | Array of strings or address objects | Last-resort addresses, without health checks |
 | `healthCheck` | String | Name of health check profile to use |
 | `healthCheckUrl` | String (optional) | Override URL for HTTP/HTTPS checks; if omitted, defaults to `https://<queried-domain>` |
+
+String entries are enabled by default. An address object has an `address` string and an optional `enabled` boolean (default `true`). Set `enabled` to `false` to disable only that entry in that record. The new editor requires updating both the DNS server and Failover app.
 
 ### CNAME-Based Failover
 

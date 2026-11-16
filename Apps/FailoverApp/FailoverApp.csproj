@@ -44,6 +44,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<EmbeddedResource Include="record-editor.html" LogicalName="Failover.RecordEditor.html" />
 		<None Update="dnsApp.config">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
