@@ -37,6 +37,12 @@ const root = path.join(__dirname, '..');
             loadAppRecordEditor();
         }, editor);
         await page.waitForFunction(() => appRecordEditorReady);
+        const alignment = await page.evaluate(() => {
+            const input = document.getElementById('optAddEditRecordDataAppName').getBoundingClientRect();
+            const editor = document.getElementById('frameAppRecordEditor').getBoundingClientRect();
+            return { left: Math.abs(input.left - editor.left), right: Math.abs(input.right - editor.right) };
+        });
+        assert.ok(alignment.left < 1 && alignment.right < 1, 'The injected editor must align with the existing form input column');
         let frame = page.frameLocator('#frameAppRecordEditor');
         assert.equal(await frame.locator('#primary .row').count(), 2);
         assert.equal(await frame.locator('#primary input[type=checkbox]').nth(1).isChecked(), false);

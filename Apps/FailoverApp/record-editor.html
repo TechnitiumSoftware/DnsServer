@@ -8,21 +8,21 @@
         :root[data-theme=dark] { color-scheme: dark; --text: #eee; --muted: #bbb; --surface: #292929; --border: #666; --focus: #78b9ee; }
         :root[data-theme=amber] { color-scheme: dark; --text: #ffbf00; --muted: #d4a740; --surface: #201800; --border: #806000; --focus: #ffbf00; }
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 3px; font: 14px/1.45 Arial, sans-serif; color: var(--text); }
+        body { margin: 0; padding: 3px 0; font: 14px/20px "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--text); }
         fieldset { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
         legend { padding: 0; margin-bottom: 6px; font-weight: bold; }
         p { margin: 4px 0 10px; color: var(--muted); }
-        .row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .row { display: grid; grid-template-columns: minmax(0, 1fr) 76px 74px; align-items: center; gap: 8px; margin-bottom: 8px; }
         input[type=text], input[type=url] { width: 100%; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; }
-        .row input[type=text] { flex: 1; }
-        .enabled { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; font-weight: normal; }
-        button { padding: 5px 9px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+        .enabled { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; font-weight: normal; }
+        .enabled input { margin: 0; }
+        button { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
         button:hover { border-color: var(--focus); }
-        :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+        :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
         .field { display: block; margin: 12px 0 4px; font-weight: bold; }
         #error { color: #b52b27; margin-top: 10px; }
         [data-theme=dark] #error, [data-theme=amber] #error { color: #ff9895; }
-        @media (max-width: 390px) { .row { flex-wrap: wrap; } .row input[type=text] { flex-basis: 100%; } }
+        @media (max-width: 390px) { .row { grid-template-columns: 76px 74px minmax(0, 1fr); } .row input[type=text] { grid-column: 1 / -1; } }
     </style>
 </head>
 <body>
