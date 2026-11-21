@@ -3263,16 +3263,19 @@ function changeTheme(newTheme) {
 }
 
 function applyDarkMode() {
+    Chart.defaults.global.defaultFontColor = "#dcdcdc";
     document.body.classList.add("dark-mode");
     document.body.classList.remove("light-mode", "amber-mode");
 }
 
 function applyLightMode() {
+    Chart.defaults.global.defaultFontColor = "#666";
     document.body.classList.add("light-mode");
     document.body.classList.remove("dark-mode", "amber-mode");
 }
 
 function applyAmberMode() {
+    Chart.defaults.global.defaultFontColor = "#ffb000";
     document.body.classList.add("amber-mode");
     document.body.classList.remove("light-mode", "dark-mode");
 }
