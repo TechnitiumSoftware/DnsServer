@@ -233,6 +233,23 @@ namespace DnsServerCore
                     jsonWriter.WriteString("qclass", entry.Question?.Class.ToString());
                     jsonWriter.WriteString("answer", entry.Answer);
 
+                    if (entry.ExtendedErrors is not null)
+                    {
+                        jsonWriter.WritePropertyName("extendedErrors");
+                        jsonWriter.WriteStartArray();
+
+                        foreach (DnsLogExtendedError ede in entry.ExtendedErrors)
+                        {
+                            jsonWriter.WriteStartObject();
+                            jsonWriter.WriteNumber("infoCode", (int)ede.InfoCode);
+                            jsonWriter.WriteString("infoCodeName", ede.InfoCode.ToString());
+                            jsonWriter.WriteString("extraText", ede.ExtraText);
+                            jsonWriter.WriteEndObject();
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
+
                     jsonWriter.WriteEndObject();
                 }
 
@@ -329,7 +346,7 @@ namespace DnsServerCore
                     {
                         StreamWriter sW = new StreamWriter(csvFileStream, Encoding.UTF8);
 
-                        await sW.WriteLineAsync("RowNumber,Timestamp,ClientIpAddress,Protocol,ResponseType,ResponseRtt,RCODE,Domain,Type,Class,Answer");
+                        await sW.WriteLineAsync("RowNumber,Timestamp,ClientIpAddress,Protocol,ResponseType,ResponseRtt,RCODE,Domain,Type,Class,Answer,ExtendedErrors");
 
                         do
                         {
@@ -361,6 +378,22 @@ namespace DnsServerCore
                                 await WriteCsvFieldAsync(sW, entry.Question?.Class.ToString());
                                 await sW.WriteAsync(',');
                                 await WriteCsvFieldAsync(sW, entry.Answer);
+                                await sW.WriteAsync(',');
+
+                                if (entry.ExtendedErrors is not null)
+                                {
+                                    string extendedErrors = null;
+
+                                    foreach (DnsLogExtendedError ede in entry.ExtendedErrors)
+                                    {
+                                        if (extendedErrors is null)
+                                            extendedErrors = ede.ToString();
+                                        else
+                                            extendedErrors += "; " + ede.ToString();
+                                    }
+
+                                    await WriteCsvFieldAsync(sW, extendedErrors);
+                                }
 
                                 await sW.WriteLineAsync();
                             }
