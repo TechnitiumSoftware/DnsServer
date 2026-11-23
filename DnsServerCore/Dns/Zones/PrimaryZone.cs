@@ -1280,6 +1280,7 @@ namespace DnsServerCore.Dns.Zones
                 case DnssecAlgorithm.ECDSAP384SHA384:
                 case DnssecAlgorithm.ED25519:
                 case DnssecAlgorithm.ED448:
+                case DnssecAlgorithm.MLDSA44:
                     GenerateAndAddPrivateKey(privateKey.KeyType, privateKey.Algorithm, privateKey.RolloverDays);
                     break;
 

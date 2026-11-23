@@ -211,6 +211,9 @@ namespace DnsServerCore.Dns.Dnssec
                 case DnssecAlgorithm.ED448:
                     return new DnssecEddsaPrivateKey(keyType, new Ed448PrivateKeyParameters(RandomNumberGenerator.GetBytes(57)));
 
+                case DnssecAlgorithm.MLDSA44:
+                    return new DnssecMldsaPrivateKey(keyType, MLDsaPrivateKeyParameters.FromSeed(MLDsaParameters.ml_dsa_44, RandomNumberGenerator.GetBytes(32)));
+
                 default:
                     throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
             }
@@ -275,6 +278,18 @@ namespace DnsServerCore.Dns.Dnssec
                         return new DnssecEddsaPrivateKey(keyType, privateKey);
                     }
 
+                case DnssecAlgorithm.MLDSA44:
+                    using (PemReader pemReader = new PemReader(new StringReader(pemPrivateKey)))
+                    {
+                        if ((pemReader.ReadObject() is not MLDsaPrivateKeyParameters privateKey) || (privateKey.Parameters != MLDsaParameters.ml_dsa_44))
+                            throw new ArgumentException($"The ML-DSA ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must be for ML-DSA-44.", nameof(pemPrivateKey));
+
+                        if (privateKey.GetSeed() is null)
+                            throw new ArgumentException($"The ML-DSA-44 ({(keyType == DnssecPrivateKeyType.KeySigningKey ? "KSK" : "ZSK")}) private key must use the seed encoding.", nameof(pemPrivateKey));
+
+                        return new DnssecMldsaPrivateKey(keyType, privateKey);
+                    }
+
                 default:
                     throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
             }
@@ -307,6 +322,9 @@ namespace DnsServerCore.Dns.Dnssec
                         case DnssecAlgorithm.ED25519:
                         case DnssecAlgorithm.ED448:
                             return new DnssecEddsaPrivateKey(algorithm, bR, version);
+
+                        case DnssecAlgorithm.MLDSA44:
+                            return new DnssecMldsaPrivateKey(algorithm, bR, version);
 
                         default:
                             throw new NotSupportedException("DNSSEC algorithm is not supported: " + algorithm.ToString());
