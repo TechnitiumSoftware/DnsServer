@@ -762,18 +762,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 if (!zoneName.Equals(apexZone.Name, StringComparison.OrdinalIgnoreCase))
                 {
+                    //domain's zone name does not match specified zone name
+
+                    if (!domain.Equals(apexZone.Name, StringComparison.OrdinalIgnoreCase))
+                        throw new DnsServerException("The domain name '" + domain + "' does not belong to the zone: " + zoneName); //domain is a subdomain name at child zone
+
+                    //domain is at child zone's apex; use parent side zone as apex
                     if (!_root.TryGet(zoneName, out apexZone))
                         throw new DnsServerException("No such zone was found for: " + domain);
-
-                    string subdomain;
-
-                    if (zoneName.Length == 0)
-                        subdomain = domain;
-                    else
-                        subdomain = domain.Substring(0, domain.Length - zoneName.Length - 1);
-
-                    if (subdomain.Contains('.', StringComparison.Ordinal))
-                        throw new DnsServerException("The domain name '" + domain + "' does not belong to the zone: " + zoneName); //domain name falls into child zone's bailiwick
                 }
 
                 if (apexZone is PrimaryZone primaryZone)
@@ -2675,57 +2671,46 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((xfrRecords.Count < 2) || (xfrRecords[0].Type != DnsResourceRecordType.SOA) || !xfrRecords[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || !xfrRecords[xfrRecords.Count - 1].Equals(xfrRecords[0]))
                 throw new DnsServerException("Invalid AXFR response was received.");
 
-            List<DnsResourceRecord> latestRecords = new List<DnsResourceRecord>(xfrRecords.Count);
-            List<DnsResourceRecord> allGlueRecords = new List<DnsResourceRecord>(4);
+            if (!_root.TryGet(zoneName, out ApexZone apexZone))
+                throw new InvalidOperationException();
 
-            if (zoneName.Length == 0)
+            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> xfrRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(xfrRecords, true);
+
+            //find delegations and attach glue records
+            bool rootZone = zoneName.Length == 0;
+            string zoneEnd = "." + zoneName;
+            HashSet<string> delegatedNames = new HashSet<string>();
+
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> xfrEntry in xfrRecordsGroupedByDomain)
             {
-                //root zone case
-                for (int i = 1; i < xfrRecords.Count; i++)
+                string domain = xfrEntry.Key;
+
+                if (!rootZone && !domain.Equals(zoneName, StringComparison.OrdinalIgnoreCase) && !domain.EndsWith(zoneEnd, StringComparison.OrdinalIgnoreCase))
+                    continue; //skip out of bailiwick records
+
+                if (xfrEntry.Value.TryGetValue(DnsResourceRecordType.NS, out List<DnsResourceRecord> nsRRSet))
                 {
-                    DnsResourceRecord record = xfrRecords[i];
-
-                    switch (record.Type)
+                    foreach (DnsResourceRecord nsRecord in nsRRSet)
                     {
-                        case DnsResourceRecordType.A:
-                        case DnsResourceRecordType.AAAA:
-                            if (!allGlueRecords.Contains(record))
-                                allGlueRecords.Add(record);
+                        if (nsRecord.Name.Length > zoneName.Length)
+                            delegatedNames.Add(nsRecord.Name.ToLowerInvariant());
 
-                            break;
+                        string nsDomain = (nsRecord.RDATA as DnsNSRecordData).NameServer;
 
-                        default:
-                            if (!latestRecords.Contains(record))
-                                latestRecords.Add(record);
+                        if (xfrRecordsGroupedByDomain.TryGetValue(nsDomain, out Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> glueEntry))
+                        {
+                            List<DnsResourceRecord> allGlueRecords = new List<DnsResourceRecord>(2);
 
-                            break;
+                            if (glueEntry.TryGetValue(DnsResourceRecordType.A, out List<DnsResourceRecord> aRRSet))
+                                allGlueRecords.AddRange(aRRSet);
+
+                            if (glueEntry.TryGetValue(DnsResourceRecordType.AAAA, out List<DnsResourceRecord> aaaaRRSet))
+                                allGlueRecords.AddRange(aaaaRRSet);
+
+                            if (allGlueRecords.Count > 0)
+                                nsRecord.GetAuthNSRecordInfo().GlueRecords = allGlueRecords;
+                        }
                     }
-                }
-            }
-            else
-            {
-                for (int i = 1; i < xfrRecords.Count; i++)
-                {
-                    DnsResourceRecord record = xfrRecords[i];
-
-                    if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!latestRecords.Contains(record))
-                            latestRecords.Add(record);
-                    }
-                    else if (!allGlueRecords.Contains(record))
-                    {
-                        allGlueRecords.Add(record);
-                    }
-                }
-            }
-
-            if (allGlueRecords.Count > 0)
-            {
-                foreach (DnsResourceRecord record in latestRecords)
-                {
-                    if (record.Type == DnsResourceRecordType.NS)
-                        record.SyncGlueRecords(allGlueRecords);
                 }
             }
 
@@ -2734,28 +2719,53 @@ namespace DnsServerCore.Dns.ZoneManagers
             ListAllZoneRecords(zoneName, currentRecords);
 
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> currentRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(currentRecords);
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> latestRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(latestRecords);
 
             //remove domains that do not exists in new records
-            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> currentDomain in currentRecordsGroupedByDomain)
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> currentEntry in currentRecordsGroupedByDomain)
             {
-                if (!latestRecordsGroupedByDomain.ContainsKey(currentDomain.Key))
-                    _root.TryRemove(currentDomain.Key, out SubDomainZone _);
+                if (!xfrRecordsGroupedByDomain.ContainsKey(currentEntry.Key))
+                    _root.TryRemove(currentEntry.Key, out SubDomainZone _);
             }
 
             //sync new records
-            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> latestEntries in latestRecordsGroupedByDomain)
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> xfrEntry in xfrRecordsGroupedByDomain)
             {
-                AuthZone zone = GetOrAddSubDomainZone(zoneName, latestEntries.Key);
+                string domain = xfrEntry.Key.ToLowerInvariant();
+
+                if (!rootZone && !domain.Equals(zoneName, StringComparison.OrdinalIgnoreCase) && !domain.EndsWith(zoneEnd, StringComparison.OrdinalIgnoreCase))
+                    continue; //skip out of bailiwick records
+
+                if ((domain.Length > zoneName.Length) && !delegatedNames.Contains(domain))
+                {
+                    //domain is not zone apex and not delegation subdomain
+                    //check if domain is in delegated zone
+                    string parent = domain;
+                    bool belongsToDelegatedZone = false;
+
+                    while (true)
+                    {
+                        parent = GetParentZone(parent);
+                        if ((parent is null) || (parent.Length == zoneName.Length))
+                            break; //record belongs to zone
+
+                        if (delegatedNames.Contains(parent))
+                        {
+                            belongsToDelegatedZone = true;
+                            break;
+                        }
+                    }
+
+                    if (belongsToDelegatedZone)
+                        continue;
+                }
+
+                AuthZone zone = GetOrAddSubDomainZone(zoneName, domain);
 
                 if (zone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
-                    zone.SyncRecords(latestEntries.Value);
+                    zone.SyncRecords(xfrEntry.Value);
                 else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
-                    zone.SyncRecords(latestEntries.Value);
+                    zone.SyncRecords(xfrEntry.Value);
             }
-
-            if (!_root.TryGet(zoneName, out ApexZone apexZone))
-                throw new InvalidOperationException();
 
             apexZone.UpdateDnssecStatus();
 

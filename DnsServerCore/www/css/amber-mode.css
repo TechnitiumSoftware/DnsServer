@@ -75,6 +75,13 @@ body.amber-mode {
     color: #ffb000 !important;
 }
 
+.amber-mode .about table {
+    color: #ffb000 !important;
+    text-align: left;
+    width: 400px;
+    margin: 20px auto;
+}
+
 .amber-mode .panel,
 .amber-mode .panel-default {
     background-color: #2c1e14 !important;

@@ -2018,7 +2018,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
-                                                                <span>seconds (recommended 10)</span>
+                                                                <span>seconds (valid range 1-300; recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code> or failing to respond.</div>
                                                         </div>
@@ -3645,6 +3645,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         <h1>Technitium DNS Server</h1>
                                         <p>Version <span id="lblAboutVersion"></span></p>
                                         <p>Server up since <span id="lblAboutUptime"></span></p>
+
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>IPv4 Addresses</th>
+                                                    <th>IPv6 Addresses</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><span id="lblIPv4Addresses"></span></td>
+                                                    <td><span id="lblIPv6Addresses"></span></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
                                         <p style="max-width: 800px; margin: 0 auto 10px auto;">
                                             Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)<br />
                                             This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions.<br />

@@ -35,13 +35,11 @@ namespace LogExporter.Strategy
         #region variables
 
         const string _appName = "Technitium DNS Server";
-        const string _sdId = "meta";
         const string DEFAUL_PROTOCOL = "udp";
         const int DEFAULT_PORT = 514;
 
         readonly Facility _facility = Facility.Local6;
 
-        readonly Rfc5424Formatter _formatter;
         readonly Serilog.Core.Logger _sender;
 
         bool _disposed;
@@ -65,8 +63,6 @@ namespace LogExporter.Strategy
                 "local" => conf.WriteTo.LocalSyslog(_appName, _facility).Enrich.FromLogContext().CreateLogger(),
                 _ => throw new NotSupportedException("Syslog protocol is not supported: " + protocol),
             };
-
-            _formatter = new Rfc5424Formatter(_facility, _appName, null, _sdId, Environment.MachineName);
         }
 
         #endregion
@@ -90,7 +86,7 @@ namespace LogExporter.Strategy
         public Task ExportAsync(IReadOnlyList<LogEntry> logs)
         {
             foreach (LogEntry log in logs)
-                _sender.Information(_formatter.FormatMessage((LogEvent?)Convert(log)));
+                _sender.Write(Convert(log));
 
             return Task.CompletedTask;
         }

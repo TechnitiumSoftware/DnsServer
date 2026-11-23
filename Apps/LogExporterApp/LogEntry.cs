@@ -83,15 +83,16 @@ namespace LogExporter
                 return;
             }
 
-            foreach (EDnsOption extendedErrorLog in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
+            foreach (EDnsOption option in response.EDNS.Options.Where(o => o.Code == EDnsOptionCode.EXTENDED_DNS_ERROR))
             {
-                string[] extractedData = extendedErrorLog.Data.ToString().Replace("[", string.Empty).Replace("]", string.Empty).Split(":", StringSplitOptions.TrimEntries);
-
-                EDNS.Add(new EDNSLog
+                if (option.Data is EDnsExtendedDnsErrorOptionData ede)
                 {
-                    ErrType = extractedData[0],
-                    Message = extractedData[1]
-                });
+                    EDNS.Add(new EDNSLog
+                    {
+                        ErrType = ede.InfoCode.ToString(),
+                        Message = ede.ExtraText
+                    });
+                }
             }
         }
 

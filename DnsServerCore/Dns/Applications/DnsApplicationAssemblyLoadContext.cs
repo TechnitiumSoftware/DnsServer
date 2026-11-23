@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2025  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2026  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -204,7 +204,20 @@ namespace DnsServerCore.Dns.Applications
                     //load the unmanaged DLL via temp file
                     // - to allow uninstalling/updating app at runtime on Windows
                     // - to avoid dns server crash issue when updating apps on Linux
-                    value = LoadUnmanagedDllFromPath(GetTempDllFile(unmanagedDllPath));
+
+                    string tempDllPath = GetTempDllFile(unmanagedDllPath);
+
+                    try
+                    {
+                        value = LoadUnmanagedDllFromPath(tempDllPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                            throw;
+
+                        throw new DnsServerException($"Failed to load unmanaged DLL '{tempDllPath}'. Please ensure that the 'tmp' directory file system mount does not have 'noexec' flag configured, or export 'TMPDIR' environment variable to configure a different 'tmp' directory for the DNS Server process where binary execution is allowed.", ex);
+                    }
 
                     _loadedUnmanagedDlls.Add(unmanagedDllPath.ToLowerInvariant(), value);
                 }

@@ -377,6 +377,13 @@ th a {
     color: rgb(51,51,51) !important;
 }
 
+.about table {
+    color: rgb(119, 119, 119);
+    text-align: left;
+    width: 400px;
+    margin: 20px auto;
+}
+
 .cluster-node-dropdown {
     margin-left: 4px;
     padding: 2px 8px;

@@ -624,7 +624,7 @@ namespace DnsServerCore
                 _dnsServer.CacheZoneManager.MinimumRecordTtl = bR.ReadUInt32();
                 _dnsServer.CacheZoneManager.MaximumRecordTtl = bR.ReadUInt32();
                 _dnsServer.CacheZoneManager.NegativeRecordTtl = bR.ReadUInt32();
-                _dnsServer.CacheZoneManager.FailureRecordTtl = bR.ReadUInt32();
+                _dnsServer.CacheZoneManager.FailureRecordTtl = Math.Clamp(bR.ReadUInt32(), DnsCache.FAILURE_RECORD_TTL_MIN, DnsCache.FAILURE_RECORD_TTL_MAX);
 
                 _dnsServer.CachePrefetchEligibility = bR.ReadInt32();
                 _dnsServer.CachePrefetchTrigger = bR.ReadInt32();
@@ -1303,7 +1303,7 @@ namespace DnsServerCore
                 _dnsServer.CacheZoneManager.MinimumRecordTtl = bR.ReadUInt32();
                 _dnsServer.CacheZoneManager.MaximumRecordTtl = bR.ReadUInt32();
                 _dnsServer.CacheZoneManager.NegativeRecordTtl = bR.ReadUInt32();
-                _dnsServer.CacheZoneManager.FailureRecordTtl = bR.ReadUInt32();
+                _dnsServer.CacheZoneManager.FailureRecordTtl = Math.Clamp(bR.ReadUInt32(), DnsCache.FAILURE_RECORD_TTL_MIN, DnsCache.FAILURE_RECORD_TTL_MAX);
             }
             else
             {

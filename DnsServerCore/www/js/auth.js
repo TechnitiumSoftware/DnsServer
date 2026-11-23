@@ -60,6 +60,8 @@ $(function () {
                     $("#chkUseSoaSerialDateScheme").prop("checked", sessionData.info.useSoaSerialDateScheme);
                     $("#chkDnssecValidation").prop("checked", sessionData.info.dnssecValidation);
 
+                    updateAboutServerAddresses();
+
                     showPageMain();
                 },
                 error: function () {
@@ -222,6 +224,29 @@ $(function () {
     });
 });
 
+function updateAboutServerAddresses() {
+    var ipv4AddressesHtml;
+
+    for (let i = 0; i < sessionData.info.ipv4Addresses.length; ++i) {
+        if (i == 0)
+            ipv4AddressesHtml = sessionData.info.ipv4Addresses[i];
+        else
+            ipv4AddressesHtml += "</br>" + sessionData.info.ipv4Addresses[i];
+    }
+
+    var ipv6AddressesHtml;
+
+    for (let i = 0; i < sessionData.info.ipv6Addresses.length; ++i) {
+        if (i == 0)
+            ipv6AddressesHtml = sessionData.info.ipv6Addresses[i];
+        else
+            ipv6AddressesHtml += "</br>" + sessionData.info.ipv6Addresses[i];
+    }
+
+    $("#lblIPv4Addresses").html(ipv4AddressesHtml);
+    $("#lblIPv6Addresses").html(ipv6AddressesHtml);
+}
+
 function login(username, password) {
     if (otpTimerHandle != null)
         clearTimeout(otpTimerHandle);
@@ -277,6 +302,8 @@ function login(username, password) {
             $("#lblAboutVersion").text(sessionData.info.version);
             $("#lblAboutUptime").text(moment(sessionData.info.uptimestamp).local().format("lll") + " (" + moment(sessionData.info.uptimestamp).fromNow() + ")");
             $("#lblDnsServerDomain").text(" - " + sessionData.info.dnsServerDomain);
+
+            updateAboutServerAddresses();
 
             showPageMain();
 
