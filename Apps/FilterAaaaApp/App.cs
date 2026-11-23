@@ -213,7 +213,7 @@ namespace FilterAaaa
 
                     DnsResourceRecord[] authority = [new DnsResourceRecord(qname, DnsResourceRecordType.SOA, DnsClass.IN, _defaultTtl, new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 3600, 900, 86400, _defaultTtl))];
 
-                    return new DnsDatagram(response.Identifier, true, response.OPCODE, false, false, response.RecursionDesired, response.RecursionAvailable, false, false, DnsResponseCode.NoError, response.Question, answer, authority) { Tag = response.Tag };
+                    return new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, false, response.RecursionDesired, response.RecursionAvailable, false, false, DnsResponseCode.NoError, response.Question, answer, authority) { Tag = response.Tag };
                 }
             }
 
