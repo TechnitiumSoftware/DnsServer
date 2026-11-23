@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.ApplicationCommon;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -50,6 +51,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         Dictionary<string, object> _allowListZone = new Dictionary<string, object>();
         Dictionary<string, List<Uri>> _blockListZone = new Dictionary<string, List<Uri>>();
+        Dictionary<Uri, string> _sanitizedBlockListUrls = new Dictionary<Uri, string>();
 
         DnsSOARecordData _soaRecord;
         DnsNSRecordData _nsRecord;
@@ -299,6 +301,19 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, _dnsServer.ResponsiblePerson.Address, 1, 14400, 3600, 604800, _dnsServer.BlockingAnswerTtl);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
+        }
+
+        private static string SanitizeUrl(Uri url)
+        {
+            UriBuilder sanitized = new UriBuilder(url)
+            {
+                UserName = string.Empty,
+                Password = string.Empty,
+                Query = string.Empty,
+                Fragment = string.Empty
+            };
+
+            return sanitized.Uri.AbsoluteUri;
         }
 
         private string GetBlockListFilePath(Uri blockListUrl)
@@ -555,6 +570,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             _allowListZone = new Dictionary<string, object>();
             _blockListZone = new Dictionary<string, List<Uri>>();
+            _sanitizedBlockListUrls = new Dictionary<Uri, string>();
         }
 
         private async Task<bool> UpdateBlockListsAsync(bool forceReload)
@@ -838,7 +854,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
+            //Precompute the safe source URL once per list reload, not per blocked query.
+            Dictionary<Uri, string> sanitizedBlockListUrls = new Dictionary<Uri, string>(blockListQueues.Count);
+            foreach (Uri listUrl in blockListQueues.Keys)
+                sanitizedBlockListUrls[listUrl] = SanitizeUrl(listUrl);
+
             //set new allowed and blocked zones
+            _sanitizedBlockListUrls = sanitizedBlockListUrls;
             _allowListZone = allowListZone;
             _blockListZone = blockListZone;
 
@@ -859,6 +881,13 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram Query(DnsDatagram request)
         {
+            return Query(request, false, out _);
+        }
+
+        internal DnsDatagram Query(DnsDatagram request, bool collectLogMetadata, out DnsQueryLogMetadata logMetadata)
+        {
+            logMetadata = null;
+
             if (_blockListZone.Count < 1)
                 return null;
 
@@ -867,6 +896,22 @@ namespace DnsServerCore.Dns.ZoneManagers
             List<Uri> blockLists = IsZoneBlocked(question.Name, out string blockedDomain);
             if (blockLists is null)
                 return null; //zone not blocked
+
+            if (collectLogMetadata)
+            {
+                //IsZoneBlocked returns a nonempty list for a matched zone.
+                Uri firstList = blockLists[0];
+                if (!_sanitizedBlockListUrls.TryGetValue(firstList, out string sanitizedUrl))
+                    sanitizedUrl = SanitizeUrl(firstList); //a concurrent reload may replace the lookup table
+
+                logMetadata = new DnsQueryLogMetadata(new Dictionary<string, string>(4, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["source"] = "block-list-zone",
+                    ["domain"] = blockedDomain,
+                    ["blockListUrl"] = sanitizedUrl,
+                    ["blockListCount"] = blockLists.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                });
+            }
 
             //zone is blocked
             if (_dnsServer.AllowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
