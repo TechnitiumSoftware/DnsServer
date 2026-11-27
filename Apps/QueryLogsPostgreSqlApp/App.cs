@@ -407,42 +407,6 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
                             await using (NpgsqlCommand command = connection.CreateCommand())
                             {
-                                command.CommandText = "CREATE INDEX index_server ON dns_logs (server);";
-
-                                try
-                                {
-                                    await command.ExecuteNonQueryAsync();
-                                }
-                                catch
-                                { }
-                            }
-
-                            await using (NpgsqlCommand command = connection.CreateCommand())
-                            {
-                                command.CommandText = "CREATE INDEX index_timestamp ON dns_logs (timestamp);";
-
-                                try
-                                {
-                                    await command.ExecuteNonQueryAsync();
-                                }
-                                catch
-                                { }
-                            }
-
-                            await using (NpgsqlCommand command = connection.CreateCommand())
-                            {
-                                command.CommandText = "CREATE INDEX index_client_ip ON dns_logs (client_ip);";
-
-                                try
-                                {
-                                    await command.ExecuteNonQueryAsync();
-                                }
-                                catch
-                                { }
-                            }
-
-                            await using (NpgsqlCommand command = connection.CreateCommand())
-                            {
                                 command.CommandText = "CREATE INDEX index_protocol ON dns_logs (protocol);";
 
                                 try
