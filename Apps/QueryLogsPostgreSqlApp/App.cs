@@ -405,6 +405,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                                 await command.ExecuteNonQueryAsync();
                             }
 
+/* PostgreSQL database performance overhead. Overlap indexes will not created anymore.
                             await using (NpgsqlCommand command = connection.CreateCommand())
                             {
                                 command.CommandText = "CREATE INDEX index_server ON dns_logs (server);";
@@ -440,6 +441,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                                 catch
                                 { }
                             }
+*/
 
                             await using (NpgsqlCommand command = connection.CreateCommand())
                             {
